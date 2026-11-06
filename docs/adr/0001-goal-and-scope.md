@@ -40,8 +40,10 @@ dbwitness stopped before their first measured result.
    no-fault control run.
 5. The first slice is vertical: one PostgreSQL major (18), primary plus
    physical standby, collector, reference backend, one dashboard, a handful of
-   unit-tested alert rules, three fault scenarios plus a no-fault control, and
-   a measured collector overhead.
+   unit-tested alert rules delivered through Alertmanager, fault scenarios
+   such that every rule other than the watchdog is fired by at least one of
+   them, a no-fault control that fires none except the always-firing
+   watchdog, and a measured collector overhead.
 6. Documents describe what runs. Plans live in one roadmap file, not in ADRs
    or READMEs.
 

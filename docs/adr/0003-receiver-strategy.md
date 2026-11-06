@@ -1,7 +1,8 @@
 # ADR 0003: Receiver strategy - engine receivers, SQL query packs, upstream
 
 - Status: Accepted
-- Date: 2026-11-06 (exporter evaluation added the same day)
+- Date: 2026-11-06 (exporter evaluation added the same day; pack generator
+  deferred the same day after a seven-model review)
 
 ## Context
 
@@ -38,6 +39,16 @@ development, with query_sample, top_query, query_plan, top_procedure and
 session.wait_sample events. It branches on CDB/PDB and privileges, not on
 version.
 
+At contrib v0.164.0 (`18fcec7`) the receiver has no standby-side view: no
+query reads `pg_stat_wal_receiver`, `pg_is_in_recovery()`,
+`pg_replication_slots` or `pg_stat_io`. Replication lag comes only from the
+primary's `pg_stat_replication` (`client.go`, `getReplicationStats`), with
+`-1` for a NULL lag. `postgresql.wal.age` is seconds since
+`pg_stat_archiver.last_archived_time` (its `metadata.yaml` says "age of the
+oldest WAL file", which the code does not compute) and is silently absent
+when nothing was archived yet (`errNoLastArchive`, `scraper.go`,
+`collectWalAge`).
+
 Earlier source reviews (private dbsight and dbwitness notes, contrib
 v0.164.1) also found row caps without `ORDER BY` (blockers can be dropped),
 facts detected only at start, and top-query deltas that misreport after a
@@ -50,23 +61,24 @@ Three layers:
 1. **Engine receiver as the base** (postgresql, oracledb, and later mysql,
    mongodb, redis and others). Anything that needs state or logic, and the
    metric names closest to semantic conventions, come from here.
-2. **`sqlqueryreceiver` query packs fill the gaps.** Packs are declarative
-   SQL, organised by engine and server version. A pack entry carries the
-   planning metadata pg_exporter uses: a `[min_version, max_version)` range,
-   tags (`primary`, `replica`, `cluster` for once per instance versus per
-   database, `extension:<name>`), and an interval tier. Until upstream can
-   do this, a config generator plans the packs and renders plain
-   `sqlqueryreceiver` configuration:
-   - version and extensions: read from the server, packs selected;
+2. **`sqlqueryreceiver` query packs fill the gaps.** Packs are hand-written
+   `sqlqueryreceiver` configuration, one per engine and server major
+   (PostgreSQL 18 first):
    - role: queries that must follow a failover are written role-tolerant
-     (guarded by `pg_is_in_recovery()` in SQL) rather than planned once,
-     because a one-time plan goes stale on failover;
+     and always return exactly one row: a `SELECT` without `FROM` whose
+     columns are scalar subqueries or `EXISTS` over views such as
+     `pg_stat_wal_receiver`, with `pg_is_in_recovery()` in a `CASE`, never
+     in a `WHERE`. A standby that stopped streaming then reports 0 instead
+     of a vanished series;
    - intervals: separate receiver instances per tier (for example 10 s,
      60 s, 5 min);
-   - failure signal: collector scraper self-metrics plus "series absent"
-     alerts, until upstream has a per-query signal.
+   - failure signal: see ADR 0002, decision 1.
    Every pack sets a server-side statement timeout in its SQL or role, and
    `max_open_conn` explicitly (3, as pg_exporter and sql_exporter do).
+   A generator that reads version and extensions from the server and
+   selects pack entries by `[min_version, max_version)` and tags (the
+   pg_exporter design) is custom code; it is built only when a second
+   PostgreSQL major makes the hand-written copies drift.
 3. **Upstream pull requests make fixes permanent.** A pack that has proved
    itself in the lab becomes a PR to the engine receiver; generic gaps become
    PRs to `sqlqueryreceiver`. When upstream merges, the pack is retired.
@@ -96,7 +108,7 @@ each contributes instead:
 
 | Project | Licence | Takeaway |
 |---|---|---|
-| pgsty/pg_exporter v1.5.0 | Apache-2.0 | The design for layer 2: version-ranged query branches, tag and predicate planning, re-plan on fact change, per-query TTL, timeout and self-metrics. 96 collector branches covering PG 10 to 19, the main source of SQL for our packs. Weak points: one target per process, self-counts exposed as gauges that reset on re-plan, 100 ms client-only default timeout, `sslmode=disable` when unset. Maintained by essentially one person. |
+| pgsty/pg_exporter v1.5.0 | Apache-2.0 | The design for the deferred pack generator: version-ranged query branches, tag and predicate planning, re-plan on fact change, per-query TTL, timeout and self-metrics. 96 collector branches covering PG 10 to 19, the main source of SQL for our packs. Weak points: one target per process, self-counts exposed as gauges that reset on re-plan, 100 ms client-only default timeout, `sslmode=disable` when unset. Maintained by essentially one person. |
 | burningalchemist/sql_exporter 0.24.13 | MIT | Per-collector `min_interval`, per-query error, duration and row metrics, a scrape deadline passed to the driver, `value_label`. No version mechanism. |
 | CrunchyData/pgmonitor | Apache-2.0 | Its PG version handling lives in `pgmonitor-extension` (needs `CREATE EXTENSION`, possibly a preload), which we cannot assume on managed PG; PG 18 support not found. Its 40 PostgreSQL alert rules (plus Patroni, node, etcd) are the checklist for our rules. |
 | oracle/oracle-db-appdev-monitoring 2.5.1 | MIT + UPL-1.0 | Only 12 default queries, no CDB or version awareness, OTLP push without a start time. Worth taking: per-metric interval and timeout, failure metric with a `result` attribute, alert log export, a few queries (tablespace, ASM guard, resource limits). Defaults avoid Diagnostics Pack views. |

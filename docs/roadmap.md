@@ -17,13 +17,38 @@ the dashboards, with a no-fault control run.
 
 ## First vertical slice
 
-- [ ] PostgreSQL 18 primary plus physical standby
-- [ ] Collector
-- [ ] Reference backend
-- [ ] One dashboard
-- [ ] A handful of unit-tested alert rules
-- [ ] Three fault scenarios plus a no-fault control
-- [ ] Measured collector overhead
+Docker Compose, versions pinned in the Compose file.
+
+- [ ] PostgreSQL 18 primary plus physical standby, replication on its own
+      network so a replication cut does not also cut monitoring
+- [ ] One `otelcol-contrib` Collector: `postgresqlreceiver`, a hand-written
+      PostgreSQL 18 `sqlqueryreceiver` pack (recovery state, WAL receiver,
+      received-minus-replayed bytes, oldest snapshot age, heartbeat), and an
+      expected-target inventory for the heartbeat to be checked against,
+      `filelog` on `jsonlog`
+- [ ] VictoriaMetrics and VictoriaLogs; vmalert and Alertmanager with a
+      webhook sink that proves delivery
+- [ ] Alert rules with `vmalert-tool unittest` tests, each fired by one
+      fault scenario:
+      - target telemetry absent: standby container stopped
+      - Collector absent: Collector stopped
+      - standby not streaming: replication network cut
+      - replay backlog: replay paused under load
+      - snapshot held too long: repeatable-read transaction left open
+      - connection saturation: client connections exhausted, with
+        `reserved_connections` set and `pg_use_reserved_connections` granted
+        to the monitoring role so it can still connect
+      - a series that was present vanished: one pack query broken on purpose
+- [ ] Watchdog: an always-firing alert that the webhook sink must keep
+      receiving
+- [ ] No-fault control: no alert except the watchdog, and zero
+      monitoring-role errors in the server log
+- [ ] One Grafana dashboard as code
+- [ ] Collector overhead on pg-lab: alternating runs with and without the
+      Collector, latency percentiles, cgroup CPU of PostgreSQL and Collector
+
+Deferred until after the slice: see ADR 0002 decisions 1 and 2 and ADR 0003
+decision 2.
 
 ## Upstream PR candidates
 

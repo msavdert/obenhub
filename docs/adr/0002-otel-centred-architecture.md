@@ -1,7 +1,8 @@
 # ADR 0002: OpenTelemetry-centred architecture and reference backend
 
 - Status: Accepted
-- Date: 2026-11-06
+- Date: 2026-11-06 (revised the same day after an external multi-model review, not published: OCB,
+  gateway tier and role attribute deferred or changed)
 
 ## Context
 
@@ -25,19 +26,35 @@ as first-class signals next to metrics, and backends that can be swapped.
 ## Decision
 
 1. OpenTelemetry is the centre. The project's product is the collection side:
-   - a Collector distribution built with the OpenTelemetry Collector Builder
-     (OCB), from contrib components;
+   - Collector configuration for the upstream `otelcol-contrib` image; an own
+     distribution built with the OpenTelemetry Collector Builder (OCB) comes
+     once running labs have fixed the component list;
    - receiver configuration and SQL query packs (see ADR 0003);
    - a documented naming and meaning contract for every metric and event the
-     project adds, including resource attributes that describe topology
-     (cluster, role, Patroni scope, Kubernetes and cloud identity);
+     project adds, including resource attributes for stable identity
+     (cluster, instance, Patroni scope, Kubernetes and cloud identity). The
+     role (primary or standby) changes on failover, so it is a metric
+     (`pg_is_in_recovery()` per scrape) joined at query time, not a resource
+     attribute;
    - the rule that "value is zero", "not observed", "collection failed" and
-     "permission denied" are distinguishable in the data.
+     "permission denied" are distinguishable in the data. Current receivers
+     do not deliver this: a failing `sqlqueryreceiver` query is logged and
+     its series disappear. Each query is its own scraper under one shared
+     scraper name (`receiver/sqlqueryreceiver/receiver.go`, v0.164.0), so
+     whether the Collector's scraper self-metrics count a failed query at
+     all is checked in the first slice. The receiver also reports each
+     failure as a component status event, but all queries share one
+     status, so it does not name the failed query. Until upstream has per-query
+     outcomes, SQL returns 0 rather than no row where zero is meant, each
+     target emits a heartbeat series checked against an expected
+     inventory, a series that was present and vanished raises an alert,
+     and the reason (failure or permission) is read from the Collector log.
    Anyone can point the output at their own OTLP-capable backend.
-2. Two Collector tiers: an agent per database node (or sidecar), and a gateway
-   that enriches, filters, batches and exports. The pipeline monitors itself
-   (collector internal metrics and logs, a dead-man alert, a
-   telemetry-absent alert per engine).
+2. One Collector until a measured need for more (credential boundary, local
+   log files, buffering under backpressure) justifies an agent per node plus
+   a gateway. The pipeline monitors itself (collector internal metrics and
+   logs, an always-firing watchdog alert whose absence an outside receiver
+   notices, a telemetry-absent alert per target).
 3. Reference backend, used by the lab, the dashboards and the alert rules:
    VictoriaMetrics (metrics), VictoriaLogs (logs and events), VictoriaTraces
    (traces), all Apache 2.0, all fed by OTLP. Alerting with vmalert and
@@ -56,6 +73,13 @@ as first-class signals next to metrics, and backends that can be swapped.
   code is not shipped here; the owner accepted this (ADR 0004).
 - Event-shaped data (query samples, plans, lock trees) goes to the log signal,
   not to metric labels.
+- VictoriaMetrics promotes every resource attribute and the instrumentation
+  scope name and version to labels by default
+  (`-opentelemetry.promoteAllResourceAttributes`,
+  `-opentelemetry.promoteScopeMetadata`, v1.155.0 `-help`). What goes on the
+  resource is series identity. Inferred, not yet observed: a Collector
+  upgrade that changes the scope version creates new series unless
+  `-opentelemetry.promoteScopeMetadata=false` is set.
 
 ## Not yet verified
 
@@ -63,3 +87,5 @@ as first-class signals next to metrics, and backends that can be swapped.
 - Whether each Victoria component accepts every OTLP signal we need without an
   extra translation step; checked when the first slice runs.
 - Perses support for VictoriaLogs and VictoriaTraces.
+- Whether the Collector's scraper self-metrics count a failed
+  `sqlqueryreceiver` query.
