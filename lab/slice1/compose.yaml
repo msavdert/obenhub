@@ -1,0 +1,217 @@
+# Slice 1, step A: PostgreSQL 18 primary + standby -> one OpenTelemetry
+# Collector -> VictoriaMetrics (metrics) and VictoriaLogs (jsonlog lines).
+# Start with `mise run lab:up` (creates .env with random passwords).
+name: obenhub-slice1
+
+x-postgres: &postgres
+  image: postgres:18.6-trixie
+  entrypoint: ["/entrypoint.sh"]
+  shm_size: 256mb
+  restart: unless-stopped
+  healthcheck:
+    test: ["CMD-SHELL", "pg_isready -U postgres -q"]
+    interval: 5s
+    timeout: 3s
+    retries: 30
+    start_period: 10s
+
+x-postgres-command: &postgres-command
+  - postgres
+  - -c
+  - shared_preload_libraries=pg_stat_statements
+  - -c
+  - logging_collector=on
+  - -c
+  - log_destination=jsonlog
+  - -c
+  - log_directory=/var/log/postgresql
+  - -c
+  - log_filename=postgresql-%a.log
+  - -c
+  - log_file_mode=0644
+  - -c
+  - log_truncate_on_rotation=on
+  - -c
+  - log_lock_waits=on
+  - -c
+  - deadlock_timeout=1s
+  - -c
+  - log_min_duration_statement=1000
+  - -c
+  - track_io_timing=on
+  - -c
+  - hot_standby_feedback=off
+  - -c
+  - wal_level=replica
+  - -c
+  - max_wal_senders=5
+  - -c
+  - max_replication_slots=5
+  # Monitoring role peak: sql_query max_open_conn 3 plus postgresqlreceiver,
+  # assumed up to 5 from reading scraper.go (not measured; 3 seen live).
+  - -c
+  - reserved_connections=8
+  - -c
+  - max_slot_wal_keep_size=1GB
+
+services:
+  pg-primary:
+    <<: *postgres
+    container_name: obenhub-slice1-pg-primary
+    command: *postgres-command
+    environment:
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:?run: mise run lab:up (it generates lab/slice1/.env)}"
+      REPLICATOR_PASSWORD: "${REPLICATOR_PASSWORD:?run: mise run lab:up (it generates lab/slice1/.env)}"
+      OTEL_MONITOR_PASSWORD: "${OTEL_MONITOR_PASSWORD:?run: mise run lab:up (it generates lab/slice1/.env)}"
+    volumes:
+      - primary-data:/var/lib/postgresql
+      - primary-log:/var/log/postgresql
+      - ./postgres/entrypoint.sh:/entrypoint.sh:ro
+      - ./postgres/10-init-primary.sh:/docker-entrypoint-initdb.d/10-init-primary.sh:ro
+    networks:
+      repl:
+        aliases: [pg-primary-repl]
+      mon: {}
+
+  pg-standby:
+    <<: *postgres
+    container_name: obenhub-slice1-pg-standby
+    command: *postgres-command
+    depends_on:
+      pg-primary:
+        condition: service_healthy
+    environment:
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:?run: mise run lab:up (it generates lab/slice1/.env)}"
+      REPLICATOR_PASSWORD: "${REPLICATOR_PASSWORD:?run: mise run lab:up (it generates lab/slice1/.env)}"
+      STANDBY_OF: pg-primary-repl
+    volumes:
+      - standby-data:/var/lib/postgresql
+      - standby-log:/var/log/postgresql
+      - ./postgres/entrypoint.sh:/entrypoint.sh:ro
+    networks:
+      - repl
+      - mon
+
+  otelcol:
+    image: otel/opentelemetry-collector-contrib:0.164.0
+    container_name: obenhub-slice1-otelcol
+    restart: unless-stopped
+    command: ["--config=/etc/otelcol/config.yaml"]
+    environment:
+      OTEL_MONITOR_PASSWORD: "${OTEL_MONITOR_PASSWORD:?run: mise run lab:up (it generates lab/slice1/.env)}"
+    volumes:
+      - ./otelcol/config.yaml:/etc/otelcol/config.yaml:ro
+      - otelcol-data:/var/lib/otelcol
+      - primary-log:/var/log/pg-primary:ro
+      - standby-log:/var/log/pg-standby:ro
+    depends_on:
+      otelcol-init:
+        condition: service_completed_successfully
+      pg-primary:
+        condition: service_healthy
+      pg-standby:
+        condition: service_healthy
+      victoriametrics:
+        condition: service_healthy
+      victorialogs:
+        condition: service_started
+    networks:
+      - mon
+
+  # one-shot: the Collector (uid 10001) must own its file_storage volume
+  otelcol-init:
+    image: postgres:18.6-trixie
+    container_name: obenhub-slice1-otelcol-init
+    user: root
+    network_mode: none
+    entrypoint: ["chown", "10001:10001", "/var/lib/otelcol"]
+    volumes:
+      - otelcol-data:/var/lib/otelcol
+    restart: "no"
+
+  victoriametrics:
+    image: victoriametrics/victoria-metrics:v1.155.0
+    container_name: obenhub-slice1-victoriametrics
+    restart: unless-stopped
+    command: ["-retentionPeriod=7d", "-opentelemetry.promoteScopeMetadata=false"]
+    ports:
+      - "127.0.0.1:18428:8428"
+    volumes:
+      - vm-data:/victoria-metrics-data
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:8428/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    networks:
+      - mon
+
+  victorialogs:
+    image: victoriametrics/victoria-logs:v1.53.0
+    container_name: obenhub-slice1-victorialogs
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:19428:9428"
+    volumes:
+      - vl-data:/victoria-logs-data
+    # no healthcheck: the image has no shell or wget
+    networks:
+      - mon
+
+  vmalert:
+    image: victoriametrics/vmalert:v1.155.0
+    container_name: obenhub-slice1-vmalert
+    restart: unless-stopped
+    command:
+      - -datasource.url=http://victoriametrics:8428
+      - -remoteWrite.url=http://victoriametrics:8428
+      - -notifier.url=http://alertmanager:9093
+      - -rule=/etc/vmalert/rules/*.yml
+      - -evaluationInterval=15s
+    ports:
+      - "127.0.0.1:18880:8880"
+    volumes:
+      - ./vmalert/rules:/etc/vmalert/rules:ro
+    depends_on:
+      victoriametrics:
+        condition: service_healthy
+      alertmanager:
+        condition: service_started
+    networks:
+      - mon
+
+  alertmanager:
+    image: prom/alertmanager:v0.34.2
+    container_name: obenhub-slice1-alertmanager
+    restart: unless-stopped
+    command:
+      - --config.file=/etc/alertmanager/alertmanager.yml
+      - --storage.path=/alertmanager
+    ports:
+      - "127.0.0.1:19093:9093"
+    volumes:
+      - ./alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+      - am-data:/alertmanager
+    depends_on:
+      - victorialogs
+    networks:
+      - mon
+
+networks:
+  # replication-only network: fixed subnet, no route out; pg_hba allows only it
+  repl:
+    internal: true
+    ipam:
+      config:
+        - subnet: 10.213.0.0/24
+  mon: {}
+
+volumes:
+  primary-data: {}
+  standby-data: {}
+  primary-log: {}
+  standby-log: {}
+  vm-data: {}
+  vl-data: {}
+  otelcol-data: {}
+  am-data: {}

@@ -1,0 +1,107 @@
+# Watchdog, PostgresTargetAbsent, CollectorAbsent.
+rule_files:
+  - ../rules/postgresql.yml
+evaluation_interval: 15s
+
+tests:
+  - name: watchdog always fires
+    interval: 15s
+    input_series: []
+    alert_rule_test:
+      - eval_time: 1m
+        groupname: postgresql
+        alertname: Watchdog
+        exp_alerts:
+          - exp_labels: {severity: none}
+            exp_annotations:
+              summary: Always firing; proves the alert pipeline works.
+
+  - name: target absent fires only for the dead target while the other lives
+    interval: 15s
+    input_series:
+      - series: 'postgresql.collection.heartbeat{service.instance.id="pg-primary"}'
+        values: '1x60'
+      - series: 'postgresql.collection.heartbeat{service.instance.id="pg-standby"}'
+        values: '1x8 _x52'
+    alert_rule_test:
+      - eval_time: 1m   # both alive
+        groupname: postgresql
+        alertname: PostgresTargetAbsent
+        exp_alerts: []
+      - eval_time: 3m   # standby gone for 1m+ but window (2m) not yet empty
+        groupname: postgresql
+        alertname: PostgresTargetAbsent
+        exp_alerts: []
+      - eval_time: 6m
+        groupname: postgresql
+        alertname: PostgresTargetAbsent
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              service.instance.id: pg-standby
+              service.namespace: obenhub-lab
+              service.name: postgresql
+              db.cluster.name: slice1
+            exp_annotations:
+              summary: "No pack heartbeat from pg-standby"
+
+  - name: target absent does not fire when both targets keep reporting
+    interval: 15s
+    input_series:
+      - series: 'postgresql.collection.heartbeat{service.instance.id="pg-primary"}'
+        values: '1x60'
+      - series: 'postgresql.collection.heartbeat{service.instance.id="pg-standby"}'
+        values: '1x60'
+    alert_rule_test:
+      - eval_time: 10m
+        groupname: postgresql
+        alertname: PostgresTargetAbsent
+        exp_alerts: []
+
+  - name: target absent fires for a target that never reported
+    interval: 15s
+    input_series:
+      - series: 'postgresql.collection.heartbeat{service.instance.id="pg-primary"}'
+        values: '1x60'
+    alert_rule_test:
+      - eval_time: 5m
+        groupname: postgresql
+        alertname: PostgresTargetAbsent
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              service.instance.id: pg-standby
+              service.namespace: obenhub-lab
+              service.name: postgresql
+              db.cluster.name: slice1
+            exp_annotations:
+              summary: "No pack heartbeat from pg-standby"
+
+  - name: collector absent fires after self-metrics stop
+    interval: 15s
+    input_series:
+      - series: 'otelcol_process_uptime{service.name="otelcol"}'
+        values: '1x8 _x52'
+    alert_rule_test:
+      - eval_time: 1m
+        groupname: postgresql
+        alertname: CollectorAbsent
+        exp_alerts: []
+      - eval_time: 6m
+        groupname: postgresql
+        alertname: CollectorAbsent
+        exp_alerts:
+          - exp_labels: {severity: critical}
+            exp_annotations:
+              summary: The Collector reports no self-metrics.
+
+  - name: collector absent stays quiet while self-metrics flow
+    interval: 15s
+    input_series:
+      - series: 'otelcol_process_uptime{service.name="otelcol"}'
+        values: '1x60'
+    alert_rule_test:
+      - eval_time: 10m
+        groupname: postgresql
+        alertname: CollectorAbsent
+        exp_alerts: []

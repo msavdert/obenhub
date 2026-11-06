@@ -40,12 +40,14 @@ as first-class signals next to metrics, and backends that can be swapped.
      "permission denied" are distinguishable in the data. Current receivers
      do not deliver this: a failing `sqlqueryreceiver` query is logged and
      its series disappear. Each query is its own scraper under one shared
-     scraper name (`receiver/sqlqueryreceiver/receiver.go`, v0.164.0), so
-     whether the Collector's scraper self-metrics count a failed query at
-     all is checked in the first slice. The receiver also reports each
+     scraper name (`receiver/sqlqueryreceiver/receiver.go`, v0.164.0).
+     The Collector's scraper self-metrics do not count a failed query: in
+     the slice lab (contrib 0.164.0, 2026-11-06) a query failing with
+     SQLSTATE 42501 left `otelcol_scraper_errored_metric_points` at 0 while
+     `scraped_metric_points` kept rising. The receiver also reports each
      failure as a component status event, but all queries share one
-     status, so it does not name the failed query. Until upstream has per-query
-     outcomes, SQL returns 0 rather than no row where zero is meant, each
+     status, so it does not name the failed query. Until upstream has
+     per-query outcomes, SQL returns 0 rather than no row where zero is meant, each
      target emits a heartbeat series checked against an expected
      inventory, a series that was present and vanished raises an alert,
      and the reason (failure or permission) is read from the Collector log.
@@ -87,5 +89,3 @@ as first-class signals next to metrics, and backends that can be swapped.
 - Whether each Victoria component accepts every OTLP signal we need without an
   extra translation step; checked when the first slice runs.
 - Perses support for VictoriaLogs and VictoriaTraces.
-- Whether the Collector's scraper self-metrics count a failed
-  `sqlqueryreceiver` query.

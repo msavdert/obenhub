@@ -1,0 +1,197 @@
+# Slice 1 collector. Receiver keys: receiver/postgresqlreceiver at v0.164.0.
+extensions:
+  health_check:
+    endpoint: 0.0.0.0:13133
+  # filelog offsets survive a Collector restart (volume otelcol-data).
+  file_storage:
+    directory: /var/lib/otelcol/file_storage
+    create_directory: true
+
+receivers:
+  postgresql/primary:
+    endpoint: pg-primary:5432
+    transport: tcp
+    username: otel_monitor
+    password: ${env:OTEL_MONITOR_PASSWORD}
+    databases: [postgres]
+    collection_interval: 15s
+    tls:
+      insecure: true
+  postgresql/standby:
+    endpoint: pg-standby:5432
+    transport: tcp
+    username: otel_monitor
+    password: ${env:OTEL_MONITOR_PASSWORD}
+    databases: [postgres]
+    collection_interval: 15s
+    tls:
+      insecure: true
+
+  file_log/primary:
+    include: [/var/log/pg-primary/postgresql-*.json]
+    start_at: beginning
+    storage: file_storage
+    operators:
+      - &jsonlog
+        type: json_parser
+        parse_from: body
+        # keep integers exact (query_id is a 64-bit integer)
+        parse_ints: true
+        timestamp:
+          parse_from: attributes.timestamp
+          layout: '%Y-%m-%d %H:%M:%S.%L %Z'
+        severity:
+          parse_from: attributes.error_severity
+          mapping:
+            debug: [DEBUG1, DEBUG2, DEBUG3, DEBUG4, DEBUG5]
+            info: [LOG, INFO, NOTICE]
+            warn: WARNING
+            error: ERROR
+            fatal: [FATAL, PANIC]
+      # the log body is the server message, not the raw JSON line
+      - &body
+        type: move
+        from: attributes.message
+        to: body
+  file_log/standby:
+    include: [/var/log/pg-standby/postgresql-*.json]
+    start_at: beginning
+    storage: file_storage
+    operators:
+      - *jsonlog
+      - *body
+
+  # Pack metric names are provisional until the naming contract (ADR 0002).
+  # Each query returns exactly one row, with no FROM at top level;
+  # pg_is_in_recovery() only inside CASE. Both servers share the list through the anchor.
+  sql_query/primary:
+    driver: postgres
+    host: pg-primary
+    port: 5432
+    database: postgres
+    username: otel_monitor
+    password: ${env:OTEL_MONITOR_PASSWORD}
+    additional_params:
+      sslmode: disable
+    max_open_conn: 3
+    collection_interval: 15s
+    timeout: 10s
+    # Three single-row queries so one failing query (a revoked function, a
+    # missing view) loses only its own metrics while the heartbeat continues.
+    queries: &pack_queries
+      - sql: SELECT 1 AS collection_heartbeat
+        metrics:
+          - {metric_name: postgresql.collection.heartbeat, value_column: collection_heartbeat, value_type: int, data_type: gauge, description: "1 whenever the heartbeat query succeeded"}
+      - sql: |
+          SELECT
+            CASE WHEN pg_is_in_recovery() THEN 1 ELSE 0 END AS recovery_active,
+            (EXISTS (SELECT 1 FROM pg_stat_wal_receiver WHERE status = 'streaming'))::int AS wal_receiver_streaming,
+            CASE WHEN pg_is_in_recovery()
+                  THEN coalesce(pg_wal_lsn_diff(pg_last_wal_receive_lsn(), pg_last_wal_replay_lsn()), 0)::float8
+                  ELSE 0::float8 END AS replay_backlog,
+            CASE WHEN pg_is_in_recovery()
+                  THEN (pg_get_wal_replay_pause_state() <> 'not paused')::int
+                  ELSE 0 END AS replay_paused
+        metrics:
+          - {metric_name: postgresql.recovery.active, value_column: recovery_active, value_type: int, data_type: gauge, description: "1 when the server is in recovery"}
+          - {metric_name: postgresql.wal_receiver.streaming, value_column: wal_receiver_streaming, value_type: int, data_type: gauge, description: "1 when a WAL receiver is streaming (always 0 on a primary)"}
+          - {metric_name: postgresql.replay.backlog, value_column: replay_backlog, value_type: double, data_type: gauge, unit: By, description: "Received but not yet replayed WAL"}
+          - {metric_name: postgresql.replay.paused, value_column: replay_paused, value_type: int, data_type: gauge, description: "1 when WAL replay is paused"}
+      - sql: |
+          SELECT
+            coalesce((SELECT max(extract(epoch FROM clock_timestamp() - xact_start))
+                        FROM pg_stat_activity
+                        WHERE (backend_xmin IS NOT NULL OR backend_xid IS NOT NULL)
+                          AND backend_type = 'client backend'
+                          AND pid <> pg_backend_pid()), 0)::float8 AS snapshot_oldest_age,
+            (SELECT count(*) FROM pg_stat_activity WHERE backend_type = 'client backend')::int AS connection_client,
+            (current_setting('max_connections')::int
+                - current_setting('superuser_reserved_connections')::int
+                - current_setting('reserved_connections')::int) AS connection_client_capacity
+        metrics:
+          - {metric_name: postgresql.snapshot.oldest_age, value_column: snapshot_oldest_age, value_type: double, data_type: gauge, unit: s, description: "Age of the oldest client transaction holding a snapshot or an xid"}
+          - {metric_name: postgresql.connection.client, value_column: connection_client, value_type: int, data_type: gauge, description: "Client backends"}
+          - {metric_name: postgresql.connection.client_capacity, value_column: connection_client_capacity, value_type: int, data_type: gauge, description: "max_connections minus reserved slots"}
+  sql_query/standby:
+    driver: postgres
+    host: pg-standby
+    port: 5432
+    database: postgres
+    username: otel_monitor
+    password: ${env:OTEL_MONITOR_PASSWORD}
+    additional_params:
+      sslmode: disable
+    max_open_conn: 3
+    collection_interval: 15s
+    timeout: 10s
+    queries: *pack_queries
+
+processors:
+  memory_limiter:
+    check_interval: 1s
+    limit_mib: 256
+  # Attribute names are assumptions: service.* and db.system.name follow the
+  # semantic conventions as remembered, db.cluster.name is a guess. No role
+  # attribute on purpose: a standby can be promoted.
+  resource/primary:
+    attributes:
+      - {key: service.namespace, value: obenhub-lab, action: upsert}
+      - {key: service.name, value: postgresql, action: upsert}
+      - {key: service.instance.id, value: pg-primary, action: upsert}
+      - {key: server.address, value: pg-primary, action: upsert}
+      - {key: server.port, value: '5432', action: upsert}
+      - {key: db.system.name, value: postgresql, action: upsert}
+      - {key: db.cluster.name, value: slice1, action: upsert}
+  resource/standby:
+    attributes:
+      - {key: service.namespace, value: obenhub-lab, action: upsert}
+      - {key: service.name, value: postgresql, action: upsert}
+      - {key: service.instance.id, value: pg-standby, action: upsert}
+      - {key: server.address, value: pg-standby, action: upsert}
+      - {key: server.port, value: '5432', action: upsert}
+      - {key: db.system.name, value: postgresql, action: upsert}
+      - {key: db.cluster.name, value: slice1, action: upsert}
+  batch: {}
+
+exporters:
+  otlp_http/vm:
+    endpoint: http://victoriametrics:8428/opentelemetry
+  otlp_http/vl:
+    endpoint: http://victorialogs:9428/insert/opentelemetry
+    headers:
+      VL-Stream-Fields: service.namespace,service.name,service.instance.id
+
+service:
+  extensions: [health_check, file_storage]
+  telemetry:
+    resource:
+      attributes:
+        - {name: service.namespace, value: obenhub-lab}
+        - {name: service.name, value: otelcol}
+        - {name: service.instance.id, value: otelcol-slice1}
+    metrics:
+      level: normal
+      readers:
+        - periodic:
+            interval: 15000
+            exporter:
+              otlp:
+                protocol: http/protobuf
+                endpoint: http://victoriametrics:8428/opentelemetry/v1/metrics
+  pipelines:
+    metrics/primary:
+      receivers: [postgresql/primary, sql_query/primary]
+      processors: [memory_limiter, resource/primary, batch]
+      exporters: [otlp_http/vm]
+    metrics/standby:
+      receivers: [postgresql/standby, sql_query/standby]
+      processors: [memory_limiter, resource/standby, batch]
+      exporters: [otlp_http/vm]
+    logs/primary:
+      receivers: [file_log/primary]
+      processors: [memory_limiter, resource/primary, batch]
+      exporters: [otlp_http/vl]
+    logs/standby:
+      receivers: [file_log/standby]
+      processors: [memory_limiter, resource/standby, batch]
+      exporters: [otlp_http/vl]

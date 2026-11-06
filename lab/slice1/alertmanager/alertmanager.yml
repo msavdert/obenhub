@@ -1,0 +1,28 @@
+# Delivery sink: every notification is POSTed to VictoriaLogs as one JSON line
+# (/insert/jsonline), so it can be queried like any other log record.
+# vmalert rewrites dots in label names to underscores when it notifies
+# Alertmanager (verified on the wire, v1.155.0, no flag keeps them), so
+# routing and inhibition use the underscored names.
+route:
+  receiver: victorialogs
+  group_by: [alertname, service_instance_id]
+  group_wait: 5s
+  group_interval: 15s
+  repeat_interval: 1h
+
+receivers:
+  - name: victorialogs
+    webhook_configs:
+      - url: "http://victorialogs:9428/insert/jsonline?_msg_field=groupLabels.alertname&_stream_fields=receiver,status"
+        send_resolved: true
+
+inhibit_rules:
+  # a dead Collector explains every missing target
+  - source_matchers: [alertname = "CollectorAbsent"]
+    target_matchers: [alertname = "PostgresTargetAbsent"]
+  # a missing target explains its own vanished pack series
+  - source_matchers: [alertname = "PostgresTargetAbsent"]
+    target_matchers: [alertname = "SeriesVanished"]
+    equal: [service_instance_id]
+  - source_matchers: [alertname = "CollectorAbsent"]
+    target_matchers: [alertname = "SeriesVanished"]

@@ -17,16 +17,16 @@ the dashboards, with a no-fault control run.
 
 ## First vertical slice
 
-Docker Compose, versions pinned in the Compose file.
+Docker Compose in `lab/slice1`, versions pinned in its `compose.yaml`.
 
-- [ ] PostgreSQL 18 primary plus physical standby, replication on its own
+- [x] PostgreSQL 18 primary plus physical standby, replication on its own
       network so a replication cut does not also cut monitoring
-- [ ] One `otelcol-contrib` Collector: `postgresqlreceiver`, a hand-written
+- [x] One `otelcol-contrib` Collector: `postgresqlreceiver`, a hand-written
       PostgreSQL 18 `sqlqueryreceiver` pack (recovery state, WAL receiver,
       received-minus-replayed bytes, oldest snapshot age, heartbeat), and an
       expected-target inventory for the heartbeat to be checked against,
       `filelog` on `jsonlog`
-- [ ] VictoriaMetrics and VictoriaLogs; vmalert and Alertmanager with a
+- [x] VictoriaMetrics and VictoriaLogs; vmalert and Alertmanager with a
       webhook sink that proves delivery
 - [ ] Alert rules with `vmalert-tool unittest` tests, each fired by one
       fault scenario:

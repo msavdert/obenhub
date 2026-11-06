@@ -1,0 +1,79 @@
+# SnapshotHeldTooLong and ConnectionSaturation.
+rule_files:
+  - ../rules/postgresql.yml
+evaluation_interval: 15s
+
+tests:
+  - name: snapshot older than 120s fires after 30s; younger or absent does not
+    interval: 15s
+    input_series:
+      - series: 'postgresql.snapshot.oldest_age{service.instance.id="pg-primary"}'
+        values: '0x4 130x56'
+      - series: 'postgresql.snapshot.oldest_age{service.instance.id="pg-standby"}'
+        values: '100x60'
+    alert_rule_test:
+      - eval_time: 1m
+        groupname: postgresql
+        alertname: SnapshotHeldTooLong
+        exp_alerts: []
+      - eval_time: 3m
+        groupname: postgresql
+        alertname: SnapshotHeldTooLong
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              service.instance.id: pg-primary
+            exp_annotations:
+              summary: 'A snapshot on pg-primary is 2m 10s old (lab threshold)'
+
+  - name: no snapshot data does not fire
+    interval: 15s
+    input_series:
+      - series: 'postgresql.snapshot.oldest_age{service.instance.id="pg-primary"}'
+        values: '_x60'
+    alert_rule_test:
+      - eval_time: 5m
+        groupname: postgresql
+        alertname: SnapshotHeldTooLong
+        exp_alerts: []
+
+  - name: saturation fires above 85 percent of capacity on one server only
+    interval: 15s
+    input_series:
+      - series: 'postgresql.connection.client{service.instance.id="pg-primary"}'
+        values: '5x4 90x56'
+      - series: 'postgresql.connection.client_capacity{service.instance.id="pg-primary"}'
+        values: '97x60'
+      - series: 'postgresql.connection.client{service.instance.id="pg-standby"}'
+        values: '5x60'
+      - series: 'postgresql.connection.client_capacity{service.instance.id="pg-standby"}'
+        values: '97x60'
+    alert_rule_test:
+      - eval_time: 1m
+        groupname: postgresql
+        alertname: ConnectionSaturation
+        exp_alerts: []
+      - eval_time: 4m
+        groupname: postgresql
+        alertname: ConnectionSaturation
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              service.instance.id: pg-primary
+            exp_annotations:
+              summary: 'pg-primary client connections above 85% of capacity'
+
+  - name: saturation at 80 percent or with a missing capacity series does not fire
+    interval: 15s
+    input_series:
+      - series: 'postgresql.connection.client{service.instance.id="pg-primary"}'
+        values: '78x60'
+      - series: 'postgresql.connection.client_capacity{service.instance.id="pg-primary"}'
+        values: '97x60'
+      - series: 'postgresql.connection.client{service.instance.id="pg-standby"}'
+        values: '95x60'
+    alert_rule_test:
+      - eval_time: 8m
+        groupname: postgresql
+        alertname: ConnectionSaturation
+        exp_alerts: []

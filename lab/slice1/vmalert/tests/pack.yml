@@ -1,0 +1,111 @@
+# SeriesVanished: one pack metric disappears while the heartbeat lives.
+rule_files:
+  - ../rules/postgresql.yml
+evaluation_interval: 15s
+
+tests:
+  - name: a vanished metric is named in the alert; the surviving ones are not
+    interval: 15s
+    input_series:
+      - series: 'postgresql.collection.heartbeat{service.instance.id="pg-standby"}'
+        values: '1x120'
+      - series: 'postgresql.replay.backlog{service.instance.id="pg-standby"}'
+        values: '0x8 _x112'
+      - series: 'postgresql.collection.heartbeat{service.instance.id="pg-primary"}'
+        values: '1x120'
+      - series: 'postgresql.replay.backlog{service.instance.id="pg-primary"}'
+        values: '0x120'
+    alert_rule_test:
+      - eval_time: 1m
+        groupname: postgresql
+        alertname: SeriesVanished
+        exp_alerts: []
+      - eval_time: 6m
+        groupname: postgresql
+        alertname: SeriesVanished
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              service.instance.id: pg-standby
+              metric: postgresql.replay.backlog
+            exp_annotations:
+              summary: 'postgresql.replay.backlog vanished on pg-standby'
+
+  - name: nothing fires when every series keeps reporting
+    interval: 15s
+    input_series:
+      - series: 'postgresql.collection.heartbeat{service.instance.id="pg-standby"}'
+        values: '1x120'
+      - series: 'postgresql.replay.backlog{service.instance.id="pg-standby"}'
+        values: '0x120'
+    alert_rule_test:
+      - eval_time: 20m
+        groupname: postgresql
+        alertname: SeriesVanished
+        exp_alerts: []
+
+  - name: a series that never existed does not fire
+    interval: 15s
+    input_series:
+      - series: 'postgresql.collection.heartbeat{service.instance.id="pg-standby"}'
+        values: '1x120'
+    alert_rule_test:
+      - eval_time: 20m
+        groupname: postgresql
+        alertname: SeriesVanished
+        exp_alerts: []
+
+  - name: the whole replication query fails on the standby while the heartbeat continues
+    interval: 15s
+    input_series:
+      - series: 'postgresql.collection.heartbeat{service.instance.id="pg-standby"}'
+        values: '1x120'
+      - series: 'postgresql.recovery.active{service.instance.id="pg-standby"}'
+        values: '1x8 _x112'
+      - series: 'postgresql.wal_receiver.streaming{service.instance.id="pg-standby"}'
+        values: '1x8 _x112'
+      - series: 'postgresql.replay.backlog{service.instance.id="pg-standby"}'
+        values: '0x8 _x112'
+      - series: 'postgresql.replay.paused{service.instance.id="pg-standby"}'
+        values: '0x8 _x112'
+      - series: 'postgresql.connection.client{service.instance.id="pg-standby"}'
+        values: '3x120'
+    alert_rule_test:
+      - eval_time: 6m
+        groupname: postgresql
+        alertname: SeriesVanished
+        exp_alerts:
+          - exp_labels: {severity: warning, service.instance.id: pg-standby, metric: postgresql.recovery.active}
+            exp_annotations: {summary: 'postgresql.recovery.active vanished on pg-standby'}
+          - exp_labels: {severity: warning, service.instance.id: pg-standby, metric: postgresql.replay.backlog}
+            exp_annotations: {summary: 'postgresql.replay.backlog vanished on pg-standby'}
+          - exp_labels: {severity: warning, service.instance.id: pg-standby, metric: postgresql.replay.paused}
+            exp_annotations: {summary: 'postgresql.replay.paused vanished on pg-standby'}
+          - exp_labels: {severity: warning, service.instance.id: pg-standby, metric: postgresql.wal_receiver.streaming}
+            exp_annotations: {summary: 'postgresql.wal_receiver.streaming vanished on pg-standby'}
+
+  - name: a broken postgresqlreceiver is caught through database.count
+    interval: 15s
+    input_series:
+      - series: 'postgresql.collection.heartbeat{service.instance.id="pg-primary"}'
+        values: '1x120'
+      - series: 'postgresql.database.count{service.instance.id="pg-primary"}'
+        values: '1x8 _x112'
+    alert_rule_test:
+      - eval_time: 6m
+        groupname: postgresql
+        alertname: SeriesVanished
+        exp_alerts:
+          - exp_labels: {severity: warning, service.instance.id: pg-primary, metric: postgresql.database.count}
+            exp_annotations: {summary: 'postgresql.database.count vanished on pg-primary'}
+
+  - name: a query that is merely slow (samples keep arriving) does not fire
+    interval: 15s
+    input_series:
+      - series: 'postgresql.recovery.active{service.instance.id="pg-standby"}'
+        values: '1x4 _x3 1x113'
+    alert_rule_test:
+      - eval_time: 10m
+        groupname: postgresql
+        alertname: SeriesVanished
+        exp_alerts: []

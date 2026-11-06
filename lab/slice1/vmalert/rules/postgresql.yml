@@ -1,0 +1,99 @@
+# Pack metric names are provisional until the naming contract (ADR 0002).
+# Gating: standby-only rules join on recovery.active == 1, so a primary never
+# matches and missing data never fires.
+groups:
+  - name: inventory
+    interval: 15s
+    rules:
+      - record: obenhub.expected_target
+        expr: |
+          union(
+            label_set(vector(1), "service.namespace", "obenhub-lab", "service.name", "postgresql", "db.cluster.name", "slice1", "service.instance.id", "pg-primary"),
+            label_set(vector(1), "service.namespace", "obenhub-lab", "service.name", "postgresql", "db.cluster.name", "slice1", "service.instance.id", "pg-standby")
+          )
+
+  - name: postgresql
+    interval: 15s
+    rules:
+      - alert: Watchdog
+        expr: vector(1)
+        labels:
+          severity: none
+        annotations:
+          summary: Always firing; proves the alert pipeline works.
+
+      - alert: PostgresTargetAbsent
+        expr: |
+          obenhub.expected_target
+            unless on(service.instance.id)
+          present_over_time(postgresql.collection.heartbeat[2m])
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: 'No pack heartbeat from {{ (index $labels "service.instance.id") }}'
+
+      - alert: CollectorAbsent
+        expr: absent_over_time(otelcol_process_uptime[2m])
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: The Collector reports no self-metrics.
+
+      - alert: StandbyNotStreaming
+        expr: |
+          postgresql.wal_receiver.streaming == 0
+            and on(service.instance.id)
+          postgresql.recovery.active == 1
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: '{{ (index $labels "service.instance.id") }} is in recovery and not streaming'
+
+      - alert: ReplayBacklog
+        expr: |
+          postgresql.replay.backlog > 16 * 1024 * 1024
+            and on(service.instance.id)
+          postgresql.recovery.active == 1
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: '{{ (index $labels "service.instance.id") }} replay backlog is {{ $value | humanize1024 }}B'
+
+      - alert: SnapshotHeldTooLong
+        expr: postgresql.snapshot.oldest_age > 120
+        for: 30s
+        labels:
+          severity: warning
+        annotations:
+          summary: 'A snapshot on {{ (index $labels "service.instance.id") }} is {{ $value | humanizeDuration }} old (lab threshold)'
+
+      - alert: ConnectionSaturation
+        expr: |
+          postgresql.connection.client
+            / on(service.instance.id)
+          postgresql.connection.client_capacity > 0.85
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: '{{ (index $labels "service.instance.id") }} client connections above 85% of capacity'
+
+      # Covers the pack and postgresqlreceiver's database.count (a canary for the
+      # receiver). `on(__name__)` is not honoured by binary operators, so the metric name
+      # is copied into the `metric` label first; that also puts it in the alert.
+      # Looks back 1h: a series gone for longer resolves silently; a dead target
+      # is still caught by PostgresTargetAbsent.
+      - alert: SeriesVanished
+        expr: |
+          label_copy(last_over_time({__name__=~"postgresql[.](recovery[.]active|wal_receiver[.]streaming|replay[.](backlog|paused)|snapshot[.]oldest_age|connection[.](client|client_capacity)|collection[.]heartbeat|database[.]count)"}[1h]) keep_metric_names, "__name__", "metric")
+            unless on(metric, service.instance.id)
+          label_copy(present_over_time({__name__=~"postgresql[.](recovery[.]active|wal_receiver[.]streaming|replay[.](backlog|paused)|snapshot[.]oldest_age|connection[.](client|client_capacity)|collection[.]heartbeat|database[.]count)"}[2m]) keep_metric_names, "__name__", "metric")
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: '{{ $labels.metric }} vanished on {{ (index $labels "service.instance.id") }}'

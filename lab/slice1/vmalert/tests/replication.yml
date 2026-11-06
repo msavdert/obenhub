@@ -1,0 +1,124 @@
+# StandbyNotStreaming and ReplayBacklog. Both gate on recovery.active == 1.
+rule_files:
+  - ../rules/postgresql.yml
+evaluation_interval: 15s
+
+tests:
+  - name: not streaming fires on the standby only; the primary (0, not in recovery) is gated out
+    interval: 15s
+    input_series:
+      - series: 'postgresql.wal_receiver.streaming{service.instance.id="pg-primary"}'
+        values: '0x60'
+      - series: 'postgresql.recovery.active{service.instance.id="pg-primary"}'
+        values: '0x60'
+      - series: 'postgresql.wal_receiver.streaming{service.instance.id="pg-standby"}'
+        values: '1x8 0x52'
+      - series: 'postgresql.recovery.active{service.instance.id="pg-standby"}'
+        values: '1x60'
+    alert_rule_test:
+      - eval_time: 1m   # still streaming
+        groupname: postgresql
+        alertname: StandbyNotStreaming
+        exp_alerts: []
+      - eval_time: 2m30s   # 0 for 30s, below the 1m hold
+        groupname: postgresql
+        alertname: StandbyNotStreaming
+        exp_alerts: []
+      - eval_time: 5m
+        groupname: postgresql
+        alertname: StandbyNotStreaming
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              service.instance.id: pg-standby
+            exp_annotations:
+              summary: pg-standby is in recovery and not streaming
+
+  - name: a failed standby collection (no samples) does not fire
+    interval: 15s
+    input_series:
+      - series: 'postgresql.wal_receiver.streaming{service.instance.id="pg-standby"}'
+        values: '1x8 _x52'
+      - series: 'postgresql.recovery.active{service.instance.id="pg-standby"}'
+        values: '1x8 _x52'
+    alert_rule_test:
+      - eval_time: 8m
+        groupname: postgresql
+        alertname: StandbyNotStreaming
+        exp_alerts: []
+
+  - name: not streaming does not fire when only recovery.active is missing
+    interval: 15s
+    input_series:
+      - series: 'postgresql.wal_receiver.streaming{service.instance.id="pg-standby"}'
+        values: '0x60'
+    alert_rule_test:
+      - eval_time: 8m
+        groupname: postgresql
+        alertname: StandbyNotStreaming
+        exp_alerts: []
+
+  - name: a short startup blip of streaming=0 does not fire
+    interval: 15s
+    input_series:
+      - series: 'postgresql.wal_receiver.streaming{service.instance.id="pg-standby"}'
+        values: '0x3 1x57'
+      - series: 'postgresql.recovery.active{service.instance.id="pg-standby"}'
+        values: '1x60'
+    alert_rule_test:
+      - eval_time: 3m
+        groupname: postgresql
+        alertname: StandbyNotStreaming
+        exp_alerts: []
+
+  - name: promoted standby (recovery.active 0) is no longer expected to stream
+    interval: 15s
+    input_series:
+      - series: 'postgresql.wal_receiver.streaming{service.instance.id="pg-standby"}'
+        values: '0x60'
+      - series: 'postgresql.recovery.active{service.instance.id="pg-standby"}'
+        values: '0x60'
+    alert_rule_test:
+      - eval_time: 8m
+        groupname: postgresql
+        alertname: StandbyNotStreaming
+        exp_alerts: []
+
+  - name: backlog above 16 MiB fires on the standby; 0 and the primary do not
+    interval: 15s
+    input_series:
+      - series: 'postgresql.replay.backlog{service.instance.id="pg-standby"}'
+        values: '0x8 20000000x52'
+      - series: 'postgresql.recovery.active{service.instance.id="pg-standby"}'
+        values: '1x60'
+      - series: 'postgresql.replay.backlog{service.instance.id="pg-primary"}'
+        values: '20000000x60'
+      - series: 'postgresql.recovery.active{service.instance.id="pg-primary"}'
+        values: '0x60'
+    alert_rule_test:
+      - eval_time: 1m
+        groupname: postgresql
+        alertname: ReplayBacklog
+        exp_alerts: []
+      - eval_time: 5m
+        groupname: postgresql
+        alertname: ReplayBacklog
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              service.instance.id: pg-standby
+            exp_annotations:
+              summary: pg-standby replay backlog is 19.07MiB
+
+  - name: backlog exactly at the threshold or below does not fire
+    interval: 15s
+    input_series:
+      - series: 'postgresql.replay.backlog{service.instance.id="pg-standby"}'
+        values: '16777216x60'
+      - series: 'postgresql.recovery.active{service.instance.id="pg-standby"}'
+        values: '1x60'
+    alert_rule_test:
+      - eval_time: 8m
+        groupname: postgresql
+        alertname: ReplayBacklog
+        exp_alerts: []

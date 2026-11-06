@@ -48,11 +48,18 @@ description = "editorconfig-checker"
 run = "editorconfig-checker"
 
 [tasks."lint:shell"]
-description = "shellcheck on scripts/*.sh"
-run = "shellcheck scripts/*.sh"
+description = "shellcheck on scripts/*.sh and lab/**/*.sh"
+run = "shellcheck scripts/*.sh lab/*/scripts/*.sh lab/*/postgres/*.sh lab/*/alertmanager/*.sh"
+
+[tasks."lab:rules-test"]
+description = "unit-test the slice 1 alert rules (vmalert-tool) and Alertmanager routing (throwaway container); needs docker"
+run = [
+  """docker run --rm -v "$PWD/lab/slice1/vmalert:/vmalert:ro" victoriametrics/vmalert-tool:v1.155.0 unittest --files=/vmalert/tests/targets.yml,/vmalert/tests/replication.yml,/vmalert/tests/resources.yml,/vmalert/tests/pack.yml""",
+  "lab/slice1/alertmanager/test.sh",
+]
 
 [tasks.check]
-description = "all offline checks (same as CI)"
+description = "all checks as CI runs them (needs docker for lab:rules-test, which pulls images on first use)"
 depends = [
   "lint:actions",
   "lint:zizmor",
@@ -62,9 +69,25 @@ depends = [
   "lint:links",
   "lint:editorconfig",
   "lint:shell",
+  "lab:rules-test",
   "docs:build",
 ]
 
 [tasks.eol]
 description = "end-of-life check (needs network)"
 run = "python3 scripts/check-eol.py"
+
+[tasks."lab:up"]
+description = "start the slice 1 lab (PostgreSQL primary + standby, collector, VictoriaMetrics/Logs)"
+run = """
+lab/slice1/scripts/gen-env.sh
+docker compose -p obenhub-slice1 -f lab/slice1/compose.yaml up -d --wait
+"""
+
+[tasks."lab:down"]
+description = "stop the slice 1 lab and delete its volumes"
+run = "docker compose -p obenhub-slice1 -f lab/slice1/compose.yaml down -v"
+
+[tasks."lab:ps"]
+description = "show the slice 1 lab containers"
+run = "docker compose -p obenhub-slice1 -f lab/slice1/compose.yaml ps"
