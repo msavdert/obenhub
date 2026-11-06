@@ -24,9 +24,9 @@ end-of-life dates and needs network.
 - A revert commit pushed to `main` may keep git's default `Revert "<subject>"`;
   a revert PR title uses `revert: <subject>`.
 - Releases are cut by release-please from the commit history (SemVer, 0.x
-  while unstable, tags `vX.Y.Z`). The first `feat` commit opens the release
-  PR for 0.1.0. Release PRs are opened with the workflow token, so CI does not
-  run on them; they only touch `CHANGELOG.md`, `version.txt` and the
+  while unstable, tags `vX.Y.Z`). The first release is 0.1.0
+  (`initial-version`). Release PRs are opened with the workflow token, so CI
+  does not run on them; they only touch `CHANGELOG.md`, `version.txt` and the
   manifest.
 
 ## Repository settings
