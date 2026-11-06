@@ -27,6 +27,13 @@ groups:
           obenhub.expected_target
             unless on(service.instance.id)
           present_over_time(postgresql.collection.heartbeat[2m])
+            and on()
+          count(present_over_time(otelcol_process_uptime[1m])) > 0
+        # A target is absent only while the Collector is alive: the 1m window
+        # empties before the 2m one, so a stopped Collector raises only
+        # CollectorAbsent. The Alertmanager inhibit alone lost the race in the
+        # lab (2026-11-06, collector-stopped): vmalert's startsAt is older than
+        # group_wait, so Alertmanager sends at once, in whatever order.
         for: 1m
         labels:
           severity: critical
@@ -89,9 +96,13 @@ groups:
       # is still caught by PostgresTargetAbsent.
       - alert: SeriesVanished
         expr: |
-          label_copy(last_over_time({__name__=~"postgresql[.](recovery[.]active|wal_receiver[.]streaming|replay[.](backlog|paused)|snapshot[.]oldest_age|connection[.](client|client_capacity)|collection[.]heartbeat|database[.]count)"}[1h]) keep_metric_names, "__name__", "metric")
+          label_copy(last_over_time({__name__=~"postgresql[.](recovery[.]active|wal_receiver[.]streaming|replay[.](backlog|paused)|snapshot[.]oldest_age|connection[.](client|client_capacity)|database[.]count)"}[1h]) keep_metric_names, "__name__", "metric")
             unless on(metric, service.instance.id)
-          label_copy(present_over_time({__name__=~"postgresql[.](recovery[.]active|wal_receiver[.]streaming|replay[.](backlog|paused)|snapshot[.]oldest_age|connection[.](client|client_capacity)|collection[.]heartbeat|database[.]count)"}[2m]) keep_metric_names, "__name__", "metric")
+          label_copy(present_over_time({__name__=~"postgresql[.](recovery[.]active|wal_receiver[.]streaming|replay[.](backlog|paused)|snapshot[.]oldest_age|connection[.](client|client_capacity)|database[.]count)"}[2m]) keep_metric_names, "__name__", "metric")
+            and on(service.instance.id)
+          present_over_time(postgresql.collection.heartbeat[2m])
+        # Only while the target's heartbeat lives: a dead target or Collector
+        # is PostgresTargetAbsent or CollectorAbsent, not one alert per series.
         for: 1m
         labels:
           severity: warning

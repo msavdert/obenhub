@@ -197,6 +197,38 @@ services:
     networks:
       - mon
 
+  # AGPL-3.0, run unmodified as a separate service (ADR 0004); nothing of it
+  # is copied into this repository. Plugins are downloaded at start.
+  grafana:
+    image: grafana/grafana:13.3.0
+    container_name: obenhub-slice1-grafana
+    restart: unless-stopped
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: "${GRAFANA_ADMIN_PASSWORD:?run: mise run lab:up (it generates lab/slice1/.env)}"
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
+      GF_PLUGINS_PREINSTALL_SYNC: victoriametrics-metrics-datasource@1.0.1,victoriametrics-logs-datasource@0.33.1
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+      GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
+      GF_ANALYTICS_CHECK_FOR_PLUGIN_UPDATES: "false"
+    ports:
+      - "127.0.0.1:13000:3000"
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/obenhub/dashboards:ro
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:3000/api/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 40
+      start_period: 30s
+    depends_on:
+      - victoriametrics
+      - victorialogs
+    networks:
+      - mon
+
 networks:
   # replication-only network: fixed subnet, no route out; pg_hba allows only it
   repl:
@@ -215,3 +247,4 @@ volumes:
   vl-data: {}
   otelcol-data: {}
   am-data: {}
+  grafana-data: {}
