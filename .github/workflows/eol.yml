@@ -1,0 +1,61 @@
+name: eol
+
+on:
+  schedule:
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: eol
+  cancel-in-progress: false
+
+jobs:
+  eol:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.13"
+      - name: Run EOL check
+        id: eol
+        run: |
+          set +e
+          python3 scripts/check-eol.py 2>&1 | tee eol-report.txt
+          echo "code=${PIPESTATUS[0]}" >> "$GITHUB_OUTPUT"
+      - name: Open or update issue
+        if: steps.eol.outputs.code != '0'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          EXIT_CODE: ${{ steps.eol.outputs.code }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          title="End-of-life check failed"
+          {
+            echo "scripts/check-eol.py exited with code ${EXIT_CODE}. Run: ${RUN_URL}"
+            echo
+            echo '```text'
+            cat eol-report.txt
+            echo '```'
+          } > body.md
+          number=$(gh issue list --state open --search "\"${title}\" in:title" \
+            --json number --jq '.[0].number // empty')
+          if [ -n "$number" ]; then
+            gh issue comment "$number" --body-file body.md
+          else
+            gh issue create --title "$title" --body-file body.md
+          fi
+      - name: Fail if the check failed
+        if: steps.eol.outputs.code != '0'
+        env:
+          EXIT_CODE: ${{ steps.eol.outputs.code }}
+        run: exit "$EXIT_CODE"

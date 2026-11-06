@@ -1,0 +1,54 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended",
+    ":semanticCommits",
+    ":dependencyDashboard",
+    "helpers:pinGitHubActionDigests"
+  ],
+  "timezone": "Europe/Istanbul",
+  "schedule": [
+    "before 6am on monday"
+  ],
+  "minimumReleaseAge": "3 days",
+  "minimumReleaseAgeBehaviour": "timestamp-optional",
+  "mise": {
+    "managerFilePatterns": [
+      "/(^|/)mise\\.toml$/"
+    ]
+  },
+  "packageRules": [
+    {
+      "description": "GitHub Actions, pinned by digest",
+      "matchManagers": [
+        "github-actions"
+      ],
+      "groupName": "ci"
+    },
+    {
+      "description": "Tools pinned in mise.toml",
+      "matchManagers": [
+        "mise"
+      ],
+      "groupName": "dev tools"
+    },
+    {
+      "description": "The runner image is pinned on purpose; move it deliberately.",
+      "matchDatasources": [
+        "github-runners"
+      ],
+      "enabled": false
+    },
+    {
+      "description": "Python is fixed at 3.13; only patch releases arrive.",
+      "matchDepNames": [
+        "python"
+      ],
+      "matchUpdateTypes": [
+        "minor",
+        "major"
+      ],
+      "enabled": false
+    }
+  ]
+}

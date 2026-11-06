@@ -1,0 +1,59 @@
+[project]
+site_name = "obenhub"
+site_description = "A learning platform for OpenTelemetry-centred database and operating-system monitoring, fully open source under Apache 2.0."
+site_url = "https://msavdert.github.io/obenhub/"
+repo_url = "https://github.com/msavdert/obenhub"
+edit_uri = "edit/main/docs/"
+copyright = "Apache-2.0"
+docs_dir = "docs"
+site_dir = "site"
+
+nav = [
+  { "Home" = "index.md" },
+  { "Decisions" = [
+    "adr/README.md",
+    "adr/0001-goal-and-scope.md",
+    "adr/0002-otel-centred-architecture.md",
+    "adr/0003-receiver-strategy.md",
+    "adr/0004-licence-policy.md",
+  ] },
+  { "Roadmap" = "roadmap.md" },
+  { "Changelog" = "changelog.md" },
+]
+
+[project.theme]
+features = [
+  "navigation.sections",
+  "navigation.indexes",
+  "navigation.top",
+  "content.code.copy",
+]
+
+[[project.theme.palette]]
+media = "(prefers-color-scheme: light)"
+scheme = "default"
+toggle.icon = "lucide/sun"
+toggle.name = "Switch to dark mode"
+
+[[project.theme.palette]]
+media = "(prefers-color-scheme: dark)"
+scheme = "slate"
+toggle.icon = "lucide/moon"
+toggle.name = "Switch to light mode"
+
+[project.markdown_extensions.admonition]
+[project.markdown_extensions.attr_list]
+[project.markdown_extensions.tables]
+[project.markdown_extensions.toc]
+permalink = true
+[project.markdown_extensions.pymdownx.details]
+[project.markdown_extensions.pymdownx.highlight]
+[project.markdown_extensions.pymdownx.snippets]
+base_path = ["."]
+check_paths = true
+[project.markdown_extensions.pymdownx.tabbed]
+alternate_style = true
+[project.markdown_extensions.pymdownx.superfences]
+custom_fences = [
+  { name = "mermaid", class = "mermaid", format = "pymdownx.superfences.fence_code_format" },
+]

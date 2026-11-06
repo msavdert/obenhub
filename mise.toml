@@ -1,0 +1,70 @@
+[tools]
+actionlint = "1.7.12"
+zizmor = "1.32.0"
+shellcheck = "0.11.0"
+typos = "1.52.0"
+lychee = "0.24.2"
+editorconfig-checker = "4.0.2"
+"pipx:yamllint" = "1.38.0"
+"npm:markdownlint-cli2" = "0.24.0"
+node = "24.22.2"
+python = "3.13.18"
+"pipx:zensical" = "0.1.0"
+
+[tasks."docs:build"]
+description = "build the documentation site into site/ (fails on warnings)"
+run = "zensical build --clean --strict"
+
+[tasks."docs:serve"]
+description = "preview the documentation site locally"
+run = "zensical serve"
+
+[tasks."lint:actions"]
+description = "actionlint on workflows"
+run = "actionlint"
+
+[tasks."lint:zizmor"]
+description = "zizmor static analysis of workflows (offline)"
+run = "zizmor --offline .github/workflows"
+
+[tasks."lint:yaml"]
+description = "yamllint"
+run = "yamllint ."
+
+[tasks."lint:md"]
+description = "markdownlint"
+run = "markdownlint-cli2"
+
+[tasks."lint:spell"]
+description = "typos"
+run = "typos"
+
+[tasks."lint:links"]
+description = "relative links in Markdown (no network)"
+run = "lychee --offline --no-progress --exclude-path CLAUDE.local.md '**/*.md'"
+
+[tasks."lint:editorconfig"]
+description = "editorconfig-checker"
+run = "editorconfig-checker"
+
+[tasks."lint:shell"]
+description = "shellcheck on scripts/*.sh"
+run = "shellcheck scripts/*.sh"
+
+[tasks.check]
+description = "all offline checks (same as CI)"
+depends = [
+  "lint:actions",
+  "lint:zizmor",
+  "lint:yaml",
+  "lint:md",
+  "lint:spell",
+  "lint:links",
+  "lint:editorconfig",
+  "lint:shell",
+  "docs:build",
+]
+
+[tasks.eol]
+description = "end-of-life check (needs network)"
+run = "python3 scripts/check-eol.py"

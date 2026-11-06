@@ -1,0 +1,8 @@
+[default.extend-words]
+obenhub = "obenhub"
+Patroni = "Patroni"
+pgbouncer = "pgbouncer"
+PgBouncer = "PgBouncer"
+
+[files]
+extend-exclude = ["LICENSE"]

@@ -1,0 +1,23 @@
+# End-of-life watch list, checked by scripts/check-eol.py.
+# Slugs and cycles are those of https://endoflife.date/api/v1/products/<slug>/.
+warn_days = 120
+
+[[product]]
+name = "postgresql"
+cycles = ["18", "17", "16", "15"]
+why = "community-supported majors (PostgreSQL 14 reaches end of life on 2026-11-12)"
+
+[[product]]
+name = "debian"
+cycles = ["13"]
+why = "lab VMs"
+
+[[product]]
+name = "ubuntu"
+cycles = ["24.04"]
+why = "CI runner image"
+
+[[product]]
+name = "python"
+cycles = ["3.13"]
+why = "tooling scripts"

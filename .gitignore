@@ -1,0 +1,11 @@
+CLAUDE.local.md
+.env
+.env.*
+*.local.*
+.venv/
+__pycache__/
+*.pyc
+.DS_Store
+node_modules/
+/tmp/
+site/
