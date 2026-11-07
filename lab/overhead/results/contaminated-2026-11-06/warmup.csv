@@ -1,0 +1,2 @@
+seq,mode,start_utc,duration_s,txns,tps,lat_mean_ms,lat_p50_ms,lat_p95_ms,lat_p99_ms,lat_max_ms,failed,pg_cpu_s,col_cpu_s,col_mem_peak_mb,col_mem_cur_max_mb,otel_sessions_mid,otel_sessions_max,collector_metric_batches,collector_procs
+0,OFF,2026-11-06T22:51:29Z,300,205016,683.4,11.6982,10.4000,20.3820,31.9970,350.8160,0,130.006,0.000,0.0,0.0,0,0,0,0

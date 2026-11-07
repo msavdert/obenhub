@@ -20,11 +20,11 @@ inject() {
   CLIENTS=$((CAPACITY + CLIENTS_EXTRA))
   log "max_connections=$maxc superuser_reserved=$sres reserved=$res -> ordinary capacity $CAPACITY, opening $CLIENTS app sessions"
   # app role: created once, password set every run (it may have been
-  # regenerated in .env); the password goes in on stdin
+  # regenerated in .env); the password goes in on stdin, with pg_stat_statements tracking off for the session
   if [ "$(psql_p -c "SELECT count(*) FROM pg_roles WHERE rolname = 'app'")" = 0 ]; then
     psql_p -c "CREATE ROLE app LOGIN" >/dev/null || return 1
   fi
-  printf "ALTER ROLE app PASSWORD '%s';\n" "$APP_PASSWORD" | psql_p >/dev/null || return 1
+  printf "SET pg_stat_statements.track = 'none';\nALTER ROLE app PASSWORD '%s';\n" "$APP_PASSWORD" | psql_p >/dev/null || return 1
   docker exec "$PRIMARY" rm -f /tmp/app-clients.log
   # one background psql per client; the password is read from stdin, not argv or env of docker
   printf '%s\n' "$APP_PASSWORD" | docker exec -i "$PRIMARY" sh -c '

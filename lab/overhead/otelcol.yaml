@@ -1,0 +1,128 @@
+# Collector config for the overhead measurement on pg-lab (one server).
+# Derived from lab/slice1/otelcol/config.yaml (receiver keys at v0.164.0):
+# same receivers, same three-query pack, same 15s intervals, max_open_conn 3,
+# same internal telemetry level. Differences: one PostgreSQL server on
+# localhost, the debug exporter (verbosity basic) instead of the Victoria
+# stack, and the health_check bound to loopback. The password is read from
+# the environment (EnvironmentFile of the systemd unit), never from this file.
+extensions:
+  health_check:
+    endpoint: 127.0.0.1:13133
+  file_storage:
+    directory: /var/lib/otelcol-overhead/file_storage
+    create_directory: true
+
+receivers:
+  postgresql/primary:
+    endpoint: 127.0.0.1:5432
+    transport: tcp
+    username: otel_monitor
+    password: ${env:OTEL_MONITOR_PASSWORD}
+    databases: [postgres]
+    collection_interval: 15s
+    tls:
+      insecure: true
+
+  file_log/primary:
+    include: [/var/log/postgresql/postgresql-*.json]
+    start_at: beginning
+    storage: file_storage
+    operators:
+      - type: json_parser
+        parse_from: body
+        parse_ints: true
+        timestamp:
+          parse_from: attributes.timestamp
+          layout: '%Y-%m-%d %H:%M:%S.%L %Z'
+        severity:
+          parse_from: attributes.error_severity
+          mapping:
+            debug: [DEBUG1, DEBUG2, DEBUG3, DEBUG4, DEBUG5]
+            info: [LOG, INFO, NOTICE]
+            warn: WARNING
+            error: ERROR
+            fatal: [FATAL, PANIC]
+      - type: move
+        from: attributes.message
+        to: body
+
+  sql_query/primary:
+    driver: postgres
+    host: 127.0.0.1
+    port: 5432
+    database: postgres
+    username: otel_monitor
+    password: ${env:OTEL_MONITOR_PASSWORD}
+    additional_params:
+      sslmode: disable
+    max_open_conn: 3
+    collection_interval: 15s
+    timeout: 10s
+    queries:
+      - sql: SELECT 1 AS collection_heartbeat
+        metrics:
+          - {metric_name: postgresql.collection.heartbeat, value_column: collection_heartbeat, value_type: int, data_type: gauge, description: "1 whenever the heartbeat query succeeded"}
+      - sql: |
+          SELECT
+            CASE WHEN pg_is_in_recovery() THEN 1 ELSE 0 END AS recovery_active,
+            (EXISTS (SELECT 1 FROM pg_stat_wal_receiver WHERE status = 'streaming'))::int AS wal_receiver_streaming,
+            CASE WHEN pg_is_in_recovery()
+                  THEN coalesce(pg_wal_lsn_diff(pg_last_wal_receive_lsn(), pg_last_wal_replay_lsn()), 0)::float8
+                  ELSE 0::float8 END AS replay_backlog,
+            CASE WHEN pg_is_in_recovery()
+                  THEN (pg_get_wal_replay_pause_state() <> 'not paused')::int
+                  ELSE 0 END AS replay_paused
+        metrics:
+          - {metric_name: postgresql.recovery.active, value_column: recovery_active, value_type: int, data_type: gauge, description: "1 when the server is in recovery"}
+          - {metric_name: postgresql.wal_receiver.streaming, value_column: wal_receiver_streaming, value_type: int, data_type: gauge, description: "1 when a WAL receiver is streaming (always 0 on a primary)"}
+          - {metric_name: postgresql.replay.backlog, value_column: replay_backlog, value_type: double, data_type: gauge, unit: By, description: "Received but not yet replayed WAL"}
+          - {metric_name: postgresql.replay.paused, value_column: replay_paused, value_type: int, data_type: gauge, description: "1 when WAL replay is paused"}
+      - sql: |
+          SELECT
+            coalesce((SELECT max(extract(epoch FROM clock_timestamp() - xact_start))
+                        FROM pg_stat_activity
+                        WHERE (backend_xmin IS NOT NULL OR backend_xid IS NOT NULL)
+                          AND backend_type = 'client backend'
+                          AND pid <> pg_backend_pid()), 0)::float8 AS snapshot_oldest_age,
+            (SELECT count(*) FROM pg_stat_activity WHERE backend_type = 'client backend')::int AS connection_client,
+            (current_setting('max_connections')::int
+                - current_setting('superuser_reserved_connections')::int
+                - current_setting('reserved_connections')::int) AS connection_client_capacity
+        metrics:
+          - {metric_name: postgresql.snapshot.oldest_age, value_column: snapshot_oldest_age, value_type: double, data_type: gauge, unit: s, description: "Age of the oldest client transaction holding a snapshot or an xid"}
+          - {metric_name: postgresql.connection.client, value_column: connection_client, value_type: int, data_type: gauge, description: "Client backends"}
+          - {metric_name: postgresql.connection.client_capacity, value_column: connection_client_capacity, value_type: int, data_type: gauge, description: "max_connections minus reserved slots"}
+
+processors:
+  memory_limiter:
+    check_interval: 1s
+    limit_mib: 256
+  resource/primary:
+    attributes:
+      - {key: service.namespace, value: obenhub-lab, action: upsert}
+      - {key: service.name, value: postgresql, action: upsert}
+      - {key: service.instance.id, value: pg-lab, action: upsert}
+      - {key: server.address, value: pg-lab, action: upsert}
+      - {key: server.port, value: '5432', action: upsert}
+      - {key: db.system.name, value: postgresql, action: upsert}
+      - {key: db.cluster.name, value: overhead, action: upsert}
+  batch: {}
+
+exporters:
+  debug:
+    verbosity: basic
+
+service:
+  extensions: [health_check, file_storage]
+  telemetry:
+    metrics:
+      level: normal
+  pipelines:
+    metrics/primary:
+      receivers: [postgresql/primary, sql_query/primary]
+      processors: [memory_limiter, resource/primary, batch]
+      exporters: [debug]
+    logs/primary:
+      receivers: [file_log/primary]
+      processors: [memory_limiter, resource/primary, batch]
+      exporters: [debug]

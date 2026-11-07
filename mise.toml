@@ -49,7 +49,7 @@ run = "editorconfig-checker"
 
 [tasks."lint:shell"]
 description = "shellcheck on scripts/*.sh and lab/**/*.sh"
-run = "shellcheck scripts/*.sh lab/*/scripts/*.sh lab/*/scenarios/*.sh lab/*/grafana/*.sh lab/*/postgres/*.sh lab/*/alertmanager/*.sh"
+run = "shellcheck scripts/*.sh lab/*/scripts/*.sh lab/*/scenarios/*.sh lab/*/grafana/*.sh lab/*/postgres/*.sh lab/*/alertmanager/*.sh lab/overhead/*.sh"
 
 [tasks."lab:rules-test"]
 description = "unit-test the slice 1 alert rules (vmalert-tool) and Alertmanager routing (throwaway container); needs docker"

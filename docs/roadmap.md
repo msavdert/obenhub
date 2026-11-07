@@ -44,8 +44,9 @@ Docker Compose in `lab/slice1`, versions pinned in its `compose.yaml`.
 - [x] No-fault control: no alert except the watchdog, and zero
       monitoring-role errors in the server log
 - [x] One Grafana dashboard as code
-- [ ] Collector overhead on pg-lab: alternating runs with and without the
+- [x] Collector overhead on pg-lab: alternating runs with and without the
       Collector, latency percentiles, cgroup CPU of PostgreSQL and Collector
+      (`lab/overhead`, results in `lab/overhead/results/results.md`)
 
 The scenarios and the control run with `mise run lab:scenarios`; their
 results are in `lab/slice1/results/runs.jsonl`.
