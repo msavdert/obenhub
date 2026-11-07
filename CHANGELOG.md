@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.2.0](https://github.com/msavdert/obenhub/compare/v0.1.0...v0.2.0) (2026-11-07)
+
+
+### Features
+
+* **lab:** fault scenarios, no-fault control and Grafana dashboard for slice 1 ([8531b09](https://github.com/msavdert/obenhub/commit/8531b094982fef7a7eaebcf32c9a867ba1b6c219))
+* **lab:** first slice lab with PostgreSQL 18, Collector, Victoria stack and alerting ([00656c1](https://github.com/msavdert/obenhub/commit/00656c1153deeeff4944e8761598e86d87b0200a))
+* **lab:** measure Collector overhead on pg-lab; keep passwords out of pg_stat_statements ([39f9fee](https://github.com/msavdert/obenhub/commit/39f9fee7a0515fbd8dc845feb1e219d406858caa))
+
+
+### Documentation
+
+* **adr:** narrow the first slice after an external review ([525cad9](https://github.com/msavdert/obenhub/commit/525cad9fb8644da9bf93ff0987c6b38e53eed6dc))
+
 ## 0.1.0 (2026-11-06)
 
 
