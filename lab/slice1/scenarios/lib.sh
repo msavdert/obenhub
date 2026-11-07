@@ -19,6 +19,7 @@ VM=${VM:-http://127.0.0.1:18428}
 PRIMARY=obenhub-slice1-pg-primary
 STANDBY=obenhub-slice1-pg-standby
 SUBSCRIBER=obenhub-slice1-pg-subscriber
+PGBOUNCER=obenhub-slice1-pgbouncer
 REPL_NET=obenhub-slice1_repl
 LOGICAL_NET=obenhub-slice1_logical
 SUBSCRIPTION=app_sub
@@ -42,6 +43,14 @@ psql_s() { docker exec -i "$STANDBY" psql -U postgres -X -v ON_ERROR_STOP=1 -At 
 # Stage 2: the same, in database app (publisher) and on the subscriber.
 psql_pa() { docker exec -i "$PRIMARY" psql -U postgres -X -v ON_ERROR_STOP=1 -At -d app "$@"; }
 psql_sa() { docker exec -i "$SUBSCRIBER" psql -U postgres -X -v ON_ERROR_STOP=1 -At -d app "$@"; }
+
+# Stage 2: a SHOW command on the PgBouncer console as the stats user, output as
+# unaligned rows with a header; the password goes in on stdin, not argv.
+pgb_console() {
+  printf '%s\n' "$OTEL_MONITOR_PASSWORD" | docker exec -i "$PGBOUNCER" sh -c '
+    IFS= read -r PGPASSWORD; export PGPASSWORD
+    psql -h 127.0.0.1 -p 6432 -U otel_monitor -X -v ON_ERROR_STOP=1 -A -d pgbouncer -c "$1"' sh "$1"
+}
 
 vl() { curl -fsS "$VL/select/logsql/query" --data-urlencode "query=$1"; }
 

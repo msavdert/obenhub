@@ -31,13 +31,16 @@ echo "host replication replicator 10.213.0.0/24 scram-sha-256" >>"$PGDATA/pg_hba
 # so pg_hba matches the database name (the "replication" keyword is only for
 # physical connections).
 psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname postgres \
-  -v logical_pw="$LOGICAL_PASSWORD" <<'SQL'
+  -v logical_pw="$LOGICAL_PASSWORD" -v app_pw="$APP_PASSWORD" <<'SQL'
 SET pg_stat_statements.track = 'none';
 -- statements carrying a password must not reach the log or pg_stat_statements
 SET log_min_duration_statement = -1;
 SET log_statement = 'none';
 SET log_min_error_statement = panic;
 CREATE ROLE logical_repl WITH REPLICATION LOGIN PASSWORD :'logical_pw';
+-- the application role: PgBouncer logs in as it (the connections-exhausted
+-- scenario reuses it and resets its password, which stays the same value)
+CREATE ROLE app WITH LOGIN PASSWORD :'app_pw';
 CREATE DATABASE app;
 SQL
 psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname app \

@@ -1,4 +1,4 @@
-# Watchdog, PostgresTargetAbsent, CollectorAbsent.
+# Watchdog, PostgresTargetAbsent (PostgreSQL targets and PgBouncer), CollectorAbsent.
 rule_files:
   - ../rules/postgresql.yml
 evaluation_interval: 15s
@@ -25,6 +25,8 @@ tests:
         values: '1x8 _x52'
       - series: 'postgresql.collection.heartbeat{service.instance.id="pg-subscriber"}'
         values: '1x60'
+      - series: 'pgbouncer.list.items{service.instance.id="pgbouncer",list="databases"}'
+        values: '2x60'
       - series: 'otelcol_process_uptime{service.name="otelcol"}'
         values: '1x60'
     alert_rule_test:
@@ -47,7 +49,7 @@ tests:
               service.name: postgresql
               db.cluster.name: slice1
             exp_annotations:
-              summary: "No pack heartbeat from pg-standby"
+              summary: "No heartbeat from pg-standby"
 
   - name: target absent does not fire when both targets keep reporting
     interval: 15s
@@ -58,6 +60,8 @@ tests:
         values: '1x60'
       - series: 'postgresql.collection.heartbeat{service.instance.id="pg-subscriber"}'
         values: '1x60'
+      - series: 'pgbouncer.list.items{service.instance.id="pgbouncer",list="databases"}'
+        values: '2x60'
       - series: 'otelcol_process_uptime{service.name="otelcol"}'
         values: '1x60'
     alert_rule_test:
@@ -75,6 +79,8 @@ tests:
         values: '1x60'
       - series: 'postgresql.collection.heartbeat{service.instance.id="pg-subscriber"}'
         values: '1x60'
+      - series: 'pgbouncer.list.items{service.instance.id="pgbouncer",list="databases"}'
+        values: '2x60'
     alert_rule_test:
       - eval_time: 5m
         groupname: postgresql
@@ -87,7 +93,7 @@ tests:
               service.name: postgresql
               db.cluster.name: slice1
             exp_annotations:
-              summary: "No pack heartbeat from pg-standby"
+              summary: "No heartbeat from pg-standby"
 
   - name: target absent fires for the stopped subscriber only
     interval: 15s
@@ -100,6 +106,8 @@ tests:
         values: '1x60'
       - series: 'postgresql.collection.heartbeat{service.instance.id="pg-subscriber"}'
         values: '1x8 _x52'
+      - series: 'pgbouncer.list.items{service.instance.id="pgbouncer",list="databases"}'
+        values: '2x60'
     alert_rule_test:
       - eval_time: 6m
         groupname: postgresql
@@ -112,7 +120,7 @@ tests:
               service.name: postgresql
               db.cluster.name: slice1
             exp_annotations:
-              summary: "No pack heartbeat from pg-subscriber"
+              summary: "No heartbeat from pg-subscriber"
 
   - name: collector absent fires after self-metrics stop
     interval: 15s
@@ -195,3 +203,36 @@ tests:
         groupname: postgresql
         alertname: PostgresTargetAbsent
         exp_alerts: []
+
+  - name: target absent fires for a stopped PgBouncer only, from the SHOW LISTS heartbeat
+    interval: 15s
+    input_series:
+      - series: 'otelcol_process_uptime{service.name="otelcol"}'
+        values: '1x60'
+      - series: 'postgresql.collection.heartbeat{service.instance.id="pg-primary"}'
+        values: '1x60'
+      - series: 'postgresql.collection.heartbeat{service.instance.id="pg-standby"}'
+        values: '1x60'
+      - series: 'postgresql.collection.heartbeat{service.instance.id="pg-subscriber"}'
+        values: '1x60'
+      - series: 'pgbouncer.list.items{service.instance.id="pgbouncer",list="databases"}'
+        values: '2x8 _x52'
+      - series: 'pgbouncer.list.items{service.instance.id="pgbouncer",list="users"}'
+        values: '3x60'
+    alert_rule_test:
+      - eval_time: 3m   # gone for 1m but the 2m window is not yet empty
+        groupname: postgresql
+        alertname: PostgresTargetAbsent
+        exp_alerts: []
+      - eval_time: 6m   # only the "databases" row is the heartbeat: the live "users" row does not hide it
+        groupname: postgresql
+        alertname: PostgresTargetAbsent
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              service.instance.id: pgbouncer
+              service.namespace: obenhub-lab
+              service.name: pgbouncer
+              db.cluster.name: slice1
+            exp_annotations:
+              summary: "No heartbeat from pgbouncer"

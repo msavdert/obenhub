@@ -1,6 +1,7 @@
 # Slice 1, step A: PostgreSQL 18 primary + standby -> one OpenTelemetry
 # Collector -> VictoriaMetrics (metrics) and VictoriaLogs (jsonlog lines).
-# Stage 2 adds a logical subscriber (pg-subscriber) on the same stack.
+# Stage 2 adds a logical subscriber (pg-subscriber) and PgBouncer on the same
+# stack.
 # Start with `mise run lab:up` (creates .env with random passwords).
 name: obenhub-slice1
 
@@ -67,6 +68,7 @@ services:
       REPLICATOR_PASSWORD: "${REPLICATOR_PASSWORD:?run: mise run lab:up (it generates lab/slice1/.env)}"
       OTEL_MONITOR_PASSWORD: "${OTEL_MONITOR_PASSWORD:?run: mise run lab:up (it generates lab/slice1/.env)}"
       LOGICAL_PASSWORD: "${LOGICAL_PASSWORD:?run: mise run lab:up (it generates lab/slice1/.env)}"
+      APP_PASSWORD: "${APP_PASSWORD:?run: mise run lab:up (it generates lab/slice1/.env)}"
     volumes:
       - primary-data:/var/lib/postgresql
       - primary-log:/var/log/postgresql
@@ -123,6 +125,33 @@ services:
       - logical
       - mon
 
+  # Connection pooler for database `app`. Image: CloudNativePG's PgBouncer
+  # 1.26.1 (image label Apache-2.0; PgBouncer itself is ISC, see
+  # /usr/share/doc/pgbouncer/copyright in the image). Runs as uid 998
+  # (pgbouncer); the entrypoint is /usr/bin/pgbouncer with the config path as
+  # its argument. The image is multi-arch (amd64, arm64). It has no metrics
+  # endpoint: the Collector queries the admin console (database pgbouncer).
+  pgbouncer:
+    image: ghcr.io/cloudnative-pg/pgbouncer:1.26.1
+    container_name: obenhub-slice1-pgbouncer
+    restart: unless-stopped
+    volumes:
+      - ./pgbouncer/pgbouncer.ini:/etc/pgbouncer/pgbouncer.ini:ro
+    configs:
+      - source: pgbouncer-userlist
+        target: /etc/pgbouncer/userlist.txt
+        mode: 0444
+    depends_on:
+      pg-primary:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -p 6432 -U otel_monitor -d pgbouncer -q"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    networks:
+      - mon
+
   otelcol:
     image: otel/opentelemetry-collector-contrib:0.164.0
     container_name: obenhub-slice1-otelcol
@@ -144,6 +173,8 @@ services:
       pg-standby:
         condition: service_healthy
       pg-subscriber:
+        condition: service_healthy
+      pgbouncer:
         condition: service_healthy
       victoriametrics:
         condition: service_healthy
@@ -262,6 +293,14 @@ services:
       - victorialogs
     networks:
       - mon
+
+configs:
+  # Passwords in clear text: PgBouncer logs in to the servers with them. The
+  # file exists only inside the container; compose fills it from .env.
+  pgbouncer-userlist:
+    content: |
+      "app" "${APP_PASSWORD}"
+      "otel_monitor" "${OTEL_MONITOR_PASSWORD}"
 
 networks:
   # replication-only network: fixed subnet, no route out; pg_hba allows only it

@@ -910,6 +910,208 @@
       "description": "Cumulative counters from pg_stat_subscription_stats. An insert_exists conflict raises apply errors about every 5 s until it is resolved; conflict types at zero are hidden."
     },
     {
+      "id": 16,
+      "title": "PgBouncer: clients active and waiting",
+      "type": "timeseries",
+      "datasource": {
+        "type": "victoriametrics-metrics-datasource",
+        "uid": "vm"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 44,
+        "w": 8,
+        "h": 8
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "vm"
+          },
+          "expr": "pgbouncer.pool.clients_active",
+          "refId": "A",
+          "range": true,
+          "instant": false,
+          "legendFormat": "{{database}}/{{user}} active"
+        },
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "vm"
+          },
+          "expr": "pgbouncer.pool.clients_waiting",
+          "refId": "B",
+          "range": true,
+          "instant": false,
+          "legendFormat": "{{database}}/{{user}} waiting"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 10,
+            "showPoints": "never"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "description": "SHOW POOLS cl_active and cl_waiting through the Collector. The console pool (database pgbouncer) is always listed; pools of other databases appear with their first client. Not filtered by the instance variable: PgBouncer is its own target."
+    },
+    {
+      "id": 17,
+      "title": "PgBouncer: server connections vs pool size",
+      "type": "timeseries",
+      "datasource": {
+        "type": "victoriametrics-metrics-datasource",
+        "uid": "vm"
+      },
+      "gridPos": {
+        "x": 8,
+        "y": 44,
+        "w": 8,
+        "h": 8
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "vm"
+          },
+          "expr": "pgbouncer.pool.servers_active",
+          "refId": "A",
+          "range": true,
+          "instant": false,
+          "legendFormat": "{{database}}/{{user}} active"
+        },
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "vm"
+          },
+          "expr": "pgbouncer.pool.servers_idle",
+          "refId": "B",
+          "range": true,
+          "instant": false,
+          "legendFormat": "{{database}}/{{user}} idle"
+        },
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "vm"
+          },
+          "expr": "pgbouncer.pool.servers_used",
+          "refId": "C",
+          "range": true,
+          "instant": false,
+          "legendFormat": "{{database}}/{{user}} used"
+        },
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "vm"
+          },
+          "expr": "pgbouncer.database.pool_size",
+          "refId": "D",
+          "range": true,
+          "instant": false,
+          "legendFormat": "pool_size {{name}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 10,
+            "showPoints": "never"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "description": "SHOW POOLS sv_active, sv_idle and sv_used against SHOW DATABASES pool_size. Active at pool_size means the next client queues."
+    },
+    {
+      "id": 18,
+      "title": "PgBouncer: oldest waiting client",
+      "type": "timeseries",
+      "datasource": {
+        "type": "victoriametrics-metrics-datasource",
+        "uid": "vm"
+      },
+      "gridPos": {
+        "x": 16,
+        "y": 44,
+        "w": 8,
+        "h": 8
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "vm"
+          },
+          "expr": "pgbouncer.pool.maxwait + pgbouncer.pool.maxwait_us / 1e6",
+          "refId": "A",
+          "range": true,
+          "instant": false,
+          "legendFormat": "{{database}}/{{user}} maxwait"
+        },
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "vm"
+          },
+          "expr": "vector(5)",
+          "refId": "B",
+          "range": true,
+          "instant": false,
+          "legendFormat": "alert threshold (5 s)"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 10,
+            "showPoints": "never"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "description": "SHOW POOLS maxwait plus maxwait_us. PgbouncerClientsWaiting fires above 5 s for 1 m."
+    },
+    {
       "id": 9,
       "title": "PostgreSQL ERROR and FATAL (server log)",
       "type": "logs",
@@ -919,7 +1121,7 @@
       },
       "gridPos": {
         "x": 0,
-        "y": 44,
+        "y": 52,
         "w": 24,
         "h": 9
       },
@@ -956,7 +1158,7 @@
       },
       "gridPos": {
         "x": 0,
-        "y": 53,
+        "y": 61,
         "w": 24,
         "h": 9
       },

@@ -54,10 +54,10 @@ results are in `lab/slice1/results/runs.jsonl`.
 Deferred until after the slice: see ADR 0002 decisions 1 and 2 and ADR 0003
 decision 2.
 
-## Stage 2: logical replication
+## Stage 2: logical replication and PgBouncer
 
 Extends `lab/slice1` in place (same Compose project, harness and
-`mise run lab:scenarios`). PgBouncer follows in a separate step.
+`mise run lab:scenarios`).
 
 - [x] Logical subscriber `pg-subscriber` (PostgreSQL 18, database `app`,
       subscription `app_sub`) on its own `logical` network, so cutting
@@ -76,6 +76,17 @@ Extends `lab/slice1` in place (same Compose project, harness and
       - slot invalidated: unit test only, no scenario (see the rule)
 - [x] Dashboard panels for slots, subscription state and error counters
 - [x] No-fault control with the subscriber included
+- [x] PgBouncer 1.26.1 (CloudNativePG image) in front of database `app`,
+      transaction pooling, `default_pool_size` 5. It has no metrics endpoint
+      (pgbouncer#1354), so `sqlqueryreceiver` queries the admin console
+      (`SHOW POOLS`, `SHOW DATABASES`, `SHOW LISTS`); no exporter needed
+- [x] PgBouncer is an expected target; its heartbeat is the `SHOW LISTS` row
+      `databases`
+- [x] Alert rule with unit tests, each fired by one fault scenario:
+      - clients waiting for a server connection: more open transactions
+        than the pool size
+      - PgBouncer absent: the container stopped
+- [x] Dashboard panels for pool clients, server connections and wait time
 
 ## Upstream PR candidates
 

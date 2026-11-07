@@ -10,7 +10,8 @@ groups:
           union(
             label_set(vector(1), "service.namespace", "obenhub-lab", "service.name", "postgresql", "db.cluster.name", "slice1", "service.instance.id", "pg-primary"),
             label_set(vector(1), "service.namespace", "obenhub-lab", "service.name", "postgresql", "db.cluster.name", "slice1", "service.instance.id", "pg-standby"),
-            label_set(vector(1), "service.namespace", "obenhub-lab", "service.name", "postgresql", "db.cluster.name", "slice1", "service.instance.id", "pg-subscriber")
+            label_set(vector(1), "service.namespace", "obenhub-lab", "service.name", "postgresql", "db.cluster.name", "slice1", "service.instance.id", "pg-subscriber"),
+            label_set(vector(1), "service.namespace", "obenhub-lab", "service.name", "pgbouncer", "db.cluster.name", "slice1", "service.instance.id", "pgbouncer")
           )
 
   - name: postgresql
@@ -27,9 +28,16 @@ groups:
         expr: |
           obenhub.expected_target
             unless on(service.instance.id)
-          present_over_time(postgresql.collection.heartbeat[2m])
+          (
+            present_over_time(postgresql.collection.heartbeat[2m])
+              or
+            present_over_time(pgbouncer.list.items{list="databases"}[2m])
+          )
             and on()
           count(present_over_time(otelcol_process_uptime[1m])) > 0
+        # The pack heartbeat of a PostgreSQL target is postgresql.collection.
+        # heartbeat; PgBouncer has no pack, its heartbeat is the SHOW LISTS row
+        # "databases" (never missing while the console answers).
         # A target is absent only while the Collector is alive: the 1m window
         # empties before the 2m one, so a stopped Collector raises only
         # CollectorAbsent. The Alertmanager inhibit alone lost the race in the
@@ -39,7 +47,7 @@ groups:
         labels:
           severity: critical
         annotations:
-          summary: 'No pack heartbeat from {{ (index $labels "service.instance.id") }}'
+          summary: 'No heartbeat from {{ (index $labels "service.instance.id") }}'
 
       - alert: CollectorAbsent
         expr: absent_over_time(otelcol_process_uptime[2m])
@@ -210,3 +218,35 @@ groups:
           severity: critical
         annotations:
           summary: 'Slot {{ $labels.slot_name }} on {{ (index $labels "service.instance.id") }} is invalidated ({{ $labels.invalidation_reason }})'
+
+  # PgBouncer (stage 2). SHOW POOLS gives the oldest waiting client as whole
+  # seconds (maxwait) plus microseconds (maxwait_us); the sum is the wait.
+  - name: pgbouncer
+    interval: 15s
+    rules:
+      # A client waits for a server connection only when the pool is at
+      # pool_size. Over 5 s for 1 m is a lab threshold (assumption: a healthy
+      # transaction-mode pool hands over a connection in milliseconds). Not for
+      # the console's own pool (database pgbouncer), not for a paused or
+      # disabled database (clients wait there by design), and not while the
+      # target is absent (stale series); all in the expression, for the reason
+      # given at PostgresTargetAbsent. SHOW DATABASES names the database in
+      # `name`; it is copied to `database` to join SHOW POOLS.
+      - alert: PgbouncerClientsWaiting
+        expr: |
+          (
+            pgbouncer.pool.maxwait{database!="pgbouncer"}
+              + pgbouncer.pool.maxwait_us{database!="pgbouncer"} / 1e6 > 5
+          )
+            unless on(service.instance.id, database)
+          label_copy(
+            (pgbouncer.database.paused == 1 or pgbouncer.database.disabled == 1),
+            "name", "database"
+          )
+            and on(service.instance.id)
+          present_over_time(pgbouncer.list.items{list="databases"}[2m])
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'PgBouncer pool {{ $labels.database }}/{{ $labels.user }} has a client waiting {{ $value | humanizeDuration }} for a server connection'
