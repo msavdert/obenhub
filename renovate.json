@@ -102,6 +102,17 @@
     },
     {
       "customType": "regex",
+      "description": "Debian package pins in lab Dockerfiles: a '# renovate: datasource=deb depName=<package>' comment above an ARG NAME=version line. The repository (PGDG trixie) is set here for all of them. Unconfirmed: not yet seen to open a pull request.",
+      "managerFilePatterns": [
+        "/^lab/.+/Dockerfile$/"
+      ],
+      "matchStrings": [
+        "# renovate: datasource=(?<datasource>\\S+) depName=(?<depName>\\S+)\\s+ARG [A-Z_]+=(?<currentValue>\\S+)"
+      ],
+      "registryUrlTemplate": "https://apt.postgresql.org/pub/repos/apt?suite=trixie-pgdg&components=main&binaryArch=amd64"
+    },
+    {
+      "customType": "regex",
       "description": "vmalert-tool image in the lab:rules-test task; moves with vmalert",
       "managerFilePatterns": [
         "/(^|/)mise\\.toml$/"

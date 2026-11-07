@@ -1,0 +1,325 @@
+# Stage 3 collector: three Patroni nodes, named by node and never by role.
+# Receiver keys: receiver/postgresqlreceiver and receiver/prometheusreceiver at
+# v0.164.0. The pack queries below are copied from
+# lab/slice1/otelcol/config.yaml (anchor pack_queries): heartbeat, recovery /
+# streaming / backlog / paused, and snapshot / connection capacity. The slot,
+# subscription and PgBouncer parts are left out. Deduplicating the two copies
+# is a later roadmap item (stage 3, last checkbox).
+extensions:
+  health_check:
+    endpoint: 0.0.0.0:13133
+  # filelog offsets survive a Collector restart (volume otelcol-data).
+  file_storage:
+    directory: /var/lib/otelcol/file_storage
+    create_directory: true
+
+receivers:
+  postgresql/pg-1:
+    endpoint: pg-1:5432
+    transport: tcp
+    username: otel_monitor
+    password: ${env:OTEL_MONITOR_PASSWORD}
+    databases: [postgres]
+    collection_interval: 15s
+    tls:
+      insecure: true
+
+  postgresql/pg-2:
+    endpoint: pg-2:5432
+    transport: tcp
+    username: otel_monitor
+    password: ${env:OTEL_MONITOR_PASSWORD}
+    databases: [postgres]
+    collection_interval: 15s
+    tls:
+      insecure: true
+
+  postgresql/pg-3:
+    endpoint: pg-3:5432
+    transport: tcp
+    username: otel_monitor
+    password: ${env:OTEL_MONITOR_PASSWORD}
+    databases: [postgres]
+    collection_interval: 15s
+    tls:
+      insecure: true
+
+  # Patroni REST API /metrics (Prometheus text format). Contrib has no
+  # Patroni receiver, so this is the generic prometheusreceiver.
+  prometheus/pg-1:
+    config:
+      scrape_configs:
+        - job_name: patroni
+          scrape_interval: 15s
+          scrape_timeout: 10s
+          static_configs:
+            - targets: ['pg-1:8008']
+
+  # Patroni REST API /metrics (Prometheus text format). Contrib has no
+  # Patroni receiver, so this is the generic prometheusreceiver.
+  prometheus/pg-2:
+    config:
+      scrape_configs:
+        - job_name: patroni
+          scrape_interval: 15s
+          scrape_timeout: 10s
+          static_configs:
+            - targets: ['pg-2:8008']
+
+  # Patroni REST API /metrics (Prometheus text format). Contrib has no
+  # Patroni receiver, so this is the generic prometheusreceiver.
+  prometheus/pg-3:
+    config:
+      scrape_configs:
+        - job_name: patroni
+          scrape_interval: 15s
+          scrape_timeout: 10s
+          static_configs:
+            - targets: ['pg-3:8008']
+
+  file_log/pg-1:
+    include: [/var/log/pg-1/postgresql-*.json]
+    start_at: beginning
+    storage: file_storage
+    operators:
+      - &jsonlog
+        type: json_parser
+        parse_from: body
+        # keep integers exact (query_id is a 64-bit integer)
+        parse_ints: true
+        timestamp:
+          parse_from: attributes.timestamp
+          layout: '%Y-%m-%d %H:%M:%S.%L %Z'
+        severity:
+          parse_from: attributes.error_severity
+          mapping:
+            debug: [DEBUG1, DEBUG2, DEBUG3, DEBUG4, DEBUG5]
+            info: [LOG, INFO, NOTICE]
+            warn: WARNING
+            error: ERROR
+            fatal: [FATAL, PANIC]
+      # the log body is the server message, not the raw JSON line
+      - &body
+        type: move
+        from: attributes.message
+        to: body
+
+  file_log/pg-2:
+    include: [/var/log/pg-2/postgresql-*.json]
+    start_at: beginning
+    storage: file_storage
+    operators:
+      - *jsonlog
+      - *body
+
+  file_log/pg-3:
+    include: [/var/log/pg-3/postgresql-*.json]
+    start_at: beginning
+    storage: file_storage
+    operators:
+      - *jsonlog
+      - *body
+
+  sql_query/pg-1:
+    driver: postgres
+    host: pg-1
+    port: 5432
+    database: postgres
+    username: otel_monitor
+    password: ${env:OTEL_MONITOR_PASSWORD}
+    additional_params:
+      sslmode: disable
+    max_open_conn: 3
+    collection_interval: 15s
+    timeout: 10s
+    # Separate queries so one failing query loses only its own metrics while
+    # the heartbeat continues. All nodes share the list through the anchor.
+    queries: &pack_queries
+      - sql: SELECT 1 AS collection_heartbeat
+        metrics:
+          - {metric_name: postgresql.collection.heartbeat, value_column: collection_heartbeat, value_type: int, data_type: gauge, description: "1 whenever the heartbeat query succeeded"}
+      - sql: |
+          SELECT
+            CASE WHEN pg_is_in_recovery() THEN 1 ELSE 0 END AS recovery_active,
+            (EXISTS (SELECT 1 FROM pg_stat_wal_receiver WHERE status = 'streaming'))::int AS wal_receiver_streaming,
+            CASE WHEN pg_is_in_recovery()
+                  THEN coalesce(pg_wal_lsn_diff(pg_last_wal_receive_lsn(), pg_last_wal_replay_lsn()), 0)::float8
+                  ELSE 0::float8 END AS replay_backlog,
+            CASE WHEN pg_is_in_recovery()
+                  THEN (pg_get_wal_replay_pause_state() <> 'not paused')::int
+                  ELSE 0 END AS replay_paused
+        metrics:
+          - {metric_name: postgresql.recovery.active, value_column: recovery_active, value_type: int, data_type: gauge, description: "1 when the server is in recovery"}
+          - {metric_name: postgresql.wal_receiver.streaming, value_column: wal_receiver_streaming, value_type: int, data_type: gauge, description: "1 when a WAL receiver is streaming (always 0 on a primary)"}
+          - {metric_name: postgresql.replay.backlog, value_column: replay_backlog, value_type: double, data_type: gauge, unit: By, description: "Received but not yet replayed WAL"}
+          - {metric_name: postgresql.replay.paused, value_column: replay_paused, value_type: int, data_type: gauge, description: "1 when WAL replay is paused"}
+      - sql: |
+          SELECT
+            coalesce((SELECT max(extract(epoch FROM clock_timestamp() - xact_start))
+                        FROM pg_stat_activity
+                        WHERE (backend_xmin IS NOT NULL OR backend_xid IS NOT NULL)
+                          AND backend_type = 'client backend'
+                          AND pid <> pg_backend_pid()), 0)::float8 AS snapshot_oldest_age,
+            (SELECT count(*) FROM pg_stat_activity WHERE backend_type = 'client backend')::int AS connection_client,
+            (current_setting('max_connections')::int
+                - current_setting('superuser_reserved_connections')::int
+                - current_setting('reserved_connections')::int) AS connection_client_capacity
+        metrics:
+          - {metric_name: postgresql.snapshot.oldest_age, value_column: snapshot_oldest_age, value_type: double, data_type: gauge, unit: s, description: "Age of the oldest client transaction holding a snapshot or an xid"}
+          - {metric_name: postgresql.connection.client, value_column: connection_client, value_type: int, data_type: gauge, description: "Client backends"}
+          - {metric_name: postgresql.connection.client_capacity, value_column: connection_client_capacity, value_type: int, data_type: gauge, description: "max_connections minus reserved slots"}
+
+  sql_query/pg-2:
+    driver: postgres
+    host: pg-2
+    port: 5432
+    database: postgres
+    username: otel_monitor
+    password: ${env:OTEL_MONITOR_PASSWORD}
+    additional_params:
+      sslmode: disable
+    max_open_conn: 3
+    collection_interval: 15s
+    timeout: 10s
+    queries: *pack_queries
+
+  sql_query/pg-3:
+    driver: postgres
+    host: pg-3
+    port: 5432
+    database: postgres
+    username: otel_monitor
+    password: ${env:OTEL_MONITOR_PASSWORD}
+    additional_params:
+      sslmode: disable
+    max_open_conn: 3
+    collection_interval: 15s
+    timeout: 10s
+    queries: *pack_queries
+
+processors:
+  memory_limiter:
+    check_interval: 1s
+    limit_mib: 256
+  # Attribute names are assumptions, as in lab/slice1/otelcol/config.yaml.
+  # No role attribute on purpose: the leader moves. The Patroni scrape is its
+  # own service (service.name patroni) with the same instance id, so metrics
+  # of one node join on service.instance.id.
+  resource/pg-1:
+    attributes:
+      - {key: service.namespace, value: obenhub-lab, action: upsert}
+      - {key: service.name, value: postgresql, action: upsert}
+      - {key: service.instance.id, value: pg-1, action: upsert}
+      - {key: server.address, value: pg-1, action: upsert}
+      - {key: server.port, value: '5432', action: upsert}
+      - {key: db.system.name, value: postgresql, action: upsert}
+      - {key: db.cluster.name, value: stage3, action: upsert}
+  resource/pg-1-patroni:
+    attributes:
+      - {key: service.namespace, value: obenhub-lab, action: upsert}
+      - {key: service.name, value: patroni, action: upsert}
+      - {key: service.instance.id, value: pg-1, action: upsert}
+      - {key: server.address, value: pg-1, action: upsert}
+      - {key: server.port, value: '8008', action: upsert}
+      - {key: db.system.name, value: postgresql, action: upsert}
+      - {key: db.cluster.name, value: stage3, action: upsert}
+  resource/pg-2:
+    attributes:
+      - {key: service.namespace, value: obenhub-lab, action: upsert}
+      - {key: service.name, value: postgresql, action: upsert}
+      - {key: service.instance.id, value: pg-2, action: upsert}
+      - {key: server.address, value: pg-2, action: upsert}
+      - {key: server.port, value: '5432', action: upsert}
+      - {key: db.system.name, value: postgresql, action: upsert}
+      - {key: db.cluster.name, value: stage3, action: upsert}
+  resource/pg-2-patroni:
+    attributes:
+      - {key: service.namespace, value: obenhub-lab, action: upsert}
+      - {key: service.name, value: patroni, action: upsert}
+      - {key: service.instance.id, value: pg-2, action: upsert}
+      - {key: server.address, value: pg-2, action: upsert}
+      - {key: server.port, value: '8008', action: upsert}
+      - {key: db.system.name, value: postgresql, action: upsert}
+      - {key: db.cluster.name, value: stage3, action: upsert}
+  resource/pg-3:
+    attributes:
+      - {key: service.namespace, value: obenhub-lab, action: upsert}
+      - {key: service.name, value: postgresql, action: upsert}
+      - {key: service.instance.id, value: pg-3, action: upsert}
+      - {key: server.address, value: pg-3, action: upsert}
+      - {key: server.port, value: '5432', action: upsert}
+      - {key: db.system.name, value: postgresql, action: upsert}
+      - {key: db.cluster.name, value: stage3, action: upsert}
+  resource/pg-3-patroni:
+    attributes:
+      - {key: service.namespace, value: obenhub-lab, action: upsert}
+      - {key: service.name, value: patroni, action: upsert}
+      - {key: service.instance.id, value: pg-3, action: upsert}
+      - {key: server.address, value: pg-3, action: upsert}
+      - {key: server.port, value: '8008', action: upsert}
+      - {key: db.system.name, value: postgresql, action: upsert}
+      - {key: db.cluster.name, value: stage3, action: upsert}
+  batch: {}
+
+exporters:
+  otlp_http/vm:
+    endpoint: http://victoriametrics:8428/opentelemetry
+  otlp_http/vl:
+    endpoint: http://victorialogs:9428/insert/opentelemetry
+    headers:
+      VL-Stream-Fields: service.namespace,service.name,service.instance.id
+
+service:
+  extensions: [health_check, file_storage]
+  telemetry:
+    resource:
+      attributes:
+        - {name: service.namespace, value: obenhub-lab}
+        - {name: service.name, value: otelcol}
+        - {name: service.instance.id, value: otelcol-stage3}
+    metrics:
+      level: normal
+      readers:
+        - periodic:
+            interval: 15000
+            exporter:
+              otlp:
+                protocol: http/protobuf
+                endpoint: http://victoriametrics:8428/opentelemetry/v1/metrics
+  pipelines:
+    metrics/pg-1:
+      receivers: [postgresql/pg-1, sql_query/pg-1]
+      processors: [memory_limiter, resource/pg-1, batch]
+      exporters: [otlp_http/vm]
+    metrics/pg-1-patroni:
+      receivers: [prometheus/pg-1]
+      processors: [memory_limiter, resource/pg-1-patroni, batch]
+      exporters: [otlp_http/vm]
+    logs/pg-1:
+      receivers: [file_log/pg-1]
+      processors: [memory_limiter, resource/pg-1, batch]
+      exporters: [otlp_http/vl]
+    metrics/pg-2:
+      receivers: [postgresql/pg-2, sql_query/pg-2]
+      processors: [memory_limiter, resource/pg-2, batch]
+      exporters: [otlp_http/vm]
+    metrics/pg-2-patroni:
+      receivers: [prometheus/pg-2]
+      processors: [memory_limiter, resource/pg-2-patroni, batch]
+      exporters: [otlp_http/vm]
+    logs/pg-2:
+      receivers: [file_log/pg-2]
+      processors: [memory_limiter, resource/pg-2, batch]
+      exporters: [otlp_http/vl]
+    metrics/pg-3:
+      receivers: [postgresql/pg-3, sql_query/pg-3]
+      processors: [memory_limiter, resource/pg-3, batch]
+      exporters: [otlp_http/vm]
+    metrics/pg-3-patroni:
+      receivers: [prometheus/pg-3]
+      processors: [memory_limiter, resource/pg-3-patroni, batch]
+      exporters: [otlp_http/vm]
+    logs/pg-3:
+      receivers: [file_log/pg-3]
+      processors: [memory_limiter, resource/pg-3, batch]
+      exporters: [otlp_http/vl]

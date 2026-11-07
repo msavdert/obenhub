@@ -1,0 +1,80 @@
+# Patroni configuration shared by pg-1, pg-2 and pg-3. Per-node values and
+# passwords arrive as PATRONI_* environment variables (compose.yaml), which
+# Patroni 4.1.5 reads over this file (Patroni docs, environment configuration).
+# Adapted from patroni/patroni at tag v4.1.5 (commit 235fdb3990513c7852da8dc51e9cb92b6d0e4907), MIT licence:
+# the bootstrap.dcs block, the initdb list and the use_pg_rewind setting come
+# from its postgres0.yml (ttl, loop_wait, retry_timeout and
+# maximum_lag_on_failover keep upstream's values except where noted); the
+# PATRONI_* environment style follows its docker/entrypoint.sh.
+scope: stage3
+namespace: /service
+
+restapi:
+  listen: 0.0.0.0:8008
+
+etcd3:
+  hosts:
+    - etcd-1:2379
+    - etcd-2:2379
+    - etcd-3:2379
+
+bootstrap:
+  dcs:
+    ttl: 30
+    loop_wait: 10
+    retry_timeout: 10
+    # 16 MiB (upstream postgres0.yml and the default use 1 MiB): the alert rule
+    # PatroniReplicaNotEligible uses the same value, chosen above the skew of
+    # two scrapes. Patroni compares the leader's WAL position with
+    # a member's max(received, replayed) position, see the replica-not-eligible scenario.
+    maximum_lag_on_failover: 16777216
+    # failsafe_mode is left at its default (off) on purpose: losing the DCS
+    # demotes the leader, which is what the quorum-loss scenario observes.
+    postgresql:
+      use_pg_rewind: true
+      use_slots: true
+      pg_hba:
+        - local all all trust
+        - host replication replicator 10.216.0.0/24 scram-sha-256
+        - host all postgres 10.216.0.0/24 scram-sha-256
+        - host all postgres all reject
+        - host all all all scram-sha-256
+      parameters:
+        # same logging and monitoring settings as the stage 2 nodes
+        logging_collector: 'on'
+        log_destination: jsonlog
+        log_directory: /var/log/postgresql
+        log_filename: postgresql-%a.log
+        log_file_mode: '0644'
+        log_truncate_on_rotation: 'on'
+        log_lock_waits: 'on'
+        deadlock_timeout: 1s
+        log_min_duration_statement: 1000
+        track_io_timing: 'on'
+        hot_standby_feedback: 'off'
+        reserved_connections: 8
+        max_slot_wal_keep_size: 1GB
+        shared_buffers: 128MB
+  initdb:
+    - encoding: UTF8
+    - data-checksums
+  post_bootstrap: /etc/patroni/post-bootstrap.sh
+
+postgresql:
+  listen: 0.0.0.0:5432
+  data_dir: /var/lib/postgresql/data
+  bin_dir: /usr/lib/postgresql/18/bin
+  pgpass: /tmp/pgpass
+  basebackup:
+    - checkpoint: fast
+  use_unix_socket: true
+  authentication:
+    replication:
+      username: replicator
+    superuser:
+      username: postgres
+  # Patroni connects over the socket, where pg_hba trusts local users; without
+  # this it uses localhost TCP, which the rules above reject for postgres.
+  # Same key as upstream postgres0.yml (there '..', here the image's directory).
+  parameters:
+    unix_socket_directories: /var/run/postgresql

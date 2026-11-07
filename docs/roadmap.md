@@ -88,6 +88,82 @@ Extends `lab/slice1` in place (same Compose project, harness and
       - PgBouncer absent: the container stopped
 - [x] Dashboard panels for pool clients, server connections and wait time
 
+## Stage 3: Patroni cluster
+
+A separate Compose project in `lab/stage3` (`obenhub-stage3`) with its own
+backend, so the stage 2 lab keeps running and its suite stays unchanged.
+Versions read 2026-11-07: Patroni 4.1.5 (MIT; PostgreSQL 18 support since
+4.0.7), PGDG package `4.1.5-2.pgdg13+1` available in `postgres:18.6-trixie`,
+etcd 3.6.16 (Apache-2.0).
+
+- [x] Three etcd members and three PostgreSQL 18 nodes under Patroni, image
+      built from `postgres:18.6-trixie` plus the PGDG `patroni` package,
+      `etcd3` DCS, defaults for `ttl`, `loop_wait` and `failsafe_mode`
+- [x] No HAProxy: clients reach the leader through libpq multi-host
+      connection strings with `target_session_attrs=read-write`
+- [x] Collector: the stage 2 PostgreSQL pack on every node, named by node
+      and never by role, plus `prometheusreceiver` on each node's Patroni
+      `/metrics` (contrib has no Patroni receiver)
+- [x] Alert rules with unit tests, each fired by one fault scenario:
+      - no writable primary: two etcd members stopped (quorum lost, the
+        leader demotes itself)
+      - failover happened: the leader container killed; the rule fires once
+        on the timeline change and the cluster recovers without help
+      - replica not eligible for failover: one replica cut from the
+        replication network while the leader writes past
+        `maximum_lag_on_failover`. Paused replay does not work: Patroni
+        4.1.5 measures lag from the received position, and resumes paused
+        replay unless the cluster is paused
+      - replay backlog: replay paused on a replica of a paused cluster
+      - cluster left paused: maintenance mode on for longer than the window
+      - pending restart: a parameter that needs a restart changed through
+        `patronictl edit-config`
+- [x] Planned switchover: no alert except the failover rule. The rule
+      cannot tell planned from unplanned: both raise the timeline by one
+- [x] Dashboard: role per node over time, timeline, DCS last seen, lag per
+      replica
+- [x] No-fault control
+- [ ] One PostgreSQL pack shared by both labs instead of two copies
+
+The scenarios and the control run with `mise run lab:stage3:scenarios`; their
+results are in `lab/stage3/results/runs.jsonl` (the last eight records are the
+suite run after the audit fixes; earlier records predate them).
+
+Coverage gaps found on 2026-11-07 by comparing both labs with existing rule
+sets: the catalog survey in the private predecessor repository (pgMonitor,
+postgres_exporter, pganalyze, PMM, Datadog and others, read at pinned commits;
+not checkable from here) and, for
+PgBouncer, Patroni and etcd, pigsty v4.5.0, the etcd mixin at v3.7.3 and
+awesome-prometheus-alerts. Rules are written for our metric names. Text is
+copied only from Apache-2.0 sources (pigsty since v4.0.0, etcd mixin,
+pgMonitor), with provenance. AGPL sources (PMM, Zabbix, per that survey) and
+awesome-prometheus-alerts (CC BY 4.0, not in ADR 0004's list) give ideas
+only. Each item gets a fault scenario where one can be built in the lab,
+otherwise unit tests only, said so in the rule:
+
+- [ ] etcd: scrape every member's `/metrics`; alerts for member down, no
+      leader, lost quorum, frequent leader changes and slow WAL fsync
+- [ ] Patroni: its own scrape absent, and failsafe mode active
+- [ ] PostgreSQL, in the shared pack: transaction ID wraparound age,
+      idle-in-transaction separated from active long transactions, blocked
+      sessions, deadlocks, checkpoint pressure from `pg_stat_checkpointer`
+      (PostgreSQL 17+), and an inactive physical slot
+- [ ] Two tiers (warning and critical) for capacity signals: connections,
+      wraparound age, idle in transaction
+- [ ] PgBouncer: server pool saturation, `max_client_conn` exhaustion (clients
+      refused while the wait time stays zero, unconfirmed until a lab run), `SHOW STATS` wait and query
+      time
+
+Then the same cluster on three VMs, because the operating-system layer
+(ADR 0001, primary goal) cannot be observed per node in Compose:
+
+- [ ] Three Debian 13 VMs, each with etcd, Patroni, PostgreSQL 18 and one
+      Collector, installed by scripts in the repository
+- [ ] `hostmetricsreceiver` and journald logs per node; the stage 3 rules
+      and scenarios carried over unchanged where they apply
+- [ ] OS fault scenarios with alerts: filesystem filling, memory pressure,
+      a real network partition between nodes
+
 ## Upstream PR candidates
 
 See [ADR 0003](adr/0003-receiver-strategy.md), decision 3. Each candidate is

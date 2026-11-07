@@ -10,3 +10,4 @@ node_modules/
 /tmp/
 site/
 /lab/slice1/.env
+/lab/stage3/results/*.log

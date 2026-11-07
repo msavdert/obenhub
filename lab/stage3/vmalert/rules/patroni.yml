@@ -1,0 +1,164 @@
+# Stage 3: three Patroni nodes. Every rule is role-agnostic: the leader moves,
+# so nothing here names a node as primary or standby. Patroni reports 0 for
+# metrics that do not apply to a node's role (timeline and xlog_location are 0
+# on a replica, received and replayed location are 0 on the leader; observed
+# 2026-11-07 on Patroni 4.1.5), so cluster-wide values are max by (scope).
+# Suppression is written into the expressions, not into Alertmanager inhibits
+# (lab/slice1 lesson: vmalert's startsAt predates group_wait, so inhibits race).
+# Pack metric names are provisional until the naming contract (ADR 0002).
+groups:
+  - name: inventory
+    interval: 15s
+    rules:
+      - record: obenhub.expected_target
+        expr: |
+          union(
+            label_set(vector(1), "service.namespace", "obenhub-lab", "service.name", "postgresql", "db.cluster.name", "stage3", "service.instance.id", "pg-1"),
+            label_set(vector(1), "service.namespace", "obenhub-lab", "service.name", "postgresql", "db.cluster.name", "stage3", "service.instance.id", "pg-2"),
+            label_set(vector(1), "service.namespace", "obenhub-lab", "service.name", "postgresql", "db.cluster.name", "stage3", "service.instance.id", "pg-3")
+          )
+
+  # Kinds carried over from lab/slice1/vmalert/rules/postgresql.yml.
+  - name: postgresql
+    interval: 15s
+    rules:
+      - alert: Watchdog
+        expr: vector(1)
+        labels:
+          severity: none
+        annotations:
+          summary: Always firing; proves the alert pipeline works.
+
+      # The pack heartbeat is the node's heartbeat. A node is absent only
+      # while the Collector is alive: the 1m window empties before the 2m one,
+      # so a stopped Collector raises only CollectorAbsent.
+      - alert: PostgresTargetAbsent
+        expr: |
+          obenhub.expected_target
+            unless on(service.instance.id)
+          present_over_time(postgresql.collection.heartbeat[2m])
+            and on()
+          count(present_over_time(otelcol_process_uptime[1m])) > 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: 'No heartbeat from {{ (index $labels "service.instance.id") }}'
+
+      - alert: CollectorAbsent
+        expr: absent_over_time(otelcol_process_uptime[2m])
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: The Collector reports no self-metrics.
+
+      # A node in recovery whose WAL receiver is not streaming. Not while no
+      # node is writable: then every node is in recovery and none can stream,
+      # which PatroniNoWritablePrimary already says. "A node is writable" is
+      # read from the pack (recovery.active == 0), not from Patroni, so the
+      # two sources stay independent.
+      - alert: StandbyNotStreaming
+        expr: |
+          postgresql.wal_receiver.streaming == 0
+            and on(service.instance.id)
+          postgresql.recovery.active == 1
+            and on()
+          count(postgresql.recovery.active == 0) > 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: '{{ (index $labels "service.instance.id") }} is in recovery and not streaming'
+
+      # Received but not replayed WAL. Gated on recovery like the stage 2 rule.
+      - alert: ReplayBacklog
+        expr: |
+          postgresql.replay.backlog > 16 * 1024 * 1024
+            and on(service.instance.id)
+          postgresql.recovery.active == 1
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: '{{ (index $labels "service.instance.id") }} replay backlog is {{ $value | humanize1024 }}B'
+
+  - name: patroni
+    interval: 15s
+    rules:
+      # No node reports itself as the primary. "for" is longer than a normal
+      # failover: the leader key expires after ttl (30 s), then the election
+      # and the promotion follow (measured in the leader-killed scenario).
+      # Silent while there is no Patroni data at all (the target alerts own
+      # that case).
+      - alert: PatroniNoWritablePrimary
+        expr: sum by (scope) (patroni_primary) == 0
+        for: 90s
+        labels:
+          severity: critical
+        annotations:
+          summary: 'Cluster {{ $labels.scope }} has no writable primary'
+
+      # The highest timeline any node reports rose compared with the highest
+      # one seen in the hour before the last 3 m (a rolling maximum, so the
+      # zeros of a gap do not count as a lower baseline). It holds for 3 m,
+      # then the baseline catches up and the alert resolves: one firing per
+      # change. It cannot fire during the first ~3 minutes after Patroni
+      # metrics first appear: there is no baseline yet.
+      # A planned switchover and an unplanned failover both raise the
+      # timeline by one; these signals do not tell them apart (see the
+      # switchover scenario).
+      - alert: PatroniFailoverHappened
+        expr: |
+          max by (scope) (patroni_postgres_timeline)
+            > on(scope)
+          max_over_time(max by (scope) (patroni_postgres_timeline)[1h:1m] offset 3m)
+        labels:
+          severity: warning
+        annotations:
+          summary: 'Cluster {{ $labels.scope }} moved to timeline {{ $value }}'
+
+      # A replica whose WAL position (max of received and replayed, the value
+      # Patroni itself compares) is more than maximum_lag_on_failover behind
+      # the leader's. 16777216 must equal maximum_lag_on_failover in
+      # postgres/patroni.yml. The two positions come from two scrapes up to
+      # 15 s apart; at the lab's load that skew stays well below the threshold
+      # (assumption, checked by the control). A paused replay does not move
+      # this value while the WAL receiver keeps receiving.
+      - alert: PatroniReplicaNotEligible
+        expr: |
+          (
+            max by (scope) (patroni_xlog_location)
+              - on(scope) group_right()
+            (
+              (
+                clamp_min(patroni_xlog_received_location - patroni_xlog_replayed_location, 0)
+                  + patroni_xlog_replayed_location
+              )
+                and on(service.instance.id)
+              patroni_replica == 1
+            )
+          ) > 16777216
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: '{{ (index $labels "service.instance.id") }} is {{ $value | humanize1024 }}B behind the leader, beyond maximum_lag_on_failover'
+
+      # Maintenance mode disables automatic failover. 3 m is a lab value.
+      - alert: PatroniClusterPaused
+        expr: max by (scope) (patroni_is_paused) == 1
+        for: 3m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'Cluster {{ $labels.scope }} is paused: no automatic failover'
+
+      # A parameter changed that needs a restart. 2 m is a lab value.
+      - alert: PatroniPendingRestart
+        expr: patroni_pending_restart == 1
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: '{{ (index $labels "service.instance.id") }} has a pending restart'

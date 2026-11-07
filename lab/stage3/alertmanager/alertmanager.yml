@@ -1,0 +1,20 @@
+# Delivery sink: every notification is POSTed to VictoriaLogs as one JSON line
+# (/insert/jsonline), so it can be queried like any other log record.
+# vmalert rewrites dots in label names to underscores when it notifies
+# Alertmanager (verified on the wire, v1.155.0, no flag keeps them), so
+# routing uses the underscored names. No inhibit rules: suppression is written
+# into the rule expressions (vmalert's startsAt predates group_wait, so an
+# inhibit races with delivery; found in lab/slice1, 2026-11-06). Cluster-level
+# alerts carry no service_instance_id and form one group per alertname.
+route:
+  receiver: victorialogs
+  group_by: [alertname, service_instance_id]
+  group_wait: 5s
+  group_interval: 15s
+  repeat_interval: 1h
+
+receivers:
+  - name: victorialogs
+    webhook_configs:
+      - url: "http://victorialogs:9428/insert/jsonline?_msg_field=groupLabels.alertname&_stream_fields=receiver,status"
+        send_resolved: true

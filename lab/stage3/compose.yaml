@@ -1,0 +1,340 @@
+# Stage 3: three etcd members and three PostgreSQL 18 nodes under Patroni ->
+# one OpenTelemetry Collector -> VictoriaMetrics (metrics) and VictoriaLogs
+# (jsonlog lines). Own backend; independent of lab/slice1.
+# Start with `mise run lab:stage3:up` (creates .env with random passwords).
+#
+# The etcd service block (environment, command flags) is adapted from
+# docker-compose.yml of patroni/patroni at tag v4.1.5 (commit
+# 235fdb3990513c7852da8dc51e9cb92b6d0e4907, MIT licence): same three-member
+# static cluster, here on the etcd image instead of the Patroni image.
+name: obenhub-stage3
+
+x-etcd: &etcd
+  image: gcr.io/etcd-development/etcd:v3.6.16
+  restart: unless-stopped
+  mem_limit: 192m
+  environment:
+    ETCD_LISTEN_PEER_URLS: http://0.0.0.0:2380
+    ETCD_LISTEN_CLIENT_URLS: http://0.0.0.0:2379
+    ETCD_INITIAL_CLUSTER: etcd-1=http://etcd-1:2380,etcd-2=http://etcd-2:2380,etcd-3=http://etcd-3:2380
+    ETCD_INITIAL_CLUSTER_STATE: new
+    ETCD_INITIAL_CLUSTER_TOKEN: obenhub-stage3
+    ETCD_AUTO_COMPACTION_RETENTION: "1"
+    ETCD_DATA_DIR: /etcd-data
+  healthcheck:
+    test: ["CMD", "etcdctl", "--endpoints=http://127.0.0.1:2379", "endpoint", "health"]
+    interval: 5s
+    timeout: 3s
+    retries: 20
+  networks:
+    - dcs
+
+# restart "no": a killed or stopped node stays down until a scenario starts it.
+# With a restart policy the killed leader would come back inside the 30 s
+# leader key TTL and simply resume as leader, so no failover would happen.
+# Postgres connect_address is on the repl network, the REST API address on the
+# dcs network; both are fixed IPs so that the advertised addresses are stable.
+x-node: &node
+  build:
+    context: ./postgres
+  image: obenhub-stage3-node:4.1.5
+  restart: "no"
+  shm_size: 128mb
+  mem_limit: 768m
+  healthcheck:
+    test: ["CMD-SHELL", "pg_isready -U postgres -q"]
+    interval: 5s
+    timeout: 3s
+    retries: 40
+    start_period: 30s
+
+x-node-env: &node-env
+  PATRONICTL_CONFIG_FILE: /etc/patroni/patroni.yml
+  PATRONI_SUPERUSER_PASSWORD: "${POSTGRES_PASSWORD:?run: mise run lab:stage3:up (it generates lab/stage3/.env)}"
+  PATRONI_REPLICATION_PASSWORD: "${REPLICATOR_PASSWORD:?run: mise run lab:stage3:up (it generates lab/stage3/.env)}"
+  OTEL_MONITOR_PASSWORD: "${OTEL_MONITOR_PASSWORD:?run: mise run lab:stage3:up (it generates lab/stage3/.env)}"
+  APP_PASSWORD: "${APP_PASSWORD:?run: mise run lab:stage3:up (it generates lab/stage3/.env)}"
+
+services:
+  etcd-1:
+    <<: *etcd
+    container_name: obenhub-stage3-etcd-1
+    hostname: etcd-1
+    command: etcd --name etcd-1 --initial-advertise-peer-urls http://etcd-1:2380 --advertise-client-urls http://etcd-1:2379
+    volumes:
+      - etcd-1-data:/etcd-data
+  etcd-2:
+    <<: *etcd
+    container_name: obenhub-stage3-etcd-2
+    hostname: etcd-2
+    command: etcd --name etcd-2 --initial-advertise-peer-urls http://etcd-2:2380 --advertise-client-urls http://etcd-2:2379
+    volumes:
+      - etcd-2-data:/etcd-data
+  etcd-3:
+    <<: *etcd
+    container_name: obenhub-stage3-etcd-3
+    hostname: etcd-3
+    command: etcd --name etcd-3 --initial-advertise-peer-urls http://etcd-3:2380 --advertise-client-urls http://etcd-3:2379
+    volumes:
+      - etcd-3-data:/etcd-data
+
+  pg-1:
+    <<: *node
+    container_name: obenhub-stage3-pg-1
+    hostname: pg-1
+    depends_on:
+      etcd-1: {condition: service_healthy}
+      etcd-2: {condition: service_healthy}
+      etcd-3: {condition: service_healthy}
+    environment:
+      <<: *node-env
+      PATRONI_NAME: pg-1
+      PATRONI_RESTAPI_CONNECT_ADDRESS: 10.215.0.11:8008
+      PATRONI_POSTGRESQL_CONNECT_ADDRESS: 10.216.0.11:5432
+    volumes:
+      - pg-1-data:/var/lib/postgresql
+      - pg-1-log:/var/log/postgresql
+    networks:
+      dcs: {ipv4_address: 10.215.0.11}
+      repl: {ipv4_address: 10.216.0.11}
+      mon: {}
+  pg-2:
+    <<: *node
+    container_name: obenhub-stage3-pg-2
+    hostname: pg-2
+    depends_on:
+      etcd-1: {condition: service_healthy}
+      etcd-2: {condition: service_healthy}
+      etcd-3: {condition: service_healthy}
+    environment:
+      <<: *node-env
+      PATRONI_NAME: pg-2
+      PATRONI_RESTAPI_CONNECT_ADDRESS: 10.215.0.12:8008
+      PATRONI_POSTGRESQL_CONNECT_ADDRESS: 10.216.0.12:5432
+    volumes:
+      - pg-2-data:/var/lib/postgresql
+      - pg-2-log:/var/log/postgresql
+    networks:
+      dcs: {ipv4_address: 10.215.0.12}
+      repl: {ipv4_address: 10.216.0.12}
+      mon: {}
+  pg-3:
+    <<: *node
+    container_name: obenhub-stage3-pg-3
+    hostname: pg-3
+    depends_on:
+      etcd-1: {condition: service_healthy}
+      etcd-2: {condition: service_healthy}
+      etcd-3: {condition: service_healthy}
+    environment:
+      <<: *node-env
+      PATRONI_NAME: pg-3
+      PATRONI_RESTAPI_CONNECT_ADDRESS: 10.215.0.13:8008
+      PATRONI_POSTGRESQL_CONNECT_ADDRESS: 10.216.0.13:5432
+    volumes:
+      - pg-3-data:/var/lib/postgresql
+      - pg-3-log:/var/log/postgresql
+    networks:
+      dcs: {ipv4_address: 10.215.0.13}
+      repl: {ipv4_address: 10.216.0.13}
+      mon: {}
+
+  # Client load: pgbench through libpq multi-host (no HAProxy). The server list
+  # is in PGHOST, target_session_attrs=read-write picks whichever node is
+  # writable. pgbench aborts when its connection is lost, so scripts/load.sh
+  # starts it again in a loop.
+  load:
+    image: postgres:18.6-trixie
+    container_name: obenhub-stage3-load
+    restart: unless-stopped
+    mem_limit: 128m
+    entrypoint: ["/load.sh"]
+    environment:
+      PGHOST: pg-1,pg-2,pg-3
+      PGPORT: "5432"
+      PGTARGETSESSIONATTRS: read-write
+      PGCONNECT_TIMEOUT: "3"
+      PGUSER: app
+      PGDATABASE: app
+      PGPASSWORD: "${APP_PASSWORD:?run: mise run lab:stage3:up (it generates lab/stage3/.env)}"
+    volumes:
+      - ./scripts/load.sh:/load.sh:ro
+    networks:
+      - mon
+
+  otelcol:
+    image: otel/opentelemetry-collector-contrib:0.164.0
+    container_name: obenhub-stage3-otelcol
+    restart: unless-stopped
+    mem_limit: 384m
+    command: ["--config=/etc/otelcol/config.yaml"]
+    environment:
+      OTEL_MONITOR_PASSWORD: "${OTEL_MONITOR_PASSWORD:?run: mise run lab:stage3:up (it generates lab/stage3/.env)}"
+    volumes:
+      - ./otelcol/config.yaml:/etc/otelcol/config.yaml:ro
+      - otelcol-data:/var/lib/otelcol
+      - pg-1-log:/var/log/pg-1:ro
+      - pg-2-log:/var/log/pg-2:ro
+      - pg-3-log:/var/log/pg-3:ro
+    depends_on:
+      otelcol-init:
+        condition: service_completed_successfully
+      pg-1:
+        condition: service_healthy
+      victoriametrics:
+        condition: service_healthy
+      victorialogs:
+        condition: service_started
+    networks:
+      - mon
+
+  # one-shot: the Collector (uid 10001) must own its file_storage volume
+  otelcol-init:
+    image: postgres:18.6-trixie
+    container_name: obenhub-stage3-otelcol-init
+    user: root
+    network_mode: none
+    entrypoint: ["chown", "10001:10001", "/var/lib/otelcol"]
+    volumes:
+      - otelcol-data:/var/lib/otelcol
+    restart: "no"
+
+  victoriametrics:
+    image: victoriametrics/victoria-metrics:v1.155.0
+    container_name: obenhub-stage3-victoriametrics
+    restart: unless-stopped
+    mem_limit: 512m
+    command: ["-retentionPeriod=7d", "-opentelemetry.promoteScopeMetadata=false"]
+    ports:
+      - "127.0.0.1:28428:8428"
+    volumes:
+      - vm-data:/victoria-metrics-data
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:8428/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    networks:
+      - mon
+
+  victorialogs:
+    image: victoriametrics/victoria-logs:v1.53.0
+    container_name: obenhub-stage3-victorialogs
+    restart: unless-stopped
+    mem_limit: 256m
+    ports:
+      - "127.0.0.1:29428:9428"
+    volumes:
+      - vl-data:/victoria-logs-data
+    # no healthcheck: the image has no shell or wget
+    networks:
+      - mon
+
+  vmalert:
+    image: victoriametrics/vmalert:v1.155.0
+    container_name: obenhub-stage3-vmalert
+    restart: unless-stopped
+    mem_limit: 128m
+    command:
+      - -datasource.url=http://victoriametrics:8428
+      - -remoteWrite.url=http://victoriametrics:8428
+      - -notifier.url=http://alertmanager:9093
+      - -rule=/etc/vmalert/rules/*.yml
+      - -evaluationInterval=15s
+    ports:
+      - "127.0.0.1:28880:8880"
+    volumes:
+      - ./vmalert/rules:/etc/vmalert/rules:ro
+    depends_on:
+      victoriametrics:
+        condition: service_healthy
+      alertmanager:
+        condition: service_started
+    networks:
+      - mon
+
+  alertmanager:
+    image: prom/alertmanager:v0.34.2
+    container_name: obenhub-stage3-alertmanager
+    restart: unless-stopped
+    mem_limit: 128m
+    command:
+      - --config.file=/etc/alertmanager/alertmanager.yml
+      - --storage.path=/alertmanager
+    ports:
+      - "127.0.0.1:29093:9093"
+    volumes:
+      - ./alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+      - am-data:/alertmanager
+    depends_on:
+      - victorialogs
+    networks:
+      - mon
+
+  # AGPL-3.0, run unmodified as a separate service (ADR 0004); nothing of it
+  # is copied into this repository. Plugins are downloaded at start.
+  grafana:
+    image: grafana/grafana:13.3.0
+    container_name: obenhub-stage3-grafana
+    restart: unless-stopped
+    mem_limit: 512m
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: "${GRAFANA_ADMIN_PASSWORD:?run: mise run lab:stage3:up (it generates lab/stage3/.env)}"
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
+      GF_PLUGINS_PREINSTALL_SYNC: victoriametrics-metrics-datasource@1.0.1,victoriametrics-logs-datasource@0.33.1
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+      GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
+      GF_ANALYTICS_CHECK_FOR_PLUGIN_UPDATES: "false"
+    ports:
+      - "127.0.0.1:23000:3000"
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/obenhub/dashboards:ro
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:3000/api/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 40
+      start_period: 30s
+    depends_on:
+      - victoriametrics
+      - victorialogs
+    networks:
+      - mon
+
+networks:
+  # etcd and the Patroni REST API: a scenario that cuts a node here cuts it
+  # from the DCS. Internal, fixed subnet (the node IPs above).
+  dcs:
+    internal: true
+    ipam:
+      config:
+        - subnet: 10.215.0.0/24
+  # PostgreSQL replication and pg_rewind only; pg_hba allows only this subnet
+  # for replicator and for the postgres superuser. Cutting a node here stops
+  # WAL streaming and leaves its DCS session and monitoring alone.
+  repl:
+    internal: true
+    ipam:
+      config:
+        - subnet: 10.216.0.0/24
+  # Collector, backend and clients. Nothing in a scenario cuts this one.
+  mon: {}
+
+volumes:
+  etcd-1-data: {}
+  etcd-2-data: {}
+  etcd-3-data: {}
+  pg-1-data: {}
+  pg-2-data: {}
+  pg-3-data: {}
+  pg-1-log: {}
+  pg-2-log: {}
+  pg-3-log: {}
+  vm-data: {}
+  vl-data: {}
+  otelcol-data: {}
+  am-data: {}
+  grafana-data: {}

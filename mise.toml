@@ -58,6 +58,10 @@ run = [
   "lab/slice1/alertmanager/test.sh",
 ]
 
+[tasks."lab:stage3:rules-test"]
+description = "unit-test the stage 3 lab alert rules (vmalert-tool); needs docker"
+run = """docker run --rm -v "$PWD/lab/stage3/vmalert:/vmalert:ro" victoriametrics/vmalert-tool:v1.155.0 unittest --files=/vmalert/tests/targets.yml,/vmalert/tests/replication.yml,/vmalert/tests/patroni.yml"""
+
 [tasks.check]
 description = "all checks as CI runs them (needs docker for lab:rules-test, which pulls images on first use)"
 depends = [
@@ -70,6 +74,7 @@ depends = [
   "lint:editorconfig",
   "lint:shell",
   "lab:rules-test",
+  "lab:stage3:rules-test",
   "docs:build",
 ]
 
@@ -109,5 +114,40 @@ set -e
 for s in standby-stopped collector-stopped repl-cut replay-paused snapshot-held connections-exhausted permission-revoked logical-conflict subscription-disabled logical-cut pgbouncer-pool-saturated pgbouncer-stopped control; do
   echo "=== $s"
   lab/slice1/scenarios/$s.sh
+done
+'''
+
+[tasks."lab:stage3:up"]
+description = "start the stage 3 lab (three etcd members, three Patroni nodes, load client, collector, VictoriaMetrics/Logs)"
+run = """
+lab/stage3/scripts/gen-env.sh
+docker compose -p obenhub-stage3 -f lab/stage3/compose.yaml up -d --build --wait
+"""
+
+[tasks."lab:stage3:down"]
+description = "stop the stage 3 lab and delete its volumes"
+run = "docker compose -p obenhub-stage3 -f lab/stage3/compose.yaml down -v"
+
+[tasks."lab:stage3:ps"]
+description = "show the stage 3 lab containers"
+run = "docker compose -p obenhub-stage3 -f lab/stage3/compose.yaml ps"
+
+[tasks."lab:stage3:scenario"]
+description = "run one stage 3 fault scenario against the running lab (lab/stage3/scenarios/<name>.sh); appends to lab/stage3/results/runs.jsonl"
+usage = 'arg "<name>" help "scenario name, e.g. leader-killed"'
+run = '''
+f="lab/stage3/scenarios/${usage_name}.sh"
+case "$usage_name" in *[!a-z-]*|lib|"") echo "bad scenario name: $usage_name" >&2; exit 2;; esac
+[ -x "$f" ] || { echo "no such scenario: $usage_name" >&2; ls lab/stage3/scenarios | sed -n 's/\.sh$//p' | grep -v '^lib$' >&2; exit 2; }
+exec "$f"
+'''
+
+[tasks."lab:stage3:scenarios"]
+description = "run all stage 3 fault scenarios, control last; stops at the first failure"
+run = '''
+set -e
+for s in quorum-lost leader-killed replica-not-eligible replay-paused cluster-paused pending-restart switchover control; do
+  echo "=== $s"
+  lab/stage3/scenarios/$s.sh
 done
 '''
