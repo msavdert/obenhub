@@ -577,6 +577,339 @@
       "description": "postgresqlreceiver sums are cumulative counters, so these are rate() over them, summed over databases."
     },
     {
+      "id": 11,
+      "title": "Replication slots: WAL retained",
+      "type": "timeseries",
+      "datasource": {
+        "type": "victoriametrics-metrics-datasource",
+        "uid": "vm"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 20,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "vm"
+          },
+          "expr": "postgresql.replication_slot.retained_bytes",
+          "refId": "A",
+          "range": true,
+          "instant": false,
+          "legendFormat": "{{service.instance.id}} {{slot_name}} retained"
+        },
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "vm"
+          },
+          "expr": "postgresql.replication_slot.unconfirmed_bytes{slot_type=\"logical\"}",
+          "refId": "B",
+          "range": true,
+          "instant": false,
+          "legendFormat": "{{service.instance.id}} {{slot_name}} unconfirmed"
+        },
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "vm"
+          },
+          "expr": "128 * 1024 * 1024",
+          "refId": "C",
+          "range": true,
+          "instant": false,
+          "legendFormat": "LogicalSlotRetainingWal bytes threshold"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 10,
+            "showPoints": "never"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "description": "retained_bytes is current LSN minus restart_lsn; unconfirmed_bytes (logical slots) is current LSN minus confirmed_flush_lsn. All nodes, not filtered by the instance variable."
+    },
+    {
+      "id": 12,
+      "title": "Replication slots: active and inactive time",
+      "type": "timeseries",
+      "datasource": {
+        "type": "victoriametrics-metrics-datasource",
+        "uid": "vm"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 20,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "vm"
+          },
+          "expr": "postgresql.replication_slot.active",
+          "refId": "A",
+          "range": true,
+          "instant": false,
+          "legendFormat": "{{service.instance.id}} {{slot_name}} active"
+        },
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "vm"
+          },
+          "expr": "postgresql.replication_slot.inactive_seconds",
+          "refId": "B",
+          "range": true,
+          "instant": false,
+          "legendFormat": "{{service.instance.id}} {{slot_name}} inactive seconds"
+        },
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "vm"
+          },
+          "expr": "180",
+          "refId": "C",
+          "range": true,
+          "instant": false,
+          "legendFormat": "LogicalSlotRetainingWal inactive threshold (s)"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 10,
+            "showPoints": "never"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "description": "active is 1 while a process streams from the slot; inactive_seconds counts from pg_replication_slots.inactive_since. The standby slot standby1 is physical and not covered by the alert."
+    },
+    {
+      "id": 13,
+      "title": "Subscription: enabled and apply worker",
+      "type": "timeseries",
+      "datasource": {
+        "type": "victoriametrics-metrics-datasource",
+        "uid": "vm"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 28,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "vm"
+          },
+          "expr": "postgresql.subscription.enabled",
+          "refId": "A",
+          "range": true,
+          "instant": false,
+          "legendFormat": "{{subscription_name}} enabled"
+        },
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "vm"
+          },
+          "expr": "postgresql.subscription.apply_worker_running",
+          "refId": "B",
+          "range": true,
+          "instant": false,
+          "legendFormat": "{{subscription_name}} apply worker running"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 10,
+            "showPoints": "never"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "description": "From pg_subscription and pg_stat_subscription on the subscriber. A disabled subscription is expected to have no worker."
+    },
+    {
+      "id": 14,
+      "title": "Subscription: age of last message",
+      "type": "timeseries",
+      "datasource": {
+        "type": "victoriametrics-metrics-datasource",
+        "uid": "vm"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 28,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "vm"
+          },
+          "expr": "postgresql.subscription.last_msg_age",
+          "refId": "A",
+          "range": true,
+          "instant": false,
+          "legendFormat": "{{subscription_name}} seconds since last message"
+        },
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "vm"
+          },
+          "expr": "60",
+          "refId": "B",
+          "range": true,
+          "instant": false,
+          "legendFormat": "LogicalSubscriptionNotStreaming threshold (s)"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 10,
+            "showPoints": "never"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "description": "pg_stat_subscription.last_msg_receipt_time of the apply worker; 0 while there is no worker. A healthy idle subscription peaks near 30 s."
+    },
+    {
+      "id": 15,
+      "title": "Subscription: apply errors, sync errors, conflicts",
+      "type": "timeseries",
+      "datasource": {
+        "type": "victoriametrics-metrics-datasource",
+        "uid": "vm"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 36,
+        "w": 24,
+        "h": 8
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "vm"
+          },
+          "expr": "postgresql.subscription.apply_errors",
+          "refId": "A",
+          "range": true,
+          "instant": false,
+          "legendFormat": "{{subscription_name}} apply errors"
+        },
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "vm"
+          },
+          "expr": "postgresql.subscription.sync_errors",
+          "refId": "B",
+          "range": true,
+          "instant": false,
+          "legendFormat": "{{subscription_name}} sync errors"
+        },
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "vm"
+          },
+          "expr": "sum by (subscription_name, conflict_type) (postgresql.subscription.conflicts) > 0",
+          "refId": "C",
+          "range": true,
+          "instant": false,
+          "legendFormat": "{{subscription_name}} conflicts {{conflict_type}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 10,
+            "showPoints": "never"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "description": "Cumulative counters from pg_stat_subscription_stats. An insert_exists conflict raises apply errors about every 5 s until it is resolved; conflict types at zero are hidden."
+    },
+    {
       "id": 9,
       "title": "PostgreSQL ERROR and FATAL (server log)",
       "type": "logs",
@@ -586,7 +919,7 @@
       },
       "gridPos": {
         "x": 0,
-        "y": 20,
+        "y": 44,
         "w": 24,
         "h": 9
       },
@@ -623,7 +956,7 @@
       },
       "gridPos": {
         "x": 0,
-        "y": 29,
+        "y": 53,
         "w": 24,
         "h": 9
       },

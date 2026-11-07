@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # shellcheck disable=SC2034
-# Shared helpers for the slice 1 fault scenarios. Source it from a scenario;
+# Shared helpers for the slice 1 and stage 2 fault scenarios. Source it from a scenario;
 # do not run it. A scenario defines EXPECT, inject() and revert() and calls
 # run_scenario (see standby-stopped.sh for the smallest example).
 #
@@ -18,7 +18,10 @@ AM=${AM:-http://127.0.0.1:19093}
 VM=${VM:-http://127.0.0.1:18428}
 PRIMARY=obenhub-slice1-pg-primary
 STANDBY=obenhub-slice1-pg-standby
+SUBSCRIBER=obenhub-slice1-pg-subscriber
 REPL_NET=obenhub-slice1_repl
+LOGICAL_NET=obenhub-slice1_logical
+SUBSCRIPTION=app_sub
 DETECT_TIMEOUT=${DETECT_TIMEOUT:-600}
 RESOLVE_TIMEOUT=${RESOLVE_TIMEOUT:-600}
 SETTLE_TIMEOUT=${SETTLE_TIMEOUT:-300}
@@ -36,6 +39,10 @@ secs() { awk -v a="$(epoch "$1")" -v b="$(epoch "$2")" 'BEGIN{printf "%.1f", b-a
 psql_p() { docker exec -i "$PRIMARY" psql -U postgres -X -v ON_ERROR_STOP=1 -At "$@"; }
 psql_s() { docker exec -i "$STANDBY" psql -U postgres -X -v ON_ERROR_STOP=1 -At "$@"; }
 
+# Stage 2: the same, in database app (publisher) and on the subscriber.
+psql_pa() { docker exec -i "$PRIMARY" psql -U postgres -X -v ON_ERROR_STOP=1 -At -d app "$@"; }
+psql_sa() { docker exec -i "$SUBSCRIBER" psql -U postgres -X -v ON_ERROR_STOP=1 -At -d app "$@"; }
+
 vl() { curl -fsS "$VL/select/logsql/query" --data-urlencode "query=$1"; }
 
 # first_record STATUS ALERTNAME INSTANCE SINCE -> _time of the earliest match
@@ -52,8 +59,18 @@ am_active() {
 }
 am_clean() { [ "$(am_active)" = "Watchdog" ]; }
 
-streaming_count() { psql_p -c "SELECT count(*) FROM pg_stat_replication WHERE state = 'streaming'"; }
+streaming_count() { psql_p -c "SELECT count(*) FROM pg_stat_replication WHERE state = 'streaming' AND application_name <> '$SUBSCRIPTION'"; }
 is_streaming() { [ "$(streaming_count)" = 1 ]; }
+# the logical walsender of the subscription is streaming on the publisher
+logical_streaming() {
+  [ "$(psql_p -c "SELECT count(*) FROM pg_stat_replication WHERE application_name = '$SUBSCRIPTION' AND state = 'streaming'")" = 1 ]
+}
+# both tables hold the same rows on publisher and subscriber (md5 over every row, ordered by key)
+app_digest='SELECT (SELECT md5(coalesce(string_agg(t::text, chr(10) ORDER BY id), chr(32))) FROM orders t) || (SELECT md5(coalesce(string_agg(t::text, chr(10) ORDER BY id), chr(32))) FROM customers t)'
+app_in_sync() {
+  local a b
+  a=$(psql_pa -c "$app_digest") && b=$(psql_sa -c "$app_digest") && [ -n "$a" ] && [ "$a" = "$b" ]
+}
 later() { awk -v a="$(epoch "$1")" -v b="$(epoch "$2")" 'BEGIN{exit !(a>b)}'; }
 
 wait_until() { # TIMEOUT description command...
@@ -76,6 +93,8 @@ image_versions() {
 precondition() {
   wait_until "$SETTLE_TIMEOUT" "only Watchdog active in Alertmanager" am_clean || { PRE_ERR="Alertmanager not clean: $(am_active | tr '\n' ' ')"; return 1; }
   wait_until 120 "replication streaming" is_streaming || { PRE_ERR="replication not streaming"; return 1; }
+  wait_until 120 "logical replication streaming" logical_streaming || { PRE_ERR="logical replication not streaming"; return 1; }
+  wait_until 120 "app tables in sync" app_in_sync || { PRE_ERR="app tables differ between publisher and subscriber"; return 1; }
 }
 
 # --- run bookkeeping -------------------------------------------------------

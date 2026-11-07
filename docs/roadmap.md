@@ -54,6 +54,29 @@ results are in `lab/slice1/results/runs.jsonl`.
 Deferred until after the slice: see ADR 0002 decisions 1 and 2 and ADR 0003
 decision 2.
 
+## Stage 2: logical replication
+
+Extends `lab/slice1` in place (same Compose project, harness and
+`mise run lab:scenarios`). PgBouncer follows in a separate step.
+
+- [x] Logical subscriber `pg-subscriber` (PostgreSQL 18, database `app`,
+      subscription `app_sub`) on its own `logical` network, so cutting
+      logical replication does not cut the physical standby or monitoring
+- [x] Pack queries for replication slots on every node and for
+      subscriptions on the subscriber (`pg_replication_slots`,
+      `pg_subscription`, `pg_stat_subscription`,
+      `pg_stat_subscription_stats`); `postgresqlreceiver` v0.164.0 has none
+      of these
+- [x] Alert rules with unit tests, each fired by one fault scenario except
+      the last:
+      - apply errors: an `insert_exists` conflict
+      - subscription enabled but not streaming: the `logical` network cut
+      - logical slot retaining WAL: subscription disabled while the
+        publisher writes
+      - slot invalidated: unit test only, no scenario (see the rule)
+- [x] Dashboard panels for slots, subscription state and error counters
+- [x] No-fault control with the subscriber included
+
 ## Upstream PR candidates
 
 See [ADR 0003](adr/0003-receiver-strategy.md), decision 3. Each candidate is

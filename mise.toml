@@ -52,9 +52,9 @@ description = "shellcheck on scripts/*.sh and lab/**/*.sh"
 run = "shellcheck scripts/*.sh lab/*/scripts/*.sh lab/*/scenarios/*.sh lab/*/grafana/*.sh lab/*/postgres/*.sh lab/*/alertmanager/*.sh lab/overhead/*.sh"
 
 [tasks."lab:rules-test"]
-description = "unit-test the slice 1 alert rules (vmalert-tool) and Alertmanager routing (throwaway container); needs docker"
+description = "unit-test the lab alert rules (vmalert-tool) and Alertmanager routing (throwaway container); needs docker"
 run = [
-  """docker run --rm -v "$PWD/lab/slice1/vmalert:/vmalert:ro" victoriametrics/vmalert-tool:v1.155.0 unittest --files=/vmalert/tests/targets.yml,/vmalert/tests/replication.yml,/vmalert/tests/resources.yml,/vmalert/tests/pack.yml""",
+  """docker run --rm -v "$PWD/lab/slice1/vmalert:/vmalert:ro" victoriametrics/vmalert-tool:v1.155.0 unittest --files=/vmalert/tests/targets.yml,/vmalert/tests/replication.yml,/vmalert/tests/resources.yml,/vmalert/tests/pack.yml,/vmalert/tests/logical.yml""",
   "lab/slice1/alertmanager/test.sh",
 ]
 
@@ -78,7 +78,7 @@ description = "end-of-life check (needs network)"
 run = "python3 scripts/check-eol.py"
 
 [tasks."lab:up"]
-description = "start the slice 1 lab (PostgreSQL primary + standby, collector, VictoriaMetrics/Logs)"
+description = "start the slice 1 lab (PostgreSQL primary, standby and logical subscriber, collector, VictoriaMetrics/Logs)"
 run = """
 lab/slice1/scripts/gen-env.sh
 docker compose -p obenhub-slice1 -f lab/slice1/compose.yaml up -d --wait
@@ -103,10 +103,10 @@ exec "$f"
 '''
 
 [tasks."lab:scenarios"]
-description = "run all slice 1 fault scenarios, control last; stops at the first failure"
+description = "run all lab fault scenarios, control last; stops at the first failure"
 run = '''
 set -e
-for s in standby-stopped collector-stopped repl-cut replay-paused snapshot-held connections-exhausted permission-revoked control; do
+for s in standby-stopped collector-stopped repl-cut replay-paused snapshot-held connections-exhausted permission-revoked logical-conflict subscription-disabled logical-cut control; do
   echo "=== $s"
   lab/slice1/scenarios/$s.sh
 done

@@ -12,7 +12,7 @@ touch "$env_file"
 added=""
 # make sure appending starts on a new line
 if [ -s "$env_file" ] && [ -n "$(tail -c1 "$env_file")" ]; then echo >>"$env_file"; fi
-for key in POSTGRES_PASSWORD REPLICATOR_PASSWORD OTEL_MONITOR_PASSWORD APP_PASSWORD GRAFANA_ADMIN_PASSWORD; do
+for key in POSTGRES_PASSWORD REPLICATOR_PASSWORD LOGICAL_PASSWORD OTEL_MONITOR_PASSWORD APP_PASSWORD GRAFANA_ADMIN_PASSWORD; do
   if ! grep -q "^${key}=." "$env_file"; then
     # drop an empty "KEY=" line, then append a fresh value
     tmp="$(mktemp "$env_file.XXXXXX")"
