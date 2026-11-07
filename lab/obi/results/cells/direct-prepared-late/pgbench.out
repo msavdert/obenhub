@@ -1,0 +1,31 @@
+pgbench (18.6 (Debian 18.6-1.pgdg13+2))
+transaction type: /etc/obi-lab/tpcb-late.sql
+scaling factor: 1
+query mode: prepared
+number of clients: 8
+number of threads: 4
+maximum number of tries: 1
+duration: 80 s
+number of transactions actually processed: 15077
+number of failed transactions: 0 (0.000%)
+latency average = 16164.984 ms
+latency stddev = 2120.340 ms
+rate limit schedule lag: avg 16122.568 (max 20517.986) ms
+initial connection time = 27.937 ms
+tps = 188.444525 (without initial connection time)
+statement latencies in milliseconds and failures:
+         0.002           0 \if :started = 0
+     12000.076           0 \sleep 12 s
+         0.002           0 \set started 1
+         0.000           0 \endif
+         0.001           0 \set aid random(1, 100000 * :scale)
+         0.001           0 \set bid random(1, 1 * :scale)
+         0.001           0 \set tid random(1, 10 * :scale)
+         0.001           0 \set delta random(-5000, 5000)
+         0.117           0 BEGIN;
+         0.182           0 UPDATE pgbench_accounts SET abalance = abalance + :delta WHERE aid = :aid;
+         0.133           0 SELECT abalance FROM pgbench_accounts WHERE aid = :aid;
+        11.952           0 UPDATE pgbench_tellers SET tbalance = tbalance + :delta WHERE tid = :tid;
+        19.207           0 UPDATE pgbench_branches SET bbalance = bbalance + :delta WHERE bid = :bid;
+         0.148           0 INSERT INTO pgbench_history (tid, bid, aid, delta, mtime) VALUES (:tid, :bid, :aid, :delta, CURRENT_TIMESTAMP);
+         4.304           0 END;

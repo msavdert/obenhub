@@ -1,0 +1,23 @@
+Started obi.service - OpenTelemetry eBPF Instrumentation (OBI experiment).
+time=2026-11-07T22:29:09.203+03:00 level=INFO msg="OpenTelemetry eBPF Instrumentation" Version=v1.0.0 Revision=d23be0d6b "OpenTelemetry SDK Version"=1.47.0
+time=2026-11-07T22:29:09.203+03:00 level=INFO msg="configuration loaded" version=v1
+time=2026-11-07T22:29:11.205+03:00 level=WARN msg="timed out while waiting for Cloud metadata. Ignoring" component=meta.NodeMeta.otelNodeFetcher detector=ec2.resourceDetector
+time=2026-11-07T22:29:11.205+03:00 level=WARN msg="timed out while waiting for Cloud metadata. Ignoring" component=meta.NodeMeta.otelNodeFetcher detector=azurevm.ResourceDetector
+time=2026-11-07T22:29:11.206+03:00 level=INFO msg="starting Application Observability mode"
+time=2026-11-07T22:29:11.206+03:00 level=INFO msg="using hostname" component=traces.ReadDecorator function=instance_ID_hostNamePIDDecorator hostname=pg-lab.lab.local
+time=2026-11-07T22:29:11.219+03:00 level=INFO msg="using hostname" component=traces.ReadDecorator function=instance_ID_hostNamePIDDecorator hostname=pg-lab.lab.local
+time=2026-11-07T22:29:11.219+03:00 level=INFO msg="Starting main node" component=obi.Instrumenter
+time=2026-11-07T22:29:11.220+03:00 level=INFO msg="attaching uprobes as uprobe_multi links"
+time=2026-11-07T22:29:11.356+03:00 level=INFO msg="instrumenting process" component=discover.traceAttacher cmd=/usr/lib/postgresql/18/bin/postgres pid=88633 ino=134132 type=cpp service="" logenricher=false
+time=2026-11-07T22:29:13.331+03:00 level=INFO msg="instrumenting process" component=discover.traceAttacher cmd=/usr/sbin/pgbouncer pid=122946 ino=3537 type=generic service="" logenricher=false
+time=2026-11-07T22:29:13.332+03:00 level=INFO msg="Launching p.Tracer" component=generic.Tracer
+time=2026-11-07T22:29:26.364+03:00 level=INFO msg="instrumenting process" component=discover.traceAttacher cmd=/usr/lib/postgresql/18/bin/pgbench pid=123330 ino=134131 type=generic service="" logenricher=false
+time=2026-11-07T22:30:41.407+03:00 level=INFO msg="process ended for already instrumented executable" component=discover.traceAttacher cmd=/usr/lib/postgresql/18/bin/postgres pid=123340 ino=134132 type=unknown service=postgres
+time=2026-11-07T22:30:41.407+03:00 level=INFO msg="process ended for already instrumented executable" component=discover.traceAttacher cmd=/usr/lib/postgresql/18/bin/pgbench pid=123330 ino=134131 type=unknown service=pgbench
+time=2026-11-07T22:30:41.408+03:00 level=INFO msg="process ended for already instrumented executable" component=discover.traceAttacher cmd=/usr/lib/postgresql/18/bin/postgres pid=123341 ino=134132 type=unknown service=postgres
+time=2026-11-07T22:30:41.408+03:00 level=INFO msg="process ended for already instrumented executable" component=discover.traceAttacher cmd=/usr/lib/postgresql/18/bin/postgres pid=123339 ino=134132 type=unknown service=postgres
+time=2026-11-07T22:30:41.409+03:00 level=INFO msg="process ended for already instrumented executable" component=discover.traceAttacher cmd=/usr/lib/postgresql/18/bin/postgres pid=123337 ino=134132 type=unknown service=postgres
+time=2026-11-07T22:30:41.409+03:00 level=INFO msg="process ended for already instrumented executable" component=discover.traceAttacher cmd=/usr/lib/postgresql/18/bin/postgres pid=123342 ino=134132 type=unknown service=postgres
+time=2026-11-07T22:30:41.410+03:00 level=INFO msg="process ended for already instrumented executable" component=discover.traceAttacher cmd=/usr/lib/postgresql/18/bin/postgres pid=123338 ino=134132 type=unknown service=postgres
+time=2026-11-07T22:30:41.410+03:00 level=INFO msg="process ended for already instrumented executable" component=discover.traceAttacher cmd=/usr/lib/postgresql/18/bin/postgres pid=123336 ino=134132 type=unknown service=postgres
+time=2026-11-07T22:30:41.411+03:00 level=INFO msg="process ended for already instrumented executable" component=discover.traceAttacher cmd=/usr/lib/postgresql/18/bin/postgres pid=123335 ino=134132 type=unknown service=postgres

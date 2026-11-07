@@ -1,0 +1,40 @@
+# Collector config for the OBI experiment on pg-lab (otelcol-contrib 0.164.0,
+# unit obenhub-otelcol-obi.service). Own file. OBI exports OTLP/HTTP metrics to
+# 127.0.0.1:4318; the file exporter writes one JSON line per export, which
+# analyze.py reads. A traces pipeline writes to a second file only to show
+# that OBI sent none; it is expected to stay empty. append: true because the
+# exporter truncates its file at every start otherwise.
+receivers:
+  otlp:
+    protocols:
+      http:
+        endpoint: 127.0.0.1:4318
+
+exporters:
+  file/metrics:
+    path: /var/lib/obi-lab/metrics.jsonl
+    append: true
+    flush_interval: 1s
+  file/traces:
+    path: /var/lib/obi-lab/traces.jsonl
+    append: true
+    flush_interval: 1s
+  file/logs:
+    path: /var/lib/obi-lab/logs.jsonl
+    append: true
+    flush_interval: 1s
+
+service:
+  telemetry:
+    metrics:
+      level: none
+  pipelines:
+    metrics:
+      receivers: [otlp]
+      exporters: [file/metrics]
+    traces:
+      receivers: [otlp]
+      exporters: [file/traces]
+    logs:
+      receivers: [otlp]
+      exporters: [file/logs]

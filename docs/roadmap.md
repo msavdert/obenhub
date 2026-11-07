@@ -106,12 +106,25 @@ read 2026-11-07) list PostgreSQL among the protocols it observes, and its
 (2026-10-30) is its first stable one. What it reports in this lab is
 unconfirmed.
 
-- [ ] Licence: as a separate, unmodified process in the lab, OBI falls
-      under ADR 0004 decision 3, so the image and its kernel-side `bpf/`
-      sources need OSI licences; building OBI into the project's own
-      Collector distribution would fall under decision 2 (no GPL) instead
-- [ ] A privileged OBI sidecar exporting OTLP to the Collector, metrics
-      only; what it reports for pgbench through PgBouncer and directly
-      against the primary (extended protocol, prepared statements, TLS)
-- [ ] Only if the signal is worth keeping: add VictoriaTraces (ADR 0002)
-      to the lab and a traces pipeline
+- [x] Licence: as a separate, unmodified process in the lab, OBI falls
+      under ADR 0004 decision 3 and passes it. At v1.0.0 `LICENSE` is
+      Apache-2.0 and the BPF sources carry Apache-2.0 SPDX headers, but the
+      programs declare `"Dual MIT/GPL"` (`bpf/generictracer/generictracer.c`)
+      or `"GPL"` (`bpf/netolly/flows.c`) to the kernel, and `bpf/bpfcore/`
+      vendors libbpf headers (LGPL-2.1 OR BSD-2-Clause). Building OBI into
+      the project's own Collector distribution would fall under decision 2
+      and needs its own decision first
+- [x] OBI v1.0.0 on the `pg-lab` VM, not on the shared Docker host: OBI
+      sees every process on its kernel, and the VM runs no other workload
+      (an idle source-built PostgreSQL on port 5433 is excluded by path). It
+      exports OTLP metrics to a Collector; the question is what it reports
+      for pgbench through PgBouncer and directly against PostgreSQL
+      (simple, extended and prepared protocol), next to pgbench's own
+      latency
+- [x] Only if the signal is worth keeping: add VictoriaTraces (ADR 0002)
+      to the lab and a traces pipeline. Decided 2026-11-07: not now. The
+      per-statement client latency is accurate and splits the PgBouncer
+      hops, but OBI misses `BEGIN` and the commit (`END`), statements
+      prepared before it attaches, and most server-side calls over TLS
+      ([results](https://github.com/msavdert/obenhub/blob/main/lab/obi/results/results.md)).
+      It stays out of the reference stack until those gaps close upstream

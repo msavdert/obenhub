@@ -1,0 +1,46 @@
+# OBI v1.0.0 config for the pg-lab experiment (config v1 keys as documented at
+# https://opentelemetry.io/docs/zero-code/obi/configure/, read 2026-11-07).
+# Own file, nothing copied from upstream.
+#
+# Only the three executables of the experiment are selected, by full path
+# (pg-lab also has an idle source-built PostgreSQL, /usr/local/pgsql/bin/postgres on
+# port 5433, which a '*/postgres' glob would have selected too). The default
+# discovery.default_exclude_instrument (OBI itself and otelcol-contrib) stays
+# in place. Metrics go to the lab Collector on loopback; no traces endpoint
+# and no shared OTEL_EXPORTER_OTLP_ENDPOINT are set. The 5 s export interval
+# (default 60 s) lets a 60 s cell hold several cumulative data points.
+log_level: info
+discovery:
+  instrument:
+    - exe_path: /usr/lib/postgresql/18/bin/pgbench
+    - exe_path: /usr/sbin/pgbouncer
+    - exe_path: /usr/lib/postgresql/18/bin/postgres
+otel_metrics_export:
+  endpoint: http://127.0.0.1:4318
+  protocol: http/protobuf
+  interval: 5s
+  buckets:
+    # default bounds (0, 5, 10, 25 ms ...) put most statements into one bucket
+    duration_histogram:
+      - 0.0001
+      - 0.0002
+      - 0.0003
+      - 0.0005
+      - 0.00075
+      - 0.001
+      - 0.0015
+      - 0.002
+      - 0.003
+      - 0.004
+      - 0.005
+      - 0.0075
+      - 0.01
+      - 0.015
+      - 0.02
+      - 0.03
+      - 0.05
+      - 0.1
+      - 0.25
+      - 1
+metrics:
+  features: [application]
