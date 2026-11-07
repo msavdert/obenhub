@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.3.0](https://github.com/msavdert/obenhub/compare/v0.2.0...v0.3.0) (2026-11-07)
+
+
+### Features
+
+* **lab:** monitor logical replication in the stage 2 lab ([856ac8d](https://github.com/msavdert/obenhub/commit/856ac8ded45cb2d925f110ee3c0349811a7c928a))
+
+
+### Documentation
+
+* **roadmap:** plan one OBI experiment after the PgBouncer step ([e65960e](https://github.com/msavdert/obenhub/commit/e65960e3fdb105216a50b7237d2fadc50aa02373))
+
 ## [0.2.0](https://github.com/msavdert/obenhub/compare/v0.1.0...v0.2.0) (2026-11-07)
 
 
