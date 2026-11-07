@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.4.0](https://github.com/msavdert/obenhub/compare/v0.3.0...v0.4.0) (2026-11-07)
+
+
+### Features
+
+* **lab:** add the stage 3 Patroni lab ([8a666d5](https://github.com/msavdert/obenhub/commit/8a666d52f0c53ef93139d66569f66f01887c73d6))
+* **lab:** measure OBI v1.0.0 against PostgreSQL and PgBouncer ([8d7de00](https://github.com/msavdert/obenhub/commit/8d7de00537af9a8255caf27ba7c06b426780c060))
+
 ## [0.3.0](https://github.com/msavdert/obenhub/compare/v0.2.0...v0.3.0) (2026-11-07)
 
 
