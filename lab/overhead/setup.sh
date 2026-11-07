@@ -3,7 +3,7 @@
 # (10.0.0.13, Debian 13) over ssh from the box; it changes only pg-lab.
 #
 # What it does (idempotent):
-#   - installs otelcol-contrib 0.164.0 from the official release tarball,
+#   - installs otelcol-contrib (VERSION below) from the official release tarball,
 #     verified against the release's per-asset .sha256 file;
 #   - creates the system user otelcol, /etc/otelcol-contrib/env (root, 0600,
 #     random OTEL_MONITOR_PASSWORD generated on pg-lab, never printed) and the
@@ -20,6 +20,7 @@ set -euo pipefail
 
 HOST="${PGLAB_HOST:-pg-lab}"
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# renovate: datasource=github-releases depName=open-telemetry/opentelemetry-collector-releases extractVersion=^v(?<version>.+)$
 VERSION=0.164.0
 SCALE="${SCALE:-100}"
 

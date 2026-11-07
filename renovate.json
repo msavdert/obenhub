@@ -49,6 +49,93 @@
         "major"
       ],
       "enabled": false
+    },
+    {
+      "description": "VictoriaMetrics single-node, vmalert and vmalert-tool share one release train",
+      "matchPackageNames": [
+        "victoriametrics/victoria-metrics",
+        "victoriametrics/vmalert",
+        "victoriametrics/vmalert-tool"
+      ],
+      "groupName": "victoriametrics"
+    },
+    {
+      "description": "The Collector image in the lab and the release tarball installed on pg-lab move together",
+      "matchPackageNames": [
+        "otel/opentelemetry-collector-contrib",
+        "open-telemetry/opentelemetry-collector-releases"
+      ],
+      "groupName": "opentelemetry collector"
+    },
+    {
+      "description": "A new PostgreSQL major is a stage decision (ADR 0001), not a dependency update",
+      "matchDatasources": [
+        "docker"
+      ],
+      "matchPackageNames": [
+        "postgres"
+      ],
+      "matchUpdateTypes": [
+        "major"
+      ],
+      "enabled": false
+    },
+    {
+      "description": "The two VictoriaMetrics Grafana plugins share one compose line",
+      "matchPackageNames": [
+        "VictoriaMetrics/victoriametrics-datasource",
+        "VictoriaMetrics/victorialogs-datasource"
+      ],
+      "groupName": "grafana plugins"
+    }
+  ],
+  "customManagers": [
+    {
+      "customType": "regex",
+      "description": "Versions annotated with a '# renovate:' comment on the line above a NAME=version assignment in lab shell scripts",
+      "managerFilePatterns": [
+        "/^lab/.+\\.sh$/"
+      ],
+      "matchStrings": [
+        "# renovate: datasource=(?<datasource>\\S+) depName=(?<depName>\\S+)(?: extractVersion=(?<extractVersion>\\S+))?\\s+[A-Z_]+=(?<currentValue>\\S+)"
+      ]
+    },
+    {
+      "customType": "regex",
+      "description": "vmalert-tool image in the lab:rules-test task; moves with vmalert",
+      "managerFilePatterns": [
+        "/(^|/)mise\\.toml$/"
+      ],
+      "matchStrings": [
+        "(?<depName>victoriametrics/vmalert-tool):(?<currentValue>v[0-9.]+)"
+      ],
+      "datasourceTemplate": "docker"
+    },
+    {
+      "customType": "regex",
+      "description": "Grafana plugins preinstalled by the lab compose files",
+      "managerFilePatterns": [
+        "/^lab/.+/compose\\.ya?ml$/"
+      ],
+      "matchStrings": [
+        "victoriametrics-metrics-datasource@(?<currentValue>[0-9.]+)"
+      ],
+      "depNameTemplate": "VictoriaMetrics/victoriametrics-datasource",
+      "datasourceTemplate": "github-releases",
+      "extractVersionTemplate": "^v(?<version>.+)$"
+    },
+    {
+      "customType": "regex",
+      "description": "Grafana plugins preinstalled by the lab compose files",
+      "managerFilePatterns": [
+        "/^lab/.+/compose\\.ya?ml$/"
+      ],
+      "matchStrings": [
+        "victoriametrics-logs-datasource@(?<currentValue>[0-9.]+)"
+      ],
+      "depNameTemplate": "VictoriaMetrics/victorialogs-datasource",
+      "datasourceTemplate": "github-releases",
+      "extractVersionTemplate": "^v(?<version>.+)$"
     }
   ]
 }
