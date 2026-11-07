@@ -81,3 +81,26 @@ Extends `lab/slice1` in place (same Compose project, harness and
 
 See [ADR 0003](adr/0003-receiver-strategy.md), decision 3. Each candidate is
 checked against existing upstream issues before work starts.
+
+## After the PgBouncer step: OpenTelemetry eBPF Instrumentation (OBI)
+
+One experiment between stage 2 and stage 3; it does not displace stage 3.
+The question is whether OBI adds client-side database latency to what the
+receivers report. Its docs
+([opentelemetry.io/docs/zero-code/obi](https://opentelemetry.io/docs/zero-code/obi/),
+read 2026-11-07) list PostgreSQL among the protocols it observes, and its
+[metrics page](https://opentelemetry.io/docs/zero-code/obi/metrics/) lists
+`db.client.operation.duration`; release
+[v1.0.0](https://github.com/open-telemetry/opentelemetry-ebpf-instrumentation/releases/tag/v1.0.0)
+(2026-10-30) is its first stable one. What it reports in this lab is
+unconfirmed.
+
+- [ ] Licence: as a separate, unmodified process in the lab, OBI falls
+      under ADR 0004 decision 3, so the image and its kernel-side `bpf/`
+      sources need OSI licences; building OBI into the project's own
+      Collector distribution would fall under decision 2 (no GPL) instead
+- [ ] A privileged OBI sidecar exporting OTLP to the Collector, metrics
+      only; what it reports for pgbench through PgBouncer and directly
+      against the primary (extended protocol, prepared statements, TLS)
+- [ ] Only if the signal is worth keeping: add VictoriaTraces (ADR 0002)
+      to the lab and a traces pipeline
