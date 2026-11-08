@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.6.0](https://github.com/msavdert/obenhub/compare/v0.5.0...v0.6.0) (2026-11-08)
+
+
+### Features
+
+* **lab:** PostgreSQL health signals and two-tier capacity alerts ([52aa86e](https://github.com/msavdert/obenhub/commit/52aa86ee6a4cddc81e600fcceec7314b9807d3d1))
+
+
+### Documentation
+
+* **roadmap:** plan stage 5 as one short session per cloud provider ([ed9cc18](https://github.com/msavdert/obenhub/commit/ed9cc189b6089f64fbb5ea6e19765821a3ec257f))
+
 ## [0.5.0](https://github.com/msavdert/obenhub/compare/v0.4.0...v0.5.0) (2026-11-08)
 
 
