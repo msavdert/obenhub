@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.0](https://github.com/msavdert/obenhub/compare/v0.4.0...v0.5.0) (2026-11-08)
+
+
+### Features
+
+* **lab:** monitor etcd and Patroni failsafe in the stage 3 lab ([3c91995](https://github.com/msavdert/obenhub/commit/3c919952f055dc15931996ad819f3d5131ccb5d4))
+
 ## [0.4.0](https://github.com/msavdert/obenhub/compare/v0.3.0...v0.4.0) (2026-11-07)
 
 
