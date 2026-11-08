@@ -185,8 +185,10 @@ services:
         condition: service_healthy
       victorialogs:
         condition: service_started
+    # dcs: the etcd members are reachable only there (they scrape /metrics)
     networks:
       - mon
+      - dcs
 
   # one-shot: the Collector (uid 10001) must own its file_storage volume
   otelcol-init:

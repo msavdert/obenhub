@@ -15,6 +15,7 @@ pw="$(sed -n 's/^GRAFANA_ADMIN_PASSWORD=//p' "$dir/../.env")"
 fail=0
 n=$(jq '.panels | length' "$dashboard")
 for i in $(seq 0 $((n - 1))); do
+  [ "$(jq -r ".panels[$i].type" "$dashboard")" = row ] && continue   # rows have no queries
   title=$(jq -r ".panels[$i].title" "$dashboard")
   body=$(jq -c --argjson i "$i" '
     {queries: [.panels[$i].targets[] | . + {maxDataPoints: 500, intervalMs: 15000}

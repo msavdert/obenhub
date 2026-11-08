@@ -60,7 +60,7 @@ run = [
 
 [tasks."lab:stage3:rules-test"]
 description = "unit-test the stage 3 lab alert rules (vmalert-tool); needs docker"
-run = """docker run --rm -v "$PWD/lab/stage3/vmalert:/vmalert:ro" victoriametrics/vmalert-tool:v1.155.0 unittest --files=/vmalert/tests/targets.yml,/vmalert/tests/replication.yml,/vmalert/tests/patroni.yml"""
+run = """docker run --rm -v "$PWD/lab/stage3/vmalert:/vmalert:ro" victoriametrics/vmalert-tool:v1.155.0 unittest --files=/vmalert/tests/targets.yml,/vmalert/tests/replication.yml,/vmalert/tests/patroni.yml,/vmalert/tests/etcd.yml"""
 
 [tasks.check]
 description = "all checks as CI runs them (needs docker for lab:rules-test, which pulls images on first use)"
@@ -146,7 +146,7 @@ exec "$f"
 description = "run all stage 3 fault scenarios, control last; stops at the first failure"
 run = '''
 set -e
-for s in quorum-lost leader-killed replica-not-eligible replay-paused cluster-paused pending-restart switchover control; do
+for s in quorum-lost etcd-member-down etcd-leader-changes patroni-down leader-killed replica-not-eligible replay-paused cluster-paused pending-restart switchover control; do
   echo "=== $s"
   lab/stage3/scenarios/$s.sh
 done

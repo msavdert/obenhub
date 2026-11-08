@@ -1,0 +1,392 @@
+# One test group per etcd rule: EtcdMemberAbsent, EtcdInsufficientMembers,
+# EtcdNoLeader, EtcdHighLeaderChanges, EtcdHighFsyncDurations,
+# EtcdHighCommitDurations. The fsync and commit rules are unit-tested only;
+# the lab cannot inject disk latency cleanly (see rules/etcd.yml).
+rule_files:
+  - ../rules/etcd.yml
+evaluation_interval: 15s
+
+tests:
+  - name: one member scraped as up 0 fires EtcdMemberAbsent for it only, quorum holds
+    interval: 15s
+    input_series:
+      - series: 'up{service.name="etcd",service.instance.id="etcd-1"}'
+        values: '1x60'
+      - series: 'up{service.name="etcd",service.instance.id="etcd-2"}'
+        values: '1x8 0x52'
+      - series: 'up{service.name="etcd",service.instance.id="etcd-3"}'
+        values: '1x60'
+      - series: 'otelcol_process_uptime{service.name="otelcol"}'
+        values: '1x60'
+    alert_rule_test:
+      - eval_time: 3m
+        groupname: etcd
+        alertname: EtcdMemberAbsent
+        exp_alerts: []
+      - eval_time: 6m
+        groupname: etcd
+        alertname: EtcdMemberAbsent
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              service.instance.id: etcd-2
+              service.namespace: obenhub-lab
+              service.name: etcd
+            exp_annotations:
+              summary: etcd member etcd-2 is not scraped
+      - eval_time: 6m
+        groupname: etcd
+        alertname: EtcdInsufficientMembers
+        exp_alerts: []
+
+  - name: a member whose series vanish fires the same way
+    interval: 15s
+    input_series:
+      - series: 'up{service.name="etcd",service.instance.id="etcd-1"}'
+        values: '1x60'
+      - series: 'up{service.name="etcd",service.instance.id="etcd-2"}'
+        values: '1x60'
+      - series: 'up{service.name="etcd",service.instance.id="etcd-3"}'
+        values: '1x8 _x52'
+      - series: 'otelcol_process_uptime{service.name="otelcol"}'
+        values: '1x60'
+    alert_rule_test:
+      - eval_time: 6m
+        groupname: etcd
+        alertname: EtcdMemberAbsent
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              service.instance.id: etcd-3
+              service.namespace: obenhub-lab
+              service.name: etcd
+            exp_annotations:
+              summary: etcd member etcd-3 is not scraped
+
+  - name: two members down names both and fires EtcdInsufficientMembers
+    interval: 15s
+    input_series:
+      - series: 'up{service.name="etcd",service.instance.id="etcd-1"}'
+        values: '1x60'
+      - series: 'up{service.name="etcd",service.instance.id="etcd-2"}'
+        values: '1x8 0x52'
+      - series: 'up{service.name="etcd",service.instance.id="etcd-3"}'
+        values: '1x8 0x52'
+      - series: 'otelcol_process_uptime{service.name="otelcol"}'
+        values: '1x60'
+    alert_rule_test:
+      - eval_time: 3m
+        groupname: etcd
+        alertname: EtcdInsufficientMembers
+        exp_alerts: []
+      - eval_time: 6m
+        groupname: etcd
+        alertname: EtcdInsufficientMembers
+        exp_alerts:
+          - exp_labels: {severity: critical}
+            exp_annotations:
+              summary: "Only 1 etcd members report: quorum is lost"
+      - eval_time: 6m
+        groupname: etcd
+        alertname: EtcdMemberAbsent
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              service.instance.id: etcd-2
+              service.namespace: obenhub-lab
+              service.name: etcd
+            exp_annotations:
+              summary: etcd member etcd-2 is not scraped
+          - exp_labels:
+              severity: warning
+              service.instance.id: etcd-3
+              service.namespace: obenhub-lab
+              service.name: etcd
+            exp_annotations:
+              summary: etcd member etcd-3 is not scraped
+
+  - name: all members gone with the Collector raises neither member nor quorum alerts
+    interval: 15s
+    input_series:
+      - series: 'up{service.name="etcd",service.instance.id="etcd-1"}'
+        values: '1x8 _x52'
+      - series: 'up{service.name="etcd",service.instance.id="etcd-2"}'
+        values: '1x8 _x52'
+      - series: 'up{service.name="etcd",service.instance.id="etcd-3"}'
+        values: '1x8 _x52'
+      - series: 'otelcol_process_uptime{service.name="otelcol"}'
+        values: '1x8 _x52'
+    alert_rule_test:
+      - eval_time: 6m
+        groupname: etcd
+        alertname: EtcdMemberAbsent
+        exp_alerts: []
+      - eval_time: 6m
+        groupname: etcd
+        alertname: EtcdInsufficientMembers
+        exp_alerts: []
+
+  - name: a member without a leader fires after 1 m; a healthy one does not
+    interval: 15s
+    input_series:
+      - series: 'etcd_server_has_leader{service.name="etcd",service.instance.id="etcd-1"}'
+        values: '1x4 0x56'
+      - series: 'etcd_server_has_leader{service.name="etcd",service.instance.id="etcd-2"}'
+        values: '1x60'
+      - series: 'etcd_server_has_leader{service.name="etcd",service.instance.id="etcd-3"}'
+        values: '1x4 0x2 1x54'
+    alert_rule_test:
+      - eval_time: 90s
+        groupname: etcd
+        alertname: EtcdNoLeader
+        exp_alerts: []
+      - eval_time: 3m
+        groupname: etcd
+        alertname: EtcdNoLeader
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              service.instance.id: etcd-1
+              service.name: etcd
+            exp_annotations:
+              summary: etcd member etcd-1 has no leader
+
+  - name: three leader changes in 5 m fire, two do not
+    interval: 15s
+    input_series:
+      # three members with different counter values; the largest per-member increase counts
+      - series: 'etcd_server_leader_changes_seen_total{service.name="etcd",service.instance.id="etcd-1"}'
+        values: '2x24 3 4 5 6x74'
+      - series: 'etcd_server_leader_changes_seen_total{service.name="etcd",service.instance.id="etcd-2"}'
+        values: '1x24 2 3 4 5x74'
+      - series: 'etcd_server_leader_changes_seen_total{service.name="etcd",service.instance.id="etcd-3"}'
+        values: '1x24 2 3 4 5x74'
+    alert_rule_test:
+      # MetricsQL counts the first sample of a series that starts inside the
+      # window as an increase from 0, so the series run flat for 6 m first.
+      - eval_time: 5m
+        groupname: etcd
+        alertname: EtcdHighLeaderChanges
+        exp_alerts: []
+      - eval_time: 8m
+        groupname: etcd
+        alertname: EtcdHighLeaderChanges
+        exp_alerts:
+          - exp_labels: {severity: warning}
+            exp_annotations:
+              summary: 4 etcd leader changes within 5 minutes
+      - eval_time: 14m   # the window has moved past the changes
+        groupname: etcd
+        alertname: EtcdHighLeaderChanges
+        exp_alerts: []
+
+  - name: two leader changes in 5 m do not fire
+    interval: 15s
+    input_series:
+      - series: 'etcd_server_leader_changes_seen_total{service.name="etcd",service.instance.id="etcd-1"}'
+        values: '2x24 3 4 4x74'
+    alert_rule_test:
+      - eval_time: 8m
+        groupname: etcd
+        alertname: EtcdHighLeaderChanges
+        exp_alerts: []
+
+  # Histogram series: 10 observations per 15 s sample. Slow = every one of
+  # them between 0.5 s and 1 s (p99 about 0.995 s); fast = at most 32 ms.
+  - name: WAL fsync p99 above 0.5 s for 10 m fires for the slow member only
+    interval: 15s
+    input_series:
+      - series: 'etcd_disk_wal_fsync_duration_seconds_bucket{le="0.032",service.name="etcd",service.instance.id="etcd-1"}'
+        values: '0+10x100'
+      - series: 'etcd_disk_wal_fsync_duration_seconds_bucket{le="0.5",service.name="etcd",service.instance.id="etcd-1"}'
+        values: '0+10x100'
+      - series: 'etcd_disk_wal_fsync_duration_seconds_bucket{le="1",service.name="etcd",service.instance.id="etcd-1"}'
+        values: '0+10x100'
+      - series: 'etcd_disk_wal_fsync_duration_seconds_bucket{le="+Inf",service.name="etcd",service.instance.id="etcd-1"}'
+        values: '0+10x100'
+      - series: 'etcd_disk_wal_fsync_duration_seconds_bucket{le="0.032",service.name="etcd",service.instance.id="etcd-2"}'
+        values: '0x100'
+      - series: 'etcd_disk_wal_fsync_duration_seconds_bucket{le="0.5",service.name="etcd",service.instance.id="etcd-2"}'
+        values: '0x100'
+      - series: 'etcd_disk_wal_fsync_duration_seconds_bucket{le="1",service.name="etcd",service.instance.id="etcd-2"}'
+        values: '0+10x100'
+      - series: 'etcd_disk_wal_fsync_duration_seconds_bucket{le="+Inf",service.name="etcd",service.instance.id="etcd-2"}'
+        values: '0+10x100'
+    alert_rule_test:
+      - eval_time: 8m   # slow for 8 m, below the 10 m hold
+        groupname: etcd
+        alertname: EtcdHighFsyncDurations
+        exp_alerts: []
+      - eval_time: 16m
+        groupname: etcd
+        alertname: EtcdHighFsyncDurations
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              service.instance.id: etcd-2
+              service.name: etcd
+            exp_annotations:
+              summary: etcd member etcd-2 WAL fsync p99 is 995ms
+
+  - name: backend commit p99 above 0.25 s for 10 m fires; 0.2 s p99 does not
+    interval: 15s
+    input_series:
+      # etcd-1: all in (0.25, 0.5]; etcd-2: all in (0.128, 0.25] (p99 < 0.25)
+      - series: 'etcd_disk_backend_commit_duration_seconds_bucket{le="0.25",service.name="etcd",service.instance.id="etcd-1"}'
+        values: '0x100'
+      - series: 'etcd_disk_backend_commit_duration_seconds_bucket{le="0.5",service.name="etcd",service.instance.id="etcd-1"}'
+        values: '0+10x100'
+      - series: 'etcd_disk_backend_commit_duration_seconds_bucket{le="+Inf",service.name="etcd",service.instance.id="etcd-1"}'
+        values: '0+10x100'
+      - series: 'etcd_disk_backend_commit_duration_seconds_bucket{le="0.128",service.name="etcd",service.instance.id="etcd-2"}'
+        values: '0x100'
+      - series: 'etcd_disk_backend_commit_duration_seconds_bucket{le="0.25",service.name="etcd",service.instance.id="etcd-2"}'
+        values: '0+10x100'
+      - series: 'etcd_disk_backend_commit_duration_seconds_bucket{le="+Inf",service.name="etcd",service.instance.id="etcd-2"}'
+        values: '0+10x100'
+    alert_rule_test:
+      - eval_time: 16m
+        groupname: etcd
+        alertname: EtcdHighCommitDurations
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              service.instance.id: etcd-1
+              service.name: etcd
+            exp_annotations:
+              summary: etcd member etcd-1 backend commit p99 is 497.5ms
+
+  # The max holder drops out. The old expression, increase(max(...)[5m:1m]),
+  # would have read the fall of the max (etcd-1 at 100 gone, etcd-2 at 5) as a
+  # counter reset and fired; the per-member increase sees one change only.
+  - name: the member with the highest counter disappearing does not fire
+    interval: 15s
+    input_series:
+      - series: 'etcd_server_leader_changes_seen_total{service.name="etcd",service.instance.id="etcd-1"}'
+        values: '100x24 _x76'
+      - series: 'etcd_server_leader_changes_seen_total{service.name="etcd",service.instance.id="etcd-2"}'
+        values: '4x24 5x76'
+    alert_rule_test:
+      - eval_time: 8m
+        groupname: etcd
+        alertname: EtcdHighLeaderChanges
+        exp_alerts: []
+
+  - name: exactly three changes fire
+    interval: 15s
+    input_series:
+      - series: 'etcd_server_leader_changes_seen_total{service.name="etcd",service.instance.id="etcd-1"}'
+        values: '2x24 3 4 5x74'
+    alert_rule_test:
+      - eval_time: 8m
+        groupname: etcd
+        alertname: EtcdHighLeaderChanges
+        exp_alerts:
+          - exp_labels: {severity: warning}
+            exp_annotations:
+              summary: 3 etcd leader changes within 5 minutes
+
+  # Histogram boundary: 100 observations per sample, the share above the
+  # bucket edge decides the p99. Edge le=0.5 / +Inf: 98 below -> p99 above 0.5;
+  # 99.5 below -> p99 below 0.5. Rates are per second, only ratios matter.
+  - name: fsync p99 just above 0.5 s fires, just below does not
+    interval: 15s
+    input_series:
+      - series: 'etcd_disk_wal_fsync_duration_seconds_bucket{le="0.5",service.name="etcd",service.instance.id="etcd-1"}'
+        values: '0+98x100'
+      - series: 'etcd_disk_wal_fsync_duration_seconds_bucket{le="1",service.name="etcd",service.instance.id="etcd-1"}'
+        values: '0+100x100'
+      - series: 'etcd_disk_wal_fsync_duration_seconds_bucket{le="+Inf",service.name="etcd",service.instance.id="etcd-1"}'
+        values: '0+100x100'
+      - series: 'etcd_disk_wal_fsync_duration_seconds_bucket{le="0.5",service.name="etcd",service.instance.id="etcd-2"}'
+        values: '0+995x100'
+      - series: 'etcd_disk_wal_fsync_duration_seconds_bucket{le="1",service.name="etcd",service.instance.id="etcd-2"}'
+        values: '0+1000x100'
+      - series: 'etcd_disk_wal_fsync_duration_seconds_bucket{le="+Inf",service.name="etcd",service.instance.id="etcd-2"}'
+        values: '0+1000x100'
+    alert_rule_test:
+      - eval_time: 16m
+        groupname: etcd
+        alertname: EtcdHighFsyncDurations
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              service.instance.id: etcd-1
+              service.name: etcd
+            exp_annotations:
+              summary: etcd member etcd-1 WAL fsync p99 is 750ms
+
+  - name: commit p99 just above 0.25 s fires, just below does not
+    interval: 15s
+    input_series:
+      - series: 'etcd_disk_backend_commit_duration_seconds_bucket{le="0.25",service.name="etcd",service.instance.id="etcd-1"}'
+        values: '0+98x100'
+      - series: 'etcd_disk_backend_commit_duration_seconds_bucket{le="0.5",service.name="etcd",service.instance.id="etcd-1"}'
+        values: '0+100x100'
+      - series: 'etcd_disk_backend_commit_duration_seconds_bucket{le="+Inf",service.name="etcd",service.instance.id="etcd-1"}'
+        values: '0+100x100'
+      - series: 'etcd_disk_backend_commit_duration_seconds_bucket{le="0.25",service.name="etcd",service.instance.id="etcd-2"}'
+        values: '0+995x100'
+      - series: 'etcd_disk_backend_commit_duration_seconds_bucket{le="0.5",service.name="etcd",service.instance.id="etcd-2"}'
+        values: '0+1000x100'
+      - series: 'etcd_disk_backend_commit_duration_seconds_bucket{le="+Inf",service.name="etcd",service.instance.id="etcd-2"}'
+        values: '0+1000x100'
+    alert_rule_test:
+      - eval_time: 16m
+        groupname: etcd
+        alertname: EtcdHighCommitDurations
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              service.instance.id: etcd-1
+              service.name: etcd
+            exp_annotations:
+              summary: etcd member etcd-1 backend commit p99 is 375ms
+
+  # for: 10m boundary. The condition holds from the first rate window (15 s).
+  - name: the 10 m hold - silent at 9 m, firing at 11 m
+    interval: 15s
+    input_series:
+      - series: 'etcd_disk_wal_fsync_duration_seconds_bucket{le="0.5",service.name="etcd",service.instance.id="etcd-1"}'
+        values: '0x100'
+      - series: 'etcd_disk_wal_fsync_duration_seconds_bucket{le="1",service.name="etcd",service.instance.id="etcd-1"}'
+        values: '0+10x100'
+      - series: 'etcd_disk_wal_fsync_duration_seconds_bucket{le="+Inf",service.name="etcd",service.instance.id="etcd-1"}'
+        values: '0+10x100'
+    alert_rule_test:
+      - eval_time: 9m
+        groupname: etcd
+        alertname: EtcdHighFsyncDurations
+        exp_alerts: []
+      - eval_time: 11m
+        groupname: etcd
+        alertname: EtcdHighFsyncDurations
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              service.instance.id: etcd-1
+              service.name: etcd
+            exp_annotations:
+              summary: etcd member etcd-1 WAL fsync p99 is 995ms
+
+  # No etcd `up` series at all while the Collector lives: count() is empty and
+  # `or on() vector(0)` supplies the 0.
+  - name: zero members reporting with a live Collector fires EtcdInsufficientMembers
+    interval: 15s
+    input_series:
+      - series: 'up{service.name="etcd",service.instance.id="etcd-1"}'
+        values: '1x8 _x52'
+      - series: 'up{service.name="etcd",service.instance.id="etcd-2"}'
+        values: '1x8 _x52'
+      - series: 'up{service.name="etcd",service.instance.id="etcd-3"}'
+        values: '1x8 _x52'
+      - series: 'otelcol_process_uptime{service.name="otelcol"}'
+        values: '1x60'
+    alert_rule_test:
+      - eval_time: 6m
+        groupname: etcd
+        alertname: EtcdInsufficientMembers
+        exp_alerts:
+          - exp_labels: {severity: critical}
+            exp_annotations:
+              summary: "Only 0 etcd members report: quorum is lost"

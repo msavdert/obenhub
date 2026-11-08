@@ -126,8 +126,9 @@ etcd 3.6.16 (Apache-2.0).
 - [ ] One PostgreSQL pack shared by both labs instead of two copies
 
 The scenarios and the control run with `mise run lab:stage3:scenarios`; their
-results are in `lab/stage3/results/runs.jsonl` (the last eight records are the
-suite run after the audit fixes; earlier records predate them).
+results are in `lab/stage3/results/runs.jsonl` (the last eleven records are the
+suite run after the etcd and Patroni audit fixes; earlier records predate them,
+including two `leader-killed` failures before `wal_keep_size` was raised).
 
 Coverage gaps found on 2026-11-07 by comparing both labs with existing rule
 sets: the catalog survey in the private predecessor repository (pgMonitor,
@@ -141,9 +142,18 @@ awesome-prometheus-alerts (CC BY 4.0, not in ADR 0004's list) give ideas
 only. Each item gets a fault scenario where one can be built in the lab,
 otherwise unit tests only, said so in the rule:
 
-- [ ] etcd: scrape every member's `/metrics`; alerts for member down, no
-      leader, lost quorum, frequent leader changes and slow WAL fsync
-- [ ] Patroni: its own scrape absent, and failsafe mode active
+- [x] etcd: scrape every member's `/metrics`; alerts for member down, no
+      leader, lost quorum, frequent leader changes, slow WAL fsync and slow
+      backend commit. Scenarios: one member stopped, leadership moved four
+      times with `etcdctl move-leader`, and quorum lost (now expecting the
+      etcd alerts as well). The two disk-latency rules have unit tests only;
+      injecting disk latency into one container (for example a cgroup I/O
+      limit) was not attempted
+- [x] Patroni: its own scrape absent while PostgreSQL on that node still
+      reports, and failsafe mode active. The scenario blocks the Collector's
+      scrape of one node's REST API, because Patroni is the container's main
+      process and stopping it stops PostgreSQL too. Failsafe has unit tests
+      only, because the lab runs with failsafe mode off
 - [ ] PostgreSQL, in the shared pack: transaction ID wraparound age,
       idle-in-transaction separated from active long transactions, blocked
       sessions, deadlocks, checkpoint pressure from `pg_stat_checkpointer`

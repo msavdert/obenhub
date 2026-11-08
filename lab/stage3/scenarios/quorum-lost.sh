@@ -1,14 +1,15 @@
 #!/usr/bin/env bash
-# Scenario quorum-lost: stop two of three etcd members; the leader cannot refresh its key and demotes itself. Expect PatroniNoWritablePrimary; after detection every node is read-only.
+# Scenario quorum-lost: stop two of three etcd members (etcd-2 and etcd-3); the Patroni leader cannot refresh its key and demotes itself. Expect PatroniNoWritablePrimary plus the etcd view: EtcdInsufficientMembers, EtcdNoLeader on the survivor etcd-1, and EtcdMemberAbsent for each stopped member (decision: member-down is not suppressed by the quorum alert, it names the members to restart). After detection every node is read-only.
 # shellcheck disable=SC1091,SC2034
 set -uo pipefail
 . "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 
-EXPECT=("PatroniNoWritablePrimary:")
+EXPECT=("PatroniNoWritablePrimary:" "EtcdInsufficientMembers:" "EtcdNoLeader:etcd-1" "EtcdMemberAbsent:etcd-2" "EtcdMemberAbsent:etcd-3")
 # When quorum returns, the demoted leader (or another node) is promoted again
 # on a new timeline, so PatroniFailoverHappened follows after the revert. That
 # is a real timeline change, not noise; it is allowed and checked in extra_checks.
-ALLOW=("PatroniFailoverHappened:")
+# EtcdHighLeaderChanges: replayed on the 2026-11-08 suite-5 run, etcd-1 reached 3 changes in 5 m (max(increase(...[5m])) = 3 for 75 s); the elections during quorum loss and recovery are real.
+ALLOW=("PatroniFailoverHappened:" "EtcdHighLeaderChanges:")
 STOPPED=0 TL0=""
 all_in_recovery() {
   local n
@@ -28,6 +29,7 @@ after_detect() {
 revert() {
   [ "$STOPPED" = 1 ] || return 0
   dc start etcd-2 etcd-3 >/dev/null || return 1
+  wait_until 120 "etcd healthy again" etcd_healthy || return 1
   wait_until 300 "cluster healthy again" cluster_healthy
 }
 extra_checks() {

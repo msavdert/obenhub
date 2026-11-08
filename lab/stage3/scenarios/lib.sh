@@ -68,6 +68,33 @@ cluster_healthy() {
 }
 cluster_paused() { ptl list 2>/dev/null | grep -q 'Maintenance mode: on'; }
 not_paused() { ! cluster_paused; }
+# etcd members, queried from whichever member answers (a stopped one cannot).
+# `endpoint status` prints one line per answering member:
+# endpoint, id, version, storage version, db size, in use, %, quota, is leader, ...
+ETCD_MEMBERS=(etcd-1 etcd-2 etcd-3)
+ETCD_EPS=http://etcd-1:2379,http://etcd-2:2379,http://etcd-3:2379
+etcd_status() {
+  local m out
+  for m in "${ETCD_MEMBERS[@]}"; do
+    out=$(docker exec "$(cname "$m")" etcdctl --endpoints="$ETCD_EPS" endpoint status 2>/dev/null)
+    [ -n "$out" ] && { printf '%s\n' "$out"; return 0; }
+  done
+  return 1
+}
+etcd_leader() { etcd_status | awk -F', ' '$9 == "true" { sub("http://", "", $1); sub(":2379", "", $1); print $1 }'; }
+etcd_member_id() { etcd_status | awk -F', ' -v m="http://$1:2379" '$1 == m { print $2 }'; }
+# three members answer and exactly one is leader
+etcd_healthy() {
+  local st; st=$(etcd_status) || return 1
+  [ "$(printf '%s\n' "$st" | wc -l)" = 3 ] && [ "$(printf '%s\n' "$st" | awk -F', ' '$9 == "true"' | wc -l)" = 1 ]
+}
+# etcd_move_leader TARGET: ask the current leader to hand over to TARGET
+etcd_move_leader() {
+  local l id; l=$(etcd_leader); id=$(etcd_member_id "$1")
+  [ -n "$l" ] && [ -n "$id" ] || return 1
+  docker exec "$(cname "$l")" etcdctl --endpoints="http://$l:2379" move-leader "$id" >/dev/null
+}
+
 load_running() { [ "$(docker inspect -f '{{.State.Running}}' "$LOAD" 2>/dev/null)" = true ]; }
 
 vl() { curl -fsS "$VL/select/logsql/query" --data-urlencode "query=$1"; }
@@ -115,6 +142,7 @@ image_versions() {
 # Pre-flight shared by all scenarios.
 precondition() {
   wait_until "$SETTLE_TIMEOUT" "only Watchdog active in Alertmanager" am_clean || { PRE_ERR="Alertmanager not clean: $(am_active | tr '\n' ' ')"; return 1; }
+  wait_until 120 "etcd healthy (three members, one leader)" etcd_healthy || { PRE_ERR="etcd not healthy"; return 1; }
   wait_until 180 "cluster healthy (one leader, two streaming replicas)" cluster_healthy || { PRE_ERR="cluster not healthy"; return 1; }
   not_paused || { PRE_ERR="cluster is paused"; return 1; }
   load_running || { PRE_ERR="load container not running"; return 1; }

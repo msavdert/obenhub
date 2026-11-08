@@ -54,6 +54,12 @@ bootstrap:
         hot_standby_feedback: 'off'
         reserved_connections: 8
         max_slot_wal_keep_size: 1GB
+        # Inferred, no log kept: a killed leader (leader-killed) stayed stuck in
+        # startup on 2026-11-07 (UTC, two runs) because the new leader had
+        # recycled WAL it needed. 128 MB is Patroni's default here (PostgreSQL's
+        # is 0); a checkpoint comes at max_wal_size (1GB) or 5 min. bootstrap.dcs
+        # applies only on a fresh bootstrap: a running lab needs patronictl edit-config.
+        wal_keep_size: 768MB
         shared_buffers: 128MB
   initdb:
     - encoding: UTF8

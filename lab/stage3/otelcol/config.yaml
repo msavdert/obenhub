@@ -77,6 +77,42 @@ receivers:
           static_configs:
             - targets: ['pg-3:8008']
 
+  # etcd serves /metrics on the client URL (port 2379) in 3.6.16; checked
+  # 2026-11-07 against etcd-1, so --listen-metrics-urls is not needed. The
+  # Collector is on the dcs network for this (compose.yaml).
+  prometheus/etcd-1:
+    config:
+      scrape_configs:
+        - job_name: etcd
+          scrape_interval: 15s
+          scrape_timeout: 10s
+          static_configs:
+            - targets: ['etcd-1:2379']
+
+  # etcd serves /metrics on the client URL (port 2379) in 3.6.16; checked
+  # 2026-11-07 against etcd-1, so --listen-metrics-urls is not needed. The
+  # Collector is on the dcs network for this (compose.yaml).
+  prometheus/etcd-2:
+    config:
+      scrape_configs:
+        - job_name: etcd
+          scrape_interval: 15s
+          scrape_timeout: 10s
+          static_configs:
+            - targets: ['etcd-2:2379']
+
+  # etcd serves /metrics on the client URL (port 2379) in 3.6.16; checked
+  # 2026-11-07 against etcd-1, so --listen-metrics-urls is not needed. The
+  # Collector is on the dcs network for this (compose.yaml).
+  prometheus/etcd-3:
+    config:
+      scrape_configs:
+        - job_name: etcd
+          scrape_interval: 15s
+          scrape_timeout: 10s
+          static_configs:
+            - targets: ['etcd-3:2379']
+
   file_log/pg-1:
     include: [/var/log/pg-1/postgresql-*.json]
     start_at: beginning
@@ -259,6 +295,27 @@ processors:
       - {key: server.port, value: '8008', action: upsert}
       - {key: db.system.name, value: postgresql, action: upsert}
       - {key: db.cluster.name, value: stage3, action: upsert}
+  resource/etcd-1:
+    attributes:
+      - {key: service.namespace, value: obenhub-lab, action: upsert}
+      - {key: service.name, value: etcd, action: upsert}
+      - {key: service.instance.id, value: etcd-1, action: upsert}
+      - {key: server.address, value: etcd-1, action: upsert}
+      - {key: server.port, value: '2379', action: upsert}
+  resource/etcd-2:
+    attributes:
+      - {key: service.namespace, value: obenhub-lab, action: upsert}
+      - {key: service.name, value: etcd, action: upsert}
+      - {key: service.instance.id, value: etcd-2, action: upsert}
+      - {key: server.address, value: etcd-2, action: upsert}
+      - {key: server.port, value: '2379', action: upsert}
+  resource/etcd-3:
+    attributes:
+      - {key: service.namespace, value: obenhub-lab, action: upsert}
+      - {key: service.name, value: etcd, action: upsert}
+      - {key: service.instance.id, value: etcd-3, action: upsert}
+      - {key: server.address, value: etcd-3, action: upsert}
+      - {key: server.port, value: '2379', action: upsert}
   batch: {}
 
 exporters:
@@ -323,3 +380,15 @@ service:
       receivers: [file_log/pg-3]
       processors: [memory_limiter, resource/pg-3, batch]
       exporters: [otlp_http/vl]
+    metrics/etcd-1:
+      receivers: [prometheus/etcd-1]
+      processors: [memory_limiter, resource/etcd-1, batch]
+      exporters: [otlp_http/vm]
+    metrics/etcd-2:
+      receivers: [prometheus/etcd-2]
+      processors: [memory_limiter, resource/etcd-2, batch]
+      exporters: [otlp_http/vm]
+    metrics/etcd-3:
+      receivers: [prometheus/etcd-3]
+      processors: [memory_limiter, resource/etcd-3, batch]
+      exporters: [otlp_http/vm]

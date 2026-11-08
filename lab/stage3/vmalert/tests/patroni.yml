@@ -302,3 +302,156 @@ tests:
               service.instance.id: pg-2
             exp_annotations:
               summary: pg-2 has a pending restart
+
+  # --- Patroni scrape absent -------------------------------------------------
+  # pg-2's Patroni scrape fails (up 0) from 2 m while its PostgreSQL heartbeat
+  # continues. up 0 and an absent up both count as "not scraped".
+  - name: Patroni scrape failing while PostgreSQL reports fires for that node only
+    interval: 15s
+    input_series:
+      - series: 'up{service.name="patroni",service.instance.id="pg-1"}'
+        values: '1x60'
+      - series: 'up{service.name="patroni",service.instance.id="pg-2"}'
+        values: '1x8 0x52'
+      - series: 'up{service.name="patroni",service.instance.id="pg-3"}'
+        values: '1x60'
+      - series: 'postgresql.collection.heartbeat{service.instance.id="pg-1"}'
+        values: '1x60'
+      - series: 'postgresql.collection.heartbeat{service.instance.id="pg-2"}'
+        values: '1x60'
+      - series: 'postgresql.collection.heartbeat{service.instance.id="pg-3"}'
+        values: '1x60'
+      - series: 'otelcol_process_uptime{service.name="otelcol"}'
+        values: '1x60'
+    alert_rule_test:
+      - eval_time: 3m   # failing for 1 m, the 2 m window still holds an up 1
+        groupname: patroni
+        alertname: PatroniTargetAbsent
+        exp_alerts: []
+      - eval_time: 6m
+        groupname: patroni
+        alertname: PatroniTargetAbsent
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              service.instance.id: pg-2
+              service.namespace: obenhub-lab
+              service.name: patroni
+              db.cluster.name: stage3
+            exp_annotations:
+              summary: Patroni on pg-2 is not scraped while PostgreSQL still reports
+
+  - name: Patroni series absent altogether fires the same way
+    interval: 15s
+    input_series:
+      - series: 'up{service.name="patroni",service.instance.id="pg-1"}'
+        values: '1x60'
+      - series: 'up{service.name="patroni",service.instance.id="pg-2"}'
+        values: '1x8 _x52'
+      - series: 'up{service.name="patroni",service.instance.id="pg-3"}'
+        values: '1x60'
+      - series: 'postgresql.collection.heartbeat{service.instance.id="pg-1"}'
+        values: '1x60'
+      - series: 'postgresql.collection.heartbeat{service.instance.id="pg-2"}'
+        values: '1x60'
+      - series: 'postgresql.collection.heartbeat{service.instance.id="pg-3"}'
+        values: '1x60'
+      - series: 'otelcol_process_uptime{service.name="otelcol"}'
+        values: '1x60'
+    alert_rule_test:
+      - eval_time: 6m
+        groupname: patroni
+        alertname: PatroniTargetAbsent
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              service.instance.id: pg-2
+              service.namespace: obenhub-lab
+              service.name: patroni
+              db.cluster.name: stage3
+            exp_annotations:
+              summary: Patroni on pg-2 is not scraped while PostgreSQL still reports
+
+  - name: a node that is gone entirely is PostgresTargetAbsent's case, not this one
+    interval: 15s
+    input_series:
+      - series: 'up{service.name="patroni",service.instance.id="pg-1"}'
+        values: '1x60'
+      - series: 'up{service.name="patroni",service.instance.id="pg-2"}'
+        values: '1x8 _x52'
+      - series: 'up{service.name="patroni",service.instance.id="pg-3"}'
+        values: '1x60'
+      - series: 'postgresql.collection.heartbeat{service.instance.id="pg-1"}'
+        values: '1x60'
+      - series: 'postgresql.collection.heartbeat{service.instance.id="pg-2"}'
+        values: '1x8 _x52'
+      - series: 'postgresql.collection.heartbeat{service.instance.id="pg-3"}'
+        values: '1x60'
+      - series: 'otelcol_process_uptime{service.name="otelcol"}'
+        values: '1x60'
+    alert_rule_test:
+      - eval_time: 3m
+        groupname: patroni
+        alertname: PatroniTargetAbsent
+        exp_alerts: []
+      - eval_time: 6m
+        groupname: patroni
+        alertname: PatroniTargetAbsent
+        exp_alerts: []
+      - eval_time: 10m
+        groupname: patroni
+        alertname: PatroniTargetAbsent
+        exp_alerts: []
+
+  - name: a stopped Collector raises no Patroni scrape alert
+    interval: 15s
+    input_series:
+      - series: 'up{service.name="patroni",service.instance.id="pg-1"}'
+        values: '1x8 _x52'
+      - series: 'up{service.name="patroni",service.instance.id="pg-2"}'
+        values: '1x8 _x52'
+      - series: 'up{service.name="patroni",service.instance.id="pg-3"}'
+        values: '1x8 _x52'
+      - series: 'postgresql.collection.heartbeat{service.instance.id="pg-1"}'
+        values: '1x8 _x52'
+      - series: 'postgresql.collection.heartbeat{service.instance.id="pg-2"}'
+        values: '1x8 _x52'
+      - series: 'postgresql.collection.heartbeat{service.instance.id="pg-3"}'
+        values: '1x8 _x52'
+      - series: 'otelcol_process_uptime{service.name="otelcol"}'
+        values: '1x8 _x52'
+    alert_rule_test:
+      - eval_time: 6m
+        groupname: patroni
+        alertname: PatroniTargetAbsent
+        exp_alerts: []
+
+  # --- failsafe mode (unit tests only: the lab runs with failsafe_mode off) --
+  - name: failsafe mode active for 30 s fires per node; a single sample or 0 does not
+    interval: 15s
+    input_series:
+      - series: 'patroni_failsafe_mode_is_active{scope="stage3",service.instance.id="pg-1"}'
+        values: '0x4 1x8 0x48'
+      - series: 'patroni_failsafe_mode_is_active{scope="stage3",service.instance.id="pg-2"}'
+        values: '0x4 1x1 0x55'
+      - series: 'patroni_failsafe_mode_is_active{scope="stage3",service.instance.id="pg-3"}'
+        values: '0x60'
+    alert_rule_test:
+      - eval_time: 1m   # pg-1 is still 0 at 1 m
+        groupname: patroni
+        alertname: PatroniFailsafeActive
+        exp_alerts: []
+      - eval_time: 2m   # pg-1 1 since 1 m (past 30 s); pg-2 one sample only
+        groupname: patroni
+        alertname: PatroniFailsafeActive
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              scope: stage3
+              service.instance.id: pg-1
+            exp_annotations:
+              summary: pg-1 runs in failsafe mode, the DCS is unreachable
+      - eval_time: 5m   # back to 0
+        groupname: patroni
+        alertname: PatroniFailsafeActive
+        exp_alerts: []

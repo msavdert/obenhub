@@ -1,0 +1,124 @@
+# Stage 3: the three-member etcd cluster behind Patroni (etcd 3.6.16), scraped
+# by the Collector's prometheusreceiver on each member's client URL.
+# Provenance, per ADR 0004 decision 4. The alert kinds, the expressions of
+# EtcdNoLeader, EtcdHighLeaderChanges, EtcdHighFsyncDurations and
+# EtcdHighCommitDurations, and their thresholds are adapted from
+#   etcd-io/etcd contrib/mixin/alerts/alerts.libsonnet at tag v3.7.3,
+#   commit 0a173d0410a96d01091b484daae81365bbcde57e (tag object
+#   167b2d6f99b46c7e16ae338f9469b8e88d196eb2), Apache-2.0.
+# EtcdInsufficientMembers follows the mixin's etcdInsufficientMembers
+# (majority of members up) but counts against the inventory below. The
+# member-down rule is written here (the mixin's etcdMembersDown reads `up` and
+# peer send failures; this one reads the scrape, like PostgresTargetAbsent).
+# Read for ideas only, nothing copied: pgsty/pigsty files/victoria/rules/etcd.yml
+# at tag v4.5.0, commit dab5dba333a070d96fde1f9feb41761148f2be8c, Apache-2.0
+# (EtcdServerDown, EtcdNoLeader, EtcdWalFsyncSlow). Its etcd_up is not an etcd
+# metric (pigsty's exporter), so it is not used.
+# Metric names were checked against etcd 3.6.16 /metrics on 2026-11-07, not
+# taken from the mixin (which is v3.7.3). Every threshold below that differs
+# from the mixin says so: the mixin waits 10 to 20 minutes, the lab scenarios cannot.
+# Suppression is written into the expressions, as in patroni.yml.
+groups:
+  - name: etcd-inventory
+    interval: 15s
+    rules:
+      # Same name as the Patroni inventory in patroni.yml; the series differ
+      # by service.name.
+      - record: obenhub.expected_scrape
+        expr: |
+          union(
+            label_set(vector(1), "service.namespace", "obenhub-lab", "service.name", "etcd", "service.instance.id", "etcd-1"),
+            label_set(vector(1), "service.namespace", "obenhub-lab", "service.name", "etcd", "service.instance.id", "etcd-2"),
+            label_set(vector(1), "service.namespace", "obenhub-lab", "service.name", "etcd", "service.instance.id", "etcd-3")
+          )
+
+  - name: etcd
+    interval: 15s
+    rules:
+      # A member whose scrape has not succeeded for 2 m while the Collector
+      # lives (a stopped Collector empties its own 1 m window first, so it
+      # raises only CollectorAbsent). `up` is 0 or absent on a failed scrape;
+      # `== 1` over 2 m covers both. The mixin's etcdMembersDown waits 20 m; here
+      # the 2 m window plus `for: 1m` (about 3 m) is a lab value. Not suppressed when quorum is lost: the stopped
+      # members are then exactly what the operator wants named.
+      - alert: EtcdMemberAbsent
+        expr: |
+          obenhub.expected_scrape{service.name="etcd"}
+            unless on(service.instance.id)
+          (max_over_time(up{service.name="etcd"}[2m]) == 1)
+            and on()
+          count(present_over_time(otelcol_process_uptime[1m])) > 0
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'etcd member {{ (index $labels "service.instance.id") }} is not scraped'
+
+      # Fewer members reporting than a majority of the inventory (2 of 3).
+      # Mixin: same comparison, for 3m, on `up`; the 2 m window already delays
+      # this, so "for" is 1m. Same Collector-alive guard as above.
+      - alert: EtcdInsufficientMembers
+        expr: |
+          (count(max_over_time(up{service.name="etcd"}[2m]) == 1) or on() vector(0))
+            < on()
+          ((count(obenhub.expected_scrape{service.name="etcd"}) + 1) / 2)
+            and on()
+          count(present_over_time(otelcol_process_uptime[1m])) > 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: 'Only {{ $value }} etcd members report: quorum is lost'
+
+      # A member that reports and has no leader. Mixin: same expression, for
+      # 1m (kept). A normal election takes about a second.
+      - alert: EtcdNoLeader
+        expr: etcd_server_has_leader == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: 'etcd member {{ (index $labels "service.instance.id") }} has no leader'
+
+      # Mixin: increase(...[15m:1m]) >= 4, for 5m. Lab: 5 m window, >= 3, for
+      # 1m, so the alert resolves inside the scenario's resolve timeout. The
+      # mixin's `or 0*absent(...)` fallback is dropped: no data, no alert.
+      # The mixin (v3.7.3, alerts.libsonnet line 59) applies
+      # `max without(instance)` before `increase(...[15m:1m])`; when the
+      # member holding the highest counter drops out, the max falls to a lower
+      # value, which increase() reads as a counter reset and adds in full.
+      # We take the per-member increase first and the max after, on purpose.
+      - alert: EtcdHighLeaderChanges
+        expr: max(increase(etcd_server_leader_changes_seen_total[5m])) >= 3
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: '{{ $value }} etcd leader changes within 5 minutes'
+
+      # Mixin: histogram_quantile(0.99, rate(...[5m])) > 0.5, for 10m (warning),
+      # > 1 (critical). Lab: same threshold and "for" (the critical tier is
+      # not written). "for" stays 10m on purpose: one slow burst on the lab
+      # host moved the 5 m commit p99 to 350 ms on two members for about 5
+      # minutes (2026-11-07), which a shorter "for" turned into an alert in a
+      # scenario that had nothing to do with disks. Lab baseline fsync p99 is
+      # 25 to 50 ms (measured 2026-11-07), far below 0.5. Unit tests only: no
+      # contained way to inject disk latency into one etcd container without
+      # touching host disk settings.
+      - alert: EtcdHighFsyncDurations
+        expr: histogram_quantile(0.99, rate(etcd_disk_wal_fsync_duration_seconds_bucket[5m])) > 0.5
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'etcd member {{ (index $labels "service.instance.id") }} WAL fsync p99 is {{ $value | humanizeDuration }}'
+
+      # Mixin: > 0.25, for 10m; the same here (see the fsync rule for why "for"
+      # stays long). Lab baseline p99 is 30 to 65 ms. Unit tests only.
+      - alert: EtcdHighCommitDurations
+        expr: histogram_quantile(0.99, rate(etcd_disk_backend_commit_duration_seconds_bucket[5m])) > 0.25
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'etcd member {{ (index $labels "service.instance.id") }} backend commit p99 is {{ $value | humanizeDuration }}'

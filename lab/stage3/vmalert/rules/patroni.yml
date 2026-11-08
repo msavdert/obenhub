@@ -18,6 +18,19 @@ groups:
             label_set(vector(1), "service.namespace", "obenhub-lab", "service.name", "postgresql", "db.cluster.name", "stage3", "service.instance.id", "pg-3")
           )
 
+  - name: patroni-inventory
+    interval: 15s
+    rules:
+      # Patroni REST scrapes expected from the Collector (see etcd.yml for the
+      # etcd ones, same record name).
+      - record: obenhub.expected_scrape
+        expr: |
+          union(
+            label_set(vector(1), "service.namespace", "obenhub-lab", "service.name", "patroni", "db.cluster.name", "stage3", "service.instance.id", "pg-1"),
+            label_set(vector(1), "service.namespace", "obenhub-lab", "service.name", "patroni", "db.cluster.name", "stage3", "service.instance.id", "pg-2"),
+            label_set(vector(1), "service.namespace", "obenhub-lab", "service.name", "patroni", "db.cluster.name", "stage3", "service.instance.id", "pg-3")
+          )
+
   # Kinds carried over from lab/slice1/vmalert/rules/postgresql.yml.
   - name: postgresql
     interval: 15s
@@ -162,3 +175,44 @@ groups:
           severity: warning
         annotations:
           summary: '{{ (index $labels "service.instance.id") }} has a pending restart'
+
+      # Provenance (ADR 0004 decision 4): the two alert kinds are PatroniDown
+      # (patroni_up < 1, for 1m) and PatroniFailSafeActive
+      # (sum(patroni_failsafe_mode_is_active) > 0) of pgsty/pigsty
+      # files/victoria/rules/pgsql.yml at tag v4.5.0, commit
+      # dab5dba333a070d96fde1f9feb41761148f2be8c, Apache-2.0. Read for ideas;
+      # the expressions are written for this lab: pigsty's patroni_up comes from
+      # its own exporter, here the signal is the Collector's scrape.
+      #
+      # Patroni's REST scrape has not succeeded for 2 m while the node's
+      # PostgreSQL heartbeat is still present: Patroni down, PostgreSQL up (no
+      # failover logic is running on that node). A node that is gone entirely
+      # loses its heartbeat first (1 m window) and is PostgresTargetAbsent's
+      # case, so the two never fire together. A stopped Collector raises only
+      # CollectorAbsent.
+      - alert: PatroniTargetAbsent
+        expr: |
+          obenhub.expected_scrape{service.name="patroni"}
+            unless on(service.instance.id)
+          (max_over_time(up{service.name="patroni"}[2m]) == 1)
+            and on(service.instance.id)
+          present_over_time(postgresql.collection.heartbeat[1m])
+            and on()
+          count(present_over_time(otelcol_process_uptime[1m])) > 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: 'Patroni on {{ (index $labels "service.instance.id") }} is not scraped while PostgreSQL still reports'
+
+      # Failsafe mode: the DCS is unreachable and the leader keeps running on
+      # the failsafe topology. UNIT TESTS ONLY: the lab runs with failsafe_mode
+      # off (postgres/patroni.yml), so quorum-lost demotes the leader instead.
+      # pigsty has no "for"; 30 s (two evaluations) is a lab value.
+      - alert: PatroniFailsafeActive
+        expr: patroni_failsafe_mode_is_active == 1
+        for: 30s
+        labels:
+          severity: critical
+        annotations:
+          summary: '{{ (index $labels "service.instance.id") }} runs in failsafe mode, the DCS is unreachable'
