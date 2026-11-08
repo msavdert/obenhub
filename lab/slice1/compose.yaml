@@ -10,6 +10,11 @@ x-postgres: &postgres
   entrypoint: ["/entrypoint.sh"]
   shm_size: 256mb
   restart: unless-stopped
+  # tini as PID 1 reaps orphans. Without it the postmaster is PID 1 and adopts
+  # the processes left by `docker exec -d` in the scenarios; killing one of
+  # them made it log "untracked child process ... signal 15" and crash-restart
+  # the server (found 2026-11-08).
+  init: true
   healthcheck:
     test: ["CMD-SHELL", "pg_isready -U postgres -q"]
     interval: 5s

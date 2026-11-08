@@ -37,6 +37,44 @@
     - {metric_name: postgresql.snapshot.oldest_age, value_column: snapshot_oldest_age, value_type: double, data_type: gauge, unit: s, description: "Age of the oldest client transaction holding a snapshot or an xid"}
     - {metric_name: postgresql.connection.client, value_column: connection_client, value_type: int, data_type: gauge, description: "Client backends"}
     - {metric_name: postgresql.connection.client_capacity, value_column: connection_client_capacity, value_type: int, data_type: gauge, description: "max_connections minus reserved slots"}
+# Wraparound: one row per database, template databases included (they are
+# frozen by autovacuum like the rest). age() and mxid_age() count transactions
+# and multixacts since datfrozenxid / datminmxid; both wrap at 2^31 (about 2.1
+# billion), which is the denominator the rules use.
+- sql: |
+    SELECT datname, age(datfrozenxid)::bigint AS xid_age, mxid_age(datminmxid)::bigint AS mxid_age
+    FROM pg_database
+  metrics:
+    - {metric_name: postgresql.database.xid_age, value_column: xid_age, attribute_columns: [datname], value_type: int, data_type: gauge, description: "age(datfrozenxid) of the database, in transactions"}
+    - {metric_name: postgresql.database.mxid_age, value_column: mxid_age, attribute_columns: [datname], value_type: int, data_type: gauge, description: "mxid_age(datminmxid) of the database, in multixacts"}
+# Time spent idle inside a transaction, as opposed to a long running statement
+# or a held snapshot (postgresql.snapshot.oldest_age): state_change is when the
+# session last changed state, so for an idle session it is the moment it went
+# idle. 0 when no client is idle in a transaction.
+- sql: |
+    SELECT coalesce(max(extract(epoch FROM clock_timestamp() - state_change)), 0)::float8 AS idle_age
+    FROM pg_stat_activity
+    WHERE backend_type = 'client backend'
+      AND state IN ('idle in transaction', 'idle in transaction (aborted)')
+      AND pid <> pg_backend_pid()
+  metrics:
+    - {metric_name: postgresql.transaction.idle_age, value_column: idle_age, value_type: double, data_type: gauge, unit: s, description: "Longest time a client session has been idle in a transaction (0 when none)"}
+# Sessions waiting for a lock: pg_locks rows that are not granted.
+# pg_locks.waitstart (PostgreSQL 14+) is when the wait began; it is not
+# guaranteed to be set for every waiting row, so a NULL counts as 0
+# (PostgreSQL 18 docs, view pg_locks). pg_blocking_pids() is left out on
+# purpose: that would be one call per waiting backend, each taking the lock
+# manager partition locks, where this is one pg_locks scan (which also takes
+# them, once) per collection.
+- sql: |
+    SELECT
+      count(DISTINCT pid)::int AS waiting_sessions,
+      coalesce(max(extract(epoch FROM clock_timestamp() - waitstart)), 0)::float8 AS oldest_wait_age
+    FROM pg_locks
+    WHERE NOT granted
+  metrics:
+    - {metric_name: postgresql.lock.waiting_sessions, value_column: waiting_sessions, value_type: int, data_type: gauge, description: "Sessions waiting for a lock"}
+    - {metric_name: postgresql.lock.oldest_wait_age, value_column: oldest_wait_age, value_type: double, data_type: gauge, unit: s, description: "Longest current lock wait (0 when none)"}
 # One row per replication slot, on every node. Without a slot there is
 # no series, which is no fault. The current LSN is read with
 # pg_last_wal_receive_lsn() in recovery, where pg_current_wal_lsn() errors.

@@ -161,3 +161,26 @@ tests:
               db.cluster.name: slice1
             exp_annotations:
               summary: postgresql.subscription.apply_worker_running vanished on pg-subscriber
+
+  - name: the lock, idle and wraparound pack metrics are covered; a dropped database alone is not a vanished metric
+    interval: 15s
+    input_series:
+      - series: 'postgresql.collection.heartbeat{service.instance.id="pg-primary"}'
+        values: '1x120'
+      - series: 'postgresql.lock.oldest_wait_age{service.instance.id="pg-primary"}'
+        values: '0x8 _x112'
+      - series: 'postgresql.database.xid_age{service.instance.id="pg-primary",datname="app"}'
+        values: '5x120'
+      - series: 'postgresql.database.xid_age{service.instance.id="pg-primary",datname="scratch"}'
+        values: '5x8 _x112'
+    alert_rule_test:
+      - eval_time: 6m
+        groupname: postgresql
+        alertname: SeriesVanished
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              service.instance.id: pg-primary
+              metric: postgresql.lock.oldest_wait_age
+            exp_annotations:
+              summary: 'postgresql.lock.oldest_wait_age vanished on pg-primary'

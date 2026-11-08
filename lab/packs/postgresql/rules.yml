@@ -81,19 +81,210 @@ groups:
         annotations:
           summary: 'A snapshot on {{ (index $labels "service.instance.id") }} is {{ $value | humanizeDuration }} old (lab threshold)'
 
+      # Two tiers share one alertname and differ in severity, with no `for` and so
+      # no pending state: the old `for` became a window inside the expression.
+      # x = min_over_time(value[W':15s]) is the lowest value over the last W',
+      # where W' = the time a tier used to need before firing (its old `for`)
+      # plus one 15s step: a subquery window (t-W', t] holds W'/15s points
+      # (the left edge is excluded, found with vmalert-tool v1.155.0), while
+      # `for` needed one sample more than its length / 15s. Critical is x above
+      # the critical threshold; warning is x above the warning threshold unless
+      # the critical holds. At every evaluation exactly one tier is up while the
+      # value stays above the warning threshold for W': when escalating,
+      # de-escalating and across a single dip (a dip below the critical
+      # threshold shows the warning for W', then the critical returns). A value
+      # that jumps from below the warning threshold to above the critical one
+      # never shows the warning, because both windows fill at the same
+      # evaluation.
+      # Warm-up: both tiers also require n = count_over_time(value[W':15s]) to
+      # equal a full window (W'/15s points), as the old `for` required a full run
+      # of evaluations. A new series, or one returning after a gap longer than
+      # the lookback, therefore stays silent until its window is full. Points
+      # bridged by the lookback after a missed scrape still count, so a single
+      # lost sample does not restart the warm-up.
+      # Suppression lives in the expressions, not in Alertmanager inhibit rules
+      # (see lab/slice1/alertmanager). $value in the summaries is the lowest
+      # value of the window, not the latest one.
+      # ConnectionSaturation, old for 1m, W' = 75s (5 points): critical at a ratio
+      # of 0.95 or more, warning above 0.85 and below 0.95.
       - alert: ConnectionSaturation
         expr: |
-          postgresql.connection.client
-            / on(service.instance.id)
-          postgresql.connection.client_capacity > 0.85
-        for: 1m
+          WITH (
+            r = postgresql.connection.client
+              / on(service.instance.id)
+            postgresql.connection.client_capacity,
+            x = min_over_time(r[75s:15s]),
+            n = count_over_time(r[75s:15s])
+          )
+          ((x > 0.85) unless (x >= 0.95)) and (n >= 5)
         labels:
           severity: warning
         annotations:
           summary: '{{ (index $labels "service.instance.id") }} client connections above 85% of capacity'
 
+      - alert: ConnectionSaturation
+        expr: |
+          WITH (
+            r = postgresql.connection.client
+              / on(service.instance.id)
+            postgresql.connection.client_capacity,
+            x = min_over_time(r[75s:15s]),
+            n = count_over_time(r[75s:15s])
+          )
+          (x >= 0.95) and (n >= 5)
+        labels:
+          severity: critical
+        annotations:
+          summary: '{{ (index $labels "service.instance.id") }} client connections at or above 95% of capacity'
+
+      # Wraparound: age as a fraction of 2^31 (2147483648), the point where
+      # PostgreSQL stops accepting commands. 50 % and 75 % are pgMonitor's
+      # "percent towards wraparound" thresholds as recorded in the private
+      # dbsight survey (pgMonitor at 862ff68, crunchy-alert-rules-pg.yml.example
+      # L320-L359); that file was not re-read here, so the numbers are an
+      # unconfirmed assumption. `kind` tells transaction ids from multixact ids;
+      # datname comes from the pack. Primary only: a physical standby repeats the
+      # primary's datfrozenxid, so it would alert twice. Not reachable in a lab
+      # run (it takes about a billion transactions): unit tests only, the metric
+      # itself is present in both labs. Tiers as described above, old for 5m, W' = 315s (21 points):
+      # critical above 0.75, warning above 0.5 up to and including 0.75.
+      - alert: TransactionIdWraparound
+        expr: |
+          WITH (
+            f = label_set(postgresql.database.xid_age / 2147483648, "kind", "xid")
+              or
+            label_set(postgresql.database.mxid_age / 2147483648, "kind", "mxid"),
+            x = min_over_time(f[315s:15s]),
+            n = count_over_time(f[315s:15s])
+          )
+          (((x > 0.5) unless (x > 0.75)) and (n >= 21))
+            and on(service.instance.id)
+          postgresql.recovery.active == 0
+        labels:
+          severity: warning
+        annotations:
+          summary: '{{ $labels.kind }} age of {{ $labels.datname }} on {{ (index $labels "service.instance.id") }} is {{ $value | humanizePercentage }} of the wraparound limit'
+
+      - alert: TransactionIdWraparound
+        expr: |
+          WITH (
+            f = label_set(postgresql.database.xid_age / 2147483648, "kind", "xid")
+              or
+            label_set(postgresql.database.mxid_age / 2147483648, "kind", "mxid"),
+            x = min_over_time(f[315s:15s]),
+            n = count_over_time(f[315s:15s])
+          )
+          ((x > 0.75) and (n >= 21))
+            and on(service.instance.id)
+          postgresql.recovery.active == 0
+        labels:
+          severity: critical
+        annotations:
+          summary: '{{ $labels.kind }} age of {{ $labels.datname }} on {{ (index $labels "service.instance.id") }} is {{ $value | humanizePercentage }} of the wraparound limit'
+
+      # Idle in a transaction is a session that stopped talking, not a long
+      # statement: postgresql.transaction.idle_age counts from the moment it
+      # went idle. SnapshotHeldTooLong is the other half (the xmin horizon,
+      # held by a running query as well). Thresholds are lab thresholds, scaled
+      # down from pgMonitor's 300 s and 900 s (same survey, L199-L216,
+      # unconfirmed here). Tiers as described above, old for 30s, W' = 45s (3 points): critical above 180 s,
+      # warning above 60 s up to and including 180 s.
+      - alert: IdleInTransaction
+        expr: |
+          WITH (
+            x = min_over_time(postgresql.transaction.idle_age[45s:15s]),
+            n = count_over_time(postgresql.transaction.idle_age[45s:15s])
+          )
+          ((x > 60) unless (x > 180)) and (n >= 3)
+        labels:
+          severity: warning
+        annotations:
+          summary: 'A session on {{ (index $labels "service.instance.id") }} has been idle in a transaction for {{ $value | humanizeDuration }} (lab threshold)'
+
+      - alert: IdleInTransaction
+        expr: |
+          WITH (
+            x = min_over_time(postgresql.transaction.idle_age[45s:15s]),
+            n = count_over_time(postgresql.transaction.idle_age[45s:15s])
+          )
+          (x > 180) and (n >= 3)
+        labels:
+          severity: critical
+        annotations:
+          summary: 'A session on {{ (index $labels "service.instance.id") }} has been idle in a transaction for {{ $value | humanizeDuration }} (lab threshold)'
+
+      # The oldest lock wait. Lab threshold; one tier, because a wait is a
+      # symptom whose cause (the blocker) the pack does not name.
+      - alert: BlockedSessions
+        expr: postgresql.lock.oldest_wait_age > 30
+        for: 30s
+        labels:
+          severity: warning
+        annotations:
+          summary: 'A session on {{ (index $labels "service.instance.id") }} has waited {{ $value | humanizeDuration }} for a lock (lab threshold)'
+
+      # postgresql.deadlocks is postgresqlreceiver's optional metric (enabled in
+      # both labs' Collector configs) and only covers the databases listed in
+      # the receiver's `databases`. last minus first sample in the window, not
+      # increase or delta: MetricsQL counts a counter that is new in the window
+      # from zero, so a Collector restart would read the lifetime total as fresh
+      # deadlocks (seen in a unit test with a flat counter, 2026-11-08, for
+      # increase, increase_pure and delta). A reset to zero reads as negative
+      # and does not fire; the accepted trade-off is that a reset followed by a
+      # rise back above the first sample within the window can hide deadlocks.
+      # Any deadlock in the last 5 minutes fires: PostgreSQL
+      # resolves it by aborting one session, so this is evidence, not a page.
+      - alert: Deadlocks
+        expr: last_over_time(postgresql.deadlocks[5m]) - first_over_time(postgresql.deadlocks[5m]) > 0
+        labels:
+          severity: warning
+        annotations:
+          summary: '{{ $value | printf "%.0f" }} deadlock(s) in {{ (index $labels "postgresql.database.name") }} on {{ (index $labels "service.instance.id") }} in the last 5 minutes'
+
+      # Requested checkpoints (pg_stat_checkpointer.num_requested on
+      # PostgreSQL 17+, read by postgresqlreceiver as
+      # postgresql.bgwriter.checkpoint.count{type="requested"}): WAL reached
+      # max_wal_size before checkpoint_timeout. Requested checkpoints also come
+      # from CHECKPOINT, CREATE DATABASE, base backups, promotion and
+      # shutdown, so one or two per 5 minutes are normal; the lab threshold of more
+      # than 3 per 5 minutes is an assumption checked against the default-config
+      # labs (a handful of requested checkpoints per day) and the
+      # checkpoint-pressure scenario. The 5 minute window keeps the resolve
+      # time inside the scenario's 10 minute limit.
+      # Last minus first sample, for the reason given at Deadlocks.
+      # Primary only: a standby counts restartpoints.
+      - alert: CheckpointsRequested
+        expr: |
+          (
+            last_over_time(postgresql.bgwriter.checkpoint.count{type="requested"}[5m])
+              - first_over_time(postgresql.bgwriter.checkpoint.count{type="requested"}[5m])
+          ) > 3
+            and on(service.instance.id)
+          postgresql.recovery.active == 0
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: '{{ (index $labels "service.instance.id") }} had {{ $value | printf "%.0f" }} requested checkpoints in 5 minutes (lab threshold)'
+
+      # A physical slot without a consumer keeps WAL until
+      # max_slot_wal_keep_size. Primary only: Patroni keeps member slots on
+      # replicas too, and those are inactive by design. Lab threshold.
+      - alert: PhysicalSlotInactive
+        expr: |
+          postgresql.replication_slot.inactive_seconds{slot_type="physical"} > 120
+            and on(service.instance.id)
+          postgresql.recovery.active == 0
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'Physical slot {{ $labels.slot_name }} on {{ (index $labels "service.instance.id") }} has been inactive for {{ $value | humanizeDuration }} (lab threshold)'
+
       # Covers the pack and postgresqlreceiver's database.count (a canary for the
-      # receiver). `on(__name__)` is not honoured by binary operators, so the metric name
+      # receiver). Every pack query returns at least one row on every node, or
+      # (slots, subscriptions) none by design, so the list holds both kinds. `on(__name__)` is not honoured by binary
+      # operators, so the metric name
       # is copied into the `metric` label first; that also puts it in the alert.
       # Looks back 1h: a series gone for longer resolves silently; a dead target
       # is still caught by PostgresTargetAbsent. Slot series exist only where
@@ -103,9 +294,9 @@ groups:
       # alerts for up to an hour; that is accepted, not filtered.
       - alert: SeriesVanished
         expr: |
-          label_copy(last_over_time({__name__=~"postgresql[.](recovery[.]active|wal_receiver[.]streaming|replay[.](backlog|paused)|snapshot[.]oldest_age|connection[.](client|client_capacity)|database[.]count|replication_slot[.](active|retained_bytes|unconfirmed_bytes|wal_status|invalidated|inactive_seconds)|subscription[.](enabled|apply_worker_running|last_msg_age|apply_errors|sync_errors|conflicts))"}[1h]) keep_metric_names, "__name__", "metric")
+          label_copy(last_over_time({__name__=~"postgresql[.](recovery[.]active|wal_receiver[.]streaming|replay[.](backlog|paused)|snapshot[.]oldest_age|connection[.](client|client_capacity)|database[.](count|xid_age|mxid_age)|transaction[.]idle_age|lock[.](waiting_sessions|oldest_wait_age)|replication_slot[.](active|retained_bytes|unconfirmed_bytes|wal_status|invalidated|inactive_seconds)|subscription[.](enabled|apply_worker_running|last_msg_age|apply_errors|sync_errors|conflicts))"}[1h]) keep_metric_names, "__name__", "metric")
             unless on(metric, service.instance.id)
-          label_copy(present_over_time({__name__=~"postgresql[.](recovery[.]active|wal_receiver[.]streaming|replay[.](backlog|paused)|snapshot[.]oldest_age|connection[.](client|client_capacity)|database[.]count|replication_slot[.](active|retained_bytes|unconfirmed_bytes|wal_status|invalidated|inactive_seconds)|subscription[.](enabled|apply_worker_running|last_msg_age|apply_errors|sync_errors|conflicts))"}[2m]) keep_metric_names, "__name__", "metric")
+          label_copy(present_over_time({__name__=~"postgresql[.](recovery[.]active|wal_receiver[.]streaming|replay[.](backlog|paused)|snapshot[.]oldest_age|connection[.](client|client_capacity)|database[.](count|xid_age|mxid_age)|transaction[.]idle_age|lock[.](waiting_sessions|oldest_wait_age)|replication_slot[.](active|retained_bytes|unconfirmed_bytes|wal_status|invalidated|inactive_seconds)|subscription[.](enabled|apply_worker_running|last_msg_age|apply_errors|sync_errors|conflicts))"}[2m]) keep_metric_names, "__name__", "metric")
             and on(service.instance.id)
           present_over_time(postgresql.collection.heartbeat[2m])
         # Only while the target's heartbeat lives: a dead target or Collector

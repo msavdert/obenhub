@@ -61,6 +61,17 @@ first_record() {
   vl "$q | sort by (_time) | limit 1 | fields _time" | jq -r '._time // empty' | head -n1
 }
 
+# severity_seen ALERTNAME INSTANCE SINCE SEVERITY -> succeeds when a delivered notification since SINCE
+# for that alert held a firing alert with that severity. Tiered rules (same alertname, one tier per
+# series) need this: EXPECT matches alertname and instance only, not severity. commonLabels.severity
+# is no use here: the group's notifications at an escalation are, in the order seen (2026-11-08), one
+# with only the resolved warning, then one with only the firing critical, then one with both, so a
+# notification's common severity is not reliable. The match is therefore inside one alert object of
+# the alerts field (a JSON string): a firing alert whose labels carry the severity.
+severity_seen() {
+  [ -n "$(vl "_time:>$3 status:=firing commonLabels.alertname:=$1 commonLabels.service_instance_id:=$2 alerts:~\"firing[^{}]*.[^{}]*severity.{1,6}$4\" | limit 1 | fields _time" | head -n1)" ]
+}
+
 # am_active -> names of alerts that are active and not inhibited or silenced
 am_active() {
   curl -fsS "$AM/api/v2/alerts?active=true&silenced=false&inhibited=false" \
@@ -115,6 +126,7 @@ FAILS=()
 UNEXPECTED="[]"
 REVERTED=0
 WRITTEN=0
+CRASH_RESTARTS=null   # PostgreSQL crash restarts logged during the run (null = not checked)
 EXPECT=()          # entries "AlertName:instance" (instance may be empty)
 
 do_revert() {
@@ -158,7 +170,7 @@ write_result() {
     --arg gsha "$(git_sha)" --argjson gdirty "$(git_dirty)" --arg chash "$(config_hash)" \
     --argjson expected "$exp" --argjson unexpected "$UNEXPECTED" \
     --argjson pass "$pass" --argjson reasons "$reasons" \
-    --argjson images "$(image_versions)" --arg extra "${EXTRA_JSON:-null}" '
+    --argjson images "$(image_versions)" --arg extra "${EXTRA_JSON:-null}" --argjson crash "$CRASH_RESTARTS" '
     def nz: if . == "" then null else . end;
     {scenario: $scenario, start: ($start|nz), inject: ($inject|nz), detected: ($detected|nz),
      resolved: ($resolved|nz), end: ($end|nz),
@@ -167,7 +179,7 @@ write_result() {
      inject_seconds: ($tinject|nz|if . then tonumber else . end), hold_seconds: ($hold|tonumber),
      git_sha: $gsha, git_dirty: $gdirty, config_sha256: $chash,
      expected_alert: $expected, unexpected_alerts: $unexpected,
-     pass: $pass, failure_reasons: $reasons, extra: ($extra|fromjson), images: $images}' \
+     pass: $pass, failure_reasons: $reasons, crash_restarts: $crash, extra: ($extra|fromjson), images: $images}' \
     >>"$RESULTS"
   log "result appended to $RESULTS (pass=$pass)"
 }
@@ -265,6 +277,16 @@ run_scenario() {
     NF >= 4 { key = $1 ":" $2; if (index("," want, "," key ",") == 0) print $1 "\t" $2 "\t" $3 "\t" $4 }' \
     | jq -R -s -c 'split("\n") | map(select(length>0) | split("\t") | {alertname: .[0], instance: .[1], status: .[2], count: (.[3]|tonumber)})')
   if [ "$UNEXPECTED" != "[]" ]; then FAILS+=("unexpected alerts delivered: $UNEXPECTED"); fi
+
+  # a scenario must not crash a PostgreSQL server: its postmaster logs this line
+  # when a child dies abnormally (an orphan killed by a revert, for example)
+  local crash
+  if crash=$(vl "_time:>$T_START _time:<=$T_END service.name:=postgresql _msg:=\"all server processes terminated; reinitializing\" | stats count() n" | jq -r '.n // 0'); then
+    CRASH_RESTARTS=$crash
+    if [ "$crash" != 0 ]; then FAILS+=("PostgreSQL crash restart logged $crash time(s) during the run"); fi
+  else
+    FAILS+=("crash restart query against VictoriaLogs failed")
+  fi
 
   if declare -F extra_checks >/dev/null; then extra_checks || true; fi
   exit 0

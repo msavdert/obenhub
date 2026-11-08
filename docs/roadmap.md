@@ -15,6 +15,11 @@ The only place for plans. Scope and order are decided in
 A stage is done when its fault scenarios fire the expected alerts and show on
 the dashboards, with a no-fault control run.
 
+PostgreSQL counts as done for ADR 0001 when stages 1 to 4 are done; the
+Oracle phase starts then. Stage 5 applies the same pack to managed services
+rather than adding a topology, so it runs later, when it is fully prepared
+(owner decision, 2026-11-08).
+
 ## First vertical slice
 
 Docker Compose in `lab/slice1`, versions pinned in its `compose.yaml`.
@@ -158,12 +163,17 @@ otherwise unit tests only, said so in the rule:
       scrape of one node's REST API, because Patroni is the container's main
       process and stopping it stops PostgreSQL too. Failsafe has unit tests
       only, because the lab runs with failsafe mode off
-- [ ] PostgreSQL, in the shared pack: transaction ID wraparound age,
+- [x] PostgreSQL, in the shared pack: transaction ID wraparound age,
       idle-in-transaction separated from active long transactions, blocked
       sessions, deadlocks, checkpoint pressure from `pg_stat_checkpointer`
-      (PostgreSQL 17+), and an inactive physical slot
-- [ ] Two tiers (warning and critical) for capacity signals: connections,
-      wraparound age, idle in transaction
+      (PostgreSQL 17+), and an inactive physical slot. Scenarios cover idle in
+      transaction, a lock wait, a deadlock, checkpoint pressure and an unused
+      physical slot; wraparound has unit tests only, because the lab cannot
+      reach those ages (its metric is present in both labs)
+- [x] Two tiers (warning and critical) for capacity signals: connections,
+      wraparound age, idle in transaction. One alertname with two severities
+      and one tier per series; the connections and idle-in-transaction
+      scenarios assert the critical tier
 - [ ] PgBouncer: server pool saturation, `max_client_conn` exhaustion (clients
       refused while the wait time stays zero, unconfirmed until a lab run), `SHOW STATS` wait and query
       time

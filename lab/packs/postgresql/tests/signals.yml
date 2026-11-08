@@ -1,0 +1,768 @@
+# Tests for the shared PostgreSQL pack rules (lab/slice1 and lab/stage3 use them).
+# Wraparound, idle in transaction, blocked sessions, deadlocks, requested
+# checkpoints and the inactive physical slot. Wraparound has unit tests only:
+# the lab cannot reach those ages.
+rule_files:
+  - ../rules.yml
+evaluation_interval: 15s
+
+tests:
+  - name: wraparound tiers by kind, exactly 0.75 is still the warning, exactly 0.5 is no alert
+    interval: 15s
+    input_series:
+      # 2^31 = 2147483648; 0.5 -> 1073741824, 0.75 -> 1610612736
+      - series: 'postgresql.database.xid_age{service.instance.id="pg-primary",datname="app"}'
+        values: '1100000000x60'
+      - series: 'postgresql.database.xid_age{service.instance.id="pg-primary",datname="postgres"}'
+        values: '1610612736x60'
+      - series: 'postgresql.database.xid_age{service.instance.id="pg-primary",datname="template1"}'
+        values: '1073741824x60'
+      - series: 'postgresql.database.mxid_age{service.instance.id="pg-primary",datname="app"}'
+        values: '1700000000x60'
+      - series: 'postgresql.database.mxid_age{service.instance.id="pg-primary",datname="postgres"}'
+        values: '0x60'
+      - series: 'postgresql.recovery.active{service.instance.id="pg-primary"}'
+        values: '0x60'
+    alert_rule_test:
+      - eval_time: 6m
+        groupname: postgresql
+        alertname: TransactionIdWraparound
+        exp_alerts:
+          # xid 0.512 of app: warning
+          - exp_labels:
+              severity: warning
+              service.instance.id: pg-primary
+              datname: app
+              kind: xid
+            exp_annotations:
+              summary: 'xid age of app on pg-primary is 51.22% of the wraparound limit'
+          # xid exactly 0.75 of postgres: still warning
+          - exp_labels:
+              severity: warning
+              service.instance.id: pg-primary
+              datname: postgres
+              kind: xid
+            exp_annotations:
+              summary: 'xid age of postgres on pg-primary is 75% of the wraparound limit'
+          # mxid 0.79 of app: critical
+          - exp_labels:
+              severity: critical
+              service.instance.id: pg-primary
+              datname: app
+              kind: mxid
+            exp_annotations:
+              summary: 'mxid age of app on pg-primary is 79.16% of the wraparound limit'
+          # xid exactly 0.5 of template1 (not above): no alert
+
+  - name: idle in transaction tiers and boundaries
+    interval: 15s
+    input_series:
+      - series: 'postgresql.transaction.idle_age{service.instance.id="pg-warn"}'
+        values: '0x4 90x56'
+      - series: 'postgresql.transaction.idle_age{service.instance.id="pg-crit"}'
+        values: '0x4 200x56'
+      # exactly 60 and exactly 180 are not above the thresholds
+      - series: 'postgresql.transaction.idle_age{service.instance.id="pg-low-edge"}'
+        values: '60x60'
+      - series: 'postgresql.transaction.idle_age{service.instance.id="pg-high-edge"}'
+        values: '0x4 180x56'
+    alert_rule_test:
+      - eval_time: 1m
+        groupname: postgresql
+        alertname: IdleInTransaction
+        exp_alerts: []
+      - eval_time: 5m
+        groupname: postgresql
+        alertname: IdleInTransaction
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              service.instance.id: pg-warn
+            exp_annotations:
+              summary: 'A session on pg-warn has been idle in a transaction for 1m 30s (lab threshold)'
+          - exp_labels:
+              severity: critical
+              service.instance.id: pg-crit
+            exp_annotations:
+              summary: 'A session on pg-crit has been idle in a transaction for 3m 20s (lab threshold)'
+          - exp_labels:
+              severity: warning
+              service.instance.id: pg-high-edge
+            exp_annotations:
+              summary: 'A session on pg-high-edge has been idle in a transaction for 3m 0s (lab threshold)'
+
+  - name: blocked sessions fire after a 30 s wait that lasts 30 s
+    interval: 15s
+    input_series:
+      - series: 'postgresql.lock.oldest_wait_age{service.instance.id="pg-primary"}'
+        values: '0x4 40x56'
+      - series: 'postgresql.lock.oldest_wait_age{service.instance.id="pg-standby"}'
+        values: '30x60'
+    alert_rule_test:
+      - eval_time: 1m
+        groupname: postgresql
+        alertname: BlockedSessions
+        exp_alerts: []
+      - eval_time: 3m
+        groupname: postgresql
+        alertname: BlockedSessions
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              service.instance.id: pg-primary
+            exp_annotations:
+              summary: 'A session on pg-primary has waited 40s for a lock (lab threshold)'
+
+  - name: a deadlock fires at once and resolves once it has left the five minute window; a flat counter never fires
+    interval: 15s
+    input_series:
+      - series: 'postgresql.deadlocks{service.instance.id="pg-primary",postgresql.database.name="postgres"}'
+        values: '0x8 1x100'
+      - series: 'postgresql.deadlocks{service.instance.id="pg-standby",postgresql.database.name="postgres"}'
+        values: '3x108'
+    alert_rule_test:
+      - eval_time: 1m
+        groupname: postgresql
+        alertname: Deadlocks
+        exp_alerts: []
+      - eval_time: 3m
+        groupname: postgresql
+        alertname: Deadlocks
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              service.instance.id: pg-primary
+              postgresql.database.name: postgres
+            exp_annotations:
+              summary: '1 deadlock(s) in postgres on pg-primary in the last 5 minutes'
+      - eval_time: 6m
+        groupname: postgresql
+        alertname: Deadlocks
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              service.instance.id: pg-primary
+              postgresql.database.name: postgres
+            exp_annotations:
+              summary: '1 deadlock(s) in postgres on pg-primary in the last 5 minutes'
+      - eval_time: 7m30s
+        groupname: postgresql
+        alertname: Deadlocks
+        exp_alerts: []
+      - eval_time: 12m
+        groupname: postgresql
+        alertname: Deadlocks
+        exp_alerts: []
+
+  - name: a counter reset to zero does not fire
+    interval: 15s
+    input_series:
+      - series: 'postgresql.deadlocks{service.instance.id="pg-primary",postgresql.database.name="postgres"}'
+        values: '5x8 0x100'
+    alert_rule_test:
+      - eval_time: 3m
+        groupname: postgresql
+        alertname: Deadlocks
+        exp_alerts: []
+      - eval_time: 6m
+        groupname: postgresql
+        alertname: Deadlocks
+        exp_alerts: []
+
+  - name: requested checkpoints fire on the primary only, above three in five minutes
+    interval: 15s
+    input_series:
+      # +8 in the first 2 minutes
+      - series: 'postgresql.bgwriter.checkpoint.count{service.instance.id="pg-primary",type="requested"}'
+        values: '10 11 12 13 14 15 16 17 18 18x90'
+      # the same counter on a standby (restartpoints) never fires
+      - series: 'postgresql.bgwriter.checkpoint.count{service.instance.id="pg-standby",type="requested"}'
+        values: '10 11 12 13 14 15 16 17 18 18x90'
+      # scheduled checkpoints are not counted
+      - series: 'postgresql.bgwriter.checkpoint.count{service.instance.id="pg-primary",type="scheduled"}'
+        values: '0 2 4 6 8 10 12 14 16 16x90'
+      # three more is not above three
+      - series: 'postgresql.bgwriter.checkpoint.count{service.instance.id="pg-edge",type="requested"}'
+        values: '10 11 12 13 13x90'
+      - series: 'postgresql.recovery.active{service.instance.id="pg-primary"}'
+        values: '0x100'
+      - series: 'postgresql.recovery.active{service.instance.id="pg-standby"}'
+        values: '1x100'
+      - series: 'postgresql.recovery.active{service.instance.id="pg-edge"}'
+        values: '0x100'
+    alert_rule_test:
+      - eval_time: 3m
+        groupname: postgresql
+        alertname: CheckpointsRequested
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              service.instance.id: pg-primary
+              type: requested
+            exp_annotations:
+              summary: 'pg-primary had 8 requested checkpoints in 5 minutes (lab threshold)'
+      - eval_time: 20m
+        groupname: postgresql
+        alertname: CheckpointsRequested
+        exp_alerts: []
+
+  - name: an inactive physical slot fires on the primary only
+    interval: 15s
+    input_series:
+      - series: 'postgresql.replication_slot.inactive_seconds{service.instance.id="pg-primary",slot_name="spare",slot_type="physical"}'
+        values: '0x4 150x56'
+      # an active slot, a logical slot and the replica-side copy do not fire
+      - series: 'postgresql.replication_slot.inactive_seconds{service.instance.id="pg-primary",slot_name="standby1",slot_type="physical"}'
+        values: '0x60'
+      - series: 'postgresql.replication_slot.inactive_seconds{service.instance.id="pg-primary",slot_name="app_sub",slot_type="logical"}'
+        values: '500x60'
+      - series: 'postgresql.replication_slot.inactive_seconds{service.instance.id="pg-standby",slot_name="spare",slot_type="physical"}'
+        values: '500x60'
+      - series: 'postgresql.recovery.active{service.instance.id="pg-primary"}'
+        values: '0x60'
+      - series: 'postgresql.recovery.active{service.instance.id="pg-standby"}'
+        values: '1x60'
+    alert_rule_test:
+      - eval_time: 1m
+        groupname: postgresql
+        alertname: PhysicalSlotInactive
+        exp_alerts: []
+      - eval_time: 4m
+        groupname: postgresql
+        alertname: PhysicalSlotInactive
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              service.instance.id: pg-primary
+              slot_name: spare
+              slot_type: physical
+            exp_annotations:
+              summary: 'Physical slot spare on pg-primary has been inactive for 2m 30s (lab threshold)'
+
+  # idle_age is 200 from 3m15s; the critical needs three samples (the old 30s for) and appears at 3m45s.
+  - name: idle in transaction tiers - escalation, exactly one tier at every evaluation
+    interval: 15s
+    input_series:
+      - series: 'postgresql.transaction.idle_age{service.instance.id="a"}'
+        values: '90x12 200x48'
+    alert_rule_test:
+      - eval_time: 3m
+        groupname: postgresql
+        alertname: IdleInTransaction
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              service.instance.id: a
+            exp_annotations:
+              summary: 'A session on a has been idle in a transaction for 1m 30s (lab threshold)'
+      - eval_time: 3m15s
+        groupname: postgresql
+        alertname: IdleInTransaction
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              service.instance.id: a
+            exp_annotations:
+              summary: 'A session on a has been idle in a transaction for 1m 30s (lab threshold)'
+      - eval_time: 3m30s
+        groupname: postgresql
+        alertname: IdleInTransaction
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              service.instance.id: a
+            exp_annotations:
+              summary: 'A session on a has been idle in a transaction for 1m 30s (lab threshold)'
+      - eval_time: 3m45s
+        groupname: postgresql
+        alertname: IdleInTransaction
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              service.instance.id: a
+            exp_annotations:
+              summary: 'A session on a has been idle in a transaction for 3m 20s (lab threshold)'
+      - eval_time: 4m
+        groupname: postgresql
+        alertname: IdleInTransaction
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              service.instance.id: a
+            exp_annotations:
+              summary: 'A session on a has been idle in a transaction for 3m 20s (lab threshold)'
+      - eval_time: 4m15s
+        groupname: postgresql
+        alertname: IdleInTransaction
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              service.instance.id: a
+            exp_annotations:
+              summary: 'A session on a has been idle in a transaction for 3m 20s (lab threshold)'
+      - eval_time: 4m30s
+        groupname: postgresql
+        alertname: IdleInTransaction
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              service.instance.id: a
+            exp_annotations:
+              summary: 'A session on a has been idle in a transaction for 3m 20s (lab threshold)'
+
+  - name: idle in transaction tiers - de-escalation, the warning follows the critical at once
+    interval: 15s
+    input_series:
+      - series: 'postgresql.transaction.idle_age{service.instance.id="a"}'
+        values: '200x20 90x40'
+    alert_rule_test:
+      - eval_time: 4m45s
+        groupname: postgresql
+        alertname: IdleInTransaction
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              service.instance.id: a
+            exp_annotations:
+              summary: 'A session on a has been idle in a transaction for 3m 20s (lab threshold)'
+      - eval_time: 5m
+        groupname: postgresql
+        alertname: IdleInTransaction
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              service.instance.id: a
+            exp_annotations:
+              summary: 'A session on a has been idle in a transaction for 3m 20s (lab threshold)'
+      - eval_time: 5m15s
+        groupname: postgresql
+        alertname: IdleInTransaction
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              service.instance.id: a
+            exp_annotations:
+              summary: 'A session on a has been idle in a transaction for 1m 30s (lab threshold)'
+      - eval_time: 5m30s
+        groupname: postgresql
+        alertname: IdleInTransaction
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              service.instance.id: a
+            exp_annotations:
+              summary: 'A session on a has been idle in a transaction for 1m 30s (lab threshold)'
+      - eval_time: 5m45s
+        groupname: postgresql
+        alertname: IdleInTransaction
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              service.instance.id: a
+            exp_annotations:
+              summary: 'A session on a has been idle in a transaction for 1m 30s (lab threshold)'
+      - eval_time: 6m
+        groupname: postgresql
+        alertname: IdleInTransaction
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              service.instance.id: a
+            exp_annotations:
+              summary: 'A session on a has been idle in a transaction for 1m 30s (lab threshold)'
+
+  - name: idle in transaction tiers - a single dip while critical shows the warning for the window, then the critical returns
+    interval: 15s
+    input_series:
+      - series: 'postgresql.transaction.idle_age{service.instance.id="a"}'
+        values: '200x20 90 200x39'
+    alert_rule_test:
+      - eval_time: 4m45s
+        groupname: postgresql
+        alertname: IdleInTransaction
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              service.instance.id: a
+            exp_annotations:
+              summary: 'A session on a has been idle in a transaction for 3m 20s (lab threshold)'
+      - eval_time: 5m
+        groupname: postgresql
+        alertname: IdleInTransaction
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              service.instance.id: a
+            exp_annotations:
+              summary: 'A session on a has been idle in a transaction for 3m 20s (lab threshold)'
+      - eval_time: 5m15s
+        groupname: postgresql
+        alertname: IdleInTransaction
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              service.instance.id: a
+            exp_annotations:
+              summary: 'A session on a has been idle in a transaction for 1m 30s (lab threshold)'
+      - eval_time: 5m30s
+        groupname: postgresql
+        alertname: IdleInTransaction
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              service.instance.id: a
+            exp_annotations:
+              summary: 'A session on a has been idle in a transaction for 1m 30s (lab threshold)'
+      - eval_time: 5m45s
+        groupname: postgresql
+        alertname: IdleInTransaction
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              service.instance.id: a
+            exp_annotations:
+              summary: 'A session on a has been idle in a transaction for 1m 30s (lab threshold)'
+      - eval_time: 6m
+        groupname: postgresql
+        alertname: IdleInTransaction
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              service.instance.id: a
+            exp_annotations:
+              summary: 'A session on a has been idle in a transaction for 3m 20s (lab threshold)'
+      - eval_time: 6m15s
+        groupname: postgresql
+        alertname: IdleInTransaction
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              service.instance.id: a
+            exp_annotations:
+              summary: 'A session on a has been idle in a transaction for 3m 20s (lab threshold)'
+      - eval_time: 6m30s
+        groupname: postgresql
+        alertname: IdleInTransaction
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              service.instance.id: a
+            exp_annotations:
+              summary: 'A session on a has been idle in a transaction for 3m 20s (lab threshold)'
+
+  - name: idle in transaction tiers - a jump from below the warning threshold straight above the critical one never shows the warning
+    interval: 15s
+    input_series:
+      - series: 'postgresql.transaction.idle_age{service.instance.id="a"}'
+        values: '10x12 200x48'
+    alert_rule_test:
+      - eval_time: 3m
+        groupname: postgresql
+        alertname: IdleInTransaction
+        exp_alerts: []
+      - eval_time: 3m15s
+        groupname: postgresql
+        alertname: IdleInTransaction
+        exp_alerts: []
+      - eval_time: 3m30s
+        groupname: postgresql
+        alertname: IdleInTransaction
+        exp_alerts: []
+      - eval_time: 3m45s
+        groupname: postgresql
+        alertname: IdleInTransaction
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              service.instance.id: a
+            exp_annotations:
+              summary: 'A session on a has been idle in a transaction for 3m 20s (lab threshold)'
+      - eval_time: 4m
+        groupname: postgresql
+        alertname: IdleInTransaction
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              service.instance.id: a
+            exp_annotations:
+              summary: 'A session on a has been idle in a transaction for 3m 20s (lab threshold)'
+      - eval_time: 4m15s
+        groupname: postgresql
+        alertname: IdleInTransaction
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              service.instance.id: a
+            exp_annotations:
+              summary: 'A session on a has been idle in a transaction for 3m 20s (lab threshold)'
+
+  # xid_age is 0.79 of the limit from 10m15s; the critical needs 21 samples (old 5m for plus a step) and appears at 15m15s.
+  - name: wraparound tiers - escalation, exactly one tier at every evaluation
+    interval: 15s
+    input_series:
+      - series: 'postgresql.database.xid_age{service.instance.id="pg-primary",datname="app"}'
+        values: '1200000000x40 1700000000x80'
+      - series: 'postgresql.recovery.active{service.instance.id="pg-primary"}'
+        values: '0x200'
+    alert_rule_test:
+      - eval_time: 14m30s
+        groupname: postgresql
+        alertname: TransactionIdWraparound
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              service.instance.id: pg-primary
+              datname: app
+              kind: xid
+            exp_annotations:
+              summary: 'xid age of app on pg-primary is 55.88% of the wraparound limit'
+      - eval_time: 14m45s
+        groupname: postgresql
+        alertname: TransactionIdWraparound
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              service.instance.id: pg-primary
+              datname: app
+              kind: xid
+            exp_annotations:
+              summary: 'xid age of app on pg-primary is 55.88% of the wraparound limit'
+      - eval_time: 15m
+        groupname: postgresql
+        alertname: TransactionIdWraparound
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              service.instance.id: pg-primary
+              datname: app
+              kind: xid
+            exp_annotations:
+              summary: 'xid age of app on pg-primary is 55.88% of the wraparound limit'
+      - eval_time: 15m15s
+        groupname: postgresql
+        alertname: TransactionIdWraparound
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              service.instance.id: pg-primary
+              datname: app
+              kind: xid
+            exp_annotations:
+              summary: 'xid age of app on pg-primary is 79.16% of the wraparound limit'
+      - eval_time: 15m30s
+        groupname: postgresql
+        alertname: TransactionIdWraparound
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              service.instance.id: pg-primary
+              datname: app
+              kind: xid
+            exp_annotations:
+              summary: 'xid age of app on pg-primary is 79.16% of the wraparound limit'
+      - eval_time: 15m45s
+        groupname: postgresql
+        alertname: TransactionIdWraparound
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              service.instance.id: pg-primary
+              datname: app
+              kind: xid
+            exp_annotations:
+              summary: 'xid age of app on pg-primary is 79.16% of the wraparound limit'
+
+  - name: wraparound tiers - a jump from below the warning threshold straight above the critical one never shows the warning
+    interval: 15s
+    input_series:
+      - series: 'postgresql.database.xid_age{service.instance.id="pg-primary",datname="app"}'
+        values: '100000000x40 1700000000x80'
+      - series: 'postgresql.recovery.active{service.instance.id="pg-primary"}'
+        values: '0x200'
+    alert_rule_test:
+      - eval_time: 14m30s
+        groupname: postgresql
+        alertname: TransactionIdWraparound
+        exp_alerts: []
+      - eval_time: 14m45s
+        groupname: postgresql
+        alertname: TransactionIdWraparound
+        exp_alerts: []
+      - eval_time: 15m
+        groupname: postgresql
+        alertname: TransactionIdWraparound
+        exp_alerts: []
+      - eval_time: 15m15s
+        groupname: postgresql
+        alertname: TransactionIdWraparound
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              service.instance.id: pg-primary
+              datname: app
+              kind: xid
+            exp_annotations:
+              summary: 'xid age of app on pg-primary is 79.16% of the wraparound limit'
+      - eval_time: 15m30s
+        groupname: postgresql
+        alertname: TransactionIdWraparound
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              service.instance.id: pg-primary
+              datname: app
+              kind: xid
+            exp_annotations:
+              summary: 'xid age of app on pg-primary is 79.16% of the wraparound limit'
+      - eval_time: 15m45s
+        groupname: postgresql
+        alertname: TransactionIdWraparound
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              service.instance.id: pg-primary
+              datname: app
+              kind: xid
+            exp_annotations:
+              summary: 'xid age of app on pg-primary is 79.16% of the wraparound limit'
+
+  - name: wraparound on a standby never fires, the same age on the primary does
+    interval: 15s
+    input_series:
+      - series: 'postgresql.database.xid_age{service.instance.id="pg-standby",datname="app"}'
+        values: '1700000000x80'
+      - series: 'postgresql.database.xid_age{service.instance.id="pg-primary",datname="app"}'
+        values: '1700000000x80'
+      - series: 'postgresql.recovery.active{service.instance.id="pg-primary"}'
+        values: '0x80'
+      - series: 'postgresql.recovery.active{service.instance.id="pg-standby"}'
+        values: '1x80'
+      # an age in the warning band on the standby exercises the warning tier's gate
+      - series: 'postgresql.database.mxid_age{service.instance.id="pg-standby",datname="app"}'
+        values: '1300000000x80'
+    alert_rule_test:
+      - eval_time: 19m
+        groupname: postgresql
+        alertname: TransactionIdWraparound
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              service.instance.id: pg-primary
+              datname: app
+              kind: xid
+            exp_annotations:
+              summary: 'xid age of app on pg-primary is 79.16% of the wraparound limit'
+
+  # The first sample is at 1m; three points make a full window (the old 30s for).
+  - name: idle in transaction warm-up - a new series above the critical threshold stays silent until its window is full
+    interval: 15s
+    input_series:
+      - series: 'postgresql.transaction.idle_age{service.instance.id="a"}'
+        values: '_x4 200x56'
+    alert_rule_test:
+      - eval_time: 1m
+        groupname: postgresql
+        alertname: IdleInTransaction
+        exp_alerts: []
+      - eval_time: 1m15s
+        groupname: postgresql
+        alertname: IdleInTransaction
+        exp_alerts: []
+      - eval_time: 1m30s
+        groupname: postgresql
+        alertname: IdleInTransaction
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              service.instance.id: a
+            exp_annotations:
+              summary: 'A session on a has been idle in a transaction for 3m 20s (lab threshold)'
+      - eval_time: 1m45s
+        groupname: postgresql
+        alertname: IdleInTransaction
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              service.instance.id: a
+            exp_annotations:
+              summary: 'A session on a has been idle in a transaction for 3m 20s (lab threshold)'
+      - eval_time: 2m
+        groupname: postgresql
+        alertname: IdleInTransaction
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              service.instance.id: a
+            exp_annotations:
+              summary: 'A session on a has been idle in a transaction for 3m 20s (lab threshold)'
+
+  # The first sample is at 1m; 21 points make a full window (the old 5m for), so the critical comes at 6m.
+  - name: wraparound warm-up - a new series above the critical threshold stays silent until its window is full
+    interval: 15s
+    input_series:
+      - series: 'postgresql.database.xid_age{service.instance.id="pg-primary",datname="app"}'
+        values: '_x4 1700000000x100'
+      - series: 'postgresql.recovery.active{service.instance.id="pg-primary"}'
+        values: '0x200'
+    alert_rule_test:
+      - eval_time: 1m
+        groupname: postgresql
+        alertname: TransactionIdWraparound
+        exp_alerts: []
+      - eval_time: 1m45s
+        groupname: postgresql
+        alertname: TransactionIdWraparound
+        exp_alerts: []
+      - eval_time: 2m30s
+        groupname: postgresql
+        alertname: TransactionIdWraparound
+        exp_alerts: []
+      - eval_time: 3m15s
+        groupname: postgresql
+        alertname: TransactionIdWraparound
+        exp_alerts: []
+      - eval_time: 4m
+        groupname: postgresql
+        alertname: TransactionIdWraparound
+        exp_alerts: []
+      - eval_time: 4m45s
+        groupname: postgresql
+        alertname: TransactionIdWraparound
+        exp_alerts: []
+      - eval_time: 5m30s
+        groupname: postgresql
+        alertname: TransactionIdWraparound
+        exp_alerts: []
+      - eval_time: 6m
+        groupname: postgresql
+        alertname: TransactionIdWraparound
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              service.instance.id: pg-primary
+              datname: app
+              kind: xid
+            exp_annotations:
+              summary: 'xid age of app on pg-primary is 79.16% of the wraparound limit'
+      - eval_time: 6m15s
+        groupname: postgresql
+        alertname: TransactionIdWraparound
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              service.instance.id: pg-primary
+              datname: app
+              kind: xid
+            exp_annotations:
+              summary: 'xid age of app on pg-primary is 79.16% of the wraparound limit'
+      - eval_time: 6m30s
+        groupname: postgresql
+        alertname: TransactionIdWraparound
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              service.instance.id: pg-primary
+              datname: app
+              kind: xid
+            exp_annotations:
+              summary: 'xid age of app on pg-primary is 79.16% of the wraparound limit'

@@ -64,7 +64,7 @@ run = """docker run --rm -v "$PWD/lab:/lab:ro" victoriametrics/vmalert-tool:v1.1
 
 [tasks."lab:pack:rules-test"]
 description = "unit-test the shared PostgreSQL pack rules (lab/packs/postgresql, vmalert-tool); needs docker"
-run = """docker run --rm -v "$PWD/lab:/lab:ro" victoriametrics/vmalert-tool:v1.155.0 unittest --files=/lab/packs/postgresql/tests/collector.yml,/lab/packs/postgresql/tests/replication.yml,/lab/packs/postgresql/tests/resources.yml,/lab/packs/postgresql/tests/series-vanished.yml"""
+run = """docker run --rm -v "$PWD/lab:/lab:ro" victoriametrics/vmalert-tool:v1.155.0 unittest --files=/lab/packs/postgresql/tests/collector.yml,/lab/packs/postgresql/tests/replication.yml,/lab/packs/postgresql/tests/resources.yml,/lab/packs/postgresql/tests/signals.yml,/lab/packs/postgresql/tests/series-vanished.yml"""
 
 [tasks.check]
 description = "all checks as CI runs them (needs docker for lab:rules-test, which pulls images on first use)"
@@ -116,7 +116,7 @@ exec "$f"
 description = "run all lab fault scenarios, control last; stops at the first failure"
 run = '''
 set -e
-for s in standby-stopped collector-stopped repl-cut replay-paused snapshot-held connections-exhausted permission-revoked logical-conflict subscription-disabled logical-cut pgbouncer-pool-saturated pgbouncer-stopped control; do
+for s in standby-stopped collector-stopped repl-cut replay-paused snapshot-held connections-exhausted permission-revoked logical-conflict subscription-disabled logical-cut pgbouncer-pool-saturated pgbouncer-stopped idle-in-transaction lock-blocked deadlock checkpoint-pressure physical-slot-inactive control; do
   echo "=== $s"
   lab/slice1/scenarios/$s.sh
 done

@@ -18,6 +18,10 @@ receivers:
     password: ${env:OTEL_MONITOR_PASSWORD}
     databases: [postgres]
     collection_interval: 15s
+    # Optional upstream metric, off by default (receiver metadata, v0.164.0).
+    metrics:
+      postgresql.deadlocks:
+        enabled: true
     tls:
       insecure: true
 
@@ -28,6 +32,10 @@ receivers:
     password: ${env:OTEL_MONITOR_PASSWORD}
     databases: [postgres]
     collection_interval: 15s
+    # Optional upstream metric, off by default (receiver metadata, v0.164.0).
+    metrics:
+      postgresql.deadlocks:
+        enabled: true
     tls:
       insecure: true
 
@@ -38,6 +46,10 @@ receivers:
     password: ${env:OTEL_MONITOR_PASSWORD}
     databases: [postgres]
     collection_interval: 15s
+    # Optional upstream metric, off by default (receiver metadata, v0.164.0).
+    metrics:
+      postgresql.deadlocks:
+        enabled: true
     tls:
       insecure: true
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Scenario connections-exhausted: open more app sessions than the ordinary capacity (max_connections - superuser_reserved - reserved_connections). Some attempts must be rejected, otel_monitor must still get a new connection through its reserved slot (pg_use_reserved_connections), ConnectionSaturation must fire for pg-primary and PostgresTargetAbsent must not.
+# Scenario connections-exhausted: open more app sessions than the ordinary capacity (max_connections - superuser_reserved - reserved_connections). Some attempts must be rejected, otel_monitor must still get a new connection through its reserved slot (pg_use_reserved_connections), ConnectionSaturation must fire for pg-primary, as critical (the sessions jump past 0.95 within one scrape, so the warning normally does not fire: both tiers need the ratio over the same 75 s window and the warning rule excludes the critical condition; a scrape landing mid-ramp could show the warning for one evaluation, and EXPECT does not judge severity, so only the critical is asserted), and PostgresTargetAbsent must not.
 # One psql per client: pgbench aborts the whole run when one connection fails.
 # shellcheck disable=SC1091,SC2034
 set -uo pipefail
@@ -55,6 +55,7 @@ after_detect() {
     psql -h pg-primary -U otel_monitor -X -At -d postgres -c "SELECT 1"' 2>&1)
   log "new otel_monitor TCP connection while full: ${probe:-no output}"
   if [ "$probe" != 1 ]; then FAILS+=("otel_monitor could not open a new connection while full: $probe"); rc=1; fi
+  wait_until 120 "ConnectionSaturation critical delivered" severity_seen ConnectionSaturation pg-primary "$T_INJECT" critical || { FAILS+=("ConnectionSaturation was not delivered as critical"); rc=1; }
   EXTRA_JSON=$(jq -n -c --argjson c "$CAPACITY" --argjson a "$CLIENTS" --argjson r "${rejected:-0}" '{capacity: $c, attempts: $a, rejected: $r, monitor_probe: "ok"}')
   return "$rc"
 }
