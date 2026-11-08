@@ -178,6 +178,35 @@ Then the same cluster on three VMs, because the operating-system layer
 - [ ] OS fault scenarios with alerts: filesystem filling, memory pressure,
       a real network partition between nodes
 
+## Stage 5: cloud-managed PostgreSQL
+
+Waits until the project is mature. AWS and Azure give managed PostgreSQL
+hours only to new accounts for twelve months
+([RDS pricing](https://aws.amazon.com/rds/postgresql/pricing/),
+[Azure free services](https://azure.microsoft.com/en-us/pricing/free-services)),
+OCI has no free tier for it
+([billing](https://docs.oracle.com/en-us/iaas/Content/postgresql/billing.htm)),
+and no free Cloud SQL tier was found (all read 2026-11-07). So each paid
+provider gets one session of a few hours:
+
+- [ ] One script per provider: create the service, connect the Collector,
+      run the scenarios that apply to a managed service and the control,
+      keep the evidence, delete everything. A budget alert is set before
+      the first paid hour
+- [ ] The script rehearsed first on free services: Aiven (free plan) and
+      Supabase (Free); Neon for short runs only, because its free plan has
+      100 compute-hours a month and suspends after five idle minutes
+      ([plans](https://neon.com/docs/introduction/plans)), so polling
+      would keep it awake and use them up
+- [ ] Paid, prices read again on the day: AWS RDS for PostgreSQL, Azure
+      Database for PostgreSQL flexible server, Google Cloud SQL, OCI Database
+      with PostgreSQL
+
+Unconfirmed until a run: whether each provider's admin role can grant
+`pg_monitor`; whether Collector polling keeps a Supabase project from being
+paused and an Aiven free service from being powered off; and what changes
+when the Collector has to use a pooled endpoint instead of a direct one.
+
 ## Upstream PR candidates
 
 See [ADR 0003](adr/0003-receiver-strategy.md), decision 3. Each candidate is
