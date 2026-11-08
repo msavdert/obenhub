@@ -20,6 +20,8 @@ inhibit_rules:
   # a dead Collector explains every missing target
   - source_matchers: [alertname = "CollectorAbsent"]
     target_matchers: [alertname = "PostgresTargetAbsent"]
+  - source_matchers: [alertname = "CollectorAbsent"]
+    target_matchers: [alertname = "PgbouncerTargetAbsent"]
   # a missing target explains its own vanished pack series
   - source_matchers: [alertname = "PostgresTargetAbsent"]
     target_matchers: [alertname = "SeriesVanished"]

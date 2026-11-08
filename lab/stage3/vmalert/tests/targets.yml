@@ -1,21 +1,12 @@
-# Watchdog, PostgresTargetAbsent, CollectorAbsent (three Patroni nodes).
+# PostgresTargetAbsent against the stage 3 inventory (three Patroni nodes), and
+# the interplay test: a stopped Collector raises CollectorAbsent only, not one
+# alert per node.
 rule_files:
   - ../rules/patroni.yml
+  - ../../../packs/postgresql/rules.yml
 evaluation_interval: 15s
 
 tests:
-  - name: watchdog always fires
-    interval: 15s
-    input_series: []
-    alert_rule_test:
-      - eval_time: 1m
-        groupname: postgresql
-        alertname: Watchdog
-        exp_alerts:
-          - exp_labels: {severity: none}
-            exp_annotations:
-              summary: Always firing; proves the alert pipeline works.
-
   - name: target absent fires only for the node that stopped reporting
     interval: 15s
     input_series:
@@ -112,14 +103,3 @@ tests:
           - exp_labels: {severity: critical}
             exp_annotations:
               summary: The Collector reports no self-metrics.
-
-  - name: CollectorAbsent stays silent while the Collector reports
-    interval: 15s
-    input_series:
-      - series: 'otelcol_process_uptime{service.name="otelcol"}'
-        values: '1x60'
-    alert_rule_test:
-      - eval_time: 10m
-        groupname: postgresql
-        alertname: CollectorAbsent
-        exp_alerts: []

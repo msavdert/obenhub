@@ -67,13 +67,15 @@ check "PostgresTargetAbsent itself is not inhibited" \
   "not ($inhibited)('PostgresTargetAbsent','pg-standby')" "$alerts"
 
 # 3. a dead Collector mutes every target and series alert
-post "[$(alert CollectorAbsent)]"
+post "[$(alert CollectorAbsent),$(alert PgbouncerTargetAbsent pgbouncer)]"
 sleep 2
 alerts="$(curl -fs "$base/api/v2/alerts")"
 check "CollectorAbsent mutes PostgresTargetAbsent" \
   "bool(($inhibited)('PostgresTargetAbsent','pg-standby'))" "$alerts"
 check "CollectorAbsent mutes SeriesVanished on the primary" \
   "bool(($inhibited)('SeriesVanished','pg-primary'))" "$alerts"
+check "CollectorAbsent mutes PgbouncerTargetAbsent" \
+  "bool(($inhibited)('PgbouncerTargetAbsent','pgbouncer'))" "$alerts"
 check "ReplayBacklog is never inhibited" \
   "not ($inhibited)('ReplayBacklog','pg-primary')" "$alerts"
 

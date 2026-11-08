@@ -1,6 +1,7 @@
-# Pack metric names are provisional until the naming contract (ADR 0002).
-# Gating: standby-only rules join on recovery.active == 1, so a primary never
-# matches and missing data never fires.
+# The generic PostgreSQL rules (Watchdog, PostgresTargetAbsent, CollectorAbsent,
+# StandbyNotStreaming, ReplayBacklog, SnapshotHeldTooLong, ConnectionSaturation,
+# SeriesVanished) live in lab/packs/postgresql/rules.yml. This file holds the
+# inventory and the slice 1 specific groups.
 groups:
   - name: inventory
     interval: 15s
@@ -13,114 +14,6 @@ groups:
             label_set(vector(1), "service.namespace", "obenhub-lab", "service.name", "postgresql", "db.cluster.name", "slice1", "service.instance.id", "pg-subscriber"),
             label_set(vector(1), "service.namespace", "obenhub-lab", "service.name", "pgbouncer", "db.cluster.name", "slice1", "service.instance.id", "pgbouncer")
           )
-
-  - name: postgresql
-    interval: 15s
-    rules:
-      - alert: Watchdog
-        expr: vector(1)
-        labels:
-          severity: none
-        annotations:
-          summary: Always firing; proves the alert pipeline works.
-
-      - alert: PostgresTargetAbsent
-        expr: |
-          obenhub.expected_target
-            unless on(service.instance.id)
-          (
-            present_over_time(postgresql.collection.heartbeat[2m])
-              or
-            present_over_time(pgbouncer.list.items{list="databases"}[2m])
-          )
-            and on()
-          count(present_over_time(otelcol_process_uptime[1m])) > 0
-        # The pack heartbeat of a PostgreSQL target is postgresql.collection.
-        # heartbeat; PgBouncer has no pack, its heartbeat is the SHOW LISTS row
-        # "databases" (never missing while the console answers).
-        # A target is absent only while the Collector is alive: the 1m window
-        # empties before the 2m one, so a stopped Collector raises only
-        # CollectorAbsent. The Alertmanager inhibit alone lost the race in the
-        # lab (2026-11-06, collector-stopped): vmalert's startsAt is older than
-        # group_wait, so Alertmanager sends at once, in whatever order.
-        for: 1m
-        labels:
-          severity: critical
-        annotations:
-          summary: 'No heartbeat from {{ (index $labels "service.instance.id") }}'
-
-      - alert: CollectorAbsent
-        expr: absent_over_time(otelcol_process_uptime[2m])
-        for: 1m
-        labels:
-          severity: critical
-        annotations:
-          summary: The Collector reports no self-metrics.
-
-      - alert: StandbyNotStreaming
-        expr: |
-          postgresql.wal_receiver.streaming == 0
-            and on(service.instance.id)
-          postgresql.recovery.active == 1
-        for: 1m
-        labels:
-          severity: critical
-        annotations:
-          summary: '{{ (index $labels "service.instance.id") }} is in recovery and not streaming'
-
-      - alert: ReplayBacklog
-        expr: |
-          postgresql.replay.backlog > 16 * 1024 * 1024
-            and on(service.instance.id)
-          postgresql.recovery.active == 1
-        for: 1m
-        labels:
-          severity: warning
-        annotations:
-          summary: '{{ (index $labels "service.instance.id") }} replay backlog is {{ $value | humanize1024 }}B'
-
-      - alert: SnapshotHeldTooLong
-        expr: postgresql.snapshot.oldest_age > 120
-        for: 30s
-        labels:
-          severity: warning
-        annotations:
-          summary: 'A snapshot on {{ (index $labels "service.instance.id") }} is {{ $value | humanizeDuration }} old (lab threshold)'
-
-      - alert: ConnectionSaturation
-        expr: |
-          postgresql.connection.client
-            / on(service.instance.id)
-          postgresql.connection.client_capacity > 0.85
-        for: 1m
-        labels:
-          severity: warning
-        annotations:
-          summary: '{{ (index $labels "service.instance.id") }} client connections above 85% of capacity'
-
-      # Covers the pack and postgresqlreceiver's database.count (a canary for the
-      # receiver). `on(__name__)` is not honoured by binary operators, so the metric name
-      # is copied into the `metric` label first; that also puts it in the alert.
-      # Looks back 1h: a series gone for longer resolves silently; a dead target
-      # is still caught by PostgresTargetAbsent. Slot series exist only where
-      # slots exist (the primary) and subscription series only on the
-      # subscriber; the match is per instance, so a node that never had them
-      # is silent. Dropping the last slot or subscription on purpose therefore
-      # alerts for up to an hour; that is accepted, not filtered.
-      - alert: SeriesVanished
-        expr: |
-          label_copy(last_over_time({__name__=~"postgresql[.](recovery[.]active|wal_receiver[.]streaming|replay[.](backlog|paused)|snapshot[.]oldest_age|connection[.](client|client_capacity)|database[.]count|replication_slot[.](active|retained_bytes|unconfirmed_bytes|wal_status|invalidated|inactive_seconds)|subscription[.](enabled|apply_worker_running|last_msg_age|apply_errors|sync_errors|conflicts))"}[1h]) keep_metric_names, "__name__", "metric")
-            unless on(metric, service.instance.id)
-          label_copy(present_over_time({__name__=~"postgresql[.](recovery[.]active|wal_receiver[.]streaming|replay[.](backlog|paused)|snapshot[.]oldest_age|connection[.](client|client_capacity)|database[.]count|replication_slot[.](active|retained_bytes|unconfirmed_bytes|wal_status|invalidated|inactive_seconds)|subscription[.](enabled|apply_worker_running|last_msg_age|apply_errors|sync_errors|conflicts))"}[2m]) keep_metric_names, "__name__", "metric")
-            and on(service.instance.id)
-          present_over_time(postgresql.collection.heartbeat[2m])
-        # Only while the target's heartbeat lives: a dead target or Collector
-        # is PostgresTargetAbsent or CollectorAbsent, not one alert per series.
-        for: 1m
-        labels:
-          severity: warning
-        annotations:
-          summary: '{{ $labels.metric }} vanished on {{ (index $labels "service.instance.id") }}'
 
   # Logical replication (stage 2). Thresholds are lab values. Measured in the
   # lab on a healthy idle subscription: last_msg_age peaks near 30 s (the
@@ -224,13 +117,30 @@ groups:
   - name: pgbouncer
     interval: 15s
     rules:
+      # PgBouncer has no pack; its heartbeat is the SHOW LISTS row "databases"
+      # (never missing while the console answers). Absent only while the
+      # Collector is alive, for the reason given at PostgresTargetAbsent in
+      # the pack.
+      - alert: PgbouncerTargetAbsent
+        expr: |
+          obenhub.expected_target{service.name="pgbouncer"}
+            unless on(service.instance.id)
+          present_over_time(pgbouncer.list.items{list="databases"}[2m])
+            and on()
+          count(present_over_time(otelcol_process_uptime[1m])) > 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: 'No heartbeat from {{ (index $labels "service.instance.id") }}'
+
       # A client waits for a server connection only when the pool is at
       # pool_size. Over 5 s for 1 m is a lab threshold (assumption: a healthy
       # transaction-mode pool hands over a connection in milliseconds). Not for
       # the console's own pool (database pgbouncer), not for a paused or
       # disabled database (clients wait there by design), and not while the
       # target is absent (stale series); all in the expression, for the reason
-      # given at PostgresTargetAbsent. SHOW DATABASES names the database in
+      # given at PostgresTargetAbsent in the pack. SHOW DATABASES names the database in
       # `name`; it is copied to `database` to join SHOW POOLS.
       - alert: PgbouncerClientsWaiting
         expr: |

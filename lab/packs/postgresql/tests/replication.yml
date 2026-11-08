@@ -1,6 +1,8 @@
-# StandbyNotStreaming and ReplayBacklog. Both gate on recovery.active == 1.
+# Tests for the shared PostgreSQL pack rules (lab/slice1 and lab/stage3 use them).
+# StandbyNotStreaming and ReplayBacklog. Both gate on recovery.active == 1;
+# StandbyNotStreaming is also silent while no node is writable.
 rule_files:
-  - ../rules/postgresql.yml
+  - ../rules.yml
 evaluation_interval: 15s
 
 tests:
@@ -121,4 +123,21 @@ tests:
       - eval_time: 8m
         groupname: postgresql
         alertname: ReplayBacklog
+        exp_alerts: []
+
+  - name: not streaming is silent when no node is writable (quorum lost, all in recovery)
+    interval: 15s
+    input_series:
+      - series: 'postgresql.wal_receiver.streaming{service.instance.id="pg-1"}'
+        values: '0x60'
+      - series: 'postgresql.recovery.active{service.instance.id="pg-1"}'
+        values: '1x60'
+      - series: 'postgresql.wal_receiver.streaming{service.instance.id="pg-2"}'
+        values: '0x60'
+      - series: 'postgresql.recovery.active{service.instance.id="pg-2"}'
+        values: '1x60'
+    alert_rule_test:
+      - eval_time: 8m
+        groupname: postgresql
+        alertname: StandbyNotStreaming
         exp_alerts: []

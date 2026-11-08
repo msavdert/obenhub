@@ -54,13 +54,17 @@ run = "shellcheck scripts/*.sh lab/*/scripts/*.sh lab/*/scenarios/*.sh lab/*/gra
 [tasks."lab:rules-test"]
 description = "unit-test the lab alert rules (vmalert-tool) and Alertmanager routing (throwaway container); needs docker"
 run = [
-  """docker run --rm -v "$PWD/lab/slice1/vmalert:/vmalert:ro" victoriametrics/vmalert-tool:v1.155.0 unittest --files=/vmalert/tests/targets.yml,/vmalert/tests/replication.yml,/vmalert/tests/resources.yml,/vmalert/tests/pack.yml,/vmalert/tests/logical.yml,/vmalert/tests/pgbouncer.yml""",
+  """docker run --rm -v "$PWD/lab:/lab:ro" victoriametrics/vmalert-tool:v1.155.0 unittest --files=/lab/slice1/vmalert/tests/targets.yml,/lab/slice1/vmalert/tests/logical.yml,/lab/slice1/vmalert/tests/pgbouncer.yml""",
   "lab/slice1/alertmanager/test.sh",
 ]
 
 [tasks."lab:stage3:rules-test"]
 description = "unit-test the stage 3 lab alert rules (vmalert-tool); needs docker"
-run = """docker run --rm -v "$PWD/lab/stage3/vmalert:/vmalert:ro" victoriametrics/vmalert-tool:v1.155.0 unittest --files=/vmalert/tests/targets.yml,/vmalert/tests/replication.yml,/vmalert/tests/patroni.yml,/vmalert/tests/etcd.yml"""
+run = """docker run --rm -v "$PWD/lab:/lab:ro" victoriametrics/vmalert-tool:v1.155.0 unittest --files=/lab/stage3/vmalert/tests/targets.yml,/lab/stage3/vmalert/tests/patroni.yml,/lab/stage3/vmalert/tests/etcd.yml"""
+
+[tasks."lab:pack:rules-test"]
+description = "unit-test the shared PostgreSQL pack rules (lab/packs/postgresql, vmalert-tool); needs docker"
+run = """docker run --rm -v "$PWD/lab:/lab:ro" victoriametrics/vmalert-tool:v1.155.0 unittest --files=/lab/packs/postgresql/tests/collector.yml,/lab/packs/postgresql/tests/replication.yml,/lab/packs/postgresql/tests/resources.yml,/lab/packs/postgresql/tests/series-vanished.yml"""
 
 [tasks.check]
 description = "all checks as CI runs them (needs docker for lab:rules-test, which pulls images on first use)"
@@ -73,6 +77,7 @@ depends = [
   "lint:links",
   "lint:editorconfig",
   "lint:shell",
+  "lab:pack:rules-test",
   "lab:rules-test",
   "lab:stage3:rules-test",
   "docs:build",

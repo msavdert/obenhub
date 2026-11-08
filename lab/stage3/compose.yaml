@@ -172,6 +172,7 @@ services:
       OTEL_MONITOR_PASSWORD: "${OTEL_MONITOR_PASSWORD:?run: mise run lab:stage3:up (it generates lab/stage3/.env)}"
     volumes:
       - ./otelcol/config.yaml:/etc/otelcol/config.yaml:ro
+      - ../packs/postgresql/queries.yaml:/etc/otelcol/packs/postgresql/queries.yaml:ro
       - otelcol-data:/var/lib/otelcol
       - pg-1-log:/var/log/pg-1:ro
       - pg-2-log:/var/log/pg-2:ro
@@ -242,11 +243,13 @@ services:
       - -remoteWrite.url=http://victoriametrics:8428
       - -notifier.url=http://alertmanager:9093
       - -rule=/etc/vmalert/rules/*.yml
+      - -rule=/etc/vmalert/pack/rules.yml
       - -evaluationInterval=15s
     ports:
       - "127.0.0.1:28880:8880"
     volumes:
       - ./vmalert/rules:/etc/vmalert/rules:ro
+      - ../packs/postgresql/rules.yml:/etc/vmalert/pack/rules.yml:ro
     depends_on:
       victoriametrics:
         condition: service_healthy

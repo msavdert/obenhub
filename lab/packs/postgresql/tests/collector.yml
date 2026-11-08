@@ -1,0 +1,47 @@
+# Tests for the shared PostgreSQL pack rules (lab/slice1 and lab/stage3 use them).
+# Watchdog and CollectorAbsent.
+rule_files:
+  - ../rules.yml
+evaluation_interval: 15s
+
+tests:
+  - name: watchdog always fires
+    interval: 15s
+    input_series: []
+    alert_rule_test:
+      - eval_time: 1m
+        groupname: postgresql
+        alertname: Watchdog
+        exp_alerts:
+          - exp_labels: {severity: none}
+            exp_annotations:
+              summary: Always firing; proves the alert pipeline works.
+
+  - name: collector absent fires after self-metrics stop
+    interval: 15s
+    input_series:
+      - series: 'otelcol_process_uptime{service.name="otelcol"}'
+        values: '1x8 _x52'
+    alert_rule_test:
+      - eval_time: 1m
+        groupname: postgresql
+        alertname: CollectorAbsent
+        exp_alerts: []
+      - eval_time: 6m
+        groupname: postgresql
+        alertname: CollectorAbsent
+        exp_alerts:
+          - exp_labels: {severity: critical}
+            exp_annotations:
+              summary: The Collector reports no self-metrics.
+
+  - name: collector absent stays quiet while self-metrics flow
+    interval: 15s
+    input_series:
+      - series: 'otelcol_process_uptime{service.name="otelcol"}'
+        values: '1x60'
+    alert_rule_test:
+      - eval_time: 10m
+        groupname: postgresql
+        alertname: CollectorAbsent
+        exp_alerts: []

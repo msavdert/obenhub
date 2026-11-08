@@ -137,7 +137,7 @@ window_alerts() {
 git_sha() { git -C "$LAB_DIR" rev-parse --short HEAD 2>/dev/null || echo unknown; }
 git_dirty() { [ -n "$(git -C "$LAB_DIR" status --porcelain 2>/dev/null)" ] && echo true || echo false; }
 config_hash() {
-  cat "$LAB_DIR"/vmalert/rules/*.yml "$LAB_DIR/alertmanager/alertmanager.yml" 2>/dev/null | sha256sum | cut -c1-12
+  cat "$LAB_DIR"/vmalert/rules/*.yml "$LAB_DIR/../packs/postgresql/rules.yml" "$LAB_DIR/alertmanager/alertmanager.yml" 2>/dev/null | sha256sum | cut -c1-12
 }
 
 write_result() {

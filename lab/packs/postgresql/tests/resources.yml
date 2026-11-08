@@ -1,6 +1,7 @@
+# Tests for the shared PostgreSQL pack rules (lab/slice1 and lab/stage3 use them).
 # SnapshotHeldTooLong and ConnectionSaturation.
 rule_files:
-  - ../rules/postgresql.yml
+  - ../rules.yml
 evaluation_interval: 15s
 
 tests:

@@ -371,32 +371,6 @@ tests:
             exp_annotations:
               summary: Slot app_sub on pg-primary is invalidated (wal_removed)
 
-  - name: a vanished slot metric on the primary is named by SeriesVanished
-    interval: 15s
-    input_series:
-      - series: 'postgresql.collection.heartbeat{service.instance.id="pg-primary"}'
-        values: '1x120'
-      - series: 'postgresql.replication_slot.retained_bytes{service.name="postgresql",service.namespace="obenhub-lab",db.cluster.name="slice1",service.instance.id="pg-primary",slot_name="app_sub",slot_type="logical"}'
-        values: '0x8 _x112'
-      - series: 'postgresql.replication_slot.active{service.name="postgresql",service.namespace="obenhub-lab",db.cluster.name="slice1",service.instance.id="pg-primary",slot_name="app_sub",slot_type="logical"}'
-        values: '1x120'
-    alert_rule_test:
-      - eval_time: 6m
-        groupname: postgresql
-        alertname: SeriesVanished
-        exp_alerts:
-          - exp_labels:
-              severity: warning
-              service.instance.id: pg-primary
-              metric: postgresql.replication_slot.retained_bytes
-              slot_name: app_sub
-              slot_type: logical
-              service.name: postgresql
-              service.namespace: obenhub-lab
-              db.cluster.name: slice1
-            exp_annotations:
-              summary: postgresql.replication_slot.retained_bytes vanished on pg-primary
-
   # Hold times: the neighbouring tests fire long after the hold, so these
   # evaluate just before and just after it.
   - name: the slot alert holds for 1 m (unconfirmed bytes above the limit from 2m15s)
@@ -492,28 +466,3 @@ tests:
         groupname: logical-replication
         alertname: LogicalApplyErrors
         exp_alerts: []
-
-  - name: a vanished subscription metric is named by SeriesVanished
-    interval: 15s
-    input_series:
-      - series: 'postgresql.collection.heartbeat{service.instance.id="pg-subscriber"}'
-        values: '1x120'
-      - series: 'postgresql.subscription.apply_worker_running{service.name="postgresql",service.namespace="obenhub-lab",db.cluster.name="slice1",service.instance.id="pg-subscriber",subscription_name="app_sub"}'
-        values: '1x8 _x112'
-      - series: 'postgresql.subscription.enabled{service.name="postgresql",service.namespace="obenhub-lab",db.cluster.name="slice1",service.instance.id="pg-subscriber",subscription_name="app_sub"}'
-        values: '1x120'
-    alert_rule_test:
-      - eval_time: 6m
-        groupname: postgresql
-        alertname: SeriesVanished
-        exp_alerts:
-          - exp_labels:
-              severity: warning
-              service.instance.id: pg-subscriber
-              metric: postgresql.subscription.apply_worker_running
-              subscription_name: app_sub
-              service.name: postgresql
-              service.namespace: obenhub-lab
-              db.cluster.name: slice1
-            exp_annotations:
-              summary: postgresql.subscription.apply_worker_running vanished on pg-subscriber

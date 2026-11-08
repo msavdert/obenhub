@@ -123,12 +123,16 @@ etcd 3.6.16 (Apache-2.0).
 - [x] Dashboard: role per node over time, timeline, DCS last seen, lag per
       replica
 - [x] No-fault control
-- [ ] One PostgreSQL pack shared by both labs instead of two copies
+- [x] One PostgreSQL pack shared by both labs instead of two copies
+      (`lab/packs/postgresql`). Stage 3 thereby also runs SnapshotHeldTooLong,
+      ConnectionSaturation and SeriesVanished; their fault scenarios are in
+      slice1
 
 The scenarios and the control run with `mise run lab:stage3:scenarios`; their
 results are in `lab/stage3/results/runs.jsonl` (the last eleven records are the
-suite run after the etcd and Patroni audit fixes; earlier records predate them,
-including two `leader-killed` failures before `wal_keep_size` was raised).
+suite run on the final shared-pack configuration; older records predate it,
+two of them on an earlier draft of the pack, and include two `leader-killed`
+failures before `wal_keep_size` was raised).
 
 Coverage gaps found on 2026-11-07 by comparing both labs with existing rule
 sets: the catalog survey in the private predecessor repository (pgMonitor,
