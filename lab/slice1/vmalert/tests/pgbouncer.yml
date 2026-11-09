@@ -1,4 +1,5 @@
-# PgbouncerClientsWaiting and PgbouncerTargetAbsent.
+# PgbouncerClientsWaiting, PgbouncerTargetAbsent, PgbouncerPoolSaturated,
+# PgbouncerClientSaturation and PgbouncerWaitTime.
 rule_files:
   - ../rules/postgresql.yml
   - ../../../packs/postgresql/rules.yml
@@ -283,3 +284,628 @@ tests:
               db.cluster.name: slice1
             exp_annotations:
               summary: "No heartbeat from pgbouncer"
+
+  - name: PoolSaturated fires once the 5m window holds 20 points at ratio 1.0, not one point earlier
+    interval: 15s
+    input_series:
+      - series: 'pgbouncer.list.items{service.instance.id="pgbouncer",list="databases"}'
+        values: '2x120'
+      - series: 'pgbouncer.database.paused{service.name="pgbouncer",service.namespace="obenhub-lab",db.cluster.name="slice1",service.instance.id="pgbouncer",name="app"}'
+        values: '0x120'
+      - series: 'pgbouncer.database.disabled{service.name="pgbouncer",service.namespace="obenhub-lab",db.cluster.name="slice1",service.instance.id="pgbouncer",name="app"}'
+        values: '0x120'
+      - series: 'pgbouncer.database.pool_size{service.name="pgbouncer",service.namespace="obenhub-lab",db.cluster.name="slice1",service.instance.id="pgbouncer",name="app"}'
+        values: '5x120'
+      - series: 'pgbouncer.pool.servers_active{service.name="pgbouncer",service.namespace="obenhub-lab",db.cluster.name="slice1",service.instance.id="pgbouncer",database="app",user="app"}'
+        values: '5x120'
+    alert_rule_test:
+      - eval_time: 4m30s
+        groupname: pgbouncer
+        alertname: PgbouncerPoolSaturated
+        exp_alerts: []
+      - eval_time: 4m45s
+        groupname: pgbouncer
+        alertname: PgbouncerPoolSaturated
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              service.instance.id: pgbouncer
+              service.name: pgbouncer
+              service.namespace: obenhub-lab
+              db.cluster.name: slice1
+              database: app
+              user: app
+            exp_annotations:
+              summary: "PgBouncer pool app/app used 100% of its pool_size over 5m"
+  - name: PoolSaturated is silent at ratio 0.8
+    interval: 15s
+    input_series:
+      - series: 'pgbouncer.list.items{service.instance.id="pgbouncer",list="databases"}'
+        values: '2x120'
+      - series: 'pgbouncer.database.paused{service.name="pgbouncer",service.namespace="obenhub-lab",db.cluster.name="slice1",service.instance.id="pgbouncer",name="app"}'
+        values: '0x120'
+      - series: 'pgbouncer.database.disabled{service.name="pgbouncer",service.namespace="obenhub-lab",db.cluster.name="slice1",service.instance.id="pgbouncer",name="app"}'
+        values: '0x120'
+      - series: 'pgbouncer.database.pool_size{service.name="pgbouncer",service.namespace="obenhub-lab",db.cluster.name="slice1",service.instance.id="pgbouncer",name="app"}'
+        values: '5x120'
+      - series: 'pgbouncer.pool.servers_active{service.name="pgbouncer",service.namespace="obenhub-lab",db.cluster.name="slice1",service.instance.id="pgbouncer",database="app",user="app"}'
+        values: '4x120'
+    alert_rule_test:
+      - eval_time: 10m
+        groupname: pgbouncer
+        alertname: PgbouncerPoolSaturated
+        exp_alerts: []
+
+  - name: PoolSaturated fires at ratio 0.95, clearly above the 0.9 threshold
+    interval: 15s
+    input_series:
+      - series: 'pgbouncer.list.items{service.instance.id="pgbouncer",list="databases"}'
+        values: '2x120'
+      - series: 'pgbouncer.database.paused{service.name="pgbouncer",service.namespace="obenhub-lab",db.cluster.name="slice1",service.instance.id="pgbouncer",name="app"}'
+        values: '0x120'
+      - series: 'pgbouncer.database.disabled{service.name="pgbouncer",service.namespace="obenhub-lab",db.cluster.name="slice1",service.instance.id="pgbouncer",name="app"}'
+        values: '0x120'
+      - series: 'pgbouncer.database.pool_size{service.name="pgbouncer",service.namespace="obenhub-lab",db.cluster.name="slice1",service.instance.id="pgbouncer",name="app"}'
+        values: '20x120'
+      - series: 'pgbouncer.pool.servers_active{service.name="pgbouncer",service.namespace="obenhub-lab",db.cluster.name="slice1",service.instance.id="pgbouncer",database="app",user="app"}'
+        values: '19x120'
+    alert_rule_test:
+      - eval_time: 10m
+        groupname: pgbouncer
+        alertname: PgbouncerPoolSaturated
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              service.instance.id: pgbouncer
+              service.name: pgbouncer
+              service.namespace: obenhub-lab
+              db.cluster.name: slice1
+              database: app
+              user: app
+            exp_annotations:
+              summary: "PgBouncer pool app/app used 95% of its pool_size over 5m"
+
+  - name: PoolSaturated is silent at ratio 0.85, clearly below the 0.9 threshold
+    interval: 15s
+    input_series:
+      - series: 'pgbouncer.list.items{service.instance.id="pgbouncer",list="databases"}'
+        values: '2x120'
+      - series: 'pgbouncer.database.paused{service.name="pgbouncer",service.namespace="obenhub-lab",db.cluster.name="slice1",service.instance.id="pgbouncer",name="app"}'
+        values: '0x120'
+      - series: 'pgbouncer.database.disabled{service.name="pgbouncer",service.namespace="obenhub-lab",db.cluster.name="slice1",service.instance.id="pgbouncer",name="app"}'
+        values: '0x120'
+      - series: 'pgbouncer.database.pool_size{service.name="pgbouncer",service.namespace="obenhub-lab",db.cluster.name="slice1",service.instance.id="pgbouncer",name="app"}'
+        values: '20x120'
+      - series: 'pgbouncer.pool.servers_active{service.name="pgbouncer",service.namespace="obenhub-lab",db.cluster.name="slice1",service.instance.id="pgbouncer",database="app",user="app"}'
+        values: '17x120'
+    alert_rule_test:
+      - eval_time: 10m
+        groupname: pgbouncer
+        alertname: PgbouncerPoolSaturated
+        exp_alerts: []
+
+  - name: PoolSaturated is silent with pool_size 0 (no division, no alert)
+    interval: 15s
+    input_series:
+      - series: 'pgbouncer.list.items{service.instance.id="pgbouncer",list="databases"}'
+        values: '2x120'
+      - series: 'pgbouncer.database.paused{service.name="pgbouncer",service.namespace="obenhub-lab",db.cluster.name="slice1",service.instance.id="pgbouncer",name="app"}'
+        values: '0x120'
+      - series: 'pgbouncer.database.disabled{service.name="pgbouncer",service.namespace="obenhub-lab",db.cluster.name="slice1",service.instance.id="pgbouncer",name="app"}'
+        values: '0x120'
+      - series: 'pgbouncer.database.pool_size{service.name="pgbouncer",service.namespace="obenhub-lab",db.cluster.name="slice1",service.instance.id="pgbouncer",name="app"}'
+        values: '0x120'
+      - series: 'pgbouncer.pool.servers_active{service.name="pgbouncer",service.namespace="obenhub-lab",db.cluster.name="slice1",service.instance.id="pgbouncer",database="app",user="app"}'
+        values: '5x120'
+    alert_rule_test:
+      - eval_time: 10m
+        groupname: pgbouncer
+        alertname: PgbouncerPoolSaturated
+        exp_alerts: []
+
+  - name: PoolSaturated on a series that starts at 3m stays silent until its own window is full (20 points, 7m45s)
+    interval: 15s
+    input_series:
+      - series: 'pgbouncer.list.items{service.instance.id="pgbouncer",list="databases"}'
+        values: '2x120'
+      - series: 'pgbouncer.database.paused{service.name="pgbouncer",service.namespace="obenhub-lab",db.cluster.name="slice1",service.instance.id="pgbouncer",name="app"}'
+        values: '0x120'
+      - series: 'pgbouncer.database.disabled{service.name="pgbouncer",service.namespace="obenhub-lab",db.cluster.name="slice1",service.instance.id="pgbouncer",name="app"}'
+        values: '0x120'
+      - series: 'pgbouncer.database.pool_size{service.name="pgbouncer",service.namespace="obenhub-lab",db.cluster.name="slice1",service.instance.id="pgbouncer",name="app"}'
+        values: '5x120'
+      - series: 'pgbouncer.pool.servers_active{service.name="pgbouncer",service.namespace="obenhub-lab",db.cluster.name="slice1",service.instance.id="pgbouncer",database="app",user="app"}'
+        values: '_x12 5x108'
+    alert_rule_test:
+      - eval_time: 7m30s
+        groupname: pgbouncer
+        alertname: PgbouncerPoolSaturated
+        exp_alerts: []
+      - eval_time: 7m45s
+        groupname: pgbouncer
+        alertname: PgbouncerPoolSaturated
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              service.instance.id: pgbouncer
+              service.name: pgbouncer
+              service.namespace: obenhub-lab
+              db.cluster.name: slice1
+              database: app
+              user: app
+            exp_annotations:
+              summary: "PgBouncer pool app/app used 100% of its pool_size over 5m"
+
+  - name: PoolSaturated ignores the console pool (database pgbouncer)
+    interval: 15s
+    input_series:
+      - series: 'pgbouncer.list.items{service.instance.id="pgbouncer",list="databases"}'
+        values: '2x120'
+      - series: 'pgbouncer.database.paused{service.name="pgbouncer",service.namespace="obenhub-lab",db.cluster.name="slice1",service.instance.id="pgbouncer",name="pgbouncer"}'
+        values: '0x120'
+      - series: 'pgbouncer.database.disabled{service.name="pgbouncer",service.namespace="obenhub-lab",db.cluster.name="slice1",service.instance.id="pgbouncer",name="pgbouncer"}'
+        values: '0x120'
+      - series: 'pgbouncer.database.pool_size{service.name="pgbouncer",service.namespace="obenhub-lab",db.cluster.name="slice1",service.instance.id="pgbouncer",name="pgbouncer"}'
+        values: '5x120'
+      - series: 'pgbouncer.pool.servers_active{service.name="pgbouncer",service.namespace="obenhub-lab",db.cluster.name="slice1",service.instance.id="pgbouncer",database="pgbouncer",user="pgbouncer"}'
+        values: '5x120'
+    alert_rule_test:
+      - eval_time: 10m
+        groupname: pgbouncer
+        alertname: PgbouncerPoolSaturated
+        exp_alerts: []
+
+  - name: PoolSaturated is silent while the database is paused
+    interval: 15s
+    input_series:
+      - series: 'pgbouncer.list.items{service.instance.id="pgbouncer",list="databases"}'
+        values: '2x120'
+      - series: 'pgbouncer.database.paused{service.name="pgbouncer",service.namespace="obenhub-lab",db.cluster.name="slice1",service.instance.id="pgbouncer",name="app"}'
+        values: '1x120'
+      - series: 'pgbouncer.database.disabled{service.name="pgbouncer",service.namespace="obenhub-lab",db.cluster.name="slice1",service.instance.id="pgbouncer",name="app"}'
+        values: '0x120'
+      - series: 'pgbouncer.database.pool_size{service.name="pgbouncer",service.namespace="obenhub-lab",db.cluster.name="slice1",service.instance.id="pgbouncer",name="app"}'
+        values: '5x120'
+      - series: 'pgbouncer.pool.servers_active{service.name="pgbouncer",service.namespace="obenhub-lab",db.cluster.name="slice1",service.instance.id="pgbouncer",database="app",user="app"}'
+        values: '5x120'
+    alert_rule_test:
+      - eval_time: 10m
+        groupname: pgbouncer
+        alertname: PgbouncerPoolSaturated
+        exp_alerts: []
+
+  - name: PoolSaturated is silent once the PgBouncer heartbeat is gone
+    interval: 15s
+    input_series:
+      - series: 'pgbouncer.list.items{service.instance.id="pgbouncer",list="databases"}'
+        values: '2x8 _x112'
+      - series: 'pgbouncer.database.paused{service.name="pgbouncer",service.namespace="obenhub-lab",db.cluster.name="slice1",service.instance.id="pgbouncer",name="app"}'
+        values: '0x120'
+      - series: 'pgbouncer.database.disabled{service.name="pgbouncer",service.namespace="obenhub-lab",db.cluster.name="slice1",service.instance.id="pgbouncer",name="app"}'
+        values: '0x120'
+      - series: 'pgbouncer.database.pool_size{service.name="pgbouncer",service.namespace="obenhub-lab",db.cluster.name="slice1",service.instance.id="pgbouncer",name="app"}'
+        values: '5x120'
+      - series: 'pgbouncer.pool.servers_active{service.name="pgbouncer",service.namespace="obenhub-lab",db.cluster.name="slice1",service.instance.id="pgbouncer",database="app",user="app"}'
+        values: '5x120'
+    alert_rule_test:
+      - eval_time: 10m
+        groupname: pgbouncer
+        alertname: PgbouncerPoolSaturated
+        exp_alerts: []
+
+  - name: PoolSaturated stays silent when the pool is saturated only briefly (average below 0.9)
+    interval: 15s
+    input_series:
+      - series: 'pgbouncer.list.items{service.instance.id="pgbouncer",list="databases"}'
+        values: '2x120'
+      - series: 'pgbouncer.database.paused{service.name="pgbouncer",service.namespace="obenhub-lab",db.cluster.name="slice1",service.instance.id="pgbouncer",name="app"}'
+        values: '0x120'
+      - series: 'pgbouncer.database.disabled{service.name="pgbouncer",service.namespace="obenhub-lab",db.cluster.name="slice1",service.instance.id="pgbouncer",name="app"}'
+        values: '0x120'
+      - series: 'pgbouncer.database.pool_size{service.name="pgbouncer",service.namespace="obenhub-lab",db.cluster.name="slice1",service.instance.id="pgbouncer",name="app"}'
+        values: '5x120'
+      - series: 'pgbouncer.pool.servers_active{service.name="pgbouncer",service.namespace="obenhub-lab",db.cluster.name="slice1",service.instance.id="pgbouncer",database="app",user="app"}'
+        values: '5x6 0x114'
+    alert_rule_test:
+      - eval_time: 10m
+        groupname: pgbouncer
+        alertname: PgbouncerPoolSaturated
+        exp_alerts: []
+
+  - name: ClientSaturation raises the warning at 0.9 and not the critical
+    interval: 15s
+    input_series:
+      - series: 'pgbouncer.list.items{service.instance.id="pgbouncer",list="databases"}'
+        values: '2x120'
+      - series: 'pgbouncer.list.items{service.instance.id="pgbouncer",list="used_clients"}'
+        values: '45x120'
+      - series: 'pgbouncer.config.max_client_conn{service.name="pgbouncer",service.namespace="obenhub-lab",db.cluster.name="slice1",service.instance.id="pgbouncer"}'
+        values: '50x120'
+    alert_rule_test:
+      - eval_time: 45s
+        groupname: pgbouncer
+        alertname: PgbouncerClientSaturation
+        exp_alerts: []
+      - eval_time: 1m
+        groupname: pgbouncer
+        alertname: PgbouncerClientSaturation
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              service.instance.id: pgbouncer
+            exp_annotations:
+              summary: "pgbouncer client connections above 85% of max_client_conn"
+
+  - name: ClientSaturation raises the critical only, at 0.96
+    interval: 15s
+    input_series:
+      - series: 'pgbouncer.list.items{service.instance.id="pgbouncer",list="databases"}'
+        values: '2x120'
+      - series: 'pgbouncer.list.items{service.instance.id="pgbouncer",list="used_clients"}'
+        values: '48x120'
+      - series: 'pgbouncer.config.max_client_conn{service.name="pgbouncer",service.namespace="obenhub-lab",db.cluster.name="slice1",service.instance.id="pgbouncer"}'
+        values: '50x120'
+    alert_rule_test:
+      - eval_time: 2m
+        groupname: pgbouncer
+        alertname: PgbouncerClientSaturation
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              service.instance.id: pgbouncer
+            exp_annotations:
+              summary: "pgbouncer client connections at or above 95% of max_client_conn; further clients are refused"
+
+  - name: ClientSaturation raises the critical at 1.04 (console connections above the limit)
+    interval: 15s
+    input_series:
+      - series: 'pgbouncer.list.items{service.instance.id="pgbouncer",list="databases"}'
+        values: '2x120'
+      - series: 'pgbouncer.list.items{service.instance.id="pgbouncer",list="used_clients"}'
+        values: '52x120'
+      - series: 'pgbouncer.config.max_client_conn{service.name="pgbouncer",service.namespace="obenhub-lab",db.cluster.name="slice1",service.instance.id="pgbouncer"}'
+        values: '50x120'
+    alert_rule_test:
+      - eval_time: 2m
+        groupname: pgbouncer
+        alertname: PgbouncerClientSaturation
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              service.instance.id: pgbouncer
+            exp_annotations:
+              summary: "pgbouncer client connections at or above 95% of max_client_conn; further clients are refused"
+
+  - name: ClientSaturation is silent at 0.8
+    interval: 15s
+    input_series:
+      - series: 'pgbouncer.list.items{service.instance.id="pgbouncer",list="databases"}'
+        values: '2x120'
+      - series: 'pgbouncer.list.items{service.instance.id="pgbouncer",list="used_clients"}'
+        values: '40x120'
+      - series: 'pgbouncer.config.max_client_conn{service.name="pgbouncer",service.namespace="obenhub-lab",db.cluster.name="slice1",service.instance.id="pgbouncer"}'
+        values: '50x120'
+    alert_rule_test:
+      - eval_time: 5m
+        groupname: pgbouncer
+        alertname: PgbouncerClientSaturation
+        exp_alerts: []
+
+  - name: ClientSaturation escalates from warning to critical with exactly one tier per evaluation
+    interval: 15s
+    input_series:
+      - series: 'pgbouncer.list.items{service.instance.id="pgbouncer",list="databases"}'
+        values: '2x120'
+      - series: 'pgbouncer.list.items{service.instance.id="pgbouncer",list="used_clients"}'
+        values: '45x20 49x100'
+      - series: 'pgbouncer.config.max_client_conn{service.name="pgbouncer",service.namespace="obenhub-lab",db.cluster.name="slice1",service.instance.id="pgbouncer"}'
+        values: '50x120'
+    alert_rule_test:
+      - eval_time: 5m
+        groupname: pgbouncer
+        alertname: PgbouncerClientSaturation
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              service.instance.id: pgbouncer
+            exp_annotations:
+              summary: "pgbouncer client connections above 85% of max_client_conn"
+      - eval_time: 5m30s
+        groupname: pgbouncer
+        alertname: PgbouncerClientSaturation
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              service.instance.id: pgbouncer
+            exp_annotations:
+              summary: "pgbouncer client connections above 85% of max_client_conn"
+      - eval_time: 6m
+        groupname: pgbouncer
+        alertname: PgbouncerClientSaturation
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              service.instance.id: pgbouncer
+            exp_annotations:
+              summary: "pgbouncer client connections above 85% of max_client_conn"
+      - eval_time: 6m30s
+        groupname: pgbouncer
+        alertname: PgbouncerClientSaturation
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              service.instance.id: pgbouncer
+            exp_annotations:
+              summary: "pgbouncer client connections at or above 95% of max_client_conn; further clients are refused"
+      - eval_time: 8m
+        groupname: pgbouncer
+        alertname: PgbouncerClientSaturation
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              service.instance.id: pgbouncer
+            exp_annotations:
+              summary: "pgbouncer client connections at or above 95% of max_client_conn; further clients are refused"
+
+  - name: ClientSaturation is silent once the PgBouncer heartbeat is gone
+    interval: 15s
+    input_series:
+      - series: 'pgbouncer.list.items{service.instance.id="pgbouncer",list="databases"}'
+        values: '2x8 _x112'
+      - series: 'pgbouncer.list.items{service.instance.id="pgbouncer",list="used_clients"}'
+        values: '49x120'
+      - series: 'pgbouncer.config.max_client_conn{service.name="pgbouncer",service.namespace="obenhub-lab",db.cluster.name="slice1",service.instance.id="pgbouncer"}'
+        values: '50x120'
+    alert_rule_test:
+      - eval_time: 10m
+        groupname: pgbouncer
+        alertname: PgbouncerClientSaturation
+        exp_alerts: []
+
+  - name: WaitTime fires at 0.2 s average wait per assignment after the 2m hold, not before
+    interval: 15s
+    input_series:
+      - series: 'pgbouncer.list.items{service.instance.id="pgbouncer",list="databases"}'
+        values: '2x120'
+      - series: 'pgbouncer.database.paused{service.name="pgbouncer",service.namespace="obenhub-lab",db.cluster.name="slice1",service.instance.id="pgbouncer",name="app"}'
+        values: '0x60'
+      - series: 'pgbouncer.database.disabled{service.name="pgbouncer",service.namespace="obenhub-lab",db.cluster.name="slice1",service.instance.id="pgbouncer",name="app"}'
+        values: '0x60'
+      - series: 'pgbouncer.stats.wait_time{service.name="pgbouncer",service.namespace="obenhub-lab",db.cluster.name="slice1",service.instance.id="pgbouncer",database="app"}'
+        values: '0+20000000x60'
+      - series: 'pgbouncer.stats.server_assignments{service.name="pgbouncer",service.namespace="obenhub-lab",db.cluster.name="slice1",service.instance.id="pgbouncer",database="app"}'
+        values: '0+100x60'
+      - series: 'pgbouncer.pool.maxwait{service.name="pgbouncer",service.namespace="obenhub-lab",db.cluster.name="slice1",service.instance.id="pgbouncer",database="app",user="app"}'
+        values: '0x30 1x30'
+    alert_rule_test:
+      - eval_time: 1m
+        groupname: pgbouncer
+        alertname: PgbouncerWaitTime
+        exp_alerts: []
+      - eval_time: 3m
+        groupname: pgbouncer
+        alertname: PgbouncerWaitTime
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              service.instance.id: pgbouncer
+              service.name: pgbouncer
+              service.namespace: obenhub-lab
+              db.cluster.name: slice1
+              database: app
+            exp_annotations:
+              summary: "PgBouncer database app: clients wait 200ms on average for a server connection"
+
+  - name: WaitTime is silent at 0.05 s average
+    interval: 15s
+    input_series:
+      - series: 'pgbouncer.list.items{service.instance.id="pgbouncer",list="databases"}'
+        values: '2x120'
+      - series: 'pgbouncer.database.paused{service.name="pgbouncer",service.namespace="obenhub-lab",db.cluster.name="slice1",service.instance.id="pgbouncer",name="app"}'
+        values: '0x60'
+      - series: 'pgbouncer.database.disabled{service.name="pgbouncer",service.namespace="obenhub-lab",db.cluster.name="slice1",service.instance.id="pgbouncer",name="app"}'
+        values: '0x60'
+      - series: 'pgbouncer.stats.wait_time{service.name="pgbouncer",service.namespace="obenhub-lab",db.cluster.name="slice1",service.instance.id="pgbouncer",database="app"}'
+        values: '0+5000000x60'
+      - series: 'pgbouncer.stats.server_assignments{service.name="pgbouncer",service.namespace="obenhub-lab",db.cluster.name="slice1",service.instance.id="pgbouncer",database="app"}'
+        values: '0+100x60'
+    alert_rule_test:
+      - eval_time: 10m
+        groupname: pgbouncer
+        alertname: PgbouncerWaitTime
+        exp_alerts: []
+
+  - name: WaitTime is silent with no assignments (0/0)
+    interval: 15s
+    input_series:
+      - series: 'pgbouncer.list.items{service.instance.id="pgbouncer",list="databases"}'
+        values: '2x120'
+      - series: 'pgbouncer.database.paused{service.name="pgbouncer",service.namespace="obenhub-lab",db.cluster.name="slice1",service.instance.id="pgbouncer",name="app"}'
+        values: '0x60'
+      - series: 'pgbouncer.database.disabled{service.name="pgbouncer",service.namespace="obenhub-lab",db.cluster.name="slice1",service.instance.id="pgbouncer",name="app"}'
+        values: '0x60'
+      - series: 'pgbouncer.stats.wait_time{service.name="pgbouncer",service.namespace="obenhub-lab",db.cluster.name="slice1",service.instance.id="pgbouncer",database="app"}'
+        values: '0+0x60'
+      - series: 'pgbouncer.stats.server_assignments{service.name="pgbouncer",service.namespace="obenhub-lab",db.cluster.name="slice1",service.instance.id="pgbouncer",database="app"}'
+        values: '0+0x60'
+    alert_rule_test:
+      - eval_time: 10m
+        groupname: pgbouncer
+        alertname: PgbouncerWaitTime
+        exp_alerts: []
+
+  - name: WaitTime is silent when wait time grows with no assignment (clients that died while queued)
+    interval: 15s
+    input_series:
+      - series: 'pgbouncer.list.items{service.instance.id="pgbouncer",list="databases"}'
+        values: '2x120'
+      - series: 'pgbouncer.database.paused{service.name="pgbouncer",service.namespace="obenhub-lab",db.cluster.name="slice1",service.instance.id="pgbouncer",name="app"}'
+        values: '0x120'
+      - series: 'pgbouncer.database.disabled{service.name="pgbouncer",service.namespace="obenhub-lab",db.cluster.name="slice1",service.instance.id="pgbouncer",name="app"}'
+        values: '0x120'
+      - series: 'pgbouncer.stats.wait_time{service.name="pgbouncer",service.namespace="obenhub-lab",db.cluster.name="slice1",service.instance.id="pgbouncer",database="app"}'
+        values: '0x20 1046000000x100'
+      - series: 'pgbouncer.stats.server_assignments{service.name="pgbouncer",service.namespace="obenhub-lab",db.cluster.name="slice1",service.instance.id="pgbouncer",database="app"}'
+        values: '500x120'
+    alert_rule_test:
+      - eval_time: 8m
+        groupname: pgbouncer
+        alertname: PgbouncerWaitTime
+        exp_alerts: []
+
+  - name: WaitTime is silent for a lump of wait diluted by slow assignments while maxwait was 5 s or more just before
+    interval: 15s
+    input_series:
+      - series: 'pgbouncer.list.items{service.instance.id="pgbouncer",list="databases"}'
+        values: '2x120'
+      - series: 'pgbouncer.database.paused{service.name="pgbouncer",service.namespace="obenhub-lab",db.cluster.name="slice1",service.instance.id="pgbouncer",name="app"}'
+        values: '0x120'
+      - series: 'pgbouncer.database.disabled{service.name="pgbouncer",service.namespace="obenhub-lab",db.cluster.name="slice1",service.instance.id="pgbouncer",name="app"}'
+        values: '0x120'
+      - series: 'pgbouncer.stats.wait_time{service.name="pgbouncer",service.namespace="obenhub-lab",db.cluster.name="slice1",service.instance.id="pgbouncer",database="app"}'
+        values: '0x20 1046000000x100'
+      - series: 'pgbouncer.stats.server_assignments{service.name="pgbouncer",service.namespace="obenhub-lab",db.cluster.name="slice1",service.instance.id="pgbouncer",database="app"}'
+        values: '500+1x120'
+      - series: 'pgbouncer.pool.maxwait{service.name="pgbouncer",service.namespace="obenhub-lab",db.cluster.name="slice1",service.instance.id="pgbouncer",database="app",user="app"}'
+        values: '0x12 6x8 0x100'
+    alert_rule_test:
+      - eval_time: 8m
+        groupname: pgbouncer
+        alertname: PgbouncerWaitTime
+        exp_alerts: []
+
+  - name: WaitTime is not silenced by short bursts of maxwait 5 s or more (30 s every 2m15s), which PgbouncerClientsWaiting does not catch either
+    interval: 15s
+    input_series:
+      - series: 'pgbouncer.list.items{service.instance.id="pgbouncer",list="databases"}'
+        values: '2x200'
+      - series: 'pgbouncer.stats.wait_time{service.name="pgbouncer",service.namespace="obenhub-lab",db.cluster.name="slice1",service.instance.id="pgbouncer",database="app"}'
+        values: '0+50000000x200'
+      - series: 'pgbouncer.stats.server_assignments{service.name="pgbouncer",service.namespace="obenhub-lab",db.cluster.name="slice1",service.instance.id="pgbouncer",database="app"}'
+        values: '0+100x200'
+      - series: 'pgbouncer.pool.maxwait{service.name="pgbouncer",service.namespace="obenhub-lab",db.cluster.name="slice1",service.instance.id="pgbouncer",database="app",user="app"}'
+        values: '2x7 6x2 2x7 6x2 2x7 6x2 2x7 6x2 2x7 6x2 2x7 6x2 2x7 6x2 2x7 6x2 2x7 6x2 2x7 6x2 2x7 6x2 2x7'
+      - series: 'pgbouncer.pool.maxwait_us{service.name="pgbouncer",service.namespace="obenhub-lab",db.cluster.name="slice1",service.instance.id="pgbouncer",database="app",user="app"}'
+        values: '0x200'
+    alert_rule_test:
+      - eval_time: 25m
+        groupname: pgbouncer
+        alertname: PgbouncerClientsWaiting
+        exp_alerts: []
+      - eval_time: 25m
+        groupname: pgbouncer
+        alertname: PgbouncerWaitTime
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              service.instance.id: pgbouncer
+              service.name: pgbouncer
+              service.namespace: obenhub-lab
+              db.cluster.name: slice1
+              database: app
+            exp_annotations:
+              summary: "PgBouncer database app: clients wait 500ms on average for a server connection"
+
+  - name: WaitTime silencing is per database - a sustained wait on app does not silence other
+    interval: 15s
+    input_series:
+      - series: 'pgbouncer.list.items{service.instance.id="pgbouncer",list="databases"}'
+        values: '2x120'
+      - series: 'pgbouncer.stats.wait_time{service.name="pgbouncer",service.namespace="obenhub-lab",db.cluster.name="slice1",service.instance.id="pgbouncer",database="app"}'
+        values: '0x20 1046000000x100'
+      - series: 'pgbouncer.stats.server_assignments{service.name="pgbouncer",service.namespace="obenhub-lab",db.cluster.name="slice1",service.instance.id="pgbouncer",database="app"}'
+        values: '500+1x120'
+      - series: 'pgbouncer.pool.maxwait{service.name="pgbouncer",service.namespace="obenhub-lab",db.cluster.name="slice1",service.instance.id="pgbouncer",database="app",user="app"}'
+        values: '0x12 6x8 0x100'
+      - series: 'pgbouncer.stats.wait_time{service.name="pgbouncer",service.namespace="obenhub-lab",db.cluster.name="slice1",service.instance.id="pgbouncer",database="other"}'
+        values: '0+20000000x120'
+      - series: 'pgbouncer.stats.server_assignments{service.name="pgbouncer",service.namespace="obenhub-lab",db.cluster.name="slice1",service.instance.id="pgbouncer",database="other"}'
+        values: '0+100x120'
+      - series: 'pgbouncer.pool.maxwait{service.name="pgbouncer",service.namespace="obenhub-lab",db.cluster.name="slice1",service.instance.id="pgbouncer",database="other",user="app"}'
+        values: '0x120'
+    alert_rule_test:
+      - eval_time: 8m
+        groupname: pgbouncer
+        alertname: PgbouncerWaitTime
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              service.instance.id: pgbouncer
+              service.name: pgbouncer
+              service.namespace: obenhub-lab
+              db.cluster.name: slice1
+              database: other
+            exp_annotations:
+              summary: "PgBouncer database other: clients wait 200ms on average for a server connection"
+
+  - name: WaitTime fires again once the 75 s run of maxwait 5 s or more has left the 6m window (for 2m adds about 2m of margin, so 6m is not pinned)
+    interval: 15s
+    input_series:
+      - series: 'pgbouncer.list.items{service.instance.id="pgbouncer",list="databases"}'
+        values: '2x120'
+      - series: 'pgbouncer.database.paused{service.name="pgbouncer",service.namespace="obenhub-lab",db.cluster.name="slice1",service.instance.id="pgbouncer",name="app"}'
+        values: '0x120'
+      - series: 'pgbouncer.database.disabled{service.name="pgbouncer",service.namespace="obenhub-lab",db.cluster.name="slice1",service.instance.id="pgbouncer",name="app"}'
+        values: '0x120'
+      - series: 'pgbouncer.stats.wait_time{service.name="pgbouncer",service.namespace="obenhub-lab",db.cluster.name="slice1",service.instance.id="pgbouncer",database="app"}'
+        values: '0+20000000x60'
+      - series: 'pgbouncer.stats.server_assignments{service.name="pgbouncer",service.namespace="obenhub-lab",db.cluster.name="slice1",service.instance.id="pgbouncer",database="app"}'
+        values: '0+100x60'
+      - series: 'pgbouncer.pool.maxwait{service.name="pgbouncer",service.namespace="obenhub-lab",db.cluster.name="slice1",service.instance.id="pgbouncer",database="app",user="app"}'
+        values: '6x4 0x56'
+    alert_rule_test:
+      - eval_time: 6m
+        groupname: pgbouncer
+        alertname: PgbouncerWaitTime
+        exp_alerts: []
+      - eval_time: 10m
+        groupname: pgbouncer
+        alertname: PgbouncerWaitTime
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              service.instance.id: pgbouncer
+              service.name: pgbouncer
+              service.namespace: obenhub-lab
+              db.cluster.name: slice1
+              database: app
+            exp_annotations:
+              summary: "PgBouncer database app: clients wait 200ms on average for a server connection"
+
+  - name: WaitTime is silent while the database is paused
+    interval: 15s
+    input_series:
+      - series: 'pgbouncer.list.items{service.instance.id="pgbouncer",list="databases"}'
+        values: '2x120'
+      - series: 'pgbouncer.database.paused{service.name="pgbouncer",service.namespace="obenhub-lab",db.cluster.name="slice1",service.instance.id="pgbouncer",name="app"}'
+        values: '1x60'
+      - series: 'pgbouncer.database.disabled{service.name="pgbouncer",service.namespace="obenhub-lab",db.cluster.name="slice1",service.instance.id="pgbouncer",name="app"}'
+        values: '0x60'
+      - series: 'pgbouncer.stats.wait_time{service.name="pgbouncer",service.namespace="obenhub-lab",db.cluster.name="slice1",service.instance.id="pgbouncer",database="app"}'
+        values: '0+20000000x60'
+      - series: 'pgbouncer.stats.server_assignments{service.name="pgbouncer",service.namespace="obenhub-lab",db.cluster.name="slice1",service.instance.id="pgbouncer",database="app"}'
+        values: '0+100x60'
+    alert_rule_test:
+      - eval_time: 10m
+        groupname: pgbouncer
+        alertname: PgbouncerWaitTime
+        exp_alerts: []
+
+  - name: WaitTime is silent once the PgBouncer heartbeat is gone
+    interval: 15s
+    input_series:
+      - series: 'pgbouncer.list.items{service.instance.id="pgbouncer",list="databases"}'
+        values: '2x8 _x112'
+      - series: 'pgbouncer.database.paused{service.name="pgbouncer",service.namespace="obenhub-lab",db.cluster.name="slice1",service.instance.id="pgbouncer",name="app"}'
+        values: '0x60'
+      - series: 'pgbouncer.database.disabled{service.name="pgbouncer",service.namespace="obenhub-lab",db.cluster.name="slice1",service.instance.id="pgbouncer",name="app"}'
+        values: '0x60'
+      - series: 'pgbouncer.stats.wait_time{service.name="pgbouncer",service.namespace="obenhub-lab",db.cluster.name="slice1",service.instance.id="pgbouncer",database="app"}'
+        values: '0+20000000x60'
+      - series: 'pgbouncer.stats.server_assignments{service.name="pgbouncer",service.namespace="obenhub-lab",db.cluster.name="slice1",service.instance.id="pgbouncer",database="app"}'
+        values: '0+100x60'
+    alert_rule_test:
+      - eval_time: 10m
+        groupname: pgbouncer
+        alertname: PgbouncerWaitTime
+        exp_alerts: []

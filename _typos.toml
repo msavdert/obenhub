@@ -1,3 +1,7 @@
+[default]
+# Hex digests in lab result rows (lab/*/results/runs.jsonl) are not words.
+extend-ignore-re = ['"(git_sha|config_sha256)":"[0-9a-f]+"']
+
 [default.extend-words]
 obenhub = "obenhub"
 Patroni = "Patroni"

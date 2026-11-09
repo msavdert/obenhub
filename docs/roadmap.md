@@ -132,6 +132,11 @@ etcd 3.6.16 (Apache-2.0).
       (`lab/packs/postgresql`). Stage 3 thereby also runs SnapshotHeldTooLong,
       ConnectionSaturation and SeriesVanished; their fault scenarios are in
       slice1
+- [ ] Reload vmalert and Alertmanager before each scenario and record the
+      configuration hash as the containers read it, as slice1 does
+      (`reload_config` in `lab/slice1/scenarios/lib.sh`). Until then a rule
+      edit after the stage 3 lab started runs stale rules while
+      `config_sha256` names the files on disk
 
 The scenarios and the control run with `mise run lab:stage3:scenarios`; their
 results are in `lab/stage3/results/runs.jsonl` (the last eleven records are the
@@ -174,9 +179,12 @@ otherwise unit tests only, said so in the rule:
       wraparound age, idle in transaction. One alertname with two severities
       and one tier per series; the connections and idle-in-transaction
       scenarios assert the critical tier
-- [ ] PgBouncer: server pool saturation, `max_client_conn` exhaustion (clients
-      refused while the wait time stays zero, unconfirmed until a lab run), `SHOW STATS` wait and query
-      time
+- [x] PgBouncer: pool saturation (average use of `pool_size` over 5 m),
+      `max_client_conn` exhaustion in two tiers, and the average wait per
+      server assignment from `SHOW STATS`; no alert on query time, which
+      includes the wait. Scenarios: short transactions queueing without
+      `PgbouncerClientsWaiting`, and `max_client_conn` filled so that the next
+      client is refused while no client waits (`cl_waiting` 0, `maxwait` 0)
 
 Then the same cluster on three VMs, because the operating-system layer
 (ADR 0001, primary goal) cannot be observed per node in Compose:

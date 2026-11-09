@@ -175,6 +175,36 @@ receivers:
           - {metric_name: pgbouncer.database.connections, value_column: current_connections, attribute_columns: [name], value_type: int, data_type: gauge, description: "Current server connections to the database"}
           - {metric_name: pgbouncer.database.paused, value_column: paused, attribute_columns: [name], value_type: int, data_type: gauge, description: "1 when the database is paused"}
           - {metric_name: pgbouncer.database.disabled, value_column: disabled, attribute_columns: [name], value_type: int, data_type: gauge, description: "1 when the database is disabled"}
+      # SHOW STATS: one row per database, totals since process start (no reset
+      # on RELOAD), times in microseconds (PgBouncer 1.26.1, commit f03e9bf).
+      # total_wait_time grows only when a waiting client is activated
+      # (activate_client, src/objects.c:845): a client still queued adds
+      # nothing yet. A client that died while queued stays queued until a
+      # server frees up, then adds its whole wait without an assignment
+      # (measured 2026-11-08, see PgbouncerWaitTime).
+      # query_time and xact_time start when the client's query arrives, before a
+      # server is assigned (query_start, src/client.c:1640-1648; ended at
+      # src/server.c:645-662), so they include the wait. Measured 2026-11-08:
+      # 0.1 s of pg_sleep plus 0.2 s of wait gave 0.304 s average query time.
+      - sql: SHOW STATS
+        metrics:
+          - {metric_name: pgbouncer.stats.server_assignments, value_column: total_server_assignment_count, attribute_columns: [database], value_type: int, data_type: sum, monotonic: true, aggregation: cumulative, description: "Server connections assigned to clients, since process start"}
+          - {metric_name: pgbouncer.stats.transactions, value_column: total_xact_count, attribute_columns: [database], value_type: int, data_type: sum, monotonic: true, aggregation: cumulative, description: "Transactions pooled, since process start"}
+          - {metric_name: pgbouncer.stats.queries, value_column: total_query_count, attribute_columns: [database], value_type: int, data_type: sum, monotonic: true, aggregation: cumulative, description: "Queries pooled, since process start"}
+          - {metric_name: pgbouncer.stats.wait_time, value_column: total_wait_time, attribute_columns: [database], value_type: int, data_type: sum, monotonic: true, aggregation: cumulative, unit: us, description: "Time clients waited for a server connection, counted when the wait ends in an assignment"}
+          - {metric_name: pgbouncer.stats.transaction_time, value_column: total_xact_time, attribute_columns: [database], value_type: int, data_type: sum, monotonic: true, aggregation: cumulative, unit: us, description: "Time server connections spent in transactions"}
+          - {metric_name: pgbouncer.stats.query_time, value_column: total_query_time, attribute_columns: [database], value_type: int, data_type: sum, monotonic: true, aggregation: cumulative, unit: us, description: "Time server connections spent running queries"}
+      # max_client_conn, the limit the used_clients ratio needs. SHOW CONFIG
+      # returns one row per setting; row_condition keeps this one and is checked
+      # before the value is parsed (otelcol-contrib v0.164.0, internal/sqlquery
+      # scraper.go:97-103), so the text values of the other rows cause no error.
+      # The value is text, parsed with Atoi (metrics.go:111).
+      # Measured 2026-11-08: some settings have NULL in `value` or `default`; that
+      # logs one "problems encountered getting metric rows" warning per scrape
+      # (the receiver reads every column of every row) but the row is still emitted.
+      - sql: SHOW CONFIG
+        metrics:
+          - {metric_name: pgbouncer.config.max_client_conn, value_column: value, row_condition: {column: key, value: max_client_conn}, value_type: int, data_type: gauge, description: "max_client_conn setting"}
       # Heartbeat: SHOW LISTS always has a row "databases" (a count, at least
       # the console itself); any answer from the console proves it is up.
       - sql: SHOW LISTS

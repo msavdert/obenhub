@@ -160,3 +160,128 @@ groups:
           severity: warning
         annotations:
           summary: 'PgBouncer pool {{ $labels.database }}/{{ $labels.user }} has a client waiting {{ $value | humanizeDuration }} for a server connection'
+
+      # The three rules below are not for the console (database pgbouncer),
+      # not for a paused or disabled database and not while the target is
+      # absent, as at PgbouncerClientsWaiting. All thresholds are lab values
+      # (assumption: they need tuning against a real workload).
+      # A pool at its size with no client queued yet is the warning before
+      # clients wait: r is the share of the configured pool_size that is linked
+      # to a client, averaged over 5 m (window of 20 points, see the window
+      # notes at ConnectionSaturation in lab/packs/postgresql/rules.yml; n
+      # requires a full window, so a new pool stays silent while it warms up).
+      # sv_active can exceed pool_size when a reserve pool is configured (it is
+      # 0 in the lab), so r can pass 1. SHOW DATABASES pool_size shows
+      # default_pool_size when the database sets none (PgBouncer 1.26.1).
+      - alert: PgbouncerPoolSaturated
+        expr: |
+          WITH (
+            r = pgbouncer.pool.servers_active{database!="pgbouncer"}
+              / on(service.instance.id, database) group_left
+            label_copy(pgbouncer.database.pool_size > 0, "name", "database"),
+            x = avg_over_time(r[5m:15s]),
+            n = count_over_time(r[5m:15s])
+          )
+          ((x >= 0.9) and (n >= 20))
+            unless on(service.instance.id, database)
+          label_copy(
+            (pgbouncer.database.paused == 1 or pgbouncer.database.disabled == 1),
+            "name", "database"
+          )
+            and on(service.instance.id)
+          present_over_time(pgbouncer.list.items{list="databases"}[2m])
+        labels:
+          severity: warning
+        annotations:
+          summary: 'PgBouncer pool {{ $labels.database }}/{{ $labels.user }} used {{ $value | humanizePercentage }} of its pool_size over 5m'
+
+      # Client connections against max_client_conn, two tiers as at
+      # ConnectionSaturation (old for 1m, W' = 75s, 5 points): critical at a
+      # ratio of 0.95 or more, warning above 0.85 and below 0.95. used_clients
+      # (SHOW LISTS) is every client connection, the console's too. Console
+      # connections count towards the limit but are never refused (decide_startup_pool,
+      # src/client.c:1086, PgBouncer 1.26.1 commit f03e9bf), so r can exceed 1;
+      # the new client is counted before the check, so max_client_conn clients
+      # are admitted and the next is refused. A refused client is counted
+      # nowhere (it is logged only with log_disconnections) and adds no wait
+      # time, so this alert is the only signal. max_db_client_connections and
+      # max_user_client_connections (1.24 and later) are 0 in the lab and are
+      # not covered. The series has no database label, so there is nothing to
+      # exclude or pause. If the SHOW CONFIG query alone fails, the division
+      # yields nothing and both tiers go silent while the heartbeat (SHOW
+      # LISTS) stays present; not covered.
+      - alert: PgbouncerClientSaturation
+        expr: |
+          WITH (
+            r = pgbouncer.list.items{list="used_clients"}
+              / on(service.instance.id)
+            pgbouncer.config.max_client_conn,
+            x = min_over_time(r[75s:15s]),
+            n = count_over_time(r[75s:15s])
+          )
+          (((x > 0.85) unless (x >= 0.95)) and (n >= 5))
+            and on(service.instance.id)
+          present_over_time(pgbouncer.list.items{list="databases"}[2m])
+        labels:
+          severity: warning
+        annotations:
+          summary: '{{ (index $labels "service.instance.id") }} client connections above 85% of max_client_conn'
+
+      - alert: PgbouncerClientSaturation
+        expr: |
+          WITH (
+            r = pgbouncer.list.items{list="used_clients"}
+              / on(service.instance.id)
+            pgbouncer.config.max_client_conn,
+            x = min_over_time(r[75s:15s]),
+            n = count_over_time(r[75s:15s])
+          )
+          ((x >= 0.95) and (n >= 5))
+            and on(service.instance.id)
+          present_over_time(pgbouncer.list.items{list="databases"}[2m])
+        labels:
+          severity: critical
+        annotations:
+          summary: '{{ (index $labels "service.instance.id") }} client connections at or above 95% of max_client_conn; further clients are refused'
+
+      # Average wait per server assignment over 5 m, in seconds. Complements
+      # PgbouncerClientsWaiting (oldest waiter over 5 s): many short waits that
+      # never reach 5 s. total_wait_time grows when a waiting client is
+      # activated (activate_client, src/objects.c:845; microseconds, SHOW
+      # STATS). A client that died while queued is activated too, when a
+      # server frees up, but gets no assignment: measured 2026-11-08, ending
+      # pgbouncer-pool-saturated added about 1046 s of wait with no assignment.
+      # Such a lump would dominate the average for the 5 m window, however
+      # many assignments dilute it. A lump that large comes only from clients
+      # that sat in the queue, so it shows first as maxwait. The rule is silent
+      # for a database while, in the last 6 m (the rate window plus one scrape
+      # margin), one of its pools had maxwait of 5 s or more for 75 s on end:
+      # the run PgbouncerClientsWaiting needs to fire (5 s, for 1m), so that
+      # wait already has its alert. Shorter bursts of 5 s or more do not
+      # silence it; waits under 5 s each are counted as they are. Without
+      # assignments in the window the ratio is +Inf or NaN and never fires.
+      - alert: PgbouncerWaitTime
+        expr: |
+          (
+            rate(pgbouncer.stats.wait_time{database!="pgbouncer"}[5m])
+              / (rate(pgbouncer.stats.server_assignments{database!="pgbouncer"}[5m]) > 0)
+              / 1e6 > 0.1
+          )
+            unless on(service.instance.id, database)
+          max by(service.instance.id, database) (
+            max_over_time(
+              (min_over_time(pgbouncer.pool.maxwait{database!="pgbouncer"}[75s]) >= 5)[6m:15s]
+            )
+          )
+            unless on(service.instance.id, database)
+          label_copy(
+            (pgbouncer.database.paused == 1 or pgbouncer.database.disabled == 1),
+            "name", "database"
+          )
+            and on(service.instance.id)
+          present_over_time(pgbouncer.list.items{list="databases"}[2m])
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'PgBouncer database {{ $labels.database }}: clients wait {{ $value | humanizeDuration }} on average for a server connection'

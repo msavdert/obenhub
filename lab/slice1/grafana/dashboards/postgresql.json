@@ -1112,6 +1112,126 @@
       "description": "SHOW POOLS maxwait plus maxwait_us. PgbouncerClientsWaiting fires above 5 s for 1 m."
     },
     {
+      "id": 19,
+      "title": "PgBouncer: client connections vs max_client_conn",
+      "type": "timeseries",
+      "datasource": {
+        "type": "victoriametrics-metrics-datasource",
+        "uid": "vm"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 52,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "vm"
+          },
+          "expr": "pgbouncer.list.items{list=\"used_clients\"}",
+          "refId": "A",
+          "range": true,
+          "instant": false,
+          "legendFormat": "used_clients"
+        },
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "vm"
+          },
+          "expr": "pgbouncer.config.max_client_conn",
+          "refId": "B",
+          "range": true,
+          "instant": false,
+          "legendFormat": "max_client_conn"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 10,
+            "showPoints": "never"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "description": "SHOW LISTS used_clients against the max_client_conn setting (SHOW CONFIG). used_clients includes the console connections, which count towards the limit but are never refused; a client beyond the limit is refused and counted nowhere. Not filtered by the instance variable: PgBouncer is its own target."
+    },
+    {
+      "id": 20,
+      "title": "PgBouncer: average wait and query time",
+      "type": "timeseries",
+      "datasource": {
+        "type": "victoriametrics-metrics-datasource",
+        "uid": "vm"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 52,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "vm"
+          },
+          "expr": "rate(pgbouncer.stats.wait_time{database!=\"pgbouncer\"}[$__rate_interval]) / rate(pgbouncer.stats.server_assignments{database!=\"pgbouncer\"}[$__rate_interval]) / 1e6",
+          "refId": "A",
+          "range": true,
+          "instant": false,
+          "legendFormat": "{{database}} wait per server assignment"
+        },
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "vm"
+          },
+          "expr": "rate(pgbouncer.stats.query_time{database!=\"pgbouncer\"}[$__rate_interval]) / rate(pgbouncer.stats.queries{database!=\"pgbouncer\"}[$__rate_interval]) / 1e6",
+          "refId": "B",
+          "range": true,
+          "instant": false,
+          "legendFormat": "{{database}} query time"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 10,
+            "showPoints": "never"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "description": "SHOW STATS totals as rate ratios, in seconds: wait per server assignment and server time per query. Wait time is counted only when a wait ends in an assignment. Query time includes the wait (PgBouncer starts timing when the query arrives, not when a server is assigned). A database with no traffic in the window has no point. Not filtered by the instance variable: PgBouncer is its own target."
+    },
+    {
       "id": 9,
       "title": "PostgreSQL ERROR and FATAL (server log)",
       "type": "logs",
@@ -1121,7 +1241,7 @@
       },
       "gridPos": {
         "x": 0,
-        "y": 52,
+        "y": 60,
         "w": 24,
         "h": 9
       },
@@ -1158,7 +1278,7 @@
       },
       "gridPos": {
         "x": 0,
-        "y": 61,
+        "y": 69,
         "w": 24,
         "h": 9
       },
