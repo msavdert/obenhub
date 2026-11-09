@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.7.0](https://github.com/msavdert/obenhub/compare/v0.6.0...v0.7.0) (2026-11-09)
+
+
+### Features
+
+* **lab:** PgBouncer pool, client-limit and wait-time alerts ([a4361d9](https://github.com/msavdert/obenhub/commit/a4361d91eb721277827c6980378301bbb0b1f07c))
+
 ## [0.6.0](https://github.com/msavdert/obenhub/compare/v0.5.0...v0.6.0) (2026-11-08)
 
 
