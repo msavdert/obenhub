@@ -3,8 +3,9 @@
 # Shared helpers for the stage 3 (Patroni) fault scenarios. Source it from a
 # scenario; do not run it. A scenario defines EXPECT, inject() and revert() and
 # calls run_scenario (see cluster-paused.sh for the smallest example). The
-# bookkeeping part from "run bookkeeping" on is the one in
-# lab/slice1/scenarios/lib.sh; it is copied, not sourced, because the top of
+# config reload and hash check (reload_config, config_hash, loaded_config_hash)
+# and the part from "run bookkeeping" on are the ones in
+# lab/slice1/scenarios/lib.sh; they are copied, not sourced, because the top of
 # that file is bound to the slice 1 containers, and slice 1 stays unchanged.
 # EXPECT may be (re)set inside inject(): the node a scenario picks is only
 # known then, and nodes are named, never roles.
@@ -20,6 +21,9 @@ RESULTS="$LAB_DIR/results/runs.jsonl"
 PROJECT=obenhub-stage3
 VL=${VL:-http://127.0.0.1:29428}
 AM=${AM:-http://127.0.0.1:29093}
+VMALERT=${VMALERT:-http://127.0.0.1:28880}
+VMALERT_C=obenhub-stage3-vmalert
+AM_C=obenhub-stage3-alertmanager
 VM=${VM:-http://127.0.0.1:28428}
 NODES=(pg-1 pg-2 pg-3)
 REPL_NET=obenhub-stage3_repl
@@ -139,8 +143,40 @@ image_versions() {
     | jq -R . | jq -s -c .
 }
 
+# The rule and Alertmanager files are bind-mounted, but both services keep
+# what they loaded at start. Reload them so that config_sha256 describes the
+# configuration that actually ran. A failed vmalert reload keeps the old rules
+# and only shows in its metrics. vmalert v1.155.0 counts every reload in
+# _total but moves the success timestamp only when the files changed (lab
+# run 2026-11-09), so wait for _total to move, then require _successful and
+# no new reload error. _total may move before the files are parsed
+# (unverified, vmalert source not read). In the lab the three metrics always
+# changed in the same scrape, about 20 ms after the request (2026-11-09), so
+# the one-second pause is a margin, not a measured bound. A single-file bind mount keeps the old
+# inode when an edit replaces the file, so the reload can succeed on stale
+# content: compare what the containers read with the repository, and record
+# that hash at reload time rather than at the end of the scenario.
+vmalert_metric() { curl -fsS "$VMALERT/metrics" | awk -v m="$1" '$1==m {print $2}'; }
+vmalert_reload_done() { [ "$(vmalert_metric vmalert_config_last_reload_total)" -gt "$1" ] 2>/dev/null; }
+reload_config() {
+  local n e
+  curl -fsS -X POST "$AM/-/reload" >/dev/null || { PRE_ERR="Alertmanager reload failed"; return 1; }
+  n=$(vmalert_metric vmalert_config_last_reload_total) && [ -n "$n" ] || { PRE_ERR="vmalert metrics unreadable"; return 1; }
+  e=$(vmalert_metric vmalert_config_last_reload_errors_total) && [ -n "$e" ] || { PRE_ERR="vmalert metrics unreadable"; return 1; }
+  curl -fsS -X POST "$VMALERT/-/reload" >/dev/null || { PRE_ERR="vmalert reload request failed"; return 1; }
+  wait_until 30 "vmalert reload" vmalert_reload_done "$n" || { PRE_ERR="vmalert did not reload"; return 1; }
+  sleep 1
+  local e2 ok
+  e2=$(vmalert_metric vmalert_config_last_reload_errors_total) && ok=$(vmalert_metric vmalert_config_last_reload_successful) \
+    && [ -n "$e2" ] && [ -n "$ok" ] || { PRE_ERR="vmalert metrics unreadable after reload"; return 1; }
+  [ "$e2" = "$e" ] && [ "$ok" = 1 ] || { PRE_ERR="vmalert rejected the rule files"; return 1; }
+  CONFIG_HASH=$(loaded_config_hash) && [ -n "$CONFIG_HASH" ] || { CONFIG_HASH=""; PRE_ERR="cannot read the alerting config inside the containers"; return 1; }
+  [ "$CONFIG_HASH" = "$(config_hash)" ] || { PRE_ERR="containers read a different alerting config than the repository (recreate vmalert and alertmanager)"; return 1; }
+}
+
 # Pre-flight shared by all scenarios.
 precondition() {
+  reload_config || return 1
   wait_until "$SETTLE_TIMEOUT" "only Watchdog active in Alertmanager" am_clean || { PRE_ERR="Alertmanager not clean: $(am_active | tr '\n' ' ')"; return 1; }
   wait_until 120 "etcd healthy (three members, one leader)" etcd_healthy || { PRE_ERR="etcd not healthy"; return 1; }
   wait_until 180 "cluster healthy (one leader, two streaming replicas)" cluster_healthy || { PRE_ERR="cluster not healthy"; return 1; }
@@ -157,6 +193,7 @@ FAILS=()
 UNEXPECTED="[]"
 REVERTED=0
 WRITTEN=0
+CONFIG_HASH=""   # alerting config as loaded by the containers (reload_config); empty = not checked
 EXPECT=()          # entries "AlertName:instance" (instance may be empty)
 ALLOW=()           # delivered alerts that are a known consequence of the fault; not waited for, not unexpected
 
@@ -180,7 +217,17 @@ window_alerts() {
 git_sha() { git -C "$LAB_DIR" rev-parse --short HEAD 2>/dev/null || echo unknown; }
 git_dirty() { [ -n "$(git -C "$LAB_DIR" status --porcelain 2>/dev/null)" ] && echo true || echo false; }
 config_hash() {
-  cat "$LAB_DIR"/vmalert/rules/*.yml "$LAB_DIR/../packs/postgresql/rules.yml" "$LAB_DIR/alertmanager/alertmanager.yml" 2>/dev/null | sha256sum | cut -c1-12
+  ( export LC_ALL=C
+    cat "$LAB_DIR"/vmalert/rules/*.yml "$LAB_DIR/../packs/postgresql/rules.yml" "$LAB_DIR/alertmanager/alertmanager.yml" 2>/dev/null | sha256sum | cut -c1-12 )
+}
+# The same files as the containers see them, in the same order. No output
+# and status 1 when a container cannot be read.
+loaded_config_hash() {
+  local h
+  h=$( ( set -o pipefail
+    { docker exec "$VMALERT_C" sh -c 'export LC_ALL=C; cat /etc/vmalert/rules/*.yml /etc/vmalert/pack/rules.yml' \
+        && docker exec "$AM_C" cat /etc/alertmanager/alertmanager.yml; } | sha256sum | cut -c1-12 ) 2>/dev/null ) || return 1
+  printf '%s\n' "$h"
 }
 
 write_result() {
@@ -198,7 +245,7 @@ write_result() {
     --arg detected "$T_DETECT" --arg resolved "$T_RESOLVE" --arg end "$T_END" \
     --arg tdetect "${S_DETECT:-}" --arg tresolve "${S_RESOLVE:-}" \
     --arg tinject "${S_INJECT:-}" --arg hold "${S_HOLD:-0}" \
-    --arg gsha "$(git_sha)" --argjson gdirty "$(git_dirty)" --arg chash "$(config_hash)" \
+    --arg gsha "$(git_sha)" --argjson gdirty "$(git_dirty)" --arg chash "$CONFIG_HASH" \
     --argjson expected "$exp" --argjson unexpected "$UNEXPECTED" \
     --argjson pass "$pass" --argjson reasons "$reasons" \
     --argjson images "$(image_versions)" --arg extra "${EXTRA_JSON:-null}" '
@@ -208,7 +255,7 @@ write_result() {
      seconds_to_detect: ($tdetect|nz|if . then tonumber else . end),
      seconds_to_resolve: ($tresolve|nz|if . then tonumber else . end),
      inject_seconds: ($tinject|nz|if . then tonumber else . end), hold_seconds: ($hold|tonumber),
-     git_sha: $gsha, git_dirty: $gdirty, config_sha256: $chash,
+     git_sha: $gsha, git_dirty: $gdirty, config_sha256: ($chash|nz),
      expected_alert: $expected, unexpected_alerts: $unexpected,
      pass: $pass, failure_reasons: $reasons, extra: ($extra|fromjson), images: $images}' \
     >>"$RESULTS"

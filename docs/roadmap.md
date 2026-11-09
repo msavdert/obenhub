@@ -132,17 +132,17 @@ etcd 3.6.16 (Apache-2.0).
       (`lab/packs/postgresql`). Stage 3 thereby also runs SnapshotHeldTooLong,
       ConnectionSaturation and SeriesVanished; their fault scenarios are in
       slice1
-- [ ] Reload vmalert and Alertmanager before each scenario and record the
-      configuration hash as the containers read it, as slice1 does
-      (`reload_config` in `lab/slice1/scenarios/lib.sh`). Until then a rule
-      edit after the stage 3 lab started runs stale rules while
-      `config_sha256` names the files on disk
+- [x] Each stage 3 scenario reloads vmalert and Alertmanager first, checks the
+      vmalert reload counters, and records the hash of the rule and
+      Alertmanager files as the containers read them; a mismatch with the
+      repository files fails the run (as `reload_config` in slice1)
 
 The scenarios and the control run with `mise run lab:stage3:scenarios`; their
 results are in `lab/stage3/results/runs.jsonl` (the last eleven records are the
-suite run on the final shared-pack configuration; older records predate it,
-two of them on an earlier draft of the pack, and include two `leader-killed`
-failures before `wal_keep_size` was raised).
+suite run of 2026-11-09 with the configuration reload, each with the
+`config_sha256` the containers read; older records predate it, two of them on
+an earlier draft of the pack, and include two `leader-killed` failures before
+`wal_keep_size` was raised).
 
 Coverage gaps found on 2026-11-07 by comparing both labs with existing rule
 sets: the catalog survey in the private predecessor repository (pgMonitor,
