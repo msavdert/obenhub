@@ -3,8 +3,10 @@
 # PatroniPendingRestart. Series shapes follow what Patroni 4.1.5 reports:
 # timeline and xlog_location are 0 on a replica, received/replayed are 0 on
 # the leader.
+# The inventory is per lab; these tests use the stage 3 one (pg-1..3, etcd-1..3).
 rule_files:
-  - ../rules/patroni.yml
+  - ../rules.yml
+  - ../../../stage3/vmalert/inventory.yml
 evaluation_interval: 15s
 
 tests:

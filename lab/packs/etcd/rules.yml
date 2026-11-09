@@ -1,5 +1,5 @@
-# Stage 3: the three-member etcd cluster behind Patroni (etcd 3.6.16), scraped
-# by the Collector's prometheusreceiver on each member's client URL.
+# The three-member etcd cluster behind Patroni (etcd 3.6.16), scraped
+# by the Collector's prometheusreceiver (stage 3: the client URL; pgha: the metrics URL).
 # Provenance, per ADR 0004 decision 4. The alert kinds, the expressions of
 # EtcdNoLeader, EtcdHighLeaderChanges, EtcdHighFsyncDurations and
 # EtcdHighCommitDurations, and their thresholds are adapted from
@@ -17,21 +17,10 @@
 # Metric names were checked against etcd 3.6.16 /metrics on 2026-11-07, not
 # taken from the mixin (which is v3.7.3). Every threshold below that differs
 # from the mixin says so: the mixin waits 10 to 20 minutes, the lab scenarios cannot.
-# Suppression is written into the expressions, as in patroni.yml.
+# Suppression is written into the expressions, as in lab/packs/patroni/rules.yml.
+# The inventory (obenhub.expected_scrape with service.name "etcd") is per lab, for
+# example lab/stage3/vmalert/inventory.yml.
 groups:
-  - name: etcd-inventory
-    interval: 15s
-    rules:
-      # Same name as the Patroni inventory in patroni.yml; the series differ
-      # by service.name.
-      - record: obenhub.expected_scrape
-        expr: |
-          union(
-            label_set(vector(1), "service.namespace", "obenhub-lab", "service.name", "etcd", "service.instance.id", "etcd-1"),
-            label_set(vector(1), "service.namespace", "obenhub-lab", "service.name", "etcd", "service.instance.id", "etcd-2"),
-            label_set(vector(1), "service.namespace", "obenhub-lab", "service.name", "etcd", "service.instance.id", "etcd-3")
-          )
-
   - name: etcd
     interval: 15s
     rules:

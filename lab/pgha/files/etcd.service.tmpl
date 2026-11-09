@@ -1,6 +1,8 @@
 # Rendered per node by scripts/provision.sh. Flags follow the etcd 3.6
 # security docs (transport security: client-cert-auth, peer-client-cert-auth)
 # and the clustering guide (static bootstrap with --initial-cluster).
+# --listen-metrics-urls: a loopback-only plain HTTP listener for /metrics, so the
+# node Collector scrapes without a client certificate (`etcd --help`, 3.6.16).
 [Unit]
 Description=etcd (pgha lab)
 After=network-online.target
@@ -15,6 +17,7 @@ ExecStart=/usr/local/bin/etcd \
   --data-dir=/var/lib/etcd \
   --listen-client-urls=https://@IP@:2379,https://127.0.0.1:2379 \
   --advertise-client-urls=https://@IP@:2379 \
+  --listen-metrics-urls=http://127.0.0.1:2381 \
   --listen-peer-urls=https://@IP@:2380 \
   --initial-advertise-peer-urls=https://@IP@:2380 \
   --initial-cluster=@ETCD_CLUSTER@ \

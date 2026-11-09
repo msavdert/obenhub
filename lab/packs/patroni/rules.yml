@@ -1,4 +1,7 @@
-# Stage 3: three Patroni nodes. Every rule is role-agnostic: the leader moves,
+# Patroni alert rules (Patroni 4.1.5 REST /metrics), shared by the labs. The
+# inventory these rules read (obenhub.expected_scrape with service.name
+# "patroni") is per lab, for example lab/stage3/vmalert/inventory.yml.
+# Three Patroni nodes. Every rule is role-agnostic: the leader moves,
 # so nothing here names a node as primary or standby. Patroni reports 0 for
 # metrics that do not apply to a node's role (timeline and xlog_location are 0
 # on a replica, received and replayed location are 0 on the leader; observed
@@ -7,33 +10,6 @@
 # (lab/slice1 lesson: vmalert's startsAt predates group_wait, so inhibits race).
 # Pack metric names are provisional until the naming contract (ADR 0002).
 groups:
-  - name: inventory
-    interval: 15s
-    rules:
-      - record: obenhub.expected_target
-        expr: |
-          union(
-            label_set(vector(1), "service.namespace", "obenhub-lab", "service.name", "postgresql", "db.cluster.name", "stage3", "service.instance.id", "pg-1"),
-            label_set(vector(1), "service.namespace", "obenhub-lab", "service.name", "postgresql", "db.cluster.name", "stage3", "service.instance.id", "pg-2"),
-            label_set(vector(1), "service.namespace", "obenhub-lab", "service.name", "postgresql", "db.cluster.name", "stage3", "service.instance.id", "pg-3")
-          )
-
-  - name: patroni-inventory
-    interval: 15s
-    rules:
-      # Patroni REST scrapes expected from the Collector (see etcd.yml for the
-      # etcd ones, same record name).
-      - record: obenhub.expected_scrape
-        expr: |
-          union(
-            label_set(vector(1), "service.namespace", "obenhub-lab", "service.name", "patroni", "db.cluster.name", "stage3", "service.instance.id", "pg-1"),
-            label_set(vector(1), "service.namespace", "obenhub-lab", "service.name", "patroni", "db.cluster.name", "stage3", "service.instance.id", "pg-2"),
-            label_set(vector(1), "service.namespace", "obenhub-lab", "service.name", "patroni", "db.cluster.name", "stage3", "service.instance.id", "pg-3")
-          )
-
-  # The PostgreSQL rules (Watchdog, PostgresTargetAbsent, StandbyNotStreaming,
-  # ...) are the shared pack, lab/packs/postgresql/rules.yml.
-
   - name: patroni
     interval: 15s
     rules:

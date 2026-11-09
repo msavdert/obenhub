@@ -2,7 +2,7 @@
 # the interplay test: a stopped Collector raises CollectorAbsent only, not one
 # alert per node.
 rule_files:
-  - ../rules/patroni.yml
+  - ../inventory.yml
   - ../../../packs/postgresql/rules.yml
 evaluation_interval: 15s
 

@@ -1,13 +1,14 @@
 #!/usr/bin/env bash
 # Provision the pgha VMs from this box over ssh: etcd 3.6 (TLS), PostgreSQL
-# 18 and Patroni 4 (PGDG packages), otelcol-contrib installed but disabled.
+# 18 and Patroni 4 (PGDG packages), and the per-node otelcol-contrib that
+# pushes to the gateway of lab/pgha/mon.
 # Usage: provision.sh [node...]   (default: all of lab/pgha/nodes.sh)
-# Needs lab/pgha/.env (gen-env.sh) and lab/pgha/pki (pki.sh); both are run
-# here if missing. Idempotent: files are replaced only when their content,
-# mode or owner differ, packages and binaries only when the pinned version is
-# not installed, and a service is restarted/reloaded only when its own config
-# changed. A rerun on a healthy cluster therefore touches nothing.
-# Fail closed: both templates are rendered for every node before anything is
+# Needs lab/pgha/.env (gen-env.sh, run here if missing) and lab/pgha/pki
+# (pki.sh, run every time; it only adds missing files). Idempotent: files are
+# replaced only when their content, mode or owner differ, packages and
+# binaries only when the pinned version is not installed, and a service is
+# restarted/reloaded only when its own config changed. A rerun on a healthy cluster therefore touches nothing.
+# Fail closed: all three templates are rendered for every node before anything is
 # written; put refuses empty or truncated input. Converge: a file that needs an
 # etcd restart or a Patroni reload leaves a marker on the node (MARK_DIR) that
 # is removed only after the action succeeded, so an interrupted run is finished
@@ -25,7 +26,9 @@ dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 # shellcheck source=/dev/null
 . "$dir/nodes.sh"
 [ -s "$dir/.env" ] || "$dir/scripts/gen-env.sh"
-[ -s "$dir/pki/ca.crt" ] || "$dir/scripts/pki.sh"
+# pki.sh keeps existing files and adds missing ones (for example the Collector
+# certificates of a checkout provisioned before they existed)
+"$dir/scripts/pki.sh"
 # the file holds only KEY=hex lines (gen-env.sh)
 set -a
 # shellcheck source=/dev/null
@@ -50,7 +53,8 @@ done
 MARK_DIR=/var/lib/obenhub-pgha
 ETCD_MARK=$MARK_DIR/etcd.restart-pending
 PATRONI_MARK=$MARK_DIR/patroni.reload-pending
-declare -A ETCD_CHANGED PATRONI_CHANGED ETCD_UNIT PATRONI_CONF
+OTEL_MARK=$MARK_DIR/otelcol.restart-pending
+declare -A ETCD_CHANGED PATRONI_CHANGED ETCD_UNIT PATRONI_CONF OTEL_CONF
 SSH_OPTS=(-o BatchMode=yes -o ConnectTimeout=10)
 # rn <node> <command...>: run a command as root on the node
 # ssh joins its arguments into one remote command line, so quote each one
@@ -69,6 +73,9 @@ render() {
   c="${c//@IP@/$ip}"
   c="${c//@SUBNET@/$SUBNET}"
   c="${c//@PG_MAJOR@/$PG_MAJOR}"
+  c="${c//@OTELCOL_VERSION@/$OTELCOL_VERSION}"
+  c="${c//@GATEWAY_IP@/$GATEWAY_IP}"
+  c="${c//@GATEWAY_PORT@/$GATEWAY_PORT}"
   c="${c//@ETCD_HOSTS@/$ETCD_HOSTS}"
   c="${c//@ETCD_CLUSTER@/$ETCD_CLUSTER}"
   c="${c//@HBA_MEMBERS@/$HBA_MEMBERS}"
@@ -206,8 +213,8 @@ SRC
   fi
 
   # otelcol-contrib: .deb checked against the release's .sha256 file; the
-  # package starts and enables the service, which is turned off again
-  # (configured in a later step)
+  # package starts and enables the service with its default config, which is
+  # replaced and restarted by phase_collector below
   have="$(rn "$n" dpkg-query -W -f '${Version}' otelcol-contrib 2>/dev/null || true)"
   if [ "$have" != "$OTELCOL_VERSION" ]; then
     rn "$n" sh -euc '
@@ -216,15 +223,9 @@ SRC
       d=$(mktemp -d); trap "rm -rf $d" EXIT; cd "$d"
       curl -fsSL -O "$b/$f"; curl -fsSL -O "$b/$f.sha256"
       echo "$(cut -d" " -f1 "$f.sha256")  $f" | sha256sum -c - >/dev/null
-      DEBIAN_FRONTEND=noninteractive dpkg -i "$f" >/dev/null' sh "$OTELCOL_VERSION"
+      DEBIAN_FRONTEND=noninteractive dpkg -i --force-confdef --force-confold "$f" >/dev/null' sh "$OTELCOL_VERSION"
     log "$n" "installed otelcol-contrib $OTELCOL_VERSION"
   fi
-  if [ "$(rn "$n" systemctl is-enabled otelcol-contrib 2>/dev/null || true)" = enabled ] || \
-     [ "$(rn "$n" systemctl is-active otelcol-contrib 2>/dev/null || true)" = active ]; then
-    rn "$n" systemctl disable --now otelcol-contrib 2>/dev/null
-    log "$n" "otelcol-contrib disabled"
-  fi
-
   # etcd user, directories, certificates, unit
   rn "$n" sh -c 'id etcd >/dev/null 2>&1 || useradd --system --home-dir /var/lib/etcd --shell /usr/sbin/nologin etcd'
   rn "$n" install -d -m 0700 -o root -g root "$MARK_DIR"
@@ -284,6 +285,7 @@ PATRONI_ENV="$(printf 'OTEL_MONITOR_PASSWORD=%s\nAPP_PASSWORD=%s' "$OTEL_MONITOR
 for n in $want; do
   ETCD_UNIT[$n]="$(render "$files/etcd.service.tmpl" "$n")"
   PATRONI_CONF[$n]="$(render "$files/patroni.yml.tmpl" "$n")"
+  OTEL_CONF[$n]="$(render "$files/otelcol.yaml.tmpl" "$n")"
 done
 for n in $want; do phase_base "$n"; done
 
@@ -347,6 +349,53 @@ for n in $want; do
     log "$n" "patroni reloaded (config changed)"
   fi
 done
+# Per-node Collector: config, certificates, pack, secret and systemd drop-in,
+# then enable and restart only when one of them changed (marker as for etcd).
+# Runs after Patroni. On a fresh install the otel_monitor role can still be
+# missing for a while (Patroni starts with --no-block); the Collector logs
+# authentication errors and retries until post-bootstrap has created it.
+phase_collector() {
+  local n="$1" pending changed=0 state
+  # root:otelcol-contrib 0750: the service user reads, nobody else
+  rn "$n" install -d -m 0750 -o root -g otelcol-contrib /etc/otelcol-contrib \
+    /etc/otelcol-contrib/tls /etc/otelcol-contrib/packs /etc/otelcol-contrib/packs/postgresql
+  rn "$n" install -d -m 0755 -o root -g root /etc/systemd/system/otelcol-contrib.service.d
+  CHANGED=0
+  putf "$n" /etc/otelcol-contrib/tls/ca.crt 644 root:otelcol-contrib "$pki/ca.crt" "$OTEL_MARK"
+  putf "$n" /etc/otelcol-contrib/tls/otelcol.crt 644 root:otelcol-contrib "$pki/$n/otelcol.crt" "$OTEL_MARK"
+  putf "$n" /etc/otelcol-contrib/tls/otelcol.key 600 otelcol-contrib:otelcol-contrib "$pki/$n/otelcol.key" "$OTEL_MARK"
+  putf "$n" /etc/otelcol-contrib/packs/postgresql/queries.yaml 644 root:otelcol-contrib "$dir/../packs/postgresql/queries.yaml" "$OTEL_MARK"
+  # root-only; systemd reads it (EnvironmentFile in the drop-in), the service
+  # user never opens it and the value is not in the config or on any command line
+  put "$n" /etc/otelcol-contrib/monitor.env 600 root:root "$OTEL_MARK" <<<"OTEL_MONITOR_PASSWORD=$OTEL_MONITOR_PASSWORD"
+  putf "$n" /etc/systemd/system/otelcol-contrib.service.d/obenhub.conf 644 root:root "$files/otelcol.service-dropin.conf" "$OTEL_MARK"
+  put "$n" /etc/otelcol-contrib/config.yaml 640 root:otelcol-contrib "$OTEL_MARK" <<<"${OTEL_CONF[$n]}"
+  changed=$CHANGED
+  pending=$(rn "$n" sh -c 'if [ -e "$1" ]; then echo y; else echo n; fi' sh "$OTEL_MARK")
+  if [ "$pending" = y ]; then changed=1; fi
+  # warn only: with the backend down the Collector retries by itself
+  if ! rn "$n" timeout 5 bash -c "exec 3<>/dev/tcp/$GATEWAY_IP/$GATEWAY_PORT" 2>/dev/null; then
+    log "$n" "WARNING: gateway $GATEWAY_IP:$GATEWAY_PORT not reachable (is lab:pgha:mon:up running?)"
+  fi
+  state=$(rn "$n" systemctl is-active otelcol-contrib || true)
+  if [ "$state" != active ] || [ "$changed" = 1 ]; then
+    rn "$n" systemctl daemon-reload
+    rn "$n" systemctl enable otelcol-contrib >/dev/null 2>&1
+    rn "$n" systemctl restart otelcol-contrib
+    sleep 5
+    if [ "$(rn "$n" systemctl is-active otelcol-contrib || true)" != active ]; then
+      echo "[$n] otelcol-contrib not active after restart" >&2
+      rn "$n" journalctl -u otelcol-contrib -n 20 --no-pager >&2 || true
+      exit 1
+    fi
+    rn "$n" rm -f "$OTEL_MARK"
+    log "$n" "otelcol-contrib (re)started"
+  elif [ "$(rn "$n" systemctl is-enabled otelcol-contrib 2>/dev/null || true)" != enabled ]; then
+    rn "$n" systemctl enable otelcol-contrib >/dev/null 2>&1
+  fi
+}
+for n in $want; do phase_collector "$n"; done
+
 first="${want%% *}"
 for _ in $(seq 1 90); do
   out=$(rn "$first" sudo -u postgres patronictl -c /etc/patroni/config.yml list 2>/dev/null || true)

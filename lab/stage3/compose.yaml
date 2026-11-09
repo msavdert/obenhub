@@ -242,14 +242,16 @@ services:
       - -datasource.url=http://victoriametrics:8428
       - -remoteWrite.url=http://victoriametrics:8428
       - -notifier.url=http://alertmanager:9093
-      - -rule=/etc/vmalert/rules/*.yml
-      - -rule=/etc/vmalert/pack/rules.yml
+      - -rule=/etc/vmalert/inventory.yml
+      - -rule=/etc/vmalert/pack/*.yml
       - -evaluationInterval=15s
     ports:
       - "127.0.0.1:28880:8880"
     volumes:
-      - ./vmalert/rules:/etc/vmalert/rules:ro
-      - ../packs/postgresql/rules.yml:/etc/vmalert/pack/rules.yml:ro
+      - ./vmalert/inventory.yml:/etc/vmalert/inventory.yml:ro
+      - ../packs/postgresql/rules.yml:/etc/vmalert/pack/postgresql.yml:ro
+      - ../packs/patroni/rules.yml:/etc/vmalert/pack/patroni.yml:ro
+      - ../packs/etcd/rules.yml:/etc/vmalert/pack/etcd.yml:ro
     depends_on:
       victoriametrics:
         condition: service_healthy

@@ -1,0 +1,232 @@
+# Per-node Collector (otelcol-contrib @OTELCOL_VERSION@), rendered per node by
+# scripts/provision.sh. It scrapes only its own node and pushes everything to
+# the gateway on the box over OTLP/HTTP with mutual TLS (lab/pgha/mon).
+# Component keys: receiver/{postgresqlreceiver,sqlqueryreceiver,
+# prometheusreceiver,filelogreceiver,journaldreceiver,hostmetricsreceiver} and
+# processor/{resourcedetectionprocessor,memorylimiterprocessor} READMEs at
+# contrib v0.164.0; TLS keys: opentelemetry-collector config/configtls README.
+# The component type names (file_log, host_metrics, resource_detection) are
+# the ones `otelcol-contrib components` lists for 0.164.0.
+# The monitor password comes from the environment (systemd EnvironmentFile,
+# root-only); it is never written here.
+extensions:
+  # filelog offsets and journald cursors survive a restart
+  file_storage:
+    directory: /var/lib/otelcol-contrib/file_storage
+    create_directory: true
+
+receivers:
+  postgresql:
+    endpoint: @IP@:5432
+    transport: tcp
+    username: otel_monitor
+    password: ${env:OTEL_MONITOR_PASSWORD}
+    databases: [postgres]
+    collection_interval: 15s
+    # Optional upstream metric, off by default (receiver metadata, v0.164.0).
+    metrics:
+      postgresql.deadlocks:
+        enabled: true
+    # hostssl to the node's own address, CA-verified. insecure_skip_verify
+    # defaults to true in this receiver, so it is set false explicitly.
+    tls:
+      insecure: false
+      insecure_skip_verify: false
+      ca_file: /etc/otelcol-contrib/tls/ca.crt
+
+  # Shared pack: lab/packs/postgresql/queries.yaml, installed beside this file.
+  sql_query:
+    driver: postgres
+    host: @IP@
+    port: 5432
+    database: postgres
+    username: otel_monitor
+    password: ${env:OTEL_MONITOR_PASSWORD}
+    additional_params:
+      sslmode: verify-full
+      sslrootcert: /etc/otelcol-contrib/tls/ca.crt
+    max_open_conn: 3
+    collection_interval: 15s
+    timeout: 10s
+    queries: ${file:/etc/otelcol-contrib/packs/postgresql/queries.yaml}
+
+  # Patroni REST API /metrics over https, verified with the lab CA. Contrib has
+  # no Patroni receiver, so this is the generic prometheusreceiver.
+  prometheus/patroni:
+    config:
+      scrape_configs:
+        - job_name: patroni
+          scheme: https
+          tls_config:
+            ca_file: /etc/otelcol-contrib/tls/ca.crt
+          scrape_interval: 15s
+          scrape_timeout: 10s
+          static_configs:
+            - targets: ['@IP@:8008']
+
+  # etcd --listen-metrics-urls=http://127.0.0.1:2381 (etcd.service.tmpl): a
+  # plain loopback listener, so the Collector needs no etcd client certificate
+  # (with client-cert-auth and no etcd auth, any CA-signed client cert could
+  # write the DCS).
+  prometheus/etcd:
+    config:
+      scrape_configs:
+        - job_name: etcd
+          scrape_interval: 15s
+          scrape_timeout: 10s
+          static_configs:
+            - targets: ['127.0.0.1:2381']
+
+  # PostgreSQL jsonlog (log_destination jsonlog, log_file_mode 0644 in
+  # patroni.yml.tmpl), readable by the Collector's service user.
+  file_log/postgresql:
+    include: [/var/log/postgresql/postgresql-*.json]
+    start_at: beginning
+    storage: file_storage
+    operators:
+      - type: json_parser
+        parse_from: body
+        # keep integers exact (query_id is a 64-bit integer)
+        parse_ints: true
+        timestamp:
+          parse_from: attributes.timestamp
+          layout: '%Y-%m-%d %H:%M:%S.%L %Z'
+        severity:
+          parse_from: attributes.error_severity
+          mapping:
+            debug: [DEBUG1, DEBUG2, DEBUG3, DEBUG4, DEBUG5]
+            info: [LOG, INFO, NOTICE]
+            warn: WARNING
+            error: ERROR
+            fatal: [FATAL, PANIC]
+      # the log body is the server message, not the raw JSON line
+      - type: move
+        from: attributes.message
+        to: body
+
+  host_metrics:
+    collection_interval: 15s
+    scrapers:
+      cpu: {}
+      load: {}
+      memory: {}
+      paging: {}
+      filesystem: {}
+      disk: {}
+      network: {}
+      processes: {}
+
+  # Multiple filter options are combined with AND (journaldreceiver README, "Multiple
+  # filtering options"), so units and the kernel ring buffer are two receivers.
+  # The service user reads the journal through SupplementaryGroups=
+  # systemd-journal (systemd drop-in) and runs /usr/bin/journalctl.
+  journald/units:
+    units: [patroni, etcd, otelcol-contrib]
+    storage: file_storage
+    convert_to_semantic_conventions: true
+  journald/kernel:
+    dmesg: true
+    storage: file_storage
+    convert_to_semantic_conventions: true
+
+processors:
+  memory_limiter:
+    check_interval: 1s
+    limit_mib: 256
+  # Attribute names as in lab/stage3/otelcol/config.yaml. No role attribute on
+  # purpose: the leader moves.
+  resource/postgresql:
+    attributes:
+      - {key: service.namespace, value: obenhub-lab, action: upsert}
+      - {key: service.name, value: postgresql, action: upsert}
+      - {key: service.instance.id, value: @NODE@, action: upsert}
+      - {key: server.address, value: @NODE@, action: upsert}
+      - {key: server.port, value: '5432', action: upsert}
+      - {key: db.system.name, value: postgresql, action: upsert}
+      - {key: db.cluster.name, value: pgha, action: upsert}
+  resource/patroni:
+    attributes:
+      - {key: service.namespace, value: obenhub-lab, action: upsert}
+      - {key: service.name, value: patroni, action: upsert}
+      - {key: service.instance.id, value: @NODE@, action: upsert}
+      - {key: server.address, value: @NODE@, action: upsert}
+      - {key: server.port, value: '8008', action: upsert}
+      - {key: db.system.name, value: postgresql, action: upsert}
+      - {key: db.cluster.name, value: pgha, action: upsert}
+  # server.port is the member's client port (2379), as in stage 3; the scrape
+  # itself goes to the loopback metrics listener.
+  resource/etcd:
+    attributes:
+      - {key: service.namespace, value: obenhub-lab, action: upsert}
+      - {key: service.name, value: etcd, action: upsert}
+      - {key: service.instance.id, value: @NODE@, action: upsert}
+      - {key: server.address, value: @NODE@, action: upsert}
+      - {key: server.port, value: '2379', action: upsert}
+  # Operating-system telemetry of the node: hostmetrics and the journal.
+  resource/host:
+    attributes:
+      - {key: service.namespace, value: obenhub-lab, action: upsert}
+      - {key: service.name, value: host, action: upsert}
+      - {key: service.instance.id, value: @NODE@, action: upsert}
+      - {key: db.cluster.name, value: pgha, action: upsert}
+  # host.name from the OS; override false keeps the journal's own host.name
+  resource_detection/system:
+    detectors: [system]
+    system:
+      hostname_sources: [os]
+    override: false
+  batch: {}
+
+exporters:
+  otlp_http/gateway:
+    endpoint: https://@GATEWAY_IP@:@GATEWAY_PORT@
+    tls:
+      ca_file: /etc/otelcol-contrib/tls/ca.crt
+      cert_file: /etc/otelcol-contrib/tls/otelcol.crt
+      key_file: /etc/otelcol-contrib/tls/otelcol.key
+
+service:
+  extensions: [file_storage]
+  telemetry:
+    resource:
+      attributes:
+        - {name: service.namespace, value: obenhub-lab}
+        - {name: service.name, value: otelcol}
+        - {name: service.instance.id, value: otelcol-@NODE@}
+    metrics:
+      level: normal
+      readers:
+        - periodic:
+            interval: 15000
+            exporter:
+              otlp:
+                protocol: http/protobuf
+                endpoint: https://@GATEWAY_IP@:@GATEWAY_PORT@/v1/metrics
+                certificate: /etc/otelcol-contrib/tls/ca.crt
+                client_certificate: /etc/otelcol-contrib/tls/otelcol.crt
+                client_key: /etc/otelcol-contrib/tls/otelcol.key
+  pipelines:
+    metrics/postgresql:
+      receivers: [postgresql, sql_query]
+      processors: [memory_limiter, resource/postgresql, batch]
+      exporters: [otlp_http/gateway]
+    metrics/patroni:
+      receivers: [prometheus/patroni]
+      processors: [memory_limiter, resource/patroni, batch]
+      exporters: [otlp_http/gateway]
+    metrics/etcd:
+      receivers: [prometheus/etcd]
+      processors: [memory_limiter, resource/etcd, batch]
+      exporters: [otlp_http/gateway]
+    metrics/host:
+      receivers: [host_metrics]
+      processors: [memory_limiter, resource_detection/system, resource/host, batch]
+      exporters: [otlp_http/gateway]
+    logs/postgresql:
+      receivers: [file_log/postgresql]
+      processors: [memory_limiter, resource/postgresql, batch]
+      exporters: [otlp_http/gateway]
+    logs/host:
+      receivers: [journald/units, journald/kernel]
+      processors: [memory_limiter, resource_detection/system, resource/host, batch]
+      exporters: [otlp_http/gateway]

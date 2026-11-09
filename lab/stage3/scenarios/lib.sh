@@ -218,14 +218,14 @@ git_sha() { git -C "$LAB_DIR" rev-parse --short HEAD 2>/dev/null || echo unknown
 git_dirty() { [ -n "$(git -C "$LAB_DIR" status --porcelain 2>/dev/null)" ] && echo true || echo false; }
 config_hash() {
   ( export LC_ALL=C
-    cat "$LAB_DIR"/vmalert/rules/*.yml "$LAB_DIR/../packs/postgresql/rules.yml" "$LAB_DIR/alertmanager/alertmanager.yml" 2>/dev/null | sha256sum | cut -c1-12 )
+    cat "$LAB_DIR/vmalert/inventory.yml" "$LAB_DIR/../packs/etcd/rules.yml" "$LAB_DIR/../packs/patroni/rules.yml" "$LAB_DIR/../packs/postgresql/rules.yml" "$LAB_DIR/alertmanager/alertmanager.yml" 2>/dev/null | sha256sum | cut -c1-12 )
 }
 # The same files as the containers see them, in the same order. No output
 # and status 1 when a container cannot be read.
 loaded_config_hash() {
   local h
   h=$( ( set -o pipefail
-    { docker exec "$VMALERT_C" sh -c 'export LC_ALL=C; cat /etc/vmalert/rules/*.yml /etc/vmalert/pack/rules.yml' \
+    { docker exec "$VMALERT_C" sh -c 'export LC_ALL=C; cat /etc/vmalert/inventory.yml /etc/vmalert/pack/*.yml' \
         && docker exec "$AM_C" cat /etc/alertmanager/alertmanager.yml; } | sha256sum | cut -c1-12 ) 2>/dev/null ) || return 1
   printf '%s\n' "$h"
 }

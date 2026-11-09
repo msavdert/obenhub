@@ -189,10 +189,16 @@ otherwise unit tests only, said so in the rule:
 Then the same cluster on three VMs, because the operating-system layer
 (ADR 0001, primary goal) cannot be observed per node in Compose:
 
-- [ ] Three Debian 13 VMs, each with etcd, Patroni, PostgreSQL 18 and one
-      Collector, installed by scripts in the repository
-- [ ] `hostmetricsreceiver` and journald logs per node; the stage 3 rules
-      and scenarios carried over unchanged where they apply
+- [x] Three Debian 13 VMs, each with etcd, Patroni, PostgreSQL 18 and one
+      Collector, installed by scripts in the repository (`lab/pgha`)
+- [x] `hostmetricsreceiver` and journald logs per node, pushed through a
+      gateway Collector to a backend on the lab host; the stage 3 Patroni,
+      etcd and PostgreSQL rules run unchanged as shared packs
+- [ ] The stage 3 fault scenarios carried over to the VMs where they apply;
+      `CollectorAbsent` made per Collector first: with four Collectors
+      (three nodes and the gateway) `absent_over_time(otelcol_process_uptime[2m])`
+      stays quiet when one node's Collector stops, so `PostgresTargetAbsent`
+      fires instead
 - [ ] OS fault scenarios with alerts: filesystem filling, memory pressure,
       a real network partition between nodes
 

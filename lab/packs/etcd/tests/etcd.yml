@@ -1,9 +1,11 @@
 # One test group per etcd rule: EtcdMemberAbsent, EtcdInsufficientMembers,
 # EtcdNoLeader, EtcdHighLeaderChanges, EtcdHighFsyncDurations,
 # EtcdHighCommitDurations. The fsync and commit rules are unit-tested only;
-# the lab cannot inject disk latency cleanly (see rules/etcd.yml).
+# the lab cannot inject disk latency cleanly (see packs/etcd/rules.yml).
+# The inventory is per lab; these tests use the stage 3 one (pg-1..3, etcd-1..3).
 rule_files:
-  - ../rules/etcd.yml
+  - ../rules.yml
+  - ../../../stage3/vmalert/inventory.yml
 evaluation_interval: 15s
 
 tests:

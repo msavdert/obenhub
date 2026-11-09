@@ -15,6 +15,13 @@
 #                           call each other's API)
 #   patroni-etcd.{crt,key}  client cert Patroni presents to etcd (shared)
 #   etcdctl.{crt,key}       client cert for etcdctl on the VMs (shared)
+#   <n>/otelcol.{crt,key}   client cert the node Collector presents to the
+#                           telemetry gateway (mutual TLS)
+#   gateway/gateway.{crt,key}  server cert of the gateway, SAN IP GATEWAY_IP
+#                           (nodes.sh); stays on this box, mounted into the
+#                           gateway container
+# The CA signs every certificate, so any of them passes the gateway's client
+# check (client_ca_file is the whole CA). That is a lab simplification.
 # Assumption: lifetimes (CA 10 years, leaf 2 years) are lab choices, not
 # taken from a source.
 set -euo pipefail
@@ -70,7 +77,10 @@ for entry in $NODES; do
   issue "$pki/$n/etcd" "$n" "serverAuth,clientAuth" "$san"
   issue "$pki/$n/postgres" "$n" "serverAuth" "$san"
   issue "$pki/$n/patroni" "$n" "serverAuth,clientAuth" "$san"
+  issue "$pki/$n/otelcol" "otelcol-$n" "clientAuth" ""
 done
+mkdir -p "$pki/gateway"
+issue "$pki/gateway/gateway" "obenhub-pgha-gateway" "serverAuth" "DNS:obenhub-pgha-gateway,IP:$GATEWAY_IP"
 issue "$pki/patroni-etcd" "patroni" "clientAuth" ""
 issue "$pki/etcdctl" "etcdctl" "clientAuth" ""
 rm -f "$pki/ca.srl"
