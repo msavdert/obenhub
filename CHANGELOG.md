@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.8.0](https://github.com/msavdert/obenhub/compare/v0.7.0...v0.8.0) (2026-11-09)
+
+
+### Features
+
+* **lab:** etcd, PostgreSQL 18 and Patroni with TLS on three Debian VMs ([8730c38](https://github.com/msavdert/obenhub/commit/8730c381f2ee9a1a83949d2ed0a857dca40a7524))
+
+
+### Bug fixes
+
+* **lab:** reload alerting config before each stage 3 scenario ([e1575a3](https://github.com/msavdert/obenhub/commit/e1575a37a178eb1b3ade014484a8579f7ddbb92c))
+
 ## [0.7.0](https://github.com/msavdert/obenhub/compare/v0.6.0...v0.7.0) (2026-11-09)
 
 
