@@ -12,6 +12,9 @@
   ],
   "minimumReleaseAge": "3 days",
   "minimumReleaseAgeBehaviour": "timestamp-optional",
+  "ignoreDeps": [
+    "obenhub-stage3-node"
+  ],
   "mise": {
     "managerFilePatterns": [
       "/(^|/)mise\\.toml$/"
