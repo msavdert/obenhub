@@ -1,0 +1,2 @@
+# Patroni runs as postgres and opens /dev/watchdog (root 0600 by default).
+KERNEL=="watchdog", GROUP="postgres", MODE="0660"

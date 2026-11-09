@@ -1,0 +1,36 @@
+# Rendered per node by scripts/provision.sh. Flags follow the etcd 3.6
+# security docs (transport security: client-cert-auth, peer-client-cert-auth)
+# and the clustering guide (static bootstrap with --initial-cluster).
+[Unit]
+Description=etcd (pgha lab)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=notify
+User=etcd
+Group=etcd
+ExecStart=/usr/local/bin/etcd \
+  --name=@NODE@ \
+  --data-dir=/var/lib/etcd \
+  --listen-client-urls=https://@IP@:2379,https://127.0.0.1:2379 \
+  --advertise-client-urls=https://@IP@:2379 \
+  --listen-peer-urls=https://@IP@:2380 \
+  --initial-advertise-peer-urls=https://@IP@:2380 \
+  --initial-cluster=@ETCD_CLUSTER@ \
+  --initial-cluster-token=pgha \
+  --initial-cluster-state=new \
+  --client-cert-auth \
+  --trusted-ca-file=/etc/etcd/tls/ca.crt \
+  --cert-file=/etc/etcd/tls/etcd.crt \
+  --key-file=/etc/etcd/tls/etcd.key \
+  --peer-client-cert-auth \
+  --peer-trusted-ca-file=/etc/etcd/tls/ca.crt \
+  --peer-cert-file=/etc/etcd/tls/etcd.crt \
+  --peer-key-file=/etc/etcd/tls/etcd.key
+Restart=on-failure
+RestartSec=5
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target

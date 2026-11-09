@@ -49,7 +49,7 @@ run = "editorconfig-checker"
 
 [tasks."lint:shell"]
 description = "shellcheck on scripts/*.sh and lab/**/*.sh"
-run = "shellcheck scripts/*.sh lab/*/scripts/*.sh lab/*/scenarios/*.sh lab/*/grafana/*.sh lab/*/postgres/*.sh lab/*/alertmanager/*.sh lab/overhead/*.sh lab/obi/*.sh"
+run = "shellcheck scripts/*.sh lab/*/scripts/*.sh lab/*/scenarios/*.sh lab/*/grafana/*.sh lab/*/postgres/*.sh lab/*/alertmanager/*.sh lab/overhead/*.sh lab/obi/*.sh lab/pgha/*.sh lab/pgha/files/*.sh"
 
 [tasks."lab:rules-test"]
 description = "unit-test the lab alert rules (vmalert-tool) and Alertmanager routing (throwaway container); needs docker"
@@ -136,6 +136,17 @@ run = "docker compose -p obenhub-stage3 -f lab/stage3/compose.yaml down -v"
 [tasks."lab:stage3:ps"]
 description = "show the stage 3 lab containers"
 run = "docker compose -p obenhub-stage3 -f lab/stage3/compose.yaml ps"
+
+[tasks."lab:pgha:pki"]
+description = "create the pgha lab CA and per-node certificates in lab/pgha/pki (gitignored; existing files are kept)"
+run = "lab/pgha/scripts/pki.sh"
+
+[tasks."lab:pgha:provision"]
+description = "install or converge etcd, PostgreSQL 18 and Patroni (TLS) on the pgha-1..3 VMs over ssh; idempotent; optional node names as arguments"
+usage = 'arg "[node]..." var=#true help "node names, default all three"'
+# provision.sh creates .env and the PKI only when they are missing; secrets of a
+# running cluster are never regenerated (a key missing from .env fails the run)
+run = "lab/pgha/scripts/provision.sh ${usage_node:-}"
 
 [tasks."lab:stage3:scenario"]
 description = "run one stage 3 fault scenario against the running lab (lab/stage3/scenarios/<name>.sh); appends to lab/stage3/results/runs.jsonl"

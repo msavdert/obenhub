@@ -12,3 +12,5 @@ site/
 /lab/slice1/.env
 /lab/stage3/results/*.log
 /lab/slice1/results/*.log
+/lab/pgha/.env
+/lab/pgha/pki/

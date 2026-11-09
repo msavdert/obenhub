@@ -1,0 +1,121 @@
+# Patroni configuration for the pgha VMs, rendered per node by
+# scripts/provision.sh (@NAME@ placeholders) into /etc/patroni/config.yml
+# (0600 postgres; the Debian patroni.service reads that path).
+# Carried over from lab/stage3/postgres/patroni.yml (Patroni 4.1.5, adapted
+# from patroni/patroni v4.1.5 postgres0.yml, MIT): the DCS timings, the
+# initdb list, use_pg_rewind, use_slots and the parameter block are the same.
+# Sources read for what differs: Patroni docs "YAML Configuration Settings"
+# (etcd3 TLS keys, restapi, watchdog, authentication sslmode/sslrootcert) and
+# "Watchdog support".
+scope: pgha
+namespace: /service
+name: @NODE@
+
+restapi:
+  listen: 0.0.0.0:8008
+  connect_address: @IP@:8008
+  # HTTPS; unsafe endpoints (switchover, restart, reload, ...) need basic auth.
+  # Safe GET endpoints (/patroni, /primary, /metrics ...) stay open to the
+  # network, as the Collector will scrape them without a password.
+  certfile: /etc/patroni/tls/patroni.crt
+  keyfile: /etc/patroni/tls/patroni.key
+  cafile: /etc/patroni/tls/ca.crt
+  verify_client: none
+  authentication:
+    username: patroni
+    password: '@PATRONI_API_PASSWORD@'
+
+# patronictl (run as postgres with this file) verifies the REST API with the
+# lab CA and sends the restapi credentials above.
+ctl:
+  insecure: false
+  cacert: /etc/patroni/tls/ca.crt
+
+etcd3:
+  hosts: [@ETCD_HOSTS@]
+  protocol: https
+  cacert: /etc/patroni/tls/ca.crt
+  cert: /etc/patroni/tls/etcd-client.crt
+  key: /etc/patroni/tls/etcd-client.key
+
+# required: Patroni refuses to hold the leader key without a working watchdog
+# (Patroni docs, "Watchdog support"). The udev rule 60-patroni-watchdog.rules
+# gives the postgres group access to /dev/watchdog.
+watchdog:
+  mode: required
+  device: /dev/watchdog
+  safety_margin: 5
+
+bootstrap:
+  dcs:
+    ttl: 30
+    loop_wait: 10
+    retry_timeout: 10
+    # 16 MiB, same as lab/stage3 (see the comment there).
+    maximum_lag_on_failover: 16777216
+    # failsafe_mode stays off, as in lab/stage3.
+    postgresql:
+      use_pg_rewind: true
+      use_slots: true
+      # Everything non-local is hostssl; the plain "host" reject for postgres
+      # also covers non-TLS attempts. Members may use the superuser password
+      # (pg_rewind connects as postgres to the new leader); nobody else may.
+      pg_hba:
+        - local all postgres peer
+        # Patroni's replica checks (timeline, LSN) open a replication connection
+        # on the local socket (use_unix_socket_repl below) as replicator
+        - local replication replicator scram-sha-256
+        - hostssl replication replicator @SUBNET@ scram-sha-256
+@HBA_MEMBERS@
+        - host all postgres all reject
+        - hostssl all all @SUBNET@ scram-sha-256
+      parameters:
+        logging_collector: 'on'
+        log_destination: jsonlog
+        log_directory: /var/log/postgresql
+        log_filename: postgresql-%a.log
+        log_file_mode: '0644'
+        log_truncate_on_rotation: 'on'
+        log_lock_waits: 'on'
+        deadlock_timeout: 1s
+        log_min_duration_statement: 1000
+        track_io_timing: 'on'
+        hot_standby_feedback: 'off'
+        reserved_connections: 8
+        max_slot_wal_keep_size: 1GB
+        # see lab/stage3/postgres/patroni.yml for why 768MB
+        wal_keep_size: 768MB
+        shared_buffers: 128MB
+        timezone: UTC
+        log_timezone: UTC
+  initdb:
+    - encoding: UTF8
+    - data-checksums
+  post_bootstrap: /etc/patroni/post-bootstrap.sh
+
+postgresql:
+  listen: 0.0.0.0:5432
+  connect_address: @IP@:5432
+  data_dir: /var/lib/postgresql/@PG_MAJOR@/patroni
+  bin_dir: /usr/lib/postgresql/@PG_MAJOR@/bin
+  pgpass: /var/lib/postgresql/.pgpass-patroni
+  basebackup:
+    - checkpoint: fast
+  use_unix_socket: true
+  use_unix_socket_repl: true
+  authentication:
+    replication:
+      username: replicator
+      password: '@REPLICATOR_PASSWORD@'
+      sslmode: verify-full
+      sslrootcert: /etc/patroni/tls/ca.crt
+    superuser:
+      username: postgres
+      password: '@POSTGRES_PASSWORD@'
+      sslmode: verify-full
+      sslrootcert: /etc/patroni/tls/ca.crt
+  parameters:
+    unix_socket_directories: /var/run/postgresql
+    ssl: 'on'
+    ssl_cert_file: /etc/patroni/tls/postgres.crt
+    ssl_key_file: /etc/patroni/tls/postgres.key
