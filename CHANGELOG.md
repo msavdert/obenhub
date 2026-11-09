@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.9.0](https://github.com/msavdert/obenhub/compare/v0.8.0...v0.9.0) (2026-11-09)
+
+
+### Features
+
+* **lab:** per-node Collectors and an mTLS gateway backend for the pgha VMs ([8c8bd3f](https://github.com/msavdert/obenhub/commit/8c8bd3f625981b9538f2e5f48d9c04ccd37c7db2))
+
 ## [0.8.0](https://github.com/msavdert/obenhub/compare/v0.7.0...v0.8.0) (2026-11-09)
 
 
