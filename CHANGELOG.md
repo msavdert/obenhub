@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.10.0](https://github.com/msavdert/obenhub/compare/v0.9.0...v0.10.0) (2026-11-10)
+
+
+### Features
+
+* **lab:** make CollectorAbsent per Collector ([9cf6e60](https://github.com/msavdert/obenhub/commit/9cf6e60cc4cfbb4f4ed2f9e4524f571f9edbf160))
+
 ## [0.9.0](https://github.com/msavdert/obenhub/compare/v0.8.0...v0.9.0) (2026-11-09)
 
 
