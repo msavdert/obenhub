@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.0](https://github.com/msavdert/obenhub/compare/v0.11.0...v0.12.0) (2026-11-10)
+
+
+### Features
+
+* **lab:** carry the stage 3 fault scenarios over to the pgha VMs ([13a02f5](https://github.com/msavdert/obenhub/commit/13a02f520660aa5857498bafc6e23348d30f9f89))
+
 ## [0.11.0](https://github.com/msavdert/obenhub/compare/v0.10.0...v0.11.0) (2026-11-10)
 
 
