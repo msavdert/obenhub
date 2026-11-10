@@ -1,4 +1,4 @@
-# One test group per host rule: HostFilesystemSpaceLow, HostMemoryAvailableLow.
+# One test group per host rule: HostFilesystemSpaceLow, HostMemoryAvailableLow, HostRebooted.
 # Series shapes follow what the pgha node Collectors emit (checked against
 # VictoriaMetrics on 2026-11-10): system.filesystem.usage with state free,
 # used, reserved; the two memory metrics in bytes. No inventory is needed:
@@ -113,4 +113,32 @@ tests:
       - eval_time: 9m
         groupname: host
         alertname: HostMemoryAvailableLow
+        exp_alerts: []
+
+  - name: uptime resets to 10 s after 5 m, fires for that host only, resolves once uptime is above 300 s
+    interval: 15s
+    input_series:
+      # pgha-1 resets at sample 20 (5 m); uptime counts in seconds, one sample per 15 s
+      - series: 'system.uptime{host.name="pgha-1",service.instance.id="pgha-1"}'
+        values: '100000+15x19 10+15x80'
+      - series: 'system.uptime{host.name="pgha-2",service.instance.id="pgha-2"}'
+        values: '200000+15x100'
+    alert_rule_test:
+      - eval_time: 4m
+        groupname: host
+        alertname: HostRebooted
+        exp_alerts: []
+      - eval_time: 6m
+        groupname: host
+        alertname: HostRebooted
+        exp_alerts:
+          - exp_labels:
+              host.name: pgha-1
+              service.instance.id: pgha-1
+              severity: warning
+            exp_annotations:
+              summary: 'pgha-1 booted 1m 10s ago'
+      - eval_time: 12m
+        groupname: host
+        alertname: HostRebooted
         exp_alerts: []

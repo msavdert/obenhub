@@ -60,7 +60,8 @@ The host pack (`lab/packs/host/rules.yml`, tests with `mise run
 lab:host:rules-test`) reads the series of the Collector's hostmetrics receiver
 (`host_metrics` in the config). The two
 memory metrics it needs are off by default and enabled in
-`files/otelcol.yaml.tmpl`.
+`files/otelcol.yaml.tmpl`, as is the `system` scraper for `system.uptime`
+(`HostRebooted`, uptime below 300 s).
 
 ## Fault scenarios
 
@@ -83,19 +84,85 @@ stage 3; `scenarios/lib.sh` is the adapter that reaches the nodes over ssh.
 | `replay-paused` | `pg_wal_replay_pause()` on one replica, cluster paused |
 | `cluster-paused` | `patronictl pause` |
 | `pending-restart` | `patronictl edit-config` of `shared_buffers` |
+| `network-partition` | nftables on the leader and on the other two nodes drops all traffic between the leader and them (ssh and OTLP stay open) |
+| `network-partition-replica` | the same on the first replica |
 | `switchover` | `patronictl switchover` |
 | `control` | no fault, 10 minutes of load |
 
-The two nftables scenarios add one table, `inet obenhub_fault`, on the victim
+The nftables scenarios add one table, `inet obenhub_fault`, on the victim
 and delete it on revert; a left-over table fails the next run's precondition.
 Patroni is never stopped: its hardware watchdog (mode `required`) resets the
 VM. Client load is `obenhub-load.service` on every node (`files/load.sh`): the
 same pgbench pattern as stage 3, through the local socket, and only while the
 node is the primary.
 
-The full suite of twelve scenarios passed on 2026-11-10 (`results/runs.jsonl`,
+The full suite of twelve scenarios (before the two partition scenarios) passed on 2026-11-10 (`results/runs.jsonl`,
 `suite-2`) with no unexpected alert. `filesystem-filling` was detected after
 179 s and `memory-pressure` after 183 s; in `memory-pressure` the replica did
 not reboot and `oom_kill` stayed 0, so the OOM settings of the hog unit were
 not exercised. In the earlier ten-scenario run, `quorum-lost` demoted the
 leader without a watchdog reset (boot IDs of the three VMs unchanged).
+
+### Network partition (runs 2026-11-10, `results/runs.jsonl`)
+
+Baselines: "from the partition" is `extra.partition_start`; `seconds_to_detect`
+and the alert times are from the start of inject (a few seconds earlier).
+
+The table `inet obenhub_fault` is installed on all three nodes: on the
+isolated node it drops packets from and to the two peers, on each peer it
+drops packets from and to the isolated node. The first version had it on the
+isolated node only. nftables rules do not survive a reset, and in the
+suite-3 `network-partition` row (21:25, `pass=false`, kept in `runs.jsonl`) the
+reset of the old leader pgha-1 ended the partition: it came back, won the
+leader race again (timeline 10 to 11, last writable sample after the reboot, no
+other node writable, no `pg_rewind`) and the run failed with "poller never
+saw a new writable leader". The two earlier smoke runs had the majority
+promote first, so that outcome is a race. The proof reads the counters of all
+three tables and requires drops on every output chain; input chains are
+recorded only, since once all three tables are in place each side drops what
+it sends. The counters are read again in revert (`nft_drops_at_revert`).
+The `extra` fields of these rows changed between script versions (the 21:25
+row has `nft_drops_in`/`nft_drops_out`, later rows `nft_drops` per node).
+
+Suite-3 (2026-11-10, 14 scenarios) passed the first ten scenarios and
+failed at `network-partition` (the 21:25 row above). After the table moved to
+the peers as well, the remaining four ran on their own (rows from 21:37); after
+the last audit fixes `network-partition`, `network-partition-replica` and
+`control` ran again (rows from 22:24). The numbers below are from those last
+rows.
+
+`network-partition` (row of 22:24): pgha-1 was the leader (timeline 13);
+pgha-2 became leader (timeline 14). The old leader's VM was reset: Patroni's
+"Demoting self" line is 12.4 s after the partition in VictoriaLogs and the new
+boot's first kernel line 12.3 s after that. The most likely cause is the
+hardware watchdog (assumption, not read from Patroni source); hypothesis for
+why the demotion did not finish: dropped packets make every etcd call wait for
+its timeout, so the HA loop overruns the watchdog timeout (ttl 30 = loop_wait
+10 + 2 * retry_timeout 10), whereas `quorum-lost`, where connections are
+refused at once, demoted without a reset. A first attempt outside
+`runs.jsonl` (VictoriaLogs, 18:47:50 to 18:48:23) had the same sequence. The
+poller (383 samples over three nodes, about one per second per node) saw the
+old leader last writable at 22:24:55.6 and pgha-2 first writable at 22:25:07.2,
+11.7 s apart, and no sample with two writable nodes; `primary_gap_seconds`
+from `patroni_primary` read 0 (15 s steps hide gaps of this size). pgha-1 had
+7 error samples and a longest blind window of 14.2 s; the others none.
+`pg_rewind` ran on the old leader (3 journal lines). Drops (in/out) at the
+proof: pgha-1 16/861, pgha-2 0/71, pgha-3 0/25; at revert, when pgha-1's own
+table was gone with its reset, pgha-2 280/804 and pgha-3 280/215: the peers
+dropped what the rebooted node sent, so the partition outlived the reset.
+`seconds_to_detect` 91.3 s (`PatroniFailoverHappened`, `HostRebooted` for
+pgha-1), `seconds_to_resolve` 297.1 s, no unexpected alert. The branch without
+a reset has never run.
+
+`network-partition-replica` (row of 22:31): pgha-1 isolated, leader pgha-2
+and timeline 14 unchanged, no VM rebooted (the watchdog is armed on the leader
+only: an assumption these runs' boot ids are consistent with, not proof).
+`EtcdNoLeader`, `StandbyNotStreaming`, `PatroniReplicaNotEligible` (the leader
+keeps writing while the replica receives nothing) and `PhysicalSlotInactive`
+for the replica's slot on the leader all fired; the last one sets
+`seconds_to_detect`, 304.1 s. In the 21:44 row they came 115, 194, 222 and
+300 s after the start of inject (VictoriaLogs). All resolved within 101.3 s of
+the revert, no unexpected alert. Drops at revert: pgha-1 35/2402, pgha-2
+0/3044, pgha-3 0/873. Attempts outside `runs.jsonl` (VictoriaLogs and
+VictoriaMetrics, 2026-11-10 19:11 to 19:23) were reverted at about 3 minutes
+or lacked the last two alerts in EXPECT; the script comments name them.

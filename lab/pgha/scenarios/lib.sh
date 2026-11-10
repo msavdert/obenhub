@@ -118,11 +118,167 @@ component_versions() {
 
 lab_precondition() {
   local n
+  # first, so a left-over partition is named as such instead of as "etcd not healthy"
+  for n in "${NODES[@]}"; do
+    [ "$(fault_table_state "$n")" = absent ] || { PRE_ERR="nftables table obenhub_fault left over on $n, or $n unreachable"; return 1; }
+  done
   wait_until 120 "etcd healthy (three members, one leader)" etcd_healthy || { PRE_ERR="etcd not healthy"; return 1; }
   wait_until 180 "cluster healthy (one leader, two streaming replicas)" cluster_healthy || { PRE_ERR="cluster not healthy"; return 1; }
   not_paused || { PRE_ERR="cluster is paused"; return 1; }
   wait_until 30 "load unit active on every node and writing on the primary" load_running || { PRE_ERR="load unit not running on every node, or the primary not written in 90 s"; return 1; }
-  for n in "${NODES[@]}"; do
-    [ "$(fault_table_state "$n")" = absent ] || { PRE_ERR="nftables table obenhub_fault left over on $n, or $n unreachable"; return 1; }
+}
+
+# --- network partition helpers (network-partition*.sh) ----------------------
+# boot_id NODE: the node's boot id, empty (and status 1) when ssh fails. An
+# empty id is "unknown", never "rebooted".
+boot_id() { rn "$1" cat /proc/sys/kernel/random/boot_id; }
+# boot_id_retry NODE: boot_id, retried for up to 90 s (a node may be booting)
+boot_id_retry() {
+  local t0 b; t0=$(date +%s)
+  while :; do
+    b=$(boot_id "$1" 2>/dev/null) && [ -n "$b" ] && { echo "$b"; return 0; }
+    [ $(($(date +%s) - t0)) -lt 90 ] || return 1
+    sleep 3
   done
+}
+# probe_from NODE IP PORT: tcp connect from the node, 3 s limit. Status 0
+# connected, 1 not connected (refused, timeout), 2 inconclusive (ssh failed,
+# status 255). The bash -c program runs on the node, not in this shell.
+# shellcheck disable=SC2016
+probe_from() {
+  local rc
+  ssh -n -o BatchMode=yes -o ConnectTimeout=3 -o ServerAliveInterval=2 -o ServerAliveCountMax=2 "$1" \
+    "sudo $(printf '%q ' timeout 3 bash -c 'exec 3<>/dev/tcp/$0/$1' "$2" "$3")" >/dev/null 2>&1
+  rc=$?
+  case $rc in 0) return 0 ;; 255) return 2 ;; *) return 1 ;; esac
+}
+# probe_box IP PORT: the same from this box (0 connected, 1 not)
+# shellcheck disable=SC2016
+probe_box() { timeout 3 bash -c 'exec 3<>/dev/tcp/$0/$1' "$1" "$2" 2>/dev/null; }
+# run_probes WANT SPEC...: SPEC is FROM,IP,PORT (FROM a node name or "box"),
+# WANT is open or closed. All probes run in parallel. Adds to FAILS and
+# returns 1 when one is not as wanted or inconclusive.
+run_probes() {
+  local want=$1 d s i=0 from ip port rc bad=0 pids=() p
+  shift
+  d=$(mktemp -d)
+  for s in "$@"; do
+    i=$((i + 1))
+    IFS=, read -r from ip port <<<"$s"
+    ( if [ "$from" = box ]; then probe_box "$ip" "$port"; r=$?; [ "$r" -eq 0 ] || r=1; else probe_from "$from" "$ip" "$port"; r=$?; fi; echo "$r" >"$d/$i" ) &
+    pids+=("$!")
+  done
+  # not a bare wait: a caller may have background jobs of its own (the poller)
+  for p in "${pids[@]}"; do wait "$p"; done
+  i=0
+  for s in "$@"; do
+    i=$((i + 1)); rc=$(cat "$d/$i" 2>/dev/null)
+    case "$want:$rc" in
+      open:0 | closed:1) ;;
+      *:2 | *:) FAILS+=("probe $s inconclusive (ssh failed)"); bad=1 ;;
+      open:1) FAILS+=("probe $s: not reachable, expected open"); bad=1 ;;
+      closed:0) FAILS+=("probe $s: reachable, expected dropped"); bad=1 ;;
+    esac
+  done
+  rm -rf "$d"
+  return "$bad"
+}
+# fault_counters NODE: prints "in=N out=N", the packet counters of the two chains
+fault_counters() {
+  rn "$1" nft list table inet obenhub_fault | awk '/^[[:space:]]*chain /{c=$2} /counter packets/{for(i=1;i<=NF;i++) if($i=="packets") p[c]=$(i+1)} END{printf "in=%d out=%d\n", p["in"], p["out"]}'
+}
+# isolate_node NODE: nftables table "inet obenhub_fault" on NODE dropping, in
+# both hooks, all packets from and to the other two nodes' addresses, and the
+# same table on each of the two peers dropping packets from and to NODE's
+# address (a real partition survives a reset of one side: the victim's table
+# disappears with a reset, the peers' tables keep it isolated until revert;
+# suite-3, 2026-11-10, showed that a victim-only table ends with the reset).
+# Every other address (ssh from this box, OTLP to the gateway) stays open.
+# Before: positive probes (node and peers reach each other on 2380 and 5432,
+# this box reaches all three on 22). After: this box reaches the node on 22
+# first, then the same probes in both directions must fail (connect failure,
+# not an ssh failure), this box reaches all three again, and both chains of
+# the victim's table and the output chain of each peer's table must have dropped
+# packets. Sets PEERS, PART_T and
+# PART_EPOCH (taken right after the victim's table is in place), CNT_IN and
+# CNT_OUT (the victim's) and DROPS_JSON ({node: {in, out}} for all three).
+# IPv4 only (ip saddr/daddr): the lab nodes talk over IPv4 (nodes.sh, etcd_eps).
+isolate_node() {
+  local v=$1 n peers="" p vip c specs_closed=() specs_open=() ci co
+  PEERS=()
+  vip=$(node_ip "$v")
+  for n in "${NODES[@]}"; do
+    [ "$n" = "$v" ] && continue
+    PEERS+=("$n"); p=$(node_ip "$n"); peers="$peers${peers:+, }$p"
+    specs_closed+=("$v,$p,2380" "$v,$p,5432" "$n,$vip,2380" "$n,$vip,5432")
+  done
+  for n in "${NODES[@]}"; do specs_open+=("box,$(node_ip "$n"),22"); done
+  run_probes open "${specs_closed[@]}" "${specs_open[@]}" || return 1
+  fault_table_add "$v" <<NFT || return 1
+table inet obenhub_fault {
+  chain in {
+    type filter hook input priority 0; policy accept;
+    ip saddr { $peers } counter drop
+  }
+  chain out {
+    type filter hook output priority 0; policy accept;
+    ip daddr { $peers } counter drop
+  }
+}
+NFT
+  PART_T=$(now_ts); PART_EPOCH=$(date +%s)
+  for n in "${PEERS[@]}"; do
+    fault_table_add "$n" <<NFT || return 1
+table inet obenhub_fault {
+  chain in {
+    type filter hook input priority 0; policy accept;
+    ip saddr $vip counter drop
+  }
+  chain out {
+    type filter hook output priority 0; policy accept;
+    ip daddr $vip counter drop
+  }
+}
+NFT
+  done
+  run_probes open "box,$vip,22" || return 1
+  run_probes closed "${specs_closed[@]}" || return 1
+  run_probes open "${specs_open[@]}" || return 1
+  DROPS_JSON="{}"
+  for n in "$v" "${PEERS[@]}"; do
+    c=$(fault_counters "$n") || { FAILS+=("cannot read the nft counters on $n"); return 1; }
+    ci=${c#in=}; ci=${ci%% *}; co=${c##*out=}
+    # Every output chain must have dropped packets. The input chains are recorded
+    # only: once all three tables are in place each side drops what it sends, so
+    # an input chain counts just the moments between the adds (or, on a peer,
+    # what a reset victim sends after its own table is gone).
+    [ "${co:-0}" -gt 0 ] 2>/dev/null || { FAILS+=("nft counters on $n: out=$co, the output chain must have dropped packets"); return 1; }
+    DROPS_JSON=$(jq -c --arg n "$n" --argjson i "$ci" --argjson o "$co" '. + {($n): {in: $i, out: $o}}' <<<"$DROPS_JSON")
+    [ "$n" = "$v" ] && { CNT_IN=$ci; CNT_OUT=$co; }
+  done
+  log "partition verified: $v and ${PEERS[*]} cannot reach each other on 2380 and 5432 (drops $DROPS_JSON), the box reaches all three nodes"
+}
+# clear_fault_tables: delete the table on every node, retrying while a node is
+# still booting. Used by revert only: the precondition (lab_precondition)
+# already refuses a left-over table, so inject does not clear.
+clear_fault_tables() {
+  local n
+  local rc=0
+  # every node is tried even when one fails: a victim still booting must not
+  # leave the peers' tables, and so the partition, in place
+  for n in "${NODES[@]}"; do wait_until 180 "fault table cleared on $n" fault_table_del "$n" || rc=1; done
+  return "$rc"
+}
+# drops_now: the nft drop counters of every node that still has the table, as
+# JSON {node: {in, out}}; nodes without the table (a reset victim) or unreachable
+# are left out. Read in revert, before the tables are deleted.
+drops_now() {
+  local n c ci co j="{}"
+  for n in "${NODES[@]}"; do
+    c=$(fault_counters "$n" 2>/dev/null) || continue
+    ci=${c#in=}; ci=${ci%% *}; co=${c##*out=}
+    [[ $ci =~ ^[0-9]+$ && $co =~ ^[0-9]+$ ]] || continue
+    j=$(jq -c --arg n "$n" --argjson i "$ci" --argjson o "$co" '. + {($n): {in: $i, out: $o}}' <<<"$j")
+  done
+  printf '%s' "$j"
 }

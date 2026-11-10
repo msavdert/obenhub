@@ -124,6 +124,10 @@ receivers:
       disk: {}
       network: {}
       processes: {}
+      # system.uptime (gauge, seconds) is on by default, internal/scraper/
+      # systemscraper/metadata.yaml at tag v0.164.0 of
+      # opentelemetry-collector-contrib. HostRebooted reads it.
+      system: {}
 
   # Multiple filter options are combined with AND (journaldreceiver README, "Multiple
   # filtering options"), so units and the kernel ring buffer are two receivers.

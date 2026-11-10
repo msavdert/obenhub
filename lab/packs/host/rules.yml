@@ -51,3 +51,19 @@ groups:
           severity: warning
         annotations:
           summary: 'Less than 10 % of memory is available on {{ (index $labels "host.name") }}'
+
+      # The host booted less than 5 m ago: a reset of any kind (watchdog, power,
+      # operator). No "for": system.uptime is a continuous series; the expression
+      # limits the alert to the first 5 m after a boot, so the alert is itself the
+      # event. The window is above the time from boot to the
+      # node Collector's first scrape (lab value; in the network-partition run
+      # the alert fired about a minute after the boot, the boot-to-first-scrape
+      # time itself was not measured) and short enough to resolve before the next
+      # fault run. A host whose Collector is down is CollectorAbsent's case.
+      - alert: HostRebooted
+        expr: |
+          min by (host.name, service.instance.id) (system.uptime) < 300
+        labels:
+          severity: warning
+        annotations:
+          summary: '{{ (index $labels "host.name") }} booted {{ $value | humanizeDuration }} ago'
