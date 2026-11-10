@@ -304,10 +304,16 @@ groups:
 
       # A physical slot without a consumer keeps WAL until
       # max_slot_wal_keep_size. Primary only: Patroni keeps member slots on
-      # replicas too, and those are inactive by design. Lab threshold.
+      # replicas too, and those are inactive by design. Lab threshold. An
+      # invalidated slot retains no WAL and has its own alert
+      # (ReplicationSlotInvalidated, below), so it is excluded.
       - alert: PhysicalSlotInactive
         expr: |
-          postgresql.replication_slot.inactive_seconds{slot_type="physical"} > 120
+          (
+            postgresql.replication_slot.inactive_seconds{slot_type="physical"} > 120
+              unless on(service.instance.id, slot_name)
+            postgresql.replication_slot.invalidated == 1
+          )
             and on(service.instance.id)
           postgresql.recovery.active == 0
         for: 1m
@@ -315,6 +321,17 @@ groups:
           severity: warning
         annotations:
           summary: 'Physical slot {{ $labels.slot_name }} on {{ (index $labels "service.instance.id") }} has been inactive for {{ $value | humanizeDuration }} (lab threshold)'
+
+      # Any slot, physical or logical, on any node. Lab scenario slot-invalidated (slice1): an
+      # unused physical slot falls more than max_slot_wal_keep_size behind and
+      # a CHECKPOINT removes its WAL (wal_status lost, reason wal_removed).
+      - alert: ReplicationSlotInvalidated
+        expr: postgresql.replication_slot.invalidated == 1
+        for: 30s
+        labels:
+          severity: critical
+        annotations:
+          summary: 'Slot {{ $labels.slot_name }} on {{ (index $labels "service.instance.id") }} is invalidated ({{ $labels.invalidation_reason }})'
 
       # Covers the pack and postgresqlreceiver's database.count (a canary for the
       # receiver). Every pack query returns at least one row on every node, or

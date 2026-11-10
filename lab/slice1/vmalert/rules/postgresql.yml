@@ -106,17 +106,6 @@ groups:
         annotations:
           summary: 'Logical slot {{ $labels.slot_name }} on {{ (index $labels "service.instance.id") }} is inactive or far behind and retains WAL'
 
-      # Any slot, physical or logical. No lab scenario: invalidation needs
-      # max_slot_wal_keep_size exceeded plus a checkpoint on a deliberately
-      # stalled slot, too slow for the harness. Unit test only.
-      - alert: ReplicationSlotInvalidated
-        expr: postgresql.replication_slot.invalidated == 1
-        for: 30s
-        labels:
-          severity: critical
-        annotations:
-          summary: 'Slot {{ $labels.slot_name }} on {{ (index $labels "service.instance.id") }} is invalidated ({{ $labels.invalidation_reason }})'
-
   # PgBouncer (stage 2). SHOW POOLS gives the oldest waiting client as whole
   # seconds (maxwait) plus microseconds (maxwait_us); the sum is the wait.
   - name: pgbouncer

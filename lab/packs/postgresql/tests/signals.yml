@@ -1,6 +1,6 @@
 # Tests for the shared PostgreSQL pack rules (lab/slice1 and lab/stage3 use them).
 # Wraparound, idle in transaction, blocked sessions, deadlocks, requested
-# checkpoints and the inactive physical slot. Wraparound has unit tests only:
+# checkpoints, the inactive physical slot and invalidated slots. Wraparound has unit tests only:
 # the lab cannot reach those ages.
 rule_files:
   - ../rules.yml
@@ -238,6 +238,61 @@ tests:
               slot_type: physical
             exp_annotations:
               summary: 'Physical slot spare on pg-primary has been inactive for 2m 30s (lab threshold)'
+
+  - name: an inactive but invalidated physical slot does not fire PhysicalSlotInactive
+    interval: 15s
+    input_series:
+      - series: 'postgresql.replication_slot.inactive_seconds{service.instance.id="pg-primary",slot_name="gone",slot_type="physical"}'
+        values: '500x60'
+      - series: 'postgresql.replication_slot.invalidated{service.instance.id="pg-primary",slot_name="gone",slot_type="physical",invalidation_reason="wal_removed"}'
+        values: '1x60'
+      # same state, not invalidated: still fires
+      - series: 'postgresql.replication_slot.inactive_seconds{service.instance.id="pg-primary",slot_name="spare",slot_type="physical"}'
+        values: '500x60'
+      - series: 'postgresql.replication_slot.invalidated{service.instance.id="pg-primary",slot_name="spare",slot_type="physical",invalidation_reason=""}'
+        values: '0x60'
+      - series: 'postgresql.recovery.active{service.instance.id="pg-primary"}'
+        values: '0x60'
+    alert_rule_test:
+      - eval_time: 4m
+        groupname: postgresql
+        alertname: PhysicalSlotInactive
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              service.instance.id: pg-primary
+              slot_name: spare
+              slot_type: physical
+            exp_annotations:
+              summary: 'Physical slot spare on pg-primary has been inactive for 8m 20s (lab threshold)'
+
+  - name: an invalidated slot is critical, with the reason; a valid slot is not
+    interval: 15s
+    input_series:
+      - series: 'postgresql.replication_slot.invalidated{service.name="postgresql",service.namespace="obenhub-lab",db.cluster.name="slice1",service.instance.id="pg-primary",slot_name="app_sub",slot_type="logical",invalidation_reason="wal_removed"}'
+        values: '0x8 1x52'
+      - series: 'postgresql.replication_slot.invalidated{service.name="postgresql",service.namespace="obenhub-lab",db.cluster.name="slice1",service.instance.id="pg-primary",slot_name="standby1",slot_type="physical",invalidation_reason=""}'
+        values: '0x60'
+    alert_rule_test:
+      - eval_time: 1m
+        groupname: postgresql
+        alertname: ReplicationSlotInvalidated
+        exp_alerts: []
+      - eval_time: 5m
+        groupname: postgresql
+        alertname: ReplicationSlotInvalidated
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              service.instance.id: pg-primary
+              service.name: postgresql
+              service.namespace: obenhub-lab
+              db.cluster.name: slice1
+              slot_name: app_sub
+              slot_type: logical
+              invalidation_reason: wal_removed
+            exp_annotations:
+              summary: Slot app_sub on pg-primary is invalidated (wal_removed)
 
   # idle_age is 200 from 3m15s; the critical needs three samples (the old 30s for) and appears at 3m45s.
   - name: idle in transaction tiers - escalation, exactly one tier at every evaluation

@@ -72,13 +72,13 @@ Extends `lab/slice1` in place (same Compose project, harness and
       `pg_subscription`, `pg_stat_subscription`,
       `pg_stat_subscription_stats`); `postgresqlreceiver` v0.164.0 has none
       of these
-- [x] Alert rules with unit tests, each fired by one fault scenario except
-      the last:
+- [x] Alert rules with unit tests, each fired by one fault scenario:
       - apply errors: an `insert_exists` conflict
       - subscription enabled but not streaming: the `logical` network cut
       - logical slot retaining WAL: subscription disabled while the
         publisher writes
-      - slot invalidated: unit test only, no scenario (see the rule)
+      - slot invalidated: a physical slot pushed past `max_slot_wal_keep_size`,
+        then a checkpoint (`slot-invalidated`)
 - [x] Dashboard panels for slots, subscription state and error counters
 - [x] No-fault control with the subscriber included
 - [x] PgBouncer 1.26.1 (CloudNativePG image) in front of database `app`,
