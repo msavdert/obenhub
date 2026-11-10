@@ -17,7 +17,7 @@ revert() {
   ptl edit-config --force -s postgresql.parameters.shared_buffers=128MB >/dev/null || return 1
   if ! wait_until 90 "pending restart cleared by setting the value back" cluster_healthy; then
     log "pending restart remained after the value was set back; restarting the flagged members"
-    ptl restart stage3 --pending --force >/dev/null || return 1
+    ptl restart "$CLUSTER" --pending --force >/dev/null || return 1
     wait_until 180 "cluster healthy" cluster_healthy
   fi
 }

@@ -11,8 +11,8 @@ inject() {
   R=$(first_replica) && [ -n "$R" ] || return 1
   L=$(leader_name) && [ -n "$L" ] || return 1
   EXPECT=("ReplayBacklog:$R")
+  MAINT=1 # before the call: the pause may take effect even when --wait fails
   ptl pause --wait >/dev/null || return 1
-  MAINT=1
   psql_n "$R" -c "SELECT pg_wal_replay_pause()" >/dev/null || return 1
   PAUSED=1
   psql_n "$L" -c "DROP TABLE IF EXISTS s3_scratch; CREATE TABLE s3_scratch AS SELECT g, md5(g::text) || md5((g+1)::text) AS pad FROM generate_series(1, 1500000) g;" >/dev/null || return 1
@@ -34,7 +34,7 @@ revert() {
   local rc=0
   if [ "$PAUSED" = 1 ]; then psql_n "$R" -c "SELECT pg_wal_replay_resume()" >/dev/null || rc=1; fi
   if [ "$MAINT" = 1 ]; then ptl resume --wait >/dev/null || rc=1; fi
-  psql_n "$(leader_name || echo "$L")" -c "DROP TABLE IF EXISTS s3_scratch" >/dev/null 2>&1
+  psql_n "$(leader_or "$L")" -c "DROP TABLE IF EXISTS s3_scratch" >/dev/null 2>&1
   wait_until 300 "cluster healthy again" cluster_healthy || rc=1
   return $rc
 }

@@ -56,4 +56,35 @@ own Collector, so a stopped node Collector raises only its alert, and a stopped
 gateway (which carries every node's telemetry) only the gateway's.
 `mise run lab:pgha:rules-test` covers these cases.
 
-The fault scenarios of stage 3 are not ported yet.
+## Fault scenarios
+
+`mise run lab:pgha:scenario <name>` runs one scenario against the VMs;
+`mise run lab:pgha:scenarios` runs all of them, `control` last. Each result is
+one line in `results/runs.jsonl`, with the same fields as
+`lab/stage3/results/runs.jsonl` (component versions, read from the nodes, sit
+under `images`). The machinery is `lab/scenarios/lib-core.sh`, shared with
+stage 3; `scenarios/lib.sh` is the adapter that reaches the nodes over ssh.
+
+| Scenario | Fault |
+| --- | --- |
+| `quorum-lost` | `systemctl stop etcd` on pgha-2 and pgha-3 |
+| `etcd-member-down` | `systemctl stop etcd` on one non-leader member |
+| `etcd-leader-changes` | `etcdctl move-leader` four times, 15 s apart |
+| `patroni-down` | nftables drops the Collector's scrape of Patroni `:8008` on one replica |
+| `replica-not-eligible` | nftables drops tcp 5432 between one replica and the leader, 100 MB written |
+| `replay-paused` | `pg_wal_replay_pause()` on one replica, cluster paused |
+| `cluster-paused` | `patronictl pause` |
+| `pending-restart` | `patronictl edit-config` of `shared_buffers` |
+| `switchover` | `patronictl switchover` |
+| `control` | no fault, 10 minutes of load |
+
+The two nftables scenarios add one table, `inet obenhub_fault`, on the victim
+and delete it on revert; a left-over table fails the next run's precondition.
+Patroni is never stopped: its hardware watchdog (mode `required`) resets the
+VM. Client load is `obenhub-load.service` on every node (`files/load.sh`): the
+same pgbench pattern as stage 3, through the local socket, and only while the
+node is the primary.
+
+The full suite passed on 2026-11-10 (`results/runs.jsonl`): all ten
+scenarios with no unexpected alert. In `quorum-lost` the leader demoted
+without a watchdog reset (boot IDs of the three VMs unchanged).

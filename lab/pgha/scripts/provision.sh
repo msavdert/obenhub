@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Provision the pgha VMs from this box over ssh: etcd 3.6 (TLS), PostgreSQL
 # 18 and Patroni 4 (PGDG packages), and the per-node otelcol-contrib that
-# pushes to the gateway of lab/pgha/mon.
+# pushes to the gateway of lab/pgha/mon, plus the fault-scenario support
+# (nftables, client load unit).
 # Usage: provision.sh [node...]   (default: all of lab/pgha/nodes.sh)
 # Needs lab/pgha/.env (gen-env.sh, run here if missing) and lab/pgha/pki
 # (pki.sh, run every time; it only adds missing files). Idempotent: files are
@@ -395,6 +396,36 @@ phase_collector() {
   fi
 }
 for n in $want; do phase_collector "$n"; done
+
+# Fault-scenario support: nftables (the scenarios add and delete the table
+# "inet obenhub_fault" themselves; Debian's default /etc/nftables.conf is
+# left alone) and the client load unit (files/load.sh), which writes through
+# the local socket only while the node is the primary. The unit is restarted
+# only when the script or the unit file changed.
+phase_scenarios() {
+  local n="$1" changed=0
+  if ! rn "$n" dpkg-query -W -f '${Status}' nftables 2>/dev/null | grep -q 'install ok installed'; then
+    rn "$n" env DEBIAN_FRONTEND=noninteractive apt-get update -qq
+    rn "$n" env DEBIAN_FRONTEND=noninteractive apt-get install -y -qq nftables
+    log "$n" "installed nftables"
+  fi
+  CHANGED=0
+  putf "$n" /usr/local/bin/obenhub-load.sh 755 root:root "$files/load.sh"
+  putf "$n" /etc/systemd/system/obenhub-load.service 644 root:root "$files/obenhub-load.service"
+  changed=$CHANGED
+  if [ "$changed" = 1 ]; then rn "$n" systemctl daemon-reload; fi
+  if [ "$(rn "$n" systemctl is-enabled obenhub-load 2>/dev/null || true)" != enabled ]; then
+    rn "$n" systemctl enable obenhub-load >/dev/null 2>&1
+  fi
+  if [ "$(rn "$n" systemctl is-active obenhub-load || true)" != active ]; then
+    rn "$n" systemctl start obenhub-load
+    log "$n" "obenhub-load started"
+  elif [ "$changed" = 1 ]; then
+    rn "$n" systemctl restart obenhub-load
+    log "$n" "obenhub-load restarted (changed)"
+  fi
+}
+for n in $want; do phase_scenarios "$n"; done
 
 first="${want%% *}"
 for _ in $(seq 1 90); do

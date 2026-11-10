@@ -1,0 +1,15 @@
+# Installed by scripts/provision.sh. Client load for the fault scenarios; see
+# load.sh.
+[Unit]
+Description=obenhub pgha client load (writes only while this node is primary)
+After=patroni.service
+
+[Service]
+User=postgres
+ExecStart=/usr/local/bin/obenhub-load.sh
+Restart=always
+RestartSec=5
+MemoryMax=256M
+
+[Install]
+WantedBy=multi-user.target

@@ -17,7 +17,7 @@ inject() {
 revert() {
   local rc=0
   if [ "$CUT" = 1 ]; then docker network connect --ip "$(repl_ip "$R")" "$REPL_NET" "$(cname "$R")" || rc=1; fi
-  [ -n "$L" ] && psql_n "$(leader_name || echo "$L")" -c "DROP TABLE IF EXISTS s3_scratch" >/dev/null 2>&1
+  [ -n "$L" ] && psql_n "$(leader_or "$L")" -c "DROP TABLE IF EXISTS s3_scratch" >/dev/null 2>&1
   wait_until 300 "cluster healthy again" cluster_healthy || rc=1
   return $rc
 }

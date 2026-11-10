@@ -49,7 +49,7 @@ run = "editorconfig-checker"
 
 [tasks."lint:shell"]
 description = "shellcheck on scripts/*.sh and lab/**/*.sh"
-run = "shellcheck scripts/*.sh lab/*/scripts/*.sh lab/*/scenarios/*.sh lab/*/grafana/*.sh lab/*/postgres/*.sh lab/*/alertmanager/*.sh lab/overhead/*.sh lab/obi/*.sh lab/pgha/*.sh lab/pgha/files/*.sh"
+run = "shellcheck scripts/*.sh lab/*/scripts/*.sh lab/scenarios/*.sh lab/*/scenarios/*.sh lab/*/grafana/*.sh lab/*/postgres/*.sh lab/*/alertmanager/*.sh lab/overhead/*.sh lab/obi/*.sh lab/pgha/*.sh lab/pgha/files/*.sh"
 
 [tasks."lab:rules-test"]
 description = "unit-test the lab alert rules (vmalert-tool) and Alertmanager routing (throwaway container); needs docker"
@@ -179,6 +179,26 @@ usage = 'arg "[node]..." var=#true help "node names, default all three"'
 # missing files; secrets of a running cluster are never regenerated (a key
 # missing from .env fails the run)
 run = "lab/pgha/scripts/provision.sh ${usage_node:-}"
+
+[tasks."lab:pgha:scenario"]
+description = "run one fault scenario against the pgha VMs (lab/pgha/scenarios/<name>.sh); appends to lab/pgha/results/runs.jsonl"
+usage = 'arg "<name>" help "scenario name, e.g. patroni-down"'
+run = '''
+f="lab/pgha/scenarios/${usage_name}.sh"
+case "$usage_name" in *[!a-z-]*|lib|"") echo "bad scenario name: $usage_name" >&2; exit 2;; esac
+[ -x "$f" ] || { echo "no such scenario: $usage_name" >&2; ls lab/pgha/scenarios | sed -n 's/\.sh$//p' | grep -v '^lib$' >&2; exit 2; }
+exec "$f"
+'''
+
+[tasks."lab:pgha:scenarios"]
+description = "run all pgha fault scenarios, control last; stops at the first failure"
+run = '''
+set -e
+for s in quorum-lost etcd-member-down etcd-leader-changes patroni-down replica-not-eligible replay-paused cluster-paused pending-restart switchover control; do
+  echo "=== $s"
+  lab/pgha/scenarios/$s.sh
+done
+'''
 
 [tasks."lab:stage3:scenario"]
 description = "run one stage 3 fault scenario against the running lab (lab/stage3/scenarios/<name>.sh); appends to lab/stage3/results/runs.jsonl"

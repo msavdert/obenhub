@@ -12,7 +12,7 @@ inject() {
   TL0=$(timeline)
   log "switchover $OLD -> $NEW on timeline $TL0"
   T0=$(date +%s)
-  ptl switchover stage3 --leader "$OLD" --candidate "$NEW" --force >/dev/null
+  ptl switchover "$CLUSTER" --leader "$OLD" --candidate "$NEW" --force >/dev/null
 }
 after_detect() {
   wait_until 120 "cluster healthy after the switchover" cluster_healthy || { FAILS+=("cluster not healthy after the switchover"); return 1; }

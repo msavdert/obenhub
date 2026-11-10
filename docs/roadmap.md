@@ -199,9 +199,13 @@ Then the same cluster on three VMs, because the operating-system layer
       Collector that collects it; one stopped node Collector raises only its
       own alert, and a stopped gateway only the gateway's (unit-tested in
       `lab/pgha/mon/vmalert/tests/collectors.yml`)
-- [ ] The stage 3 fault scenarios carried over to the VMs where they apply
+- [x] The stage 3 fault scenarios carried over to the VMs where they apply
+      (`lab/pgha/scenarios`, results in `lab/pgha/results/runs.jsonl`);
+      `leader-killed` is not carried over, it moves to the OS fault item below
 - [ ] OS fault scenarios with alerts: filesystem filling, memory pressure,
-      a real network partition between nodes
+      a real network partition between nodes, and the leader killed (the
+      stage 3 `leader-killed` scenario, moved here by owner decision
+      2026-11-10)
 
 ## Stage 5: cloud-managed PostgreSQL
 
