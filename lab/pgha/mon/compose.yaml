@@ -80,6 +80,7 @@ services:
     volumes:
       - ./vmalert/inventory.yml:/etc/vmalert/inventory.yml:ro
       - ../../packs/postgresql/rules.yml:/etc/vmalert/pack/postgresql.yml:ro
+      - ../../packs/host/rules.yml:/etc/vmalert/pack/host.yml:ro
       - ../../packs/patroni/rules.yml:/etc/vmalert/pack/patroni.yml:ro
       - ../../packs/etcd/rules.yml:/etc/vmalert/pack/etcd.yml:ro
     depends_on:

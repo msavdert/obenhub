@@ -191,8 +191,8 @@ config_hash() {
     cat "${CONFIG_FILES[@]}" 2>/dev/null | sha256sum | cut -c1-12 )
 }
 # The same files as the containers see them, in the same order. Both labs
-# mount them at these paths (the vmalert pack files sort etcd, patroni,
-# postgresql, the order CONFIG_FILES lists them in). No output and status 1
+# mount them at these paths (the vmalert pack files sort by name, the
+# order each adapter's CONFIG_FILES lists them in). No output and status 1
 # when a container cannot be read.
 loaded_config_hash() {
   local h

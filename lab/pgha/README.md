@@ -47,7 +47,7 @@ The monitor password reaches the node in `/etc/otelcol-contrib/monitor.env`
 
 ## Alerts
 
-vmalert loads the shared packs `lab/packs/{postgresql,patroni,etcd}/rules.yml`
+vmalert loads the shared packs `lab/packs/{postgresql,patroni,etcd,host}/rules.yml`
 and `mon/vmalert/inventory.yml` (the Collectors and nodes this lab expects).
 The Grafana instance provisions the stage 3 Patroni dashboard unchanged.
 
@@ -55,6 +55,12 @@ The Grafana instance provisions the stage 3 Patroni dashboard unchanged.
 own Collector, so a stopped node Collector raises only its alert, and a stopped
 gateway (which carries every node's telemetry) only the gateway's.
 `mise run lab:pgha:rules-test` covers these cases.
+
+The host pack (`lab/packs/host/rules.yml`, tests with `mise run
+lab:host:rules-test`) reads the series of the Collector's hostmetrics receiver
+(`host_metrics` in the config). The two
+memory metrics it needs are off by default and enabled in
+`files/otelcol.yaml.tmpl`.
 
 ## Fault scenarios
 
@@ -71,6 +77,8 @@ stage 3; `scenarios/lib.sh` is the adapter that reaches the nodes over ssh.
 | `etcd-member-down` | `systemctl stop etcd` on one non-leader member |
 | `etcd-leader-changes` | `etcdctl move-leader` four times, 15 s apart |
 | `patroni-down` | nftables drops the Collector's scrape of Patroni `:8008` on one replica |
+| `filesystem-filling` | `fallocate` on one replica until 7 % of `/` is available (`HostFilesystemSpaceLow`) |
+| `memory-pressure` | a resident memory hog (`obenhub-memhog`, OOM score 1000) on one replica until MemAvailable is about 6 % of MemTotal (`HostMemoryAvailableLow`) |
 | `replica-not-eligible` | nftables drops tcp 5432 between one replica and the leader, 100 MB written |
 | `replay-paused` | `pg_wal_replay_pause()` on one replica, cluster paused |
 | `cluster-paused` | `patronictl pause` |
@@ -85,6 +93,9 @@ VM. Client load is `obenhub-load.service` on every node (`files/load.sh`): the
 same pgbench pattern as stage 3, through the local socket, and only while the
 node is the primary.
 
-The full suite passed on 2026-11-10 (`results/runs.jsonl`): all ten
-scenarios with no unexpected alert. In `quorum-lost` the leader demoted
-without a watchdog reset (boot IDs of the three VMs unchanged).
+The full suite of twelve scenarios passed on 2026-11-10 (`results/runs.jsonl`,
+`suite-2`) with no unexpected alert. `filesystem-filling` was detected after
+179 s and `memory-pressure` after 183 s; in `memory-pressure` the replica did
+not reboot and `oom_kill` stayed 0, so the OOM settings of the hog unit were
+not exercised. In the earlier ten-scenario run, `quorum-lost` demoted the
+leader without a watchdog reset (boot IDs of the three VMs unchanged).

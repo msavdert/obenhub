@@ -34,7 +34,7 @@ NODE_MAP=$NODES
 NODES=()
 for _e in $NODE_MAP; do NODES+=("${_e%%=*}"); done
 ETCD_MEMBERS=("${NODES[@]}")
-CONFIG_FILES=("$LAB_DIR/mon/vmalert/inventory.yml" "$LAB_DIR/../packs/etcd/rules.yml" "$LAB_DIR/../packs/patroni/rules.yml" "$LAB_DIR/../packs/postgresql/rules.yml" "$LAB_DIR/../stage3/alertmanager/alertmanager.yml")
+CONFIG_FILES=("$LAB_DIR/mon/vmalert/inventory.yml" "$LAB_DIR/../packs/etcd/rules.yml" "$LAB_DIR/../packs/host/rules.yml" "$LAB_DIR/../packs/patroni/rules.yml" "$LAB_DIR/../packs/postgresql/rules.yml" "$LAB_DIR/../stage3/alertmanager/alertmanager.yml")
 
 # shellcheck source=lab/scenarios/lib-core.sh
 . "$SC_DIR/../../scenarios/lib-core.sh"

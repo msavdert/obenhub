@@ -1,0 +1,116 @@
+# One test group per host rule: HostFilesystemSpaceLow, HostMemoryAvailableLow.
+# Series shapes follow what the pgha node Collectors emit (checked against
+# VictoriaMetrics on 2026-11-10): system.filesystem.usage with state free,
+# used, reserved; the two memory metrics in bytes. No inventory is needed:
+# the rules read the host series only.
+rule_files:
+  - ../rules.yml
+evaluation_interval: 15s
+
+tests:
+  - name: root filesystem at 8 % free fires for that mountpoint only, recovers when space is freed
+    interval: 15s
+    input_series:
+      # 100 GB total: used 92, free 8 for 5 m, then used 50, free 50
+      - series: 'system.filesystem.usage{host.name="pgha-1",service.instance.id="pgha-1",mountpoint="/",type="ext4",state="free"}'
+        values: '8x20 50x40'
+      - series: 'system.filesystem.usage{host.name="pgha-1",service.instance.id="pgha-1",mountpoint="/",type="ext4",state="used"}'
+        values: '92x20 50x40'
+      - series: 'system.filesystem.usage{host.name="pgha-1",service.instance.id="pgha-1",mountpoint="/",type="ext4",state="reserved"}'
+        values: '5x60'
+      - series: 'system.filesystem.usage{host.name="pgha-2",service.instance.id="pgha-2",mountpoint="/",type="ext4",state="free"}'
+        values: '50x60'
+      - series: 'system.filesystem.usage{host.name="pgha-2",service.instance.id="pgha-2",mountpoint="/",type="ext4",state="used"}'
+        values: '50x60'
+    alert_rule_test:
+      - eval_time: 1m
+        groupname: host
+        alertname: HostFilesystemSpaceLow
+        exp_alerts: []
+      - eval_time: 4m
+        groupname: host
+        alertname: HostFilesystemSpaceLow
+        exp_alerts:
+          - exp_labels:
+              host.name: pgha-1
+              service.instance.id: pgha-1
+              mountpoint: /
+              severity: warning
+            exp_annotations:
+              summary: 'Less than 10 % of / is free on pgha-1'
+      - eval_time: 12m
+        groupname: host
+        alertname: HostFilesystemSpaceLow
+        exp_alerts: []
+
+  - name: reserved blocks are not counted (10/90 is 11.1 % and does not fire, 10/105 would)
+    interval: 15s
+    input_series:
+      - series: 'system.filesystem.usage{host.name="pgha-1",service.instance.id="pgha-1",mountpoint="/",type="ext4",state="free"}'
+        values: '10x40'
+      - series: 'system.filesystem.usage{host.name="pgha-1",service.instance.id="pgha-1",mountpoint="/",type="ext4",state="used"}'
+        values: '80x40'
+      - series: 'system.filesystem.usage{host.name="pgha-1",service.instance.id="pgha-1",mountpoint="/",type="ext4",state="reserved"}'
+        values: '15x40'
+    alert_rule_test:
+      - eval_time: 9m
+        groupname: host
+        alertname: HostFilesystemSpaceLow
+        exp_alerts: []
+
+  - name: a full vfat /boot/efi does not fire
+    interval: 15s
+    input_series:
+      - series: 'system.filesystem.usage{host.name="pgha-1",service.instance.id="pgha-1",mountpoint="/boot/efi",type="vfat",state="free"}'
+        values: '1x40'
+      - series: 'system.filesystem.usage{host.name="pgha-1",service.instance.id="pgha-1",mountpoint="/boot/efi",type="vfat",state="used"}'
+        values: '99x40'
+    alert_rule_test:
+      - eval_time: 9m
+        groupname: host
+        alertname: HostFilesystemSpaceLow
+        exp_alerts: []
+
+  - name: memory available at 6 % fires for that host only, recovers
+    interval: 15s
+    input_series:
+      - series: 'system.memory.limit{host.name="pgha-1",service.instance.id="pgha-1"}'
+        values: '1000x60'
+      - series: 'system.linux.memory.available{host.name="pgha-1",service.instance.id="pgha-1"}'
+        values: '60x20 700x40'
+      - series: 'system.memory.limit{host.name="pgha-2",service.instance.id="pgha-2"}'
+        values: '1000x60'
+      - series: 'system.linux.memory.available{host.name="pgha-2",service.instance.id="pgha-2"}'
+        values: '700x60'
+    alert_rule_test:
+      - eval_time: 1m
+        groupname: host
+        alertname: HostMemoryAvailableLow
+        exp_alerts: []
+      - eval_time: 4m
+        groupname: host
+        alertname: HostMemoryAvailableLow
+        exp_alerts:
+          - exp_labels:
+              host.name: pgha-1
+              service.instance.id: pgha-1
+              severity: warning
+            exp_annotations:
+              summary: 'Less than 10 % of memory is available on pgha-1'
+      - eval_time: 12m
+        groupname: host
+        alertname: HostMemoryAvailableLow
+        exp_alerts: []
+
+  - name: memory available at 11 % does not fire
+    interval: 15s
+    input_series:
+      - series: 'system.memory.limit{host.name="pgha-1",service.instance.id="pgha-1"}'
+        values: '1000x40'
+      - series: 'system.linux.memory.available{host.name="pgha-1",service.instance.id="pgha-1"}'
+        values: '110x40'
+    alert_rule_test:
+      - eval_time: 9m
+        groupname: host
+        alertname: HostMemoryAvailableLow
+        exp_alerts: []

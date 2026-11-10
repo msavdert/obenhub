@@ -109,7 +109,16 @@ receivers:
     scrapers:
       cpu: {}
       load: {}
-      memory: {}
+      # system.linux.memory.available (MemAvailable) and system.memory.limit
+      # (MemTotal) are off by default; both are listed in
+      # internal/scraper/memoryscraper/metadata.yaml at tag v0.164.0 of
+      # opentelemetry-collector-contrib. HostMemoryAvailableLow reads them.
+      memory:
+        metrics:
+          system.linux.memory.available:
+            enabled: true
+          system.memory.limit:
+            enabled: true
       paging: {}
       filesystem: {}
       disk: {}

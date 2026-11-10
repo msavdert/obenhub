@@ -1,0 +1,53 @@
+# Host (operating system) alerts on the series the Collector's hostmetrics
+# receiver emits, written to be shared by the labs (mounted in lab/pgha only
+# so far). Written here, nothing copied from
+# another project. Metric names and attributes: opentelemetry-collector-contrib
+# receiver/hostmetricsreceiver at tag v0.164.0 (filesystemscraper and
+# memoryscraper metadata.yaml); the series carry host.name and
+# service.instance.id from the Collector's resource attributes. The memory
+# metrics are off by default and are enabled in the Collector config
+# (lab/pgha/files/otelcol.yaml.tmpl). Thresholds are lab values.
+# Both rules keep service.instance.id (the lab's Alertmanager groups by it) by
+# aggregating on it next to host.name; they need no other lab label.
+groups:
+  - name: host
+    interval: 15s
+    rules:
+      # Share of the filesystem still available to an unprivileged writer:
+      # free / (free + used). system.filesystem.usage reports state free, used
+      # and reserved; reserved blocks (ext4 root reserve) are in neither term,
+      # which matches the Avail column of df (assumption: the scraper derives
+      # free from f_bavail and reserved from f_bfree - f_bavail; source not
+      # read; on 2026-11-10 the free series for / on pgha-1, 27001122816,
+      # matched df Avail, 27000913920, read by hand). Only
+      # real on-disk filesystems are looked at: the vfat /boot/efi is small,
+      # static and not something the operator can relieve. The type list is a
+      # lab choice. 10 % free for 2 m.
+      - alert: HostFilesystemSpaceLow
+        expr: |
+          sum by (host.name, service.instance.id, mountpoint) (system.filesystem.usage{state="free", type=~"ext4|xfs|btrfs"})
+            /
+          sum by (host.name, service.instance.id, mountpoint) (system.filesystem.usage{state=~"free|used", type=~"ext4|xfs|btrfs"})
+            < 0.10
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'Less than 10 % of {{ (index $labels "mountpoint") }} is free on {{ (index $labels "host.name") }}'
+
+      # MemAvailable (the kernel's estimate of memory a new workload can get
+      # without swapping) as a share of MemTotal, per host. Not based on
+      # system.memory.usage{state="used"}, whose meaning depends on the beta
+      # feature gate receiver.hostmetricsreceiver.UseLinuxMemAvailable.
+      # 10 % for 2 m.
+      - alert: HostMemoryAvailableLow
+        expr: |
+          sum by (host.name, service.instance.id) (system.linux.memory.available)
+            /
+          sum by (host.name, service.instance.id) (system.memory.limit)
+            < 0.10
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'Less than 10 % of memory is available on {{ (index $labels "host.name") }}'

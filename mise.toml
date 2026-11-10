@@ -66,6 +66,10 @@ run = """docker run --rm -v "$PWD/lab:/lab:ro" victoriametrics/vmalert-tool:v1.1
 description = "unit-test Collector liveness in the pgha inventory with the shared pack rules (vmalert-tool); needs docker"
 run = """docker run --rm -v "$PWD/lab:/lab:ro" victoriametrics/vmalert-tool:v1.155.0 unittest --files=/lab/pgha/mon/vmalert/tests/collectors.yml"""
 
+[tasks."lab:host:rules-test"]
+description = "unit-test the shared host pack rules (lab/packs/host, vmalert-tool); needs docker"
+run = """docker run --rm -v "$PWD/lab:/lab:ro" victoriametrics/vmalert-tool:v1.155.0 unittest --files=/lab/packs/host/tests/host.yml"""
+
 [tasks."lab:pgha:rules-gen-check"]
 description = "fail when lab/pgha/mon/vmalert/tests/collectors.yml differs from what gen-collectors.py generates"
 run = """
@@ -91,6 +95,7 @@ depends = [
   "lint:editorconfig",
   "lint:shell",
   "lab:pack:rules-test",
+  "lab:host:rules-test",
   "lab:rules-test",
   "lab:stage3:rules-test",
   "lab:pgha:rules-test",
@@ -194,7 +199,7 @@ exec "$f"
 description = "run all pgha fault scenarios, control last; stops at the first failure"
 run = '''
 set -e
-for s in quorum-lost etcd-member-down etcd-leader-changes patroni-down replica-not-eligible replay-paused cluster-paused pending-restart switchover control; do
+for s in quorum-lost etcd-member-down etcd-leader-changes patroni-down filesystem-filling memory-pressure replica-not-eligible replay-paused cluster-paused pending-restart switchover control; do
   echo "=== $s"
   lab/pgha/scenarios/$s.sh
 done
