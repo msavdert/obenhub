@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.0](https://github.com/msavdert/obenhub/compare/v0.10.0...v0.11.0) (2026-11-10)
+
+
+### Features
+
+* **lab:** add the slot-invalidated scenario and move ReplicationSlotInvalidated to the PostgreSQL pack ([c251158](https://github.com/msavdert/obenhub/commit/c251158889cd571ffc92115bd83dc6cd4125fdc2))
+
 ## [0.10.0](https://github.com/msavdert/obenhub/compare/v0.9.0...v0.10.0) (2026-11-10)
 
 
