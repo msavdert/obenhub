@@ -18,7 +18,7 @@ tests:
         values: '1x8 0x52'
       - series: 'up{service.name="etcd",service.instance.id="etcd-3"}'
         values: '1x60'
-      - series: 'otelcol_process_uptime{service.name="otelcol"}'
+      - series: 'otelcol_process_uptime{service.name="otelcol",service.instance.id="otelcol-stage3"}'
         values: '1x60'
     alert_rule_test:
       - eval_time: 3m
@@ -34,6 +34,7 @@ tests:
               service.instance.id: etcd-2
               service.namespace: obenhub-lab
               service.name: etcd
+              obenhub.collector: otelcol-stage3
             exp_annotations:
               summary: etcd member etcd-2 is not scraped
       - eval_time: 6m
@@ -50,7 +51,7 @@ tests:
         values: '1x60'
       - series: 'up{service.name="etcd",service.instance.id="etcd-3"}'
         values: '1x8 _x52'
-      - series: 'otelcol_process_uptime{service.name="otelcol"}'
+      - series: 'otelcol_process_uptime{service.name="otelcol",service.instance.id="otelcol-stage3"}'
         values: '1x60'
     alert_rule_test:
       - eval_time: 6m
@@ -62,6 +63,7 @@ tests:
               service.instance.id: etcd-3
               service.namespace: obenhub-lab
               service.name: etcd
+              obenhub.collector: otelcol-stage3
             exp_annotations:
               summary: etcd member etcd-3 is not scraped
 
@@ -74,7 +76,7 @@ tests:
         values: '1x8 0x52'
       - series: 'up{service.name="etcd",service.instance.id="etcd-3"}'
         values: '1x8 0x52'
-      - series: 'otelcol_process_uptime{service.name="otelcol"}'
+      - series: 'otelcol_process_uptime{service.name="otelcol",service.instance.id="otelcol-stage3"}'
         values: '1x60'
     alert_rule_test:
       - eval_time: 3m
@@ -97,6 +99,7 @@ tests:
               service.instance.id: etcd-2
               service.namespace: obenhub-lab
               service.name: etcd
+              obenhub.collector: otelcol-stage3
             exp_annotations:
               summary: etcd member etcd-2 is not scraped
           - exp_labels:
@@ -104,6 +107,7 @@ tests:
               service.instance.id: etcd-3
               service.namespace: obenhub-lab
               service.name: etcd
+              obenhub.collector: otelcol-stage3
             exp_annotations:
               summary: etcd member etcd-3 is not scraped
 
@@ -116,7 +120,7 @@ tests:
         values: '1x8 _x52'
       - series: 'up{service.name="etcd",service.instance.id="etcd-3"}'
         values: '1x8 _x52'
-      - series: 'otelcol_process_uptime{service.name="otelcol"}'
+      - series: 'otelcol_process_uptime{service.name="otelcol",service.instance.id="otelcol-stage3"}'
         values: '1x8 _x52'
     alert_rule_test:
       - eval_time: 6m
@@ -382,7 +386,7 @@ tests:
         values: '1x8 _x52'
       - series: 'up{service.name="etcd",service.instance.id="etcd-3"}'
         values: '1x8 _x52'
-      - series: 'otelcol_process_uptime{service.name="otelcol"}'
+      - series: 'otelcol_process_uptime{service.name="otelcol",service.instance.id="otelcol-stage3"}'
         values: '1x60'
     alert_rule_test:
       - eval_time: 6m

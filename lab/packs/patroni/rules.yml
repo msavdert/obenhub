@@ -1,6 +1,8 @@
 # Patroni alert rules (Patroni 4.1.5 REST /metrics), shared by the labs. The
 # inventory these rules read (obenhub.expected_scrape with service.name
-# "patroni") is per lab, for example lab/stage3/vmalert/inventory.yml.
+# "patroni", each with an obenhub.collector label naming the Collector that
+# scrapes it, next to obenhub.expected_collector) is per lab, for example
+# lab/stage3/vmalert/inventory.yml.
 # Three Patroni nodes. Every rule is role-agnostic: the leader moves,
 # so nothing here names a node as primary or standby. Patroni reports 0 for
 # metrics that do not apply to a node's role (timeline and xlog_location are 0
@@ -17,9 +19,39 @@ groups:
       # failover: the leader key expires after ttl (30 s), then the election
       # and the promotion follow (measured in the leader-killed scenario).
       # Silent while there is no Patroni data at all (the target alerts own
-      # that case).
+      # that case). Also silent while the most recent known primary is a member
+      # whose Collector is dead: its patroni_primary goes stale, so the live
+      # replicas alone sum to 0 although nothing is known about the leader
+      # (that is its CollectorAbsent's). "Most recent": its last sample with
+      # value 1 is not older than any other member's, so a replica promoted
+      # since, or the leader's Patroni dying with a live Collector, ends the
+      # suppression. Accepted loss: if the leader's whole VM dies and no
+      # replica is promoted, this rule stays quiet while that node's
+      # CollectorAbsent fires. patroni_cluster_unlocked is no alternative: in
+      # the stage 3 data it reached 1 in only 4 samples in 3 days, never during
+      # the leader-killed or quorum-lost runs.
       - alert: PatroniNoWritablePrimary
-        expr: sum by (scope) (patroni_primary) == 0
+        expr: |
+          WITH (
+            last_primary = tlast_over_time((patroni_primary == 1)[1d:15s])
+          )
+          sum by (scope) (patroni_primary) == 0
+            unless on(scope)
+          (
+            (
+              last_primary
+                and on(service.instance.id)
+              (last_over_time(patroni_primary[1d]) == 1)
+                and on(service.instance.id)
+              (
+                obenhub.expected_scrape{service.name="patroni"}
+                  unless on(obenhub.collector)
+                label_replace(present_over_time(otelcol_process_uptime[1m]), "obenhub.collector", "$1", "service.instance.id", "(.+)")
+              )
+            )
+              >= on(scope) group_left
+            max by (scope) (last_primary)
+          )
         for: 90s
         labels:
           severity: critical
@@ -103,7 +135,8 @@ groups:
       # failover logic is running on that node). A node that is gone entirely
       # loses its heartbeat first (1 m window) and is PostgresTargetAbsent's
       # case, so the two never fire together. A stopped Collector raises only
-      # CollectorAbsent.
+      # its own CollectorAbsent: the gate is that the Collector that scrapes
+      # this node (obenhub.collector) lived in the last 1 m.
       - alert: PatroniTargetAbsent
         expr: |
           obenhub.expected_scrape{service.name="patroni"}
@@ -111,8 +144,8 @@ groups:
           (max_over_time(up{service.name="patroni"}[2m]) == 1)
             and on(service.instance.id)
           present_over_time(postgresql.collection.heartbeat[1m])
-            and on()
-          count(present_over_time(otelcol_process_uptime[1m])) > 0
+            and on(obenhub.collector)
+          label_replace(present_over_time(otelcol_process_uptime[1m]), "obenhub.collector", "$1", "service.instance.id", "(.+)")
         for: 1m
         labels:
           severity: critical

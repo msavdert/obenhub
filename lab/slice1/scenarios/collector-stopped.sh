@@ -5,7 +5,7 @@ set -uo pipefail
 . "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 
 HOLD_AFTER_DETECT=300   # seconds; suppressed alerts must not fire in this time
-EXPECT=("CollectorAbsent:")
+EXPECT=("CollectorAbsent:otelcol-slice1")
 inject() { dc stop otelcol >/dev/null; }
 revert() { dc start otelcol >/dev/null; }
 run_scenario collector-stopped

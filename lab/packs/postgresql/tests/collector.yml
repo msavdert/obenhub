@@ -1,7 +1,8 @@
 # Tests for the shared PostgreSQL pack rules (lab/slice1 and lab/stage3 use them).
-# Watchdog and CollectorAbsent.
+# Watchdog and CollectorAbsent (the stage 3 inventory names the Collector).
 rule_files:
   - ../rules.yml
+  - ../../../stage3/vmalert/inventory.yml
 evaluation_interval: 15s
 
 tests:
@@ -20,7 +21,7 @@ tests:
   - name: collector absent fires after self-metrics stop
     interval: 15s
     input_series:
-      - series: 'otelcol_process_uptime{service.name="otelcol"}'
+      - series: 'otelcol_process_uptime{service.name="otelcol",service.instance.id="otelcol-stage3"}'
         values: '1x8 _x52'
     alert_rule_test:
       - eval_time: 1m
@@ -31,17 +32,61 @@ tests:
         groupname: postgresql
         alertname: CollectorAbsent
         exp_alerts:
-          - exp_labels: {severity: critical}
+          - exp_labels:
+              severity: critical
+              service.namespace: obenhub-lab
+              service.instance.id: otelcol-stage3
             exp_annotations:
-              summary: The Collector reports no self-metrics.
+              summary: Collector otelcol-stage3 reports no self-metrics
 
   - name: collector absent stays quiet while self-metrics flow
     interval: 15s
     input_series:
-      - series: 'otelcol_process_uptime{service.name="otelcol"}'
+      - series: 'otelcol_process_uptime{service.name="otelcol",service.instance.id="otelcol-stage3"}'
         values: '1x60'
     alert_rule_test:
       - eval_time: 10m
         groupname: postgresql
         alertname: CollectorAbsent
         exp_alerts: []
+
+  - name: inventory guard stays quiet while every entry names an expected Collector
+    interval: 15s
+    input_series: []
+    alert_rule_test:
+      - eval_time: 5m
+        groupname: postgresql
+        alertname: InventoryCollectorUnknown
+        exp_alerts: []
+
+  - name: inventory guard fires for a mistyped and for a missing obenhub.collector
+    interval: 15s
+    input_series:
+      - series: 'obenhub.expected_target{service.namespace="obenhub-lab",service.name="postgresql",service.instance.id="pg-9",obenhub.collector="otelcol-stagee3"}'
+        values: '1x40'
+      - series: 'obenhub.expected_scrape{service.namespace="obenhub-lab",service.name="etcd",service.instance.id="etcd-9"}'
+        values: '1x40'
+    alert_rule_test:
+      - eval_time: 30s
+        groupname: postgresql
+        alertname: InventoryCollectorUnknown
+        exp_alerts: []
+      - eval_time: 5m
+        groupname: postgresql
+        alertname: InventoryCollectorUnknown
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              service.namespace: obenhub-lab
+              service.name: postgresql
+              service.instance.id: pg-9
+              obenhub.collector: otelcol-stagee3
+            exp_annotations:
+              summary: 'Inventory entry postgresql pg-9 names an unknown Collector ("otelcol-stagee3")'
+          - exp_labels:
+              severity: warning
+              service.namespace: obenhub-lab
+              service.name: etcd
+              service.instance.id: etcd-9
+            exp_annotations:
+              summary: 'Inventory entry etcd etcd-9 names an unknown Collector ("")'

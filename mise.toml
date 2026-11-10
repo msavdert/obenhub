@@ -62,6 +62,19 @@ run = [
 description = "unit-test the stage 3 inventory and the shared Patroni and etcd pack rules (vmalert-tool); needs docker"
 run = """docker run --rm -v "$PWD/lab:/lab:ro" victoriametrics/vmalert-tool:v1.155.0 unittest --files=/lab/stage3/vmalert/tests/targets.yml,/lab/packs/patroni/tests/patroni.yml,/lab/packs/etcd/tests/etcd.yml"""
 
+[tasks."lab:pgha:rules-test"]
+description = "unit-test Collector liveness in the pgha inventory with the shared pack rules (vmalert-tool); needs docker"
+run = """docker run --rm -v "$PWD/lab:/lab:ro" victoriametrics/vmalert-tool:v1.155.0 unittest --files=/lab/pgha/mon/vmalert/tests/collectors.yml"""
+
+[tasks."lab:pgha:rules-gen-check"]
+description = "fail when lab/pgha/mon/vmalert/tests/collectors.yml differs from what gen-collectors.py generates"
+run = """
+t=$(mktemp)
+trap 'rm -f "$t"' EXIT
+python3 lab/pgha/mon/vmalert/tests/gen-collectors.py "$t"
+diff -u lab/pgha/mon/vmalert/tests/collectors.yml "$t" || { echo "collectors.yml is stale: regenerate it with gen-collectors.py" >&2; exit 1; }
+"""
+
 [tasks."lab:pack:rules-test"]
 description = "unit-test the shared PostgreSQL pack rules (lab/packs/postgresql, vmalert-tool); needs docker"
 run = """docker run --rm -v "$PWD/lab:/lab:ro" victoriametrics/vmalert-tool:v1.155.0 unittest --files=/lab/packs/postgresql/tests/collector.yml,/lab/packs/postgresql/tests/replication.yml,/lab/packs/postgresql/tests/resources.yml,/lab/packs/postgresql/tests/signals.yml,/lab/packs/postgresql/tests/series-vanished.yml"""
@@ -80,6 +93,8 @@ depends = [
   "lab:pack:rules-test",
   "lab:rules-test",
   "lab:stage3:rules-test",
+  "lab:pgha:rules-test",
+  "lab:pgha:rules-gen-check",
   "docs:build",
 ]
 

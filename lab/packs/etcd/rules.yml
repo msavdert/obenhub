@@ -18,15 +18,17 @@
 # taken from the mixin (which is v3.7.3). Every threshold below that differs
 # from the mixin says so: the mixin waits 10 to 20 minutes, the lab scenarios cannot.
 # Suppression is written into the expressions, as in lab/packs/patroni/rules.yml.
-# The inventory (obenhub.expected_scrape with service.name "etcd") is per lab, for
-# example lab/stage3/vmalert/inventory.yml.
+# The inventory (obenhub.expected_scrape with service.name "etcd", each with an
+# obenhub.collector label naming the Collector that scrapes it, next to
+# obenhub.expected_collector) is per lab, for example
+# lab/stage3/vmalert/inventory.yml.
 groups:
   - name: etcd
     interval: 15s
     rules:
       # A member whose scrape has not succeeded for 2 m while the Collector
-      # lives (a stopped Collector empties its own 1 m window first, so it
-      # raises only CollectorAbsent). `up` is 0 or absent on a failed scrape;
+      # that scrapes it lives (a stopped Collector empties its own 1 m window
+      # first, so it raises only its CollectorAbsent). `up` is 0 or absent on a failed scrape;
       # `== 1` over 2 m covers both. The mixin's etcdMembersDown waits 20 m; here
       # the 2 m window plus `for: 1m` (about 3 m) is a lab value. Not suppressed when quorum is lost: the stopped
       # members are then exactly what the operator wants named.
@@ -35,8 +37,8 @@ groups:
           obenhub.expected_scrape{service.name="etcd"}
             unless on(service.instance.id)
           (max_over_time(up{service.name="etcd"}[2m]) == 1)
-            and on()
-          count(present_over_time(otelcol_process_uptime[1m])) > 0
+            and on(obenhub.collector)
+          label_replace(present_over_time(otelcol_process_uptime[1m]), "obenhub.collector", "$1", "service.instance.id", "(.+)")
         for: 1m
         labels:
           severity: warning
@@ -45,14 +47,22 @@ groups:
 
       # Fewer members reporting than a majority of the inventory (2 of 3).
       # Mixin: same comparison, for 3m, on `up`; the 2 m window already delays
-      # this, so "for" is 1m. Same Collector-alive guard as above.
+      # this, so "for" is 1m. A member counts as reporting if its scrape
+      # succeeded within 2 m or its Collector is not alive: unknown is not
+      # counted as lost (that is CollectorAbsent's), and a quorum lost seen from
+      # a surviving member is EtcdNoLeader. The union of inventory series
+      # counts a member once.
       - alert: EtcdInsufficientMembers
         expr: |
-          (count(max_over_time(up{service.name="etcd"}[2m]) == 1) or on() vector(0))
+          (count(
+              obenhub.expected_scrape{service.name="etcd"}
+                and on(service.instance.id) (max_over_time(up{service.name="etcd"}[2m]) == 1)
+            or
+              obenhub.expected_scrape{service.name="etcd"}
+                unless on(obenhub.collector) label_replace(present_over_time(otelcol_process_uptime[1m]), "obenhub.collector", "$1", "service.instance.id", "(.+)")
+          ) or on() vector(0))
             < on()
           ((count(obenhub.expected_scrape{service.name="etcd"}) + 1) / 2)
-            and on()
-          count(present_over_time(otelcol_process_uptime[1m])) > 0
         for: 1m
         labels:
           severity: critical

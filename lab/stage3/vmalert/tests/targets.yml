@@ -16,7 +16,7 @@ tests:
         values: '1x8 _x52'
       - series: 'postgresql.collection.heartbeat{service.instance.id="pg-3"}'
         values: '1x60'
-      - series: 'otelcol_process_uptime{service.name="otelcol"}'
+      - series: 'otelcol_process_uptime{service.name="otelcol",service.instance.id="otelcol-stage3"}'
         values: '1x60'
     alert_rule_test:
       - eval_time: 1m   # all alive
@@ -37,6 +37,7 @@ tests:
               service.namespace: obenhub-lab
               service.name: postgresql
               db.cluster.name: stage3
+              obenhub.collector: otelcol-stage3
             exp_annotations:
               summary: "No heartbeat from pg-2"
 
@@ -49,7 +50,7 @@ tests:
         values: '1x60'
       - series: 'postgresql.collection.heartbeat{service.instance.id="pg-3"}'
         values: '1x60'
-      - series: 'otelcol_process_uptime{service.name="otelcol"}'
+      - series: 'otelcol_process_uptime{service.name="otelcol",service.instance.id="otelcol-stage3"}'
         values: '1x60'
     alert_rule_test:
       - eval_time: 10m
@@ -60,7 +61,7 @@ tests:
   - name: target absent fires for a node that never reported
     interval: 15s
     input_series:
-      - series: 'otelcol_process_uptime{service.name="otelcol"}'
+      - series: 'otelcol_process_uptime{service.name="otelcol",service.instance.id="otelcol-stage3"}'
         values: '1x60'
       - series: 'postgresql.collection.heartbeat{service.instance.id="pg-1"}'
         values: '1x60'
@@ -77,6 +78,7 @@ tests:
               service.namespace: obenhub-lab
               service.name: postgresql
               db.cluster.name: stage3
+              obenhub.collector: otelcol-stage3
             exp_annotations:
               summary: "No heartbeat from pg-2"
 
@@ -89,7 +91,7 @@ tests:
         values: '1x8 _x52'
       - series: 'postgresql.collection.heartbeat{service.instance.id="pg-3"}'
         values: '1x8 _x52'
-      - series: 'otelcol_process_uptime{service.name="otelcol"}'
+      - series: 'otelcol_process_uptime{service.name="otelcol",service.instance.id="otelcol-stage3"}'
         values: '1x8 _x52'
     alert_rule_test:
       - eval_time: 6m
@@ -100,6 +102,9 @@ tests:
         groupname: postgresql
         alertname: CollectorAbsent
         exp_alerts:
-          - exp_labels: {severity: critical}
+          - exp_labels:
+              severity: critical
+              service.namespace: obenhub-lab
+              service.instance.id: otelcol-stage3
             exp_annotations:
-              summary: The Collector reports no self-metrics.
+              summary: Collector otelcol-stage3 reports no self-metrics

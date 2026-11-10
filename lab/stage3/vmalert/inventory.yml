@@ -5,12 +5,17 @@ groups:
   - name: inventory
     interval: 15s
     rules:
+      # The Collectors this lab expects, by their self-telemetry
+      # service.instance.id; CollectorAbsent reads them. The obenhub.collector
+      # label on the targets below names the Collector that collects them.
+      - record: obenhub.expected_collector
+        expr: label_set(vector(1), "service.namespace", "obenhub-lab", "service.instance.id", "otelcol-stage3")
       - record: obenhub.expected_target
         expr: |
           union(
-            label_set(vector(1), "service.namespace", "obenhub-lab", "service.name", "postgresql", "db.cluster.name", "stage3", "service.instance.id", "pg-1"),
-            label_set(vector(1), "service.namespace", "obenhub-lab", "service.name", "postgresql", "db.cluster.name", "stage3", "service.instance.id", "pg-2"),
-            label_set(vector(1), "service.namespace", "obenhub-lab", "service.name", "postgresql", "db.cluster.name", "stage3", "service.instance.id", "pg-3")
+            label_set(vector(1), "service.namespace", "obenhub-lab", "service.name", "postgresql", "db.cluster.name", "stage3", "service.instance.id", "pg-1", "obenhub.collector", "otelcol-stage3"),
+            label_set(vector(1), "service.namespace", "obenhub-lab", "service.name", "postgresql", "db.cluster.name", "stage3", "service.instance.id", "pg-2", "obenhub.collector", "otelcol-stage3"),
+            label_set(vector(1), "service.namespace", "obenhub-lab", "service.name", "postgresql", "db.cluster.name", "stage3", "service.instance.id", "pg-3", "obenhub.collector", "otelcol-stage3")
           )
 
   - name: patroni-inventory
@@ -21,9 +26,9 @@ groups:
       - record: obenhub.expected_scrape
         expr: |
           union(
-            label_set(vector(1), "service.namespace", "obenhub-lab", "service.name", "patroni", "db.cluster.name", "stage3", "service.instance.id", "pg-1"),
-            label_set(vector(1), "service.namespace", "obenhub-lab", "service.name", "patroni", "db.cluster.name", "stage3", "service.instance.id", "pg-2"),
-            label_set(vector(1), "service.namespace", "obenhub-lab", "service.name", "patroni", "db.cluster.name", "stage3", "service.instance.id", "pg-3")
+            label_set(vector(1), "service.namespace", "obenhub-lab", "service.name", "patroni", "db.cluster.name", "stage3", "service.instance.id", "pg-1", "obenhub.collector", "otelcol-stage3"),
+            label_set(vector(1), "service.namespace", "obenhub-lab", "service.name", "patroni", "db.cluster.name", "stage3", "service.instance.id", "pg-2", "obenhub.collector", "otelcol-stage3"),
+            label_set(vector(1), "service.namespace", "obenhub-lab", "service.name", "patroni", "db.cluster.name", "stage3", "service.instance.id", "pg-3", "obenhub.collector", "otelcol-stage3")
           )
 
   - name: etcd-inventory
@@ -34,7 +39,7 @@ groups:
       - record: obenhub.expected_scrape
         expr: |
           union(
-            label_set(vector(1), "service.namespace", "obenhub-lab", "service.name", "etcd", "service.instance.id", "etcd-1"),
-            label_set(vector(1), "service.namespace", "obenhub-lab", "service.name", "etcd", "service.instance.id", "etcd-2"),
-            label_set(vector(1), "service.namespace", "obenhub-lab", "service.name", "etcd", "service.instance.id", "etcd-3")
+            label_set(vector(1), "service.namespace", "obenhub-lab", "service.name", "etcd", "service.instance.id", "etcd-1", "obenhub.collector", "otelcol-stage3"),
+            label_set(vector(1), "service.namespace", "obenhub-lab", "service.name", "etcd", "service.instance.id", "etcd-2", "obenhub.collector", "otelcol-stage3"),
+            label_set(vector(1), "service.namespace", "obenhub-lab", "service.name", "etcd", "service.instance.id", "etcd-3", "obenhub.collector", "otelcol-stage3")
           )

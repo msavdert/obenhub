@@ -194,11 +194,12 @@ Then the same cluster on three VMs, because the operating-system layer
 - [x] `hostmetricsreceiver` and journald logs per node, pushed through a
       gateway Collector to a backend on the lab host; the stage 3 Patroni,
       etcd and PostgreSQL rules run unchanged as shared packs
-- [ ] The stage 3 fault scenarios carried over to the VMs where they apply;
-      `CollectorAbsent` made per Collector first: with four Collectors
-      (three nodes and the gateway) `absent_over_time(otelcol_process_uptime[2m])`
-      stays quiet when one node's Collector stops, so `PostgresTargetAbsent`
-      fires instead
+- [x] `CollectorAbsent` per Collector: each lab's inventory lists its
+      Collectors (`obenhub.expected_collector`) and tags every target with the
+      Collector that collects it; one stopped node Collector raises only its
+      own alert, and a stopped gateway only the gateway's (unit-tested in
+      `lab/pgha/mon/vmalert/tests/collectors.yml`)
+- [ ] The stage 3 fault scenarios carried over to the VMs where they apply
 - [ ] OS fault scenarios with alerts: filesystem filling, memory pressure,
       a real network partition between nodes
 

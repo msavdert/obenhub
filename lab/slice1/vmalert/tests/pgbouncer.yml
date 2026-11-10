@@ -251,7 +251,7 @@ tests:
   - name: PgbouncerTargetAbsent fires for a stopped PgBouncer only, from the SHOW LISTS heartbeat
     interval: 15s
     input_series:
-      - series: 'otelcol_process_uptime{service.name="otelcol"}'
+      - series: 'otelcol_process_uptime{service.name="otelcol",service.instance.id="otelcol-slice1"}'
         values: '1x60'
       - series: 'postgresql.collection.heartbeat{service.instance.id="pg-primary"}'
         values: '1x60'
@@ -282,6 +282,7 @@ tests:
               service.namespace: obenhub-lab
               service.name: pgbouncer
               db.cluster.name: slice1
+              obenhub.collector: otelcol-slice1
             exp_annotations:
               summary: "No heartbeat from pgbouncer"
 

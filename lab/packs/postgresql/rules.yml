@@ -1,7 +1,9 @@
 # PostgreSQL pack rules, used by lab/slice1 and lab/stage3 (both mount this
 # file into vmalert next to their own rules). Each lab defines the recorded
-# series obenhub.expected_target in its own inventory group; PostgresTargetAbsent
-# reads its service.name="postgresql" entries. Pack metric names are provisional
+# series obenhub.expected_collector (one per Collector) and obenhub.expected_target
+# (with an obenhub.collector label naming the Collector that collects it) in its
+# own inventory group; PostgresTargetAbsent reads the service.name="postgresql"
+# entries, CollectorAbsent the Collectors. Pack metric names are provisional
 # until the naming contract (ADR 0002).
 # Gating: standby-only rules join on recovery.active == 1, so a primary never
 # matches and missing data never fires.
@@ -21,12 +23,13 @@ groups:
           obenhub.expected_target{service.name="postgresql"}
             unless on(service.instance.id)
           present_over_time(postgresql.collection.heartbeat[2m])
-            and on()
-          count(present_over_time(otelcol_process_uptime[1m])) > 0
+            and on(obenhub.collector)
+          label_replace(present_over_time(otelcol_process_uptime[1m]), "obenhub.collector", "$1", "service.instance.id", "(.+)")
         # The heartbeat of a PostgreSQL target is postgresql.collection.heartbeat.
-        # A target is absent only while the Collector is alive: the 1m window
-        # empties before the 2m one, so a stopped Collector raises only
-        # CollectorAbsent. The Alertmanager inhibit alone lost the race in the
+        # A target is absent only while the Collector that collects it is alive
+        # (obenhub.collector, matched to the Collector's self-metrics
+        # service.instance.id): the 1m window empties before the 2m one, so a
+        # stopped Collector raises only its own CollectorAbsent. The Alertmanager inhibit alone lost the race in the
         # lab (2026-11-06, collector-stopped): vmalert's startsAt is older than
         # group_wait, so Alertmanager sends at once, in whatever order.
         for: 1m
@@ -36,12 +39,44 @@ groups:
           summary: 'No heartbeat from {{ (index $labels "service.instance.id") }}'
 
       - alert: CollectorAbsent
-        expr: absent_over_time(otelcol_process_uptime[2m])
+        # Per Collector: an expected Collector with no self-metrics for 2m. A
+        # Collector that sends through another one (obenhub.upstream) is left
+        # out while that upstream is itself absent: the upstream's 1m window
+        # empties before the 2m one, so a stopped gateway raises only its own
+        # alert, not one per Collector behind it.
+        expr: |
+          (
+            obenhub.expected_collector
+              unless on(service.instance.id)
+            present_over_time(otelcol_process_uptime[2m])
+          )
+            unless on(obenhub.upstream)
+          label_replace(
+            obenhub.expected_collector
+              unless on(service.instance.id)
+            present_over_time(otelcol_process_uptime[1m]),
+            "obenhub.upstream", "$1", "service.instance.id", "(.+)")
         for: 1m
         labels:
           severity: critical
         annotations:
-          summary: The Collector reports no self-metrics.
+          summary: 'Collector {{ (index $labels "service.instance.id") }} reports no self-metrics'
+
+      # An inventory entry whose obenhub.collector names no expected Collector
+      # (a typo, or the label missing) would silently switch off that target's
+      # absent alerts, because their gate matches on it. A missing label
+      # matches nothing on the right, so it fires too. The for: 1m rides out
+      # the start-up order of the inventory groups.
+      - alert: InventoryCollectorUnknown
+        expr: |
+          (obenhub.expected_target or obenhub.expected_scrape)
+            unless on(obenhub.collector)
+          label_replace(obenhub.expected_collector, "obenhub.collector", "$1", "service.instance.id", "(.+)")
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'Inventory entry {{ (index $labels "service.name") }} {{ (index $labels "service.instance.id") }} names an unknown Collector ("{{ (index $labels "obenhub.collector") }}")'
 
       - alert: StandbyNotStreaming
         # Not while no PostgreSQL in the lab is writable: then every node is in

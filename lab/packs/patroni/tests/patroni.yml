@@ -323,7 +323,7 @@ tests:
         values: '1x60'
       - series: 'postgresql.collection.heartbeat{service.instance.id="pg-3"}'
         values: '1x60'
-      - series: 'otelcol_process_uptime{service.name="otelcol"}'
+      - series: 'otelcol_process_uptime{service.name="otelcol",service.instance.id="otelcol-stage3"}'
         values: '1x60'
     alert_rule_test:
       - eval_time: 3m   # failing for 1 m, the 2 m window still holds an up 1
@@ -340,6 +340,7 @@ tests:
               service.namespace: obenhub-lab
               service.name: patroni
               db.cluster.name: stage3
+              obenhub.collector: otelcol-stage3
             exp_annotations:
               summary: Patroni on pg-2 is not scraped while PostgreSQL still reports
 
@@ -358,7 +359,7 @@ tests:
         values: '1x60'
       - series: 'postgresql.collection.heartbeat{service.instance.id="pg-3"}'
         values: '1x60'
-      - series: 'otelcol_process_uptime{service.name="otelcol"}'
+      - series: 'otelcol_process_uptime{service.name="otelcol",service.instance.id="otelcol-stage3"}'
         values: '1x60'
     alert_rule_test:
       - eval_time: 6m
@@ -371,6 +372,7 @@ tests:
               service.namespace: obenhub-lab
               service.name: patroni
               db.cluster.name: stage3
+              obenhub.collector: otelcol-stage3
             exp_annotations:
               summary: Patroni on pg-2 is not scraped while PostgreSQL still reports
 
@@ -389,7 +391,7 @@ tests:
         values: '1x8 _x52'
       - series: 'postgresql.collection.heartbeat{service.instance.id="pg-3"}'
         values: '1x60'
-      - series: 'otelcol_process_uptime{service.name="otelcol"}'
+      - series: 'otelcol_process_uptime{service.name="otelcol",service.instance.id="otelcol-stage3"}'
         values: '1x60'
     alert_rule_test:
       - eval_time: 3m
@@ -420,7 +422,7 @@ tests:
         values: '1x8 _x52'
       - series: 'postgresql.collection.heartbeat{service.instance.id="pg-3"}'
         values: '1x8 _x52'
-      - series: 'otelcol_process_uptime{service.name="otelcol"}'
+      - series: 'otelcol_process_uptime{service.name="otelcol",service.instance.id="otelcol-stage3"}'
         values: '1x8 _x52'
     alert_rule_test:
       - eval_time: 6m

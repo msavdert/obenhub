@@ -48,7 +48,12 @@ The monitor password reaches the node in `/etc/otelcol-contrib/monitor.env`
 ## Alerts
 
 vmalert loads the shared packs `lab/packs/{postgresql,patroni,etcd}/rules.yml`
-and `mon/vmalert/inventory.yml` (the nodes this lab expects). The Grafana
-instance provisions the stage 3 Patroni dashboard unchanged.
+and `mon/vmalert/inventory.yml` (the Collectors and nodes this lab expects).
+The Grafana instance provisions the stage 3 Patroni dashboard unchanged.
+
+`CollectorAbsent` fires per Collector. Each node's targets are tagged with its
+own Collector, so a stopped node Collector raises only its alert, and a stopped
+gateway (which carries every node's telemetry) only the gateway's.
+`mise run lab:pgha:rules-test` covers these cases.
 
 The fault scenarios of stage 3 are not ported yet.
