@@ -9,9 +9,10 @@ mise install
 mise run check
 ```
 
-`mise run check` runs all offline linters (workflows, YAML, Markdown,
-spelling, relative links, editorconfig, shell). `mise run eol` checks product
-end-of-life dates and needs network.
+`mise run check` runs the linters (workflows, YAML, Markdown, spelling,
+relative links, editorconfig, shell) and the alert-rule unit tests of every
+pack and lab, which run `vmalert-tool` in Docker and pull its image on first
+use. `mise run eol` checks product end-of-life dates and needs network.
 
 ## Commits and pull requests
 
@@ -25,9 +26,9 @@ end-of-life dates and needs network.
   a revert PR title uses `revert: <subject>`.
 - Releases are cut by release-please from the commit history (SemVer, 0.x
   while unstable, tags `vX.Y.Z`). The first release is 0.1.0
-  (`initial-version`). Release PRs are opened with the workflow token, so CI
-  does not run on them; they only touch `CHANGELOG.md`, `version.txt` and the
-  manifest.
+  (`initial-version`). Release PRs only touch `CHANGELOG.md`, `version.txt`
+  and the manifest; their CI runs start after a maintainer approves them in
+  the Actions tab.
 
 ## Repository settings
 

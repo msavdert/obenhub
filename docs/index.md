@@ -6,8 +6,11 @@ source under Apache 2.0. PostgreSQL first, Oracle next.
 
 ## Status
 
-Nothing runs yet. What exists is the set of decisions in the repository and the
-tooling that checks them. Pages are added as the work behind them is done.
+Four labs run PostgreSQL topologies (Compose, Patroni on Compose and on VMs,
+CloudNativePG on kind) with fault scenarios and alerting. The list of labs and
+their evidence is in
+[lab/README.md](https://github.com/msavdert/obenhub/blob/main/lab/README.md).
+Pages on this site are added as the work behind them is done.
 
 ## How these docs are organised
 

@@ -1,13 +1,19 @@
 # AGENTS.md
 
 obenhub is an OpenTelemetry-centred database and operating-system monitoring
-learning platform, Apache-2.0, PostgreSQL first. See README.md. Nothing runs
-yet; the repository holds decisions and repository tooling only.
+learning platform, Apache-2.0, PostgreSQL first. See README.md. Four labs
+run PostgreSQL topologies with fault scenarios and alerting; `lab/README.md`
+lists them.
 
 ## Where things live
 
 - Decisions: `docs/adr/` (index and template in `docs/adr/README.md`).
 - Plans: `docs/roadmap.md` only. Nowhere else.
+- Labs: `lab/<name>/` (slice1, stage3, pgha, k8s; overhead and obi are
+  one-off measurements). Each lab keeps its evidence in `results/runs.jsonl`.
+- Shared lab code: queries and rules with unit tests in `lab/packs/<component>/`,
+  the scenario harness in `lab/scenarios/lib-core.sh`. A new lab reuses these
+  instead of copying another lab's files.
 - Repository tooling: `mise.toml`, `scripts/`, `.github/`.
 - `CLAUDE.local.md` is machine-specific and gitignored.
 
