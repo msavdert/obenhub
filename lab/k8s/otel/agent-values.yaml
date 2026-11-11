@@ -4,7 +4,7 @@
 # versions.sh and the running kind network by scripts/up.sh; ${env:...} is the
 # Collector's own syntax and is left alone.
 # Preset behaviour: chart templates/_config.tpl at chart 0.178.3. Component
-# keys: receivers kubeletstats, receiver_creator, postgresql, sql_query,
+# keys: receivers kubeletstats, receiver_creator, postgresql, sql_query, prometheus,
 # file_log and processors k8s_attributes, transform in contrib v0.164.0; the
 # chart renames filelog and k8sattributes to those names itself.
 mode: daemonset
@@ -145,6 +145,31 @@ config:
             collection_interval: 15s
             timeout: 10s
             queries: ${file:/etc/obenhub/packs/postgresql/queries.yaml}
+    # CloudNativePG's instance manager exporter (container port `metrics`,
+    # 9187, plain HTTP) on every instance pod of this node, for operator
+    # state only: cnpg_collector_* and cnpg_last_error. The three series the
+    # exporter's HELP marks Deprecated (backup timestamps) and the Go runtime
+    # series are dropped.
+    receiver_creator/cnpg:
+      watch_observers: [k8s_observer]
+      receivers:
+        prometheus:
+          rule: type == "port" && name == "metrics" && pod.labels["cnpg.io/cluster"] == "pg" && pod.labels["cnpg.io/podRole"] == "instance"
+          config:
+            config:
+              scrape_configs:
+                - job_name: cnpg
+                  scrape_interval: 15s
+                  scrape_timeout: 10s
+                  static_configs:
+                    - targets: ['`endpoint`']
+                  metric_relabel_configs:
+                    - source_labels: [__name__]
+                      regex: cnpg_collector_.*|cnpg_last_error
+                      action: keep
+                    - source_labels: [__name__]
+                      regex: cnpg_collector_(first_recoverability_point|last_available_backup_timestamp|last_failed_backup_timestamp)
+                      action: drop
   processors:
     # Same attribute names as lab/pgha/files/otelcol.yaml.tmpl; the instance is
     # the pod (k8s.pod.name is set by receiver_creator), never a role.
@@ -155,6 +180,18 @@ config:
         - {key: service.instance.id, from_attribute: k8s.pod.name, action: upsert}
         - {key: server.address, from_attribute: k8s.pod.name, action: upsert}
         - {key: server.port, value: '5432', action: upsert}
+        - {key: db.system.name, value: postgresql, action: upsert}
+        - {key: db.cluster.name, value: pg, action: upsert}
+    # As resource/postgresql, with the instance manager (which serves the
+    # exporter) as the service. Not "cloudnative-pg": k8s_attributes already
+    # gives the operator pod that name from its app.kubernetes.io/name label.
+    resource/cnpg:
+      attributes:
+        - {key: service.namespace, value: obenhub-lab, action: upsert}
+        - {key: service.name, value: cnpg-instance-manager, action: upsert}
+        - {key: service.instance.id, from_attribute: k8s.pod.name, action: upsert}
+        - {key: server.address, from_attribute: k8s.pod.name, action: upsert}
+        - {key: server.port, value: '9187', action: upsert}
         - {key: db.system.name, value: postgresql, action: upsert}
         - {key: db.cluster.name, value: pg, action: upsert}
     # CloudNativePG logs {"logger":"postgres","msg":"record","record":{...}}.
@@ -216,6 +253,10 @@ config:
       metrics/postgresql:
         receivers: [receiver_creator/postgresql]
         processors: [memory_limiter, k8s_attributes, resource/postgresql, batch]
+        exporters: [otlp_http/gateway]
+      metrics/cnpg:
+        receivers: [receiver_creator/cnpg]
+        processors: [memory_limiter, k8s_attributes, resource/cnpg, batch]
         exporters: [otlp_http/gateway]
       # receivers: file_log is added by the preset
       logs:

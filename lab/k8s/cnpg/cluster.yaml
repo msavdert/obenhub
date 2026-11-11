@@ -19,6 +19,11 @@ spec:
     topologyKey: kubernetes.io/hostname
   storage:
     size: 1Gi
+  # The exporter on port 9187 keeps only its built-in cnpg_collector_* set;
+  # the default queries (cnpg_pg_*, cnpg_backends_*) repeat the PostgreSQL
+  # pack, which the Collectors already run (ADR 0003).
+  monitoring:
+    disableDefaultQueries: true
   bootstrap:
     initdb:
       database: app

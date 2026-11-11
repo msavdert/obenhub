@@ -226,7 +226,7 @@ contrib 0.165.1.
       `kubeletstats`, and container logs with the PostgreSQL `record` of
       CloudNativePG's JSON log parsed; one Deployment for `k8scluster` and
       Kubernetes events; `k8sattributes` on all signals
-- [ ] CloudNativePG's exporter scraped only for operator state
+- [x] CloudNativePG's exporter scraped only for operator state
       (`cnpg_collector_*`, `cnpg_last_error`) with its default queries off:
       the pack already covers PostgreSQL, as with Patroni `/metrics` in
       stage 3

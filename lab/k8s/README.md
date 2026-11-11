@@ -23,7 +23,8 @@ lab/k8s/scripts/down.sh   # deletes the kind cluster, the backend and all data
 kind cluster                                   box (Compose project obenhub-k8s)
   agent DaemonSet (3, one per worker)  --+
     kubeletstats, container logs,        |  OTLP/HTTP, plain
-    PostgreSQL pack per CNPG pod         +-> gateway Collector -> VictoriaMetrics, VictoriaLogs
+    PostgreSQL pack per CNPG pod,        |
+    CNPG exporter (cnpg_collector_*)     +-> gateway Collector -> VictoriaMetrics, VictoriaLogs
   cluster Deployment (1)               --+   (172.16.9.1:44317)    vmalert -> Alertmanager, Grafana
     k8s_cluster, Kubernetes events
 ```
@@ -47,6 +48,16 @@ kind cluster                                   box (Compose project obenhub-k8s)
   pod labelled `cnpg.io/cluster=pg` on the agent's own node. Series are named
   by pod (`service.instance.id`, `server.address` = `pg-1`...), never by role,
   and carry the `k8s.*` attributes.
+- CloudNativePG's exporter (container port `metrics`, 9187, plain HTTP):
+  the same `k8s_observer` starts a `prometheus` receiver per instance pod,
+  which keeps `cnpg_collector_*` and `cnpg_last_error`: operator state
+  (fencing, switchover required, replica mode, nodes used) and figures the
+  pack does not collect (`pg_wal` directory, archive status, WAL generation,
+  large-object pages) and drops the three backup timestamps the exporter marks
+  Deprecated. The Cluster sets `monitoring.disableDefaultQueries`, so the
+  exporter does not run its default queries, which repeat the pack.
+  `service.name` is `cnpg-instance-manager`; `k8s_attributes` already names
+  the operator pod `cloudnative-pg` after its `app.kubernetes.io/name` label.
 - Container logs of CloudNativePG are JSON; the agent parses the line and, for
   `logger=postgres`, turns every field of `record` (`error_severity`,
   `sql_state_code`, `query`, ...) into a flat attribute, as pgha does, and the
@@ -117,6 +128,26 @@ both Helm releases 18 s. Chart `opentelemetry-collector` 0.178.3, image
   `otelcol-agent-obenhub-worker2` alone (active 2 minutes after the patch,
   firing when read at 5m45s); removing the patch cleared it. On a fresh backend `CollectorAbsent` fires for the
   Collectors that are not yet installed, then clears once they push
+
+## CloudNativePG exporter checked on 2026-11-10
+
+On the running lab (Cluster created before `disableDefaultQueries` was set):
+
+- before the change, `pg-1:9187/metrics` served 58 `cnpg_pg_*`, 3
+  `cnpg_backends_*` and 20 `cnpg_collector_*` metric names, plus the Go
+  runtime series
+- `up.sh` set `disableDefaultQueries: true`, but the Cluster kept the
+  `customQueriesConfigMap: cnpg-default-monitoring` entry that the defaulting
+  webhook had added at creation, and the exporter kept serving `cnpg_pg_*`.
+  Removing that entry (`kubectl patch --type=json`, op `remove`) stopped
+  them, with no pod restart. A server-side dry run of
+  `cnpg/cluster.yaml` as a new Cluster gets no such entry, so `up.sh` from
+  nothing needs no patch; a lab created before this change needs it once
+  (the `keep` filter would hide the duplicate queries in VictoriaMetrics)
+- in VictoriaMetrics, `service.name=cnpg-instance-manager` holds the 17
+  `cnpg_collector_*` names left after the drop, `cnpg_last_error` and the
+  receiver's own `up` and `scrape_*`, for `pg-1`, `pg-2` and `pg-3`;
+  no `cnpg_pg_*`, `cnpg_cache_*` or `go_*`
 
 Not checked: a run on a cluster other than this one, and recovery after a
 restart of the gateway container while the Collectors are running.
