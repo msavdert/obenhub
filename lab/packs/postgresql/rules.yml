@@ -339,6 +339,48 @@ groups:
         annotations:
           summary: 'Slot {{ $labels.slot_name }} on {{ (index $labels "service.instance.id") }} is invalidated ({{ $labels.invalidation_reason }})'
 
+      # A slot, valid and not yet invalidated, that holds back more than
+      # 512 MiB of WAL on a primary: the volume is filling. Fires per slot,
+      # whatever the type and whether the slot is active (a consumer that is
+      # connected but far behind retains the same WAL). Lab threshold, set
+      # against the k8s lab's guard max_slot_wal_keep_size = 1GB (lab/k8s/cnpg/cluster.yaml,
+      # read as -1 = unlimited on 2026-11-11): half of it, so the alert comes
+      # while the slot is still valid. An invalidated slot retains nothing and
+      # has ReplicationSlotInvalidated. Primary only: CloudNativePG (and
+      # Patroni) copy slots to the replicas, where retained_bytes is a few
+      # hundred KB to 1 MB and means nothing (read on the k8s, pgha and stage3
+      # labs on 2026-11-11).
+      # Read from the existing labs on 2026-11-11 (pgha, stage3, slice1; five
+      # days of history, 30 s steps): in their normal state retained_bytes on a
+      # primary is below 1 MB. Replay-heavy scenarios push a valid slot past
+      # 256 MiB for under 6 minutes in total (stage3 reached 411 MB), never
+      # past 512 MiB; slice1 slot-invalidated and subscription-disabled each
+      # touched it in two isolated 30 s samples, which the 2 minute hold rides
+      # out. A sustained breach in those labs would now alert; the hold is the
+      # only protection. Accepted miss: a slot that retains less than the
+      # threshold for ever, or one that goes from below to invalidated inside
+      # one hold time.
+      # Smoke run 2026-11-11 (k8s lab, replica cut, 700 MiB written): fired
+      # 2m48s after the writes ended, resolved 1m after the cut was removed
+      # (the replica consumed the WAL). The scratch table must not be left to
+      # autovacuum: that doubled the WAL in the first run and the slot passed
+      # the guard (status unreserved).
+      # Lab scenario: lab/k8s/scenarios/slot-retaining-wal.sh.
+      - alert: ReplicationSlotRetainingWAL
+        expr: |
+          (
+            postgresql.replication_slot.retained_bytes > 512 * 1024 * 1024
+              unless on(service.instance.id, slot_name)
+            postgresql.replication_slot.invalidated == 1
+          )
+            and on(service.instance.id)
+          postgresql.recovery.active == 0
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'Slot {{ $labels.slot_name }} on {{ (index $labels "service.instance.id") }} retains {{ $value | humanize1024 }}B of WAL (lab threshold)'
+
       # Covers the pack and postgresqlreceiver's database.count (a canary for the
       # receiver). Every pack query returns at least one row on every node, or
       # (slots, subscriptions) none by design, so the list holds both kinds. `on(__name__)` is not honoured by binary

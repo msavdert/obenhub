@@ -132,3 +132,51 @@ tests:
         groupname: cnpg
         alertname: CNPGPrimaryChanged
         exp_alerts: []
+
+  # --- instance fenced -------------------------------------------------------
+  # Series shape read from the k8s lab on 2026-11-11: cnpg_collector_fencing_on
+  # is 0 on every healthy instance and 1 on a fenced one.
+  - name: a fenced instance fires after the hold, only for that instance, and resolves when unfenced
+    interval: 15s
+    input_series:
+      - series: 'cnpg_collector_fencing_on{k8s.namespace.name="obenhub",db.cluster.name="pg",service.instance.id="pg-3"}'
+        values: '0x8 1x16 0x40'
+      - series: 'cnpg_collector_fencing_on{k8s.namespace.name="obenhub",db.cluster.name="pg",service.instance.id="pg-2"}'
+        values: '0x64'
+    alert_rule_test:
+      - eval_time: 2m30s   # fenced since 2m, 30 s into the 1m hold
+        groupname: cnpg
+        alertname: CNPGInstanceFenced
+        exp_alerts: []
+      - eval_time: 4m
+        groupname: cnpg
+        alertname: CNPGInstanceFenced
+        exp_alerts:
+          - exp_labels: {severity: warning, k8s.namespace.name: obenhub, db.cluster.name: pg, service.instance.id: pg-3}
+            exp_annotations:
+              summary: Instance pg-3 of cluster pg (obenhub) is fenced
+      - eval_time: 7m   # unfenced at 6m
+        groupname: cnpg
+        alertname: CNPGInstanceFenced
+        exp_alerts: []
+
+  - name: a fence shorter than the hold, healthy instances and an absent pod are silent
+    interval: 15s
+    input_series:
+      # fenced for 45 s only
+      - series: 'cnpg_collector_fencing_on{k8s.namespace.name="obenhub",db.cluster.name="pg",service.instance.id="pg-3"}'
+        values: '0x8 1x3 0x50'
+      - series: 'cnpg_collector_fencing_on{k8s.namespace.name="obenhub",db.cluster.name="pg",service.instance.id="pg-2"}'
+        values: '0x60'
+      # pod deleted while fenced: the series ends, nothing keeps the alert alive
+      - series: 'cnpg_collector_fencing_on{k8s.namespace.name="obenhub",db.cluster.name="pg",service.instance.id="pg-1"}'
+        values: '0x8 1x2 _x50'
+    alert_rule_test:
+      - eval_time: 3m
+        groupname: cnpg
+        alertname: CNPGInstanceFenced
+        exp_alerts: []
+      - eval_time: 10m
+        groupname: cnpg
+        alertname: CNPGInstanceFenced
+        exp_alerts: []

@@ -40,3 +40,34 @@ groups:
           severity: warning
         annotations:
           summary: 'A replica of cluster {{ (index $labels "db.cluster.name") }} ({{ (index $labels "k8s.namespace.name") }}) was promoted'
+
+      # An instance whose exporter reports cnpg_collector_fencing_on == 1 for a
+      # minute: the instance is fenced (annotation cnpg.io/fencedInstances on
+      # the Cluster), CloudNativePG has stopped PostgreSQL in the pod and the
+      # pod stays Running but not ready. This one comes from CloudNativePG's
+      # own exporter (the only series of it that a rule reads, ADR 0003: the
+      # operator's state, not PostgreSQL's), because the pack cannot say it: a
+      # fenced instance sends no pack series at all.
+      # Facts read from the k8s lab on 2026-11-11: the exporter of a fenced
+      # pod keeps answering (port 9187 is served by the instance manager, not
+      # by PostgreSQL), cnpg_collector_fencing_on goes 0 -> 1 about 20 s after
+      # the annotation, with cnpg_last_error 1 (the collection fails) and
+      # cnpg_collector_up 1. The series carries service.instance.id (pod name),
+      # k8s.namespace.name and db.cluster.name, and is 0 on every healthy
+      # instance. All the pack's postgresql.* series of the fenced pod stop,
+      # postgresql.collection.heartbeat included (it is a SELECT 1): so
+      # SeriesVanished, which needs the heartbeat, stays quiet, and
+      # PostgresTargetAbsent is inert on this lab (lab/k8s sets no
+      # obenhub.expected_target). This alert is what reports the fence.
+      # Quiet when the pod is gone (no sample) and for a fence shorter than
+      # the hold. Accepted miss: a fence that ends within 1 minute. Fencing the
+      # primary is covered too (the alert is per instance); what that does to
+      # writes is for the primary-side alerts of the pack.
+      # Lab scenario: lab/k8s/scenarios/fenced.sh.
+      - alert: CNPGInstanceFenced
+        expr: cnpg_collector_fencing_on == 1
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'Instance {{ (index $labels "service.instance.id") }} of cluster {{ (index $labels "db.cluster.name") }} ({{ (index $labels "k8s.namespace.name") }}) is fenced'

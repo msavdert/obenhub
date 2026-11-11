@@ -24,6 +24,16 @@ spec:
   # pack, which the Collectors already run (ADR 0003).
   monitoring:
     disableDefaultQueries: true
+  # Guard for the slot scenarios: max_slot_wal_keep_size defaults to -1
+  # (unlimited, read on the lab 2026-11-11), so a slot whose replica cannot
+  # consume WAL would keep growing the volume. local-path does not enforce the
+  # 1Gi claim (df in the pod shows the host disk), so nothing else stops it.
+  # With 1GB the slot is invalidated instead. sighup: a reload, no restart.
+  # The alert threshold (ReplicationSlotRetainingWAL in lab/packs/postgresql)
+  # sits well below it.
+  postgresql:
+    parameters:
+      max_slot_wal_keep_size: 1GB
   bootstrap:
     initdb:
       database: app

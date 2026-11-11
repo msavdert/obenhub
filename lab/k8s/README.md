@@ -92,6 +92,9 @@ kind cluster                                   box (Compose project obenhub-k8s)
 lab/k8s/scenarios/control.sh             # no fault, CONTROL_SECONDS (default 600)
 lab/k8s/scenarios/switchover.sh          # planned switchover to a replica
 lab/k8s/scenarios/primary-deleted.sh     # kubectl delete pod of the primary
+lab/k8s/scenarios/fenced.sh              # fence a replica (cnpg.io/fencedInstances)
+lab/k8s/scenarios/replica-cut.sh         # NetworkPolicy cuts a replica from the primary
+lab/k8s/scenarios/slot-retaining-wal.sh  # the cut replica's slot retains bounded WAL
 ```
 
 The machinery is `lab/scenarios/lib-core.sh`, shared with stage 3 and pgha;
@@ -109,6 +112,17 @@ load client acknowledges rows.
 - `switchover`: `kubectl cnpg promote` when the plugin is installed (it is not
   on this box), otherwise the same change made directly (`status.targetPrimary`
   on the Cluster, which the plugin sets, per its source at v1.30.1).
+- `fenced`: the annotation `cnpg.io/fencedInstances` on the Cluster (the plugin
+  is not installed). The fenced pod's exporter keeps serving
+  `cnpg_collector_fencing_on`, which `CNPGInstanceFenced` reads; its pack
+  series stop.
+- `replica-cut`, `slot-retaining-wal`: a NetworkPolicy on the primary admits
+  every source except the replica's pod IP (kindnet enforces it, probed
+  2026-11-11), then the replica's walsender is terminated, because a policy
+  does not end an established connection. `slot-retaining-wal` then writes a
+  scratch table until the replica's slot retains 640 MiB. The Cluster sets
+  `max_slot_wal_keep_size: 1GB` as the guard (it was unlimited, and the 1Gi
+  claim is not enforced by local-path); the alert threshold is 512 MiB.
 - Both role changes expect `CNPGPrimaryChanged` and record old and new
   primary, timelines, the longest gap between acknowledged writes, the
   acknowledged rows (from 60 s before the fault) kept and lost, and the

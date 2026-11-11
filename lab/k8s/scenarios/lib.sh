@@ -199,3 +199,57 @@ role_change_evidence() {
      kubernetes_events: $events}')
   log "extra: $EXTRA_JSON"
 }
+
+# --- network cut of one replica (replica-cut.sh, slot-retaining-wal.sh) ------
+# cut_replica REPLICA: NetworkPolicy obenhub-replica-cut on the current
+# primary's pod (selected by cnpg.io/instanceName) that admits every source
+# except REPLICA's pod IP, so the operator, the Collectors and the load client
+# keep their access to the primary and only the replica loses it (kindnet
+# enforces NetworkPolicy and ipBlock on pod IPs: probed 2026-11-11, a pg_isready
+# from the excluded pod timed out, from the other replica it answered, through
+# the pg-rw Service too). The policy filters new connections only: the
+# established walsender connection survives it, so the walsender of REPLICA is
+# terminated once the policy is in force, and the replica's reconnects meet the
+# policy. Prints the primary's name.
+CUT_POLICY=obenhub-replica-cut
+cut_replica() {
+  local rep=$1 prim ip pip n=0
+  prim=$(leader_name) && [ -n "$prim" ] || return 1
+  # a failover since the caller picked the replica: refuse rather than cut the primary from itself
+  [ "$prim" != "$rep" ] || { log "$rep is the primary now; not cutting"; return 1; }
+  ip=$(kc get pod "$rep" -o jsonpath='{.status.podIP}') && [ -n "$ip" ] || return 1
+  pip=$(kc get pod "$prim" -o jsonpath='{.status.podIP}') && [ -n "$pip" ] || return 1
+  kc apply -f - >/dev/null <<ENDPOLICY || return 1
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: $CUT_POLICY
+spec:
+  podSelector:
+    matchLabels:
+      cnpg.io/instanceName: $prim
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except: ["$ip/32"]
+ENDPOLICY
+  # in force when the replica can no longer open a connection to the primary
+  # pg_isready exits 2 when it gets no response (a dropped SYN, but also a refused connection: a primary
+  # restarting here passes the loop, and the terminate below then fails the cut); other codes are not the cut
+  local rc
+  while :; do
+    kc exec "$rep" -c postgres -- pg_isready -h "$pip" -t 2 >/dev/null 2>&1; rc=$?
+    [ "$rc" -ne 2 ] || break
+    n=$((n + 1)); [ "$n" -lt 20 ] || { log "NetworkPolicy not in force after 20 tries"; return 1; }
+    sleep 2
+  done
+  psql_n "$prim" -d app -c "SELECT pg_terminate_backend(pid) FROM pg_stat_replication WHERE application_name = '$rep'" >/dev/null || return 1
+  echo "$prim"
+}
+# uncut_replica: remove the policy (the replica reconnects by itself)
+uncut_replica() { kc delete networkpolicy "$CUT_POLICY" --ignore-not-found >/dev/null; }
+
+# events_json FROM UNTIL: the window's Kubernetes events as JSON, null when the query fails
+events_json() { event_reasons "$1" "$2" 2>/dev/null || echo null; }

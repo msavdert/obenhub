@@ -821,3 +821,86 @@ tests:
               kind: xid
             exp_annotations:
               summary: 'xid age of app on pg-primary is 79.16% of the wraparound limit'
+
+  # --- ReplicationSlotRetainingWAL (threshold 512 MiB = 536870912, hold 2m) ---
+  - name: a valid slot above 512 MiB on a primary fires after the hold; below, on a replica copy, and invalidated stay quiet
+    interval: 15s
+    input_series:
+      # 600 MiB from the start: fires
+      - series: 'postgresql.replication_slot.retained_bytes{service.instance.id="pg-1",slot_name="_cnpg_pg_2",slot_type="physical"}'
+        values: '629145600x60'
+      - series: 'postgresql.replication_slot.invalidated{service.instance.id="pg-1",slot_name="_cnpg_pg_2",slot_type="physical",invalidation_reason=""}'
+        values: '0x60'
+      # 400 MiB: below the threshold
+      - series: 'postgresql.replication_slot.retained_bytes{service.instance.id="pg-1",slot_name="_cnpg_pg_3",slot_type="physical"}'
+        values: '419430400x60'
+      # 900 MiB but invalidated: retains nothing, has its own alert
+      - series: 'postgresql.replication_slot.retained_bytes{service.instance.id="pg-1",slot_name="gone",slot_type="physical"}'
+        values: '943718400x60'
+      - series: 'postgresql.replication_slot.invalidated{service.instance.id="pg-1",slot_name="gone",slot_type="physical",invalidation_reason="wal_removed"}'
+        values: '1x60'
+      - series: 'postgresql.recovery.active{service.instance.id="pg-1"}'
+        values: '0x60'
+      # a replica's copy of a slot, large on purpose: replicas are out of scope
+      - series: 'postgresql.replication_slot.retained_bytes{service.instance.id="pg-2",slot_name="_cnpg_pg_3",slot_type="physical"}'
+        values: '629145600x60'
+      - series: 'postgresql.recovery.active{service.instance.id="pg-2"}'
+        values: '1x60'
+    alert_rule_test:
+      - eval_time: 1m30s   # pending, below the 2m hold
+        groupname: postgresql
+        alertname: ReplicationSlotRetainingWAL
+        exp_alerts: []
+      - eval_time: 2m30s   # firing just after the hold: pins `for` from above
+        groupname: postgresql
+        alertname: ReplicationSlotRetainingWAL
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              service.instance.id: pg-1
+              slot_name: _cnpg_pg_2
+              slot_type: physical
+            exp_annotations:
+              summary: 'Slot _cnpg_pg_2 on pg-1 retains 600MiB of WAL (lab threshold)'
+      - eval_time: 4m
+        groupname: postgresql
+        alertname: ReplicationSlotRetainingWAL
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              service.instance.id: pg-1
+              slot_name: _cnpg_pg_2
+              slot_type: physical
+            exp_annotations:
+              summary: 'Slot _cnpg_pg_2 on pg-1 retains 600MiB of WAL (lab threshold)'
+
+  - name: a slot that crosses the threshold for less than the hold, or sits exactly at it, does not fire; it resolves when the slot catches up
+    interval: 15s
+    input_series:
+      # 90 s above (6 samples), then back to 1 MB
+      - series: 'postgresql.replication_slot.retained_bytes{service.instance.id="pg-1",slot_name="blip",slot_type="physical"}'
+        values: '1000000x4 629145600x6 1000000x50'
+      # exactly 512 MiB is not above it
+      - series: 'postgresql.replication_slot.retained_bytes{service.instance.id="pg-1",slot_name="edge",slot_type="physical"}'
+        values: '536870912x60'
+      # fires, then catches up at 6m
+      - series: 'postgresql.replication_slot.retained_bytes{service.instance.id="pg-1",slot_name="lag",slot_type="physical"}'
+        values: '629145600x24 1000000x36'
+      - series: 'postgresql.recovery.active{service.instance.id="pg-1"}'
+        values: '0x60'
+    alert_rule_test:
+      - eval_time: 5m
+        groupname: postgresql
+        alertname: ReplicationSlotRetainingWAL
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              service.instance.id: pg-1
+              slot_name: lag
+              slot_type: physical
+            exp_annotations:
+              summary: 'Slot lag on pg-1 retains 600MiB of WAL (lab threshold)'
+      - eval_time: 7m
+        groupname: postgresql
+        alertname: ReplicationSlotRetainingWAL
+        exp_alerts: []
