@@ -199,7 +199,7 @@ exec "$f"
 description = "run all pgha fault scenarios, control last; stops at the first failure"
 run = '''
 set -e
-for s in quorum-lost etcd-member-down etcd-leader-changes patroni-down filesystem-filling memory-pressure replica-not-eligible replay-paused cluster-paused pending-restart network-partition network-partition-replica switchover control; do
+for s in quorum-lost etcd-member-down etcd-leader-changes patroni-down filesystem-filling memory-pressure replica-not-eligible replay-paused cluster-paused pending-restart network-partition network-partition-replica leader-killed switchover control; do
   echo "=== $s"
   lab/pgha/scenarios/$s.sh
 done

@@ -86,13 +86,16 @@ stage 3; `scenarios/lib.sh` is the adapter that reaches the nodes over ssh.
 | `pending-restart` | `patronictl edit-config` of `shared_buffers` |
 | `network-partition` | nftables on the leader and on the other two nodes drops all traffic between the leader and them (ssh and OTLP stay open) |
 | `network-partition-replica` | the same on the first replica |
+| `leader-killed` | `kill -STOP` on the leader's Patroni main process (PostgreSQL keeps running); the hardware watchdog resets the VM |
 | `switchover` | `patronictl switchover` |
 | `control` | no fault, 10 minutes of load |
 
 The nftables scenarios add one table, `inet obenhub_fault`, on the victim
 and delete it on revert; a left-over table fails the next run's precondition.
-Patroni is never stopped: its hardware watchdog (mode `required`) resets the
-VM. Client load is `obenhub-load.service` on every node (`files/load.sh`): the
+Patroni is stopped by no scenario except `leader-killed`, which freezes it on
+purpose: its hardware watchdog (mode `required`) resets the VM.
+`leader-killed` also writes from this box as role `app` (it needs `psql` here
+and `APP_PASSWORD` in `lab/pgha/.env`). Client load is `obenhub-load.service` on every node (`files/load.sh`): the
 same pgbench pattern as stage 3, through the local socket, and only while the
 node is the primary.
 
@@ -166,3 +169,31 @@ the revert, no unexpected alert. Drops at revert: pgha-1 35/2402, pgha-2
 0/3044, pgha-3 0/873. Attempts outside `runs.jsonl` (VictoriaLogs and
 VictoriaMetrics, 2026-11-10 19:11 to 19:23) were reverted at about 3 minutes
 or lacked the last two alerts in EXPECT; the script comments name them.
+
+### Leader killed (runs 2026-11-10 and 2026-11-11)
+
+Suite-4 (`results/runs.jsonl` rows from 2026-11-10 23:58, all fifteen scenarios) passed with
+no unexpected alert; it is the first suite on the poller shared through
+`scenarios/lib.sh`.
+
+`leader-killed` (row of 01:09): Patroni's main process on the leader pgha-2
+was frozen at 01:09:21.6; its last line was the 01:09:19.8 loop ("no action.
+I am (pgha-2), the leader with the lock"). PostgreSQL stayed writable until
+01:09:44.76, the last loop plus the 25 s timeout of the i6300ESB watchdog
+(`timeout_seconds` read from sysfs before the fault), and the new boot's first
+kernel line is 33.0 s after the freeze. pgha-2 came back and kept the leader
+key (outcome A, timeline 18 to 19, no `pg_rewind`). The poller saw 18.4 s
+without a writable node and no sample with two; the writer, through
+`target_session_attrs=read-write` from this box, saw 18.8 s between two
+acknowledged inserts and lost none of its 503 acknowledged rows.
+`seconds_to_detect` 118.7 s (`PatroniFailoverHappened`, `HostRebooted` for
+pgha-2), `seconds_to_resolve` 280.7 s. `primary_gap_seconds` read 45, an
+upper bound from 15 s steps. Why the timeline rises when the same node keeps
+the key (a promotion after crash recovery) is not confirmed from a log.
+
+Two smoke runs on the script before its audit fixes (not in `runs.jsonl`;
+2026-11-10 23:12 and 23:21, `HostRebooted` for pgha-2 in VictoriaLogs at both)
+had one outcome each: 23:12 outcome A (18.4 s, 531 of 531 rows), 23:21
+outcome B, where pgha-1 took over (timeline 15 to 16, 8.8 s without a
+writable node, 465 of 465 rows, `pg_rewind` on pgha-2). Which outcome a run
+gets is a race; the asynchronous replication did not lose a row in either.

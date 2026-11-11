@@ -12,62 +12,8 @@ EXPECT=()
 ALLOW=()
 OLD="" TL0="" STATE=""
 EXTRA_JSON=null
-POLL_DIR="" POLL_PIDS=()
 FINALIZED=0
 declare -A BOOT0=()
-
-# poll_node NODE PARENT: one sample line "epoch node t|f|down|err" per answer, the epoch
-# taken when the answer arrived. down: ssh worked but psql did not answer (the node is
-# not writable); err: ssh failed or timed out (unknown). Stops when PARENT is gone, so a
-# killed scenario does not leave pollers behind.
-poll_node() {
-  local n=$1 parent=$2 r rc
-  while kill -0 "$parent" 2>/dev/null; do
-    r=$(timeout 4 ssh -n -o BatchMode=yes -o ConnectTimeout=2 "$n" "sudo $(printf '%q ' -u postgres psql -h /var/run/postgresql -X -v ON_ERROR_STOP=1 -At -c 'SELECT pg_is_in_recovery()')" 2>/dev/null)
-    rc=$?
-    case "$r" in t | f) ;; *) if [ "$rc" = 255 ] || [ "$rc" = 124 ]; then r=err; else r=down; fi ;; esac
-    echo "$(date +%s.%N) $n $r" >>"$POLL_DIR/$n"
-    sleep 0.5
-  done
-}
-start_poll() {
-  local n
-  POLL_DIR=$(mktemp -d)
-  for n in "${NODES[@]}"; do poll_node "$n" "$$" & POLL_PIDS+=("$!"); done
-}
-stop_poll() {
-  local p
-  for p in "${POLL_PIDS[@]}"; do kill "$p" 2>/dev/null; wait "$p" 2>/dev/null; done
-  POLL_PIDS=()
-}
-
-# poll_summary: one JSON object from the per-node sample files. Dual primary =
-# at some sample, two nodes whose newest sample (at most 3 s old) says writable.
-# The 3 s validity errs towards a false dual primary (a node that demoted right
-# after its last "f" still counts for up to 3 s); harmless here, where the
-# writable gap is over 15 s, but not for a graceful handover. It can also miss
-# one: an err or down sample replaces a node's last "f", so a writable node
-# whose ssh fails stops counting. Blind windows
-# count err samples only (ssh failed: unknown); down samples (psql refused) are
-# evidence that the node is not writable.
-poll_summary() {
-  cat "$POLL_DIR"/* 2>/dev/null | LC_ALL=C sort -n | awk -v old="$OLD" '
-    { t = $1; n = $2; v = $3; cnt[n]++; lastt[n] = t
-      if (v == "err") { errc[n]++; if (!inerr[n]) { inerr[n] = 1; lgs[n] = (n in lg) ? lg[n] : t } }
-      else { if (inerr[n]) { b = t - lgs[n]; if (b > blind[n]) blind[n] = b; inerr[n] = 0 } lg[n] = t }
-      st[n] = v; stt[n] = t
-      w = 0; for (k in st) if (st[k] == "f" && t - stt[k] <= 3) w++
-      if (w >= 2) dual++
-      if (n == old && v == "f") oldw = t
-      if (n == old && v == "t" && oldw && !oldro) oldro = t
-      if (n != old && v == "f" && !nw) { nw = t; nn = n }
-      total++ }
-    END {
-      for (n in cnt) if (inerr[n]) { b = lastt[n] - lgs[n]; if (b > blind[n]) blind[n] = b }
-      printf "{\"samples\":%d,\"dual_samples\":%d,\"new_leader\":%s,\"old_last_writable\":%s,\"old_first_readonly\":%s,\"new_first_writable\":%s,\"nodes\":{", total, dual, (nn ? "\"" nn "\"" : "null"), (oldw ? oldw : "null"), (oldro ? oldro : "null"), (nw ? nw : "null")
-      c = 0; for (n in cnt) { printf "%s\"%s\":{\"samples\":%d,\"err\":%d,\"longest_blind_seconds\":%.1f}", (c++ ? "," : ""), n, cnt[n], errc[n], blind[n] }
-      printf "}}\n" }'
-}
 
 # classify: for wait_until, runs in this shell. Sets STATE to reset (boot id changed) or
 # no_reset (ssh answered with the unchanged boot id at or after partition start + 90 s).

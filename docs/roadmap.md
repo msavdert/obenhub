@@ -202,10 +202,11 @@ Then the same cluster on three VMs, because the operating-system layer
 - [x] The stage 3 fault scenarios carried over to the VMs where they apply
       (`lab/pgha/scenarios`, results in `lab/pgha/results/runs.jsonl`);
       `leader-killed` is not carried over, it moves to the OS fault item below
-- [ ] OS fault scenarios with alerts: filesystem filling, memory pressure,
+- [x] OS fault scenarios with alerts: filesystem filling, memory pressure,
       a real network partition between nodes, and the leader killed (the
       stage 3 `leader-killed` scenario, moved here by owner decision
-      2026-11-10)
+      2026-11-10; on the VMs Patroni is frozen and the watchdog resets the
+      leader)
 
 ## Stage 5: cloud-managed PostgreSQL
 

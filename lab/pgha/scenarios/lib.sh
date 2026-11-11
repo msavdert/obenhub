@@ -282,3 +282,73 @@ drops_now() {
   done
   printf '%s' "$j"
 }
+
+# --- poller (network-partition.sh, leader-killed.sh) -----------------------
+# Globals: POLL_DIR, POLL_PIDS;
+# poll_summary reads OLD (the old leader) and POLL_AFTER (epoch of the fault, optional).
+POLL_DIR="" POLL_PIDS=()
+# poll_node NODE PARENT: one sample line "epoch node t|f|down|err" per answer, the epoch
+# taken when the answer arrived. down: ssh worked but psql did not answer (the node is
+# not writable); err: ssh failed or timed out (unknown). Stops when PARENT is gone, so a
+# killed scenario does not leave pollers behind.
+poll_node() {
+  local n=$1 parent=$2 r rc
+  while kill -0 "$parent" 2>/dev/null; do
+    r=$(timeout 4 ssh -n -o BatchMode=yes -o ConnectTimeout=2 "$n" "sudo $(printf '%q ' -u postgres psql -h /var/run/postgresql -X -v ON_ERROR_STOP=1 -At -c 'SELECT pg_is_in_recovery()')" 2>/dev/null)
+    rc=$?
+    case "$r" in t | f) ;; *) if [ "$rc" = 255 ] || [ "$rc" = 124 ]; then r=err; else r=down; fi ;; esac
+    echo "$(date +%s.%N) $n $r" >>"$POLL_DIR/$n"
+    sleep 0.5
+  done
+}
+start_poll() {
+  local n
+  POLL_DIR=$(mktemp -d)
+  for n in "${NODES[@]}"; do poll_node "$n" "$$" & POLL_PIDS+=("$!"); done
+}
+stop_poll() {
+  local p
+  for p in "${POLL_PIDS[@]}"; do kill "$p" 2>/dev/null; wait "$p" 2>/dev/null; done
+  POLL_PIDS=()
+}
+
+# poll_summary: one JSON object from the per-node sample files. Dual primary =
+# at some sample, two nodes whose newest sample (at most 3 s old) says writable.
+# The 3 s validity errs towards a false dual primary (a node that demoted right
+# after its last "f" still counts for up to 3 s); harmless here, where the
+# writable gap is over 15 s, but not for a graceful handover. It can also miss
+# one: an err or down sample replaces a node's last "f", so a writable node
+# whose ssh fails stops counting. Blind windows
+# count err samples only (ssh failed: unknown); down samples (psql refused) are
+# evidence that the node is not writable.
+# Additive fields for a fault after which the old leader itself may become
+# writable again (set POLL_AFTER to the epoch of the fault): old_first_unwritable_after
+# is the old leader's first sample after POLL_AFTER that is not writable (err, down
+# or in recovery); old_last_writable_before_that and resumed_first_writable /
+# resumed_node bound the longest interval without any writable sample that ends
+# after POLL_AFTER (the old leader itself is the resumed node in the race it wins).
+# All null when POLL_AFTER is unset. The fields above are unchanged.
+poll_summary() {
+  cat "$POLL_DIR"/* 2>/dev/null | LC_ALL=C sort -n | awk -v old="$OLD" -v after="${POLL_AFTER:-0}" '
+    { t = $1; n = $2; v = $3; cnt[n]++; lastt[n] = t
+      if (v == "err") { errc[n]++; if (!inerr[n]) { inerr[n] = 1; lgs[n] = (n in lg) ? lg[n] : t } }
+      else { if (inerr[n]) { b = t - lgs[n]; if (b > blind[n]) blind[n] = b; inerr[n] = 0 } lg[n] = t }
+      st[n] = v; stt[n] = t
+      w = 0; for (k in st) if (st[k] == "f" && t - stt[k] <= 3) w++
+      if (w >= 2) dual++
+      if (n == old && v == "f") oldw = t
+      if (n == old && v == "t" && oldw && !oldro) oldro = t
+      if (n != old && v == "f" && !nw) { nw = t; nn = n }
+      if (after > 0 && n == old && t > after && v != "f" && !gs) gs = t
+      if (after > 0 && v == "f") { nf++; ft[nf] = t; fn[nf] = n }
+      total++ }
+    END {
+      # the outage: the longest interval between two consecutive writable samples (any
+      # node) that ends after POLL_AFTER. Writable samples only, so neither a transient
+      # err sample of the old leader nor the order in which slow answers arrive moves it.
+      for (i = 2; i <= nf; i++) if (ft[i] > after && ft[i] - ft[i - 1] > mg) { mg = ft[i] - ft[i - 1]; gl = ft[i - 1]; rs = ft[i]; rnode = fn[i] }
+      for (n in cnt) if (inerr[n]) { b = lastt[n] - lgs[n]; if (b > blind[n]) blind[n] = b }
+      printf "{\"samples\":%d,\"dual_samples\":%d,\"new_leader\":%s,\"old_last_writable\":%s,\"old_first_readonly\":%s,\"new_first_writable\":%s,\"old_first_unwritable_after\":%s,\"old_last_writable_before_that\":%s,\"resumed_first_writable\":%s,\"resumed_node\":%s,\"nodes\":{", total, dual, (nn ? "\"" nn "\"" : "null"), (oldw ? oldw : "null"), (oldro ? oldro : "null"), (nw ? nw : "null"), (gs ? gs : "null"), (gl ? gl : "null"), (rs ? rs : "null"), (rs ? "\"" rnode "\"" : "null")
+      c = 0; for (n in cnt) { printf "%s\"%s\":{\"samples\":%d,\"err\":%d,\"longest_blind_seconds\":%.1f}", (c++ ? "," : ""), n, cnt[n], errc[n], blind[n] }
+      printf "}}\n" }'
+}
