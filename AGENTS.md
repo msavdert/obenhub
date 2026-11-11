@@ -30,6 +30,11 @@ lists them.
   session. release-please keeps its PR open and accumulates the changelog;
   only the owner merges it. An agent never merges a release PR; it says when
   one is ready.
+- A stage or roadmap item is done only when: its full suite passed on a clean
+  tree at a commit on `main` and the results are committed
+  (`scripts/check-evidence.sh --strict` passes for its lab), the control run
+  used the same rules, its dashboard shows the scenarios, and its README states
+  the prerequisites.
 - Documents describe what runs. Plans go only in `docs/roadmap.md`.
 - Depth before breadth (ADR 0001): finish the first PostgreSQL slice before a
   second engine or topology. Check breadth requests against the ADR.

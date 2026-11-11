@@ -67,6 +67,10 @@ run = "scripts/lint-compose.sh"
 description = "otelcol-contrib validate on every tracked Collector config (pgha template rendered); needs docker"
 run = "scripts/lint-otelcol.sh"
 
+[tasks."lab:evidence"]
+description = "per lab: is the latest passing suite newer than the lab's code? warns; --strict fails (before a release)"
+run = "scripts/check-evidence.sh"
+
 [tasks."lab:guard-test"]
 description = "test the scenario run guards (dirty pathspec, suite lock) in a throwaway git repository; no docker"
 run = "lab/scenarios/test-guard.sh"
@@ -130,6 +134,7 @@ depends = [
   "lint:compose",
   "lint:otelcol",
   "lab:guard-test",
+  "lab:evidence",
   "lab:pack:rules-test",
   "lab:host:rules-test",
   "lab:rules-test",
