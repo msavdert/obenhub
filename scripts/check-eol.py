@@ -83,7 +83,7 @@ def main():
     header = ("product", "cycle", "eol", "days", "status")
     widths = [max(len(str(r[i])) for r in rows + [header]) for i in range(5)]
     for row in [header] + rows:
-        print("  ".join(str(c).ljust(w) for c, w in zip(row, widths)).rstrip())
+        print("  ".join(str(c).ljust(w) for c, w in zip(row, widths, strict=True)).rstrip())
     print(f"warn_days={warn_days} today={today}")
     return 1 if problems else 0
 

@@ -2,6 +2,7 @@
 actionlint = "1.7.12"
 zizmor = "1.32.0"
 shellcheck = "0.11.0"
+ruff = "0.17.4"
 typos = "1.52.0"
 lychee = "0.24.2"
 editorconfig-checker = "4.0.2"
@@ -48,8 +49,23 @@ description = "editorconfig-checker"
 run = "editorconfig-checker"
 
 [tasks."lint:shell"]
-description = "shellcheck on scripts/*.sh and lab/**/*.sh"
-run = "shellcheck scripts/*.sh lab/*/scripts/*.sh lab/scenarios/*.sh lab/*/scenarios/*.sh lab/*/grafana/*.sh lab/*/postgres/*.sh lab/*/alertmanager/*.sh lab/overhead/*.sh lab/obi/*.sh lab/pgha/*.sh lab/pgha/files/*.sh"
+description = "shellcheck on every tracked shell script (*.sh or a bash or sh shebang)"
+run = "scripts/lint-shell.sh"
+
+[tasks."lint:python"]
+description = "ruff check and ruff format --check on tracked Python (ruff.toml)"
+run = [
+  "git ls-files -z '*.py' | xargs -0 -r ruff check --force-exclude",
+  "git ls-files -z '*.py' | xargs -0 -r ruff format --check --force-exclude",
+]
+
+[tasks."lint:compose"]
+description = "docker compose config -q on every tracked compose file, with dummy variables; needs docker"
+run = "scripts/lint-compose.sh"
+
+[tasks."lint:otelcol"]
+description = "otelcol-contrib validate on every tracked Collector config (pgha template rendered); needs docker"
+run = "scripts/lint-otelcol.sh"
 
 [tasks."lab:rules-test"]
 description = "unit-test the lab alert rules (vmalert-tool) and Alertmanager routing (throwaway container); needs docker"
@@ -96,7 +112,7 @@ description = "unit-test the shared PostgreSQL pack rules (lab/packs/postgresql,
 run = """docker run --rm -v "$PWD/lab:/lab:ro" victoriametrics/vmalert-tool:v1.155.0 unittest --files=/lab/packs/postgresql/tests/collector.yml,/lab/packs/postgresql/tests/replication.yml,/lab/packs/postgresql/tests/resources.yml,/lab/packs/postgresql/tests/signals.yml,/lab/packs/postgresql/tests/series-vanished.yml"""
 
 [tasks.check]
-description = "all checks as CI runs them (needs docker for lab:rules-test, which pulls images on first use)"
+description = "all checks as CI runs them (needs docker for the compose, otelcol and rules tests, which pull images on first use)"
 depends = [
   "lint:actions",
   "lint:zizmor",
@@ -106,6 +122,9 @@ depends = [
   "lint:links",
   "lint:editorconfig",
   "lint:shell",
+  "lint:python",
+  "lint:compose",
+  "lint:otelcol",
   "lab:pack:rules-test",
   "lab:host:rules-test",
   "lab:rules-test",

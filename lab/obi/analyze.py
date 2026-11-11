@@ -17,6 +17,7 @@ window; their latency includes the schedule lag (rate mode).
 
 Usage: lab/obi/analyze.py [RESULTS_DIR]   (prints Markdown on stdout)
 """
+
 import glob
 import gzip
 import json
@@ -63,8 +64,17 @@ def load_points():
                             continue
                         for p in m["histogram"]["dataPoints"]:
                             t = int(p["timeUnixNano"]) / 1e9
-                            yield t, m["name"], res, kv(p.get("attributes")), p["startTimeUnixNano"], int(p["count"]), \
-                                p["sum"], p["explicitBounds"], [int(x) for x in p["bucketCounts"]]
+                            yield (
+                                t,
+                                m["name"],
+                                res,
+                                kv(p.get("attributes")),
+                                p["startTimeUnixNano"],
+                                int(p["count"]),
+                                p["sum"],
+                                p["explicitBounds"],
+                                [int(x) for x in p["bucketCounts"]],
+                            )
 
 
 def quantile(q, bounds, buckets):
@@ -102,9 +112,16 @@ def pgbench_window(c, ta):
     sel = [(lat, lag) for ts, lat, lag in c["txlog"] if ta < ts <= c["t1"]]
     lat = sorted(x[0] for x in sel)
     span = c["t1"] - ta
-    return {"n": len(lat), "tps": len(lat) / span, "span": span, "mean": sum(lat) / len(lat) / 1000,
-        "p50": nearest(lat, 0.5) / 1000, "p95": nearest(lat, 0.95) / 1000,
-        "p99": nearest(lat, 0.99) / 1000, "lag": sum(x[1] for x in sel) / len(sel)}
+    return {
+        "n": len(lat),
+        "tps": len(lat) / span,
+        "span": span,
+        "mean": sum(lat) / len(lat) / 1000,
+        "p50": nearest(lat, 0.5) / 1000,
+        "p95": nearest(lat, 0.95) / 1000,
+        "p99": nearest(lat, 0.99) / 1000,
+        "lag": sum(x[1] for x in sel) / len(sel),
+    }
 
 
 def pgbench_statements(c):
@@ -146,24 +163,24 @@ def window_series(pts, c):
         if key not in last or t > last[key][0]:
             last[key] = rec
     delta = {}
-    for key, (t, n, s, bounds, bk, res, attrs) in last.items():
+    for key, (_t, n, s, bounds, bk, res, attrs) in last.items():
         if key in base:
             _, n0, s0, _, bk0, _, _ = base[key]
         else:
             n0, s0, bk0 = 0, 0.0, [0] * len(bk)
         if n - n0 > 0:
-            delta[key] = (n - n0, s - s0, bounds, [a - b for a, b in zip(bk, bk0)], res, attrs)
+            delta[key] = (n - n0, s - s0, bounds, [a - b for a, b in zip(bk, bk0, strict=True)], res, attrs)
     return ta, delta
 
 
 def merge(items, keyfn):
     agg = {}
-    for (n, s, bounds, bk, res, attrs) in items:
+    for n, s, bounds, bk, res, attrs in items:
         k = keyfn(res, attrs)
         a = agg.setdefault(k, [0, 0.0, bounds, [0] * len(bk), set()])
         a[0] += n
         a[1] += s
-        a[3] = [x + y for x, y in zip(a[3], bk)]
+        a[3] = [x + y for x, y in zip(a[3], bk, strict=True)]
         a[4].add(res.get("service.instance.id"))
     return agg
 
@@ -191,7 +208,9 @@ def main():
         print()
 
     print("### A. pgbench in the window (latency includes schedule lag)\n")
-    print("| cell | route | protocol | OBI | window s | txns | tps | avg ms | p50 ms | p95 ms | p99 ms | lag us | steal % | iowait % | OBI CPU s (whole run) | PostgreSQL CPU s |")
+    print(
+        "| cell | route | protocol | OBI | window s | txns | tps | avg ms | p50 ms | p95 ms | p99 ms | lag us | steal % | iowait % | OBI CPU s (whole run) | PostgreSQL CPU s |"
+    )
     print("|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|")
     for tag, c in cells.items():
         w = wins[tag][2]
@@ -201,10 +220,14 @@ def main():
         print(line)
 
     print("\n### B. Coverage: OBI statement counts vs what pgbench issued\n")
-    exp_note = "Expected = pgbench transactions that completed after the service's window start x statements per transaction "
+    exp_note = (
+        "Expected = pgbench transactions that completed after the service's window start x statements per transaction "
+    )
     exp_note += "(UPDATE 3, SELECT 1, INSERT 1, BEGIN 1, END 1). Each cell shows OBI count / expected.\n"
     print(exp_note)
-    print("| cell | service | metric | window start s | UPDATE | SELECT | INSERT | BEGIN | END | other operations (count, mean ms) |")
+    print(
+        "| cell | service | metric | window start s | UPDATE | SELECT | INSERT | BEGIN | END | other operations (count, mean ms) |"
+    )
     print("|---|---|---|---|---|---|---|---|---|---|")
     for tag, c in cells.items():
         if c["obi"] != "on":
@@ -212,8 +235,10 @@ def main():
         tas, delta, w = wins[tag]
         for svc in ("pgbench", "pgbouncer", "postgres"):
             for mi, mname in ((0, "client"), (1, "server")):
-                agg = merge([v for k, v in delta.items() if k[0] == METRICS[mi] and v[4].get("service.name") == svc],
-                    lambda res, attrs: attrs.get("db.operation.name", "-"))
+                agg = merge(
+                    [v for k, v in delta.items() if k[0] == METRICS[mi] and v[4].get("service.name") == svc],
+                    lambda res, attrs: attrs.get("db.operation.name", "-"),
+                )
                 if not agg:
                     continue
                 ntx = count_txns(c, tas.get(svc, c["t0"] + WARM))
@@ -236,35 +261,50 @@ def main():
         tas, delta, w = wins[tag]
         stm = pgbench_statements(c)
         cols = {}
-        for label, svc, metric in (("client", "pgbench", 0), ("bin", "pgbouncer", 1), ("bout", "pgbouncer", 0), ("srv", "postgres", 1)):
-            cols[label] = merge([v for k, v in delta.items() if k[0] == METRICS[metric] and v[4].get("service.name") == svc],
-                                lambda res, attrs: (attrs.get("db.operation.name", "-"), attrs.get("db.collection.name", "")))
-        def cell_v(label, key):
+        for label, svc, metric in (
+            ("client", "pgbench", 0),
+            ("bin", "pgbouncer", 1),
+            ("bout", "pgbouncer", 0),
+            ("srv", "postgres", 1),
+        ):
+            cols[label] = merge(
+                [v for k, v in delta.items() if k[0] == METRICS[metric] and v[4].get("service.name") == svc],
+                lambda res, attrs: (attrs.get("db.operation.name", "-"), attrs.get("db.collection.name", "")),
+            )
+
+        def cell_v(label, key, cols=cols):
             a = cols[label].get(key)
             if a is None and key[0] in ("BEGIN", "END"):
                 a = cols[label].get((key[0], ""))
             return f"{1000 * a[1] / a[0]:.3f} ({a[0]})" if a else "-"
+
         for key, ms in stm.items():
-            print(f"| {tag} | {key[0]} {key[1]} | {ms:.3f} | {cell_v('client', key)} | {cell_v('bin', key)} | {cell_v('bout', key)} | {cell_v('srv', key)} |")
+            print(
+                f"| {tag} | {key[0]} {key[1]} | {ms:.3f} | {cell_v('client', key)} | {cell_v('bin', key)} | {cell_v('bout', key)} | {cell_v('srv', key)} |"
+            )
 
     print("\n### D. Everything OBI reported in the window, by service, metric and operation (counts in window)\n")
-    print("| cell | service | metric | operation | count | mean ms | p50 ms | p95 ms | instances | peers (server.address:server.port, db.namespace) |")
+    print(
+        "| cell | service | metric | operation | count | mean ms | p50 ms | p95 ms | instances | peers (server.address:server.port, db.namespace) |"
+    )
     print("|---|---|---|---|---|---|---|---|---|---|")
     for tag, c in cells.items():
         if c["obi"] != "on":
             continue
         tas, delta, w = wins[tag]
         peers = defaultdict(lambda: defaultdict(int))
-        for k, (n, s, bounds, bk, res, attrs) in delta.items():
+        for k, (n, _s, _bounds, _bk, res, attrs) in delta.items():
             pk = (res.get("service.name"), k[0], attrs.get("db.operation.name", "-"))
-            peers[pk][f"{attrs.get('server.address', '')}:{attrs.get('server.port', '')},{attrs.get('db.namespace', '')}"] += n
+            peers[pk][
+                f"{attrs.get('server.address', '')}:{attrs.get('server.port', '')},{attrs.get('db.namespace', '')}"
+            ] += n
         agg = {}
         for k, (n, s, bounds, bk, res, attrs) in delta.items():
             kk = (res.get("service.name"), k[0], attrs.get("db.operation.name", "-"))
             a = agg.setdefault(kk, [0, 0.0, bounds, [0] * len(bk), set()])
             a[0] += n
             a[1] += s
-            a[3] = [x + y for x, y in zip(a[3], bk)]
+            a[3] = [x + y for x, y in zip(a[3], bk, strict=True)]
             a[4].add(res.get("service.instance.id"))
         for kk, (n, s, bounds, bk, inst) in sorted(agg.items(), key=lambda i: (str(i[0][0]), i[0][1], -i[1][0])):
             pr = "; ".join(f"{p} x{cnt}" for p, cnt in sorted(peers[kk].items(), key=lambda i: -i[1])[:3])
@@ -275,15 +315,24 @@ def main():
     print("\n### E. Indicative overhead pair: same cell with OBI off and on (pgbench -r, whole run, ms)\n")
     off = [c for c in cells.values() if c["obi"] == "off"]
     for o in off:
-        on = [c for c in cells.values() if c["obi"] == "on" and (c["route"], c["proto"], c["ssl"], c["script"]) == (o["route"], o["proto"], o["ssl"], o["script"])]
+        on = [
+            c
+            for c in cells.values()
+            if c["obi"] == "on"
+            and (c["route"], c["proto"], c["ssl"], c["script"]) == (o["route"], o["proto"], o["ssl"], o["script"])
+        ]
         for n in on:
             so, sn = pgbench_statements(o), pgbench_statements(n)
             pct = 100 * n["obi_cpu_s"] / n["duration"]
-            print(f"{o['tag']} (OBI off) vs {n['tag']} (OBI on); OBI CPU {n['obi_cpu_s']:.1f} s over {n['duration']:.0f} s = {pct:.1f}% of one core\n")
+            print(
+                f"{o['tag']} (OBI off) vs {n['tag']} (OBI on); OBI CPU {n['obi_cpu_s']:.1f} s over {n['duration']:.0f} s = {pct:.1f}% of one core\n"
+            )
             print("| statement | off | on | on - off |")
             print("|---|---|---|---|")
             for key in so:
-                print(f"| {key[0]} {key[1]} | {so[key]:.3f} | {sn.get(key, float('nan')):.3f} | {sn.get(key, float('nan')) - so[key]:+.3f} |")
+                print(
+                    f"| {key[0]} {key[1]} | {so[key]:.3f} | {sn.get(key, float('nan')):.3f} | {sn.get(key, float('nan')) - so[key]:+.3f} |"
+                )
 
     print("\n### F. PgBouncer's own counters over the whole run (SHOW STATS deltas)\n")
     print("| cell | xacts | queries | mean query time us |")

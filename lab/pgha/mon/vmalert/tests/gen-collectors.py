@@ -12,14 +12,15 @@ Usage, standard library only:
     python3 lab/pgha/mon/vmalert/tests/gen-collectors.py PATH   # write to PATH
 `mise run lab:pgha:rules-gen-check` fails when the committed YAML differs.
 """
+
 import sys
 
-SAMPLES = 60          # 15 s apart: 15 minutes of input
-STOP_AT = 8           # a stopped Collector's last self-metric is sample 8 (2 m)
+SAMPLES = 60  # 15 s apart: 15 minutes of input
+STOP_AT = 8  # a stopped Collector's last self-metric is sample 8 (2 m)
 # Judged every 30 s from 2m30s to 7m: the window in which a gate wider than 1 m
 # would let a target alert fire.
 TIMES = [150 + 30 * i for i in range(10)]
-SCENARIO_SAMPLES = 120    # 30 minutes
+SCENARIO_SAMPLES = 120  # 30 minutes
 # CollectorAbsent: the 2 m window empties at 3m45s and the alert fires after
 # for: 1m (4m45s), so it is asserted from 5m on (300 s).
 FIRING_FROM = 300
@@ -106,14 +107,18 @@ def input_series(
         data = STOP_AT + lag if dead else None
         add(uptime % node, stream(1, STOP_AT if dead else None))
         heartbeat = STOP_AT if (i in hb_stop and not dead) else data
-        add(f'postgresql.collection.heartbeat{{service.name="postgresql",service.instance.id="{node}"}}',
-            stream(1, heartbeat))
+        add(
+            f'postgresql.collection.heartbeat{{service.name="postgresql",service.instance.id="{node}"}}',
+            stream(1, heartbeat),
+        )
         for service, fails in (("patroni", patroni_fail), ("etcd", etcd_fail)):
             values = failing() if (i in fails and not dead) else stream(1, data)
             add(f'up{{service.name="{service}",service.instance.id="{node}"}}', values)
         primary = data if i not in patroni_fail else STOP_AT
-        add(f'patroni_primary{{service.name="patroni",scope="pgha",service.instance.id="{node}"}}',
-            stream(1 if i == leader else 0, primary))
+        add(
+            f'patroni_primary{{service.name="patroni",scope="pgha",service.instance.id="{node}"}}',
+            stream(1 if i == leader else 0, primary),
+        )
     return "\n".join(out)
 
 
@@ -158,8 +163,8 @@ def postgres_absent(node):
 
 def patroni_absent(node):
     return inventory_alert(
-        "critical", "patroni", node,
-        f"Patroni on pgha-{node} is not scraped while PostgreSQL still reports")
+        "critical", "patroni", node, f"Patroni on pgha-{node} is not scraped while PostgreSQL still reports"
+    )
 
 
 def etcd_absent(node):
@@ -205,8 +210,7 @@ def render(times, expected_at):
 
 
 def test_block(name, series_block, checks):
-    return (f'  - name: "{name}"\n    interval: 15s\n    input_series:\n'
-            f"{series_block}\n    alert_rule_test:\n{checks}\n")
+    return f'  - name: "{name}"\n    interval: 15s\n    input_series:\n{series_block}\n    alert_rule_test:\n{checks}\n'
 
 
 def case(name, series_block, expected, times=TIMES):
@@ -232,17 +236,17 @@ def scenario_series(nodes):
     def add(selector, parts):
         out.append(f"      - series: '{selector}'\n        values: '{segments(parts)}'")
 
-    add('otelcol_process_uptime{service.name="otelcol",service.instance.id="otelcol-gateway"}',
-        [(1, SCENARIO_SAMPLES)])
+    add('otelcol_process_uptime{service.name="otelcol",service.instance.id="otelcol-gateway"}', [(1, SCENARIO_SAMPLES)])
     for i, node in nodes.items():
         col = node["col"]
         add(f'otelcol_process_uptime{{service.name="otelcol",service.instance.id="otelcol-pgha-{i}"}}', col)
-        add(f'postgresql.collection.heartbeat{{service.name="postgresql",service.instance.id="pgha-{i}"}}',
-            node.get("hb", col))
+        add(
+            f'postgresql.collection.heartbeat{{service.name="postgresql",service.instance.id="pgha-{i}"}}',
+            node.get("hb", col),
+        )
         add(f'up{{service.name="patroni",service.instance.id="pgha-{i}"}}', node.get("pat", col))
         add(f'up{{service.name="etcd",service.instance.id="pgha-{i}"}}', col)
-        add(f'patroni_primary{{service.name="patroni",scope="pgha",service.instance.id="pgha-{i}"}}',
-            node["prim"])
+        add(f'patroni_primary{{service.name="patroni",scope="pgha",service.instance.id="pgha-{i}"}}', node["prim"])
     return "\n".join(out)
 
 
@@ -276,8 +280,7 @@ def scenarios(c1, c2):
         },
         [
             ([240], {}),
-            (late, {"PatroniNoWritablePrimary": [no_primary()],
-                    "PatroniTargetAbsent": [patroni_absent(1)]}),
+            (late, {"PatroniNoWritablePrimary": [no_primary()], "PatroniTargetAbsent": [patroni_absent(1)]}),
         ],
     )
     # S7: the leader's Collector dies, pgha-2 is promoted at 7m30s, then pgha-2's
@@ -287,14 +290,19 @@ def scenarios(c1, c2):
         "S7 leader Collector dead, pgha-2 promoted, then pgha-2's Patroni dies: PatroniNoWritablePrimary fires",
         {
             1: leader_gone,
-            2: {"prim": [(0, 30), (1, 30), ("_", 60)], "col": alive,
-                "pat": [(1, 60), (0, 60)]},
+            2: {"prim": [(0, 30), (1, 30), ("_", 60)], "col": alive, "pat": [(1, 60), (0, 60)]},
             3: {"prim": zeros, "col": alive},
         },
         [
             ([600, 750], {"CollectorAbsent": [c1]}),
-            ([1500, 1800], {"CollectorAbsent": [c1], "PatroniNoWritablePrimary": [no_primary()],
-                            "PatroniTargetAbsent": [patroni_absent(2)]}),
+            (
+                [1500, 1800],
+                {
+                    "CollectorAbsent": [c1],
+                    "PatroniNoWritablePrimary": [no_primary()],
+                    "PatroniTargetAbsent": [patroni_absent(2)],
+                },
+            ),
         ],
     )
     # S2: the leader's Collector dies, pgha-2 is promoted at 7m30s and demoted
@@ -335,13 +343,18 @@ def scenarios(c1, c2):
         "S1b old leader's Collector dies as replica, then the new leader's Patroni dies: PatroniNoWritablePrimary fires",
         {
             1: {"prim": [(1, 20), (0, 20), ("_", 80)], "col": [(1, 40), ("_", 80)]},
-            2: {"prim": [(0, 20), (1, 40), ("_", 60)], "col": alive,
-                "pat": [(1, 60), (0, 60)]},
+            2: {"prim": [(0, 20), (1, 40), ("_", 60)], "col": alive, "pat": [(1, 60), (0, 60)]},
             3: {"prim": zeros, "col": alive},
         },
         [
-            ([1500, 1800], {"CollectorAbsent": [c1], "PatroniNoWritablePrimary": [no_primary()],
-                            "PatroniTargetAbsent": [patroni_absent(2)]}),
+            (
+                [1500, 1800],
+                {
+                    "CollectorAbsent": [c1],
+                    "PatroniNoWritablePrimary": [no_primary()],
+                    "PatroniTargetAbsent": [patroni_absent(2)],
+                },
+            ),
         ],
     )
     return out
@@ -356,16 +369,24 @@ def build():
     out = HEADER.format(rule_files="\n".join(f"  - {path}" for path in RULE_FILES))
     out += case(
         "one node Collector stops, its data outliving its last self-metric by 30 s: only its CollectorAbsent",
-        input_series(coll_stop=(2,), lag=2), {"CollectorAbsent": [c2]})
+        input_series(coll_stop=(2,), lag=2),
+        {"CollectorAbsent": [c2]},
+    )
     out += case(
         "the gateway stops, all four Collectors go silent together: only CollectorAbsent for the gateway",
-        input_series(gw_stop=True, lag=1), {"CollectorAbsent": [gw]})
+        input_series(gw_stop=True, lag=1),
+        {"CollectorAbsent": [gw]},
+    )
     out += case(
         "two node Collectors stop: two CollectorAbsent, no EtcdInsufficientMembers (unknown is not lost)",
-        input_series(coll_stop=(1, 3), lag=2), {"CollectorAbsent": [c1, c3]})
+        input_series(coll_stop=(1, 3), lag=2),
+        {"CollectorAbsent": [c1, c3]},
+    )
     out += case(
         "a node Collector alive and its PostgreSQL heartbeat gone: PostgresTargetAbsent for that node only",
-        input_series(hb_stop=(2,)), {"PostgresTargetAbsent": [postgres_absent(2)]})
+        input_series(hb_stop=(2,)),
+        {"PostgresTargetAbsent": [postgres_absent(2)]},
+    )
     out += case(
         "all Collectors alive and two etcd scrapes failing: EtcdInsufficientMembers and both members named",
         input_series(etcd_fail=(2, 3)),
@@ -377,7 +398,9 @@ def build():
     out += case(
         "one Collector stopped and a second member failing its etcd scrape: 2 of 3 count, no quorum alert",
         input_series(coll_stop=(2,), etcd_fail=(3,), lag=1),
-        {"CollectorAbsent": [c2], "EtcdMemberAbsent": [etcd_absent(3)]}, later)
+        {"CollectorAbsent": [c2], "EtcdMemberAbsent": [etcd_absent(3)]},
+        later,
+    )
     out += case(
         "one Collector stopped and both other members failing their etcd scrape: only 1 counts, quorum alert fires",
         input_series(coll_stop=(2,), etcd_fail=(1, 3), lag=1),
@@ -399,17 +422,23 @@ def build():
         "node 2 Collector stopped and node 1 Patroni scrape failing with its heartbeat present: "
         "PatroniTargetAbsent for pgha-1 and CollectorAbsent for otelcol-pgha-2",
         input_series(coll_stop=(2,), patroni_fail=(1,), lag=1),
-        {"CollectorAbsent": [c2], "PatroniTargetAbsent": [patroni_absent(1)]}, after_stop)
+        {"CollectorAbsent": [c2], "PatroniTargetAbsent": [patroni_absent(1)]},
+        after_stop,
+    )
     out += case(
         "node 2 Collector stopped and node 3 etcd scrape failing: "
         "EtcdMemberAbsent for pgha-3 and CollectorAbsent for otelcol-pgha-2",
         input_series(coll_stop=(2,), etcd_fail=(3,), lag=1),
-        {"CollectorAbsent": [c2], "EtcdMemberAbsent": [etcd_absent(3)]}, after_stop)
+        {"CollectorAbsent": [c2], "EtcdMemberAbsent": [etcd_absent(3)]},
+        after_stop,
+    )
     out += case(
         "node 2 Collector stopped and node 1 PostgreSQL heartbeat gone: "
         "PostgresTargetAbsent for pgha-1 and CollectorAbsent for otelcol-pgha-2",
         input_series(coll_stop=(2,), hb_stop=(1,), lag=1),
-        {"CollectorAbsent": [c2], "PostgresTargetAbsent": [postgres_absent(1)]}, after_stop)
+        {"CollectorAbsent": [c2], "PostgresTargetAbsent": [postgres_absent(1)]},
+        after_stop,
+    )
     out += case(
         "the leader node's Collector stops: only its CollectorAbsent, no PatroniNoWritablePrimary "
         "when its patroni_primary goes stale",
