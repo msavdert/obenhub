@@ -933,7 +933,7 @@
           "refId": "A",
           "range": true,
           "instant": false,
-          "legendFormat": "{{pgbouncer.database.name}}/{{pgbouncer.user.name}} active"
+          "legendFormat": "{{pgbouncer.database.name}}/{{user.name}} active"
         },
         {
           "datasource": {
@@ -944,7 +944,7 @@
           "refId": "B",
           "range": true,
           "instant": false,
-          "legendFormat": "{{pgbouncer.database.name}}/{{pgbouncer.user.name}} waiting"
+          "legendFormat": "{{pgbouncer.database.name}}/{{user.name}} waiting"
         }
       ],
       "fieldConfig": {
@@ -993,7 +993,7 @@
           "refId": "A",
           "range": true,
           "instant": false,
-          "legendFormat": "{{pgbouncer.database.name}}/{{pgbouncer.user.name}} active"
+          "legendFormat": "{{pgbouncer.database.name}}/{{user.name}} active"
         },
         {
           "datasource": {
@@ -1004,7 +1004,7 @@
           "refId": "B",
           "range": true,
           "instant": false,
-          "legendFormat": "{{pgbouncer.database.name}}/{{pgbouncer.user.name}} idle"
+          "legendFormat": "{{pgbouncer.database.name}}/{{user.name}} idle"
         },
         {
           "datasource": {
@@ -1015,7 +1015,7 @@
           "refId": "C",
           "range": true,
           "instant": false,
-          "legendFormat": "{{pgbouncer.database.name}}/{{pgbouncer.user.name}} used"
+          "legendFormat": "{{pgbouncer.database.name}}/{{user.name}} used"
         },
         {
           "datasource": {
@@ -1071,11 +1071,11 @@
             "type": "victoriametrics-metrics-datasource",
             "uid": "vm"
           },
-          "expr": "pgbouncer.pool.oldest_wait_age + pgbouncer.pool.oldest_wait_age_remainder / 1e6",
+          "expr": "pgbouncer.pool.oldest_wait_age + pgbouncer.pool.oldest_wait_subsecond_age",
           "refId": "A",
           "range": true,
           "instant": false,
-          "legendFormat": "{{pgbouncer.database.name}}/{{pgbouncer.user.name}} oldest wait"
+          "legendFormat": "{{pgbouncer.database.name}}/{{user.name}} oldest wait"
         },
         {
           "datasource": {
@@ -1109,7 +1109,7 @@
           "mode": "multi"
         }
       },
-      "description": "SHOW POOLS maxwait plus maxwait_us (pgbouncer.pool.oldest_wait_age plus its remainder). PgbouncerClientsWaiting fires above 5 s for 1 m."
+      "description": "SHOW POOLS maxwait plus maxwait_us (pgbouncer.pool.oldest_wait_age plus pgbouncer.pool.oldest_wait_subsecond_age, both in seconds). PgbouncerClientsWaiting fires above 5 s for 1 m."
     },
     {
       "id": 19,
@@ -1191,7 +1191,7 @@
             "type": "victoriametrics-metrics-datasource",
             "uid": "vm"
           },
-          "expr": "rate(pgbouncer.stats.wait_time{pgbouncer.database.name!=\"pgbouncer\"}[$__rate_interval]) / rate(pgbouncer.stats.server_assignment{pgbouncer.database.name!=\"pgbouncer\"}[$__rate_interval]) / 1e6",
+          "expr": "rate(pgbouncer.stats.wait_time{pgbouncer.database.name!=\"pgbouncer\"}[$__rate_interval]) / rate(pgbouncer.stats.server_assignment{pgbouncer.database.name!=\"pgbouncer\"}[$__rate_interval])",
           "refId": "A",
           "range": true,
           "instant": false,
@@ -1202,7 +1202,7 @@
             "type": "victoriametrics-metrics-datasource",
             "uid": "vm"
           },
-          "expr": "rate(pgbouncer.stats.query_time{pgbouncer.database.name!=\"pgbouncer\"}[$__rate_interval]) / rate(pgbouncer.stats.query{pgbouncer.database.name!=\"pgbouncer\"}[$__rate_interval]) / 1e6",
+          "expr": "rate(pgbouncer.stats.query_time{pgbouncer.database.name!=\"pgbouncer\"}[$__rate_interval]) / rate(pgbouncer.stats.query{pgbouncer.database.name!=\"pgbouncer\"}[$__rate_interval])",
           "refId": "B",
           "range": true,
           "instant": false,

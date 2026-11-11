@@ -33,6 +33,8 @@ def main():
         for line in UPSTREAM.read_text(encoding="utf-8").splitlines()
         if line.strip() and not line.startswith("#")
     }
+    if not upstream:
+        sys.exit(f"{UPSTREAM.relative_to(ROOT)}: no metric names")
     errors = []
     for path, is_pack, prefix in ((PACK, True, "postgresql."), (PGBOUNCER, False, "pgbouncer.")):
         metrics, mentions = parse_metrics(path)
@@ -41,12 +43,19 @@ def main():
             errors.append(
                 f"{rel}: {mentions} metric_name lines, {len(metrics)} parsed (one metric per line, flow mapping)"
             )
-        # the pgbouncer config also holds the receiver-neutral postgres blocks; look at its own prefix only
-        metrics = [m for m in metrics if m["metric_name"].startswith(prefix)]
+        if not is_pack:
+            # the slice1 config also holds receiver blocks; look at the PgBouncer source only
+            metrics = [m for m in metrics if m["metric_name"].startswith(prefix)]
         if not metrics:
             errors.append(f"{rel}: no {prefix}* metrics found")
+        seen = set()
         for m in metrics:
             name = m["metric_name"]
+            if name in seen:
+                errors.append(f"{rel}: {name}: defined twice")
+            seen.add(name)
+            if not name.startswith(prefix):
+                errors.append(f"{rel}: {name}: does not start with {prefix}")
             if not NAME.match(name):
                 errors.append(f"{rel}: {name}: not lowercase dot-separated")
             if name.endswith(UNIT_WORDS):

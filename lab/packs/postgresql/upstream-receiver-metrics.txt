@@ -1,7 +1,7 @@
 # Metric names defined by postgresqlreceiver, for scripts/check-pack-names.py.
 # Source: https://raw.githubusercontent.com/open-telemetry/opentelemetry-collector-contrib/v0.164.0/receiver/postgresqlreceiver/metadata.yaml
 # Tag: v0.164.0. Licence: Apache-2.0 (repository LICENSE at v0.164.0, first lines read 2026-11-11). Date read: 2026-11-11.
-# Extracted from the top-level `metrics:` keys through a fetch tool that summarises the page; completeness is not verified against the raw file.
+# Completeness verified against the raw metadata.yaml at v0.164.0 on 2026-11-12.
 postgresql.backends
 postgresql.bgwriter.buffers.allocated
 postgresql.bgwriter.buffers.writes

@@ -15,9 +15,9 @@ tests:
         values: '0x60'
       - series: 'pgbouncer.database.disabled{service.name="pgbouncer",service.namespace="obenhub-lab",obenhub.cluster.name="slice1",service.instance.id="pgbouncer",pgbouncer.database.name="app"}'
         values: '0x60'
-      - series: 'pgbouncer.pool.oldest_wait_age{service.name="pgbouncer",service.namespace="obenhub-lab",obenhub.cluster.name="slice1",service.instance.id="pgbouncer",pgbouncer.database.name="app",pgbouncer.user.name="app"}'
+      - series: 'pgbouncer.pool.oldest_wait_age{service.name="pgbouncer",service.namespace="obenhub-lab",obenhub.cluster.name="slice1",service.instance.id="pgbouncer",pgbouncer.database.name="app",user.name="app"}'
         values: '0x8 8x52'
-      - series: 'pgbouncer.pool.oldest_wait_age_remainder{service.name="pgbouncer",service.namespace="obenhub-lab",obenhub.cluster.name="slice1",service.instance.id="pgbouncer",pgbouncer.database.name="app",pgbouncer.user.name="app"}'
+      - series: 'pgbouncer.pool.oldest_wait_subsecond_age{service.name="pgbouncer",service.namespace="obenhub-lab",obenhub.cluster.name="slice1",service.instance.id="pgbouncer",pgbouncer.database.name="app",user.name="app"}'
         values: '0x60'
     alert_rule_test:
       - eval_time: 3m
@@ -35,11 +35,11 @@ tests:
               service.namespace: obenhub-lab
               obenhub.cluster.name: slice1
               pgbouncer.database.name: app
-              pgbouncer.user.name: app
+              user.name: app
             exp_annotations:
               summary: "PgBouncer pool app/app has a client waiting 8s for a server connection"
 
-  - name: whole seconds and microseconds add up (4 s plus 2.5 s fires)
+  - name: whole seconds and the sub-second part add up (4 s plus 2.5 s sub-second part fires)
     interval: 15s
     input_series:
       - series: 'pgbouncer.list.item.count{service.instance.id="pgbouncer",pgbouncer.list.name="databases"}'
@@ -48,10 +48,10 @@ tests:
         values: '0x60'
       - series: 'pgbouncer.database.disabled{service.name="pgbouncer",service.namespace="obenhub-lab",obenhub.cluster.name="slice1",service.instance.id="pgbouncer",pgbouncer.database.name="app"}'
         values: '0x60'
-      - series: 'pgbouncer.pool.oldest_wait_age{service.name="pgbouncer",service.namespace="obenhub-lab",obenhub.cluster.name="slice1",service.instance.id="pgbouncer",pgbouncer.database.name="app",pgbouncer.user.name="app"}'
+      - series: 'pgbouncer.pool.oldest_wait_age{service.name="pgbouncer",service.namespace="obenhub-lab",obenhub.cluster.name="slice1",service.instance.id="pgbouncer",pgbouncer.database.name="app",user.name="app"}'
         values: '0x8 4x52'
-      - series: 'pgbouncer.pool.oldest_wait_age_remainder{service.name="pgbouncer",service.namespace="obenhub-lab",obenhub.cluster.name="slice1",service.instance.id="pgbouncer",pgbouncer.database.name="app",pgbouncer.user.name="app"}'
-        values: '0x8 2500000x52'
+      - series: 'pgbouncer.pool.oldest_wait_subsecond_age{service.name="pgbouncer",service.namespace="obenhub-lab",obenhub.cluster.name="slice1",service.instance.id="pgbouncer",pgbouncer.database.name="app",user.name="app"}'
+        values: '0x8 2.5x52'
     alert_rule_test:
       - eval_time: 4m
         groupname: pgbouncer
@@ -64,7 +64,7 @@ tests:
               service.namespace: obenhub-lab
               obenhub.cluster.name: slice1
               pgbouncer.database.name: app
-              pgbouncer.user.name: app
+              user.name: app
             exp_annotations:
               summary: "PgBouncer pool app/app has a client waiting 6.5s for a server connection"
 
@@ -77,10 +77,10 @@ tests:
         values: '0x60'
       - series: 'pgbouncer.database.disabled{service.name="pgbouncer",service.namespace="obenhub-lab",obenhub.cluster.name="slice1",service.instance.id="pgbouncer",pgbouncer.database.name="app"}'
         values: '0x60'
-      - series: 'pgbouncer.pool.oldest_wait_age{service.name="pgbouncer",service.namespace="obenhub-lab",obenhub.cluster.name="slice1",service.instance.id="pgbouncer",pgbouncer.database.name="app",pgbouncer.user.name="app"}'
+      - series: 'pgbouncer.pool.oldest_wait_age{service.name="pgbouncer",service.namespace="obenhub-lab",obenhub.cluster.name="slice1",service.instance.id="pgbouncer",pgbouncer.database.name="app",user.name="app"}'
         values: '0x8 5x52'
-      - series: 'pgbouncer.pool.oldest_wait_age_remainder{service.name="pgbouncer",service.namespace="obenhub-lab",obenhub.cluster.name="slice1",service.instance.id="pgbouncer",pgbouncer.database.name="app",pgbouncer.user.name="app"}'
-        values: '0x8 500000x52'
+      - series: 'pgbouncer.pool.oldest_wait_subsecond_age{service.name="pgbouncer",service.namespace="obenhub-lab",obenhub.cluster.name="slice1",service.instance.id="pgbouncer",pgbouncer.database.name="app",user.name="app"}'
+        values: '0x8 0.5x52'
     alert_rule_test:
       - eval_time: 4m
         groupname: pgbouncer
@@ -93,7 +93,7 @@ tests:
               service.namespace: obenhub-lab
               obenhub.cluster.name: slice1
               pgbouncer.database.name: app
-              pgbouncer.user.name: app
+              user.name: app
             exp_annotations:
               summary: "PgBouncer pool app/app has a client waiting 5.5s for a server connection"
 
@@ -106,10 +106,10 @@ tests:
         values: '0x60'
       - series: 'pgbouncer.database.disabled{service.name="pgbouncer",service.namespace="obenhub-lab",obenhub.cluster.name="slice1",service.instance.id="pgbouncer",pgbouncer.database.name="app"}'
         values: '0x60'
-      - series: 'pgbouncer.pool.oldest_wait_age{service.name="pgbouncer",service.namespace="obenhub-lab",obenhub.cluster.name="slice1",service.instance.id="pgbouncer",pgbouncer.database.name="app",pgbouncer.user.name="app"}'
+      - series: 'pgbouncer.pool.oldest_wait_age{service.name="pgbouncer",service.namespace="obenhub-lab",obenhub.cluster.name="slice1",service.instance.id="pgbouncer",pgbouncer.database.name="app",user.name="app"}'
         values: '0x8 4x52'
-      - series: 'pgbouncer.pool.oldest_wait_age_remainder{service.name="pgbouncer",service.namespace="obenhub-lab",obenhub.cluster.name="slice1",service.instance.id="pgbouncer",pgbouncer.database.name="app",pgbouncer.user.name="app"}'
-        values: '0x8 900000x52'
+      - series: 'pgbouncer.pool.oldest_wait_subsecond_age{service.name="pgbouncer",service.namespace="obenhub-lab",obenhub.cluster.name="slice1",service.instance.id="pgbouncer",pgbouncer.database.name="app",user.name="app"}'
+        values: '0x8 0.9x52'
     alert_rule_test:
       - eval_time: 6m
         groupname: pgbouncer
@@ -125,9 +125,9 @@ tests:
         values: '0x60'
       - series: 'pgbouncer.database.disabled{service.name="pgbouncer",service.namespace="obenhub-lab",obenhub.cluster.name="slice1",service.instance.id="pgbouncer",pgbouncer.database.name="app"}'
         values: '0x60'
-      - series: 'pgbouncer.pool.oldest_wait_age{service.name="pgbouncer",service.namespace="obenhub-lab",obenhub.cluster.name="slice1",service.instance.id="pgbouncer",pgbouncer.database.name="app",pgbouncer.user.name="app"}'
+      - series: 'pgbouncer.pool.oldest_wait_age{service.name="pgbouncer",service.namespace="obenhub-lab",obenhub.cluster.name="slice1",service.instance.id="pgbouncer",pgbouncer.database.name="app",user.name="app"}'
         values: '0x8 8x3 0x49'
-      - series: 'pgbouncer.pool.oldest_wait_age_remainder{service.name="pgbouncer",service.namespace="obenhub-lab",obenhub.cluster.name="slice1",service.instance.id="pgbouncer",pgbouncer.database.name="app",pgbouncer.user.name="app"}'
+      - series: 'pgbouncer.pool.oldest_wait_subsecond_age{service.name="pgbouncer",service.namespace="obenhub-lab",obenhub.cluster.name="slice1",service.instance.id="pgbouncer",pgbouncer.database.name="app",user.name="app"}'
         values: '0x60'
     alert_rule_test:
       - eval_time: 6m
@@ -144,9 +144,9 @@ tests:
         values: '0x60'
       - series: 'pgbouncer.database.disabled{service.name="pgbouncer",service.namespace="obenhub-lab",obenhub.cluster.name="slice1",service.instance.id="pgbouncer",pgbouncer.database.name="app"}'
         values: '0x60'
-      - series: 'pgbouncer.pool.oldest_wait_age{service.name="pgbouncer",service.namespace="obenhub-lab",obenhub.cluster.name="slice1",service.instance.id="pgbouncer",pgbouncer.database.name="pgbouncer",pgbouncer.user.name="pgbouncer"}'
+      - series: 'pgbouncer.pool.oldest_wait_age{service.name="pgbouncer",service.namespace="obenhub-lab",obenhub.cluster.name="slice1",service.instance.id="pgbouncer",pgbouncer.database.name="pgbouncer",user.name="pgbouncer"}'
         values: '0x8 30x52'
-      - series: 'pgbouncer.pool.oldest_wait_age_remainder{service.name="pgbouncer",service.namespace="obenhub-lab",obenhub.cluster.name="slice1",service.instance.id="pgbouncer",pgbouncer.database.name="pgbouncer",pgbouncer.user.name="pgbouncer"}'
+      - series: 'pgbouncer.pool.oldest_wait_subsecond_age{service.name="pgbouncer",service.namespace="obenhub-lab",obenhub.cluster.name="slice1",service.instance.id="pgbouncer",pgbouncer.database.name="pgbouncer",user.name="pgbouncer"}'
         values: '0x60'
     alert_rule_test:
       - eval_time: 6m
@@ -163,9 +163,9 @@ tests:
         values: '1x60'
       - series: 'pgbouncer.database.disabled{service.name="pgbouncer",service.namespace="obenhub-lab",obenhub.cluster.name="slice1",service.instance.id="pgbouncer",pgbouncer.database.name="app"}'
         values: '0x60'
-      - series: 'pgbouncer.pool.oldest_wait_age{service.name="pgbouncer",service.namespace="obenhub-lab",obenhub.cluster.name="slice1",service.instance.id="pgbouncer",pgbouncer.database.name="app",pgbouncer.user.name="app"}'
+      - series: 'pgbouncer.pool.oldest_wait_age{service.name="pgbouncer",service.namespace="obenhub-lab",obenhub.cluster.name="slice1",service.instance.id="pgbouncer",pgbouncer.database.name="app",user.name="app"}'
         values: '0x8 30x52'
-      - series: 'pgbouncer.pool.oldest_wait_age_remainder{service.name="pgbouncer",service.namespace="obenhub-lab",obenhub.cluster.name="slice1",service.instance.id="pgbouncer",pgbouncer.database.name="app",pgbouncer.user.name="app"}'
+      - series: 'pgbouncer.pool.oldest_wait_subsecond_age{service.name="pgbouncer",service.namespace="obenhub-lab",obenhub.cluster.name="slice1",service.instance.id="pgbouncer",pgbouncer.database.name="app",user.name="app"}'
         values: '0x60'
     alert_rule_test:
       - eval_time: 6m
@@ -182,9 +182,9 @@ tests:
         values: '0x60'
       - series: 'pgbouncer.database.disabled{service.name="pgbouncer",service.namespace="obenhub-lab",obenhub.cluster.name="slice1",service.instance.id="pgbouncer",pgbouncer.database.name="app"}'
         values: '1x60'
-      - series: 'pgbouncer.pool.oldest_wait_age{service.name="pgbouncer",service.namespace="obenhub-lab",obenhub.cluster.name="slice1",service.instance.id="pgbouncer",pgbouncer.database.name="app",pgbouncer.user.name="app"}'
+      - series: 'pgbouncer.pool.oldest_wait_age{service.name="pgbouncer",service.namespace="obenhub-lab",obenhub.cluster.name="slice1",service.instance.id="pgbouncer",pgbouncer.database.name="app",user.name="app"}'
         values: '0x8 30x52'
-      - series: 'pgbouncer.pool.oldest_wait_age_remainder{service.name="pgbouncer",service.namespace="obenhub-lab",obenhub.cluster.name="slice1",service.instance.id="pgbouncer",pgbouncer.database.name="app",pgbouncer.user.name="app"}'
+      - series: 'pgbouncer.pool.oldest_wait_subsecond_age{service.name="pgbouncer",service.namespace="obenhub-lab",obenhub.cluster.name="slice1",service.instance.id="pgbouncer",pgbouncer.database.name="app",user.name="app"}'
         values: '0x60'
     alert_rule_test:
       - eval_time: 6m
@@ -205,13 +205,13 @@ tests:
         values: '1x60'
       - series: 'pgbouncer.database.disabled{service.name="pgbouncer",service.namespace="obenhub-lab",obenhub.cluster.name="slice1",service.instance.id="pgbouncer",pgbouncer.database.name="other"}'
         values: '0x60'
-      - series: 'pgbouncer.pool.oldest_wait_age{service.name="pgbouncer",service.namespace="obenhub-lab",obenhub.cluster.name="slice1",service.instance.id="pgbouncer",pgbouncer.database.name="app",pgbouncer.user.name="app"}'
+      - series: 'pgbouncer.pool.oldest_wait_age{service.name="pgbouncer",service.namespace="obenhub-lab",obenhub.cluster.name="slice1",service.instance.id="pgbouncer",pgbouncer.database.name="app",user.name="app"}'
         values: '0x8 30x52'
-      - series: 'pgbouncer.pool.oldest_wait_age_remainder{service.name="pgbouncer",service.namespace="obenhub-lab",obenhub.cluster.name="slice1",service.instance.id="pgbouncer",pgbouncer.database.name="app",pgbouncer.user.name="app"}'
+      - series: 'pgbouncer.pool.oldest_wait_subsecond_age{service.name="pgbouncer",service.namespace="obenhub-lab",obenhub.cluster.name="slice1",service.instance.id="pgbouncer",pgbouncer.database.name="app",user.name="app"}'
         values: '0x60'
-      - series: 'pgbouncer.pool.oldest_wait_age{service.name="pgbouncer",service.namespace="obenhub-lab",obenhub.cluster.name="slice1",service.instance.id="pgbouncer",pgbouncer.database.name="other",pgbouncer.user.name="app"}'
+      - series: 'pgbouncer.pool.oldest_wait_age{service.name="pgbouncer",service.namespace="obenhub-lab",obenhub.cluster.name="slice1",service.instance.id="pgbouncer",pgbouncer.database.name="other",user.name="app"}'
         values: '0x60'
-      - series: 'pgbouncer.pool.oldest_wait_age_remainder{service.name="pgbouncer",service.namespace="obenhub-lab",obenhub.cluster.name="slice1",service.instance.id="pgbouncer",pgbouncer.database.name="other",pgbouncer.user.name="app"}'
+      - series: 'pgbouncer.pool.oldest_wait_subsecond_age{service.name="pgbouncer",service.namespace="obenhub-lab",obenhub.cluster.name="slice1",service.instance.id="pgbouncer",pgbouncer.database.name="other",user.name="app"}'
         values: '0x60'
     alert_rule_test:
       - eval_time: 6m
@@ -225,7 +225,7 @@ tests:
               service.namespace: obenhub-lab
               obenhub.cluster.name: slice1
               pgbouncer.database.name: app
-              pgbouncer.user.name: app
+              user.name: app
             exp_annotations:
               summary: "PgBouncer pool app/app has a client waiting 30s for a server connection"
 
@@ -238,9 +238,9 @@ tests:
         values: '0x60'
       - series: 'pgbouncer.database.disabled{service.name="pgbouncer",service.namespace="obenhub-lab",obenhub.cluster.name="slice1",service.instance.id="pgbouncer",pgbouncer.database.name="app"}'
         values: '0x60'
-      - series: 'pgbouncer.pool.oldest_wait_age{service.name="pgbouncer",service.namespace="obenhub-lab",obenhub.cluster.name="slice1",service.instance.id="pgbouncer",pgbouncer.database.name="app",pgbouncer.user.name="app"}'
+      - series: 'pgbouncer.pool.oldest_wait_age{service.name="pgbouncer",service.namespace="obenhub-lab",obenhub.cluster.name="slice1",service.instance.id="pgbouncer",pgbouncer.database.name="app",user.name="app"}'
         values: '0x8 30x52'
-      - series: 'pgbouncer.pool.oldest_wait_age_remainder{service.name="pgbouncer",service.namespace="obenhub-lab",obenhub.cluster.name="slice1",service.instance.id="pgbouncer",pgbouncer.database.name="app",pgbouncer.user.name="app"}'
+      - series: 'pgbouncer.pool.oldest_wait_subsecond_age{service.name="pgbouncer",service.namespace="obenhub-lab",obenhub.cluster.name="slice1",service.instance.id="pgbouncer",pgbouncer.database.name="app",user.name="app"}'
         values: '0x60'
     alert_rule_test:
       - eval_time: 10m
@@ -297,7 +297,7 @@ tests:
         values: '0x120'
       - series: 'pgbouncer.database.server_connection.limit{service.name="pgbouncer",service.namespace="obenhub-lab",obenhub.cluster.name="slice1",service.instance.id="pgbouncer",pgbouncer.database.name="app"}'
         values: '5x120'
-      - series: 'pgbouncer.pool.active_server.count{service.name="pgbouncer",service.namespace="obenhub-lab",obenhub.cluster.name="slice1",service.instance.id="pgbouncer",pgbouncer.database.name="app",pgbouncer.user.name="app"}'
+      - series: 'pgbouncer.pool.active_server.count{service.name="pgbouncer",service.namespace="obenhub-lab",obenhub.cluster.name="slice1",service.instance.id="pgbouncer",pgbouncer.database.name="app",user.name="app"}'
         values: '5x120'
     alert_rule_test:
       - eval_time: 4m30s
@@ -315,7 +315,7 @@ tests:
               service.namespace: obenhub-lab
               obenhub.cluster.name: slice1
               pgbouncer.database.name: app
-              pgbouncer.user.name: app
+              user.name: app
             exp_annotations:
               summary: "PgBouncer pool app/app used 100% of its pool_size over 5m"
   - name: PoolSaturated is silent at ratio 0.8
@@ -329,7 +329,7 @@ tests:
         values: '0x120'
       - series: 'pgbouncer.database.server_connection.limit{service.name="pgbouncer",service.namespace="obenhub-lab",obenhub.cluster.name="slice1",service.instance.id="pgbouncer",pgbouncer.database.name="app"}'
         values: '5x120'
-      - series: 'pgbouncer.pool.active_server.count{service.name="pgbouncer",service.namespace="obenhub-lab",obenhub.cluster.name="slice1",service.instance.id="pgbouncer",pgbouncer.database.name="app",pgbouncer.user.name="app"}'
+      - series: 'pgbouncer.pool.active_server.count{service.name="pgbouncer",service.namespace="obenhub-lab",obenhub.cluster.name="slice1",service.instance.id="pgbouncer",pgbouncer.database.name="app",user.name="app"}'
         values: '4x120'
     alert_rule_test:
       - eval_time: 10m
@@ -348,7 +348,7 @@ tests:
         values: '0x120'
       - series: 'pgbouncer.database.server_connection.limit{service.name="pgbouncer",service.namespace="obenhub-lab",obenhub.cluster.name="slice1",service.instance.id="pgbouncer",pgbouncer.database.name="app"}'
         values: '20x120'
-      - series: 'pgbouncer.pool.active_server.count{service.name="pgbouncer",service.namespace="obenhub-lab",obenhub.cluster.name="slice1",service.instance.id="pgbouncer",pgbouncer.database.name="app",pgbouncer.user.name="app"}'
+      - series: 'pgbouncer.pool.active_server.count{service.name="pgbouncer",service.namespace="obenhub-lab",obenhub.cluster.name="slice1",service.instance.id="pgbouncer",pgbouncer.database.name="app",user.name="app"}'
         values: '19x120'
     alert_rule_test:
       - eval_time: 10m
@@ -362,7 +362,7 @@ tests:
               service.namespace: obenhub-lab
               obenhub.cluster.name: slice1
               pgbouncer.database.name: app
-              pgbouncer.user.name: app
+              user.name: app
             exp_annotations:
               summary: "PgBouncer pool app/app used 95% of its pool_size over 5m"
 
@@ -377,7 +377,7 @@ tests:
         values: '0x120'
       - series: 'pgbouncer.database.server_connection.limit{service.name="pgbouncer",service.namespace="obenhub-lab",obenhub.cluster.name="slice1",service.instance.id="pgbouncer",pgbouncer.database.name="app"}'
         values: '20x120'
-      - series: 'pgbouncer.pool.active_server.count{service.name="pgbouncer",service.namespace="obenhub-lab",obenhub.cluster.name="slice1",service.instance.id="pgbouncer",pgbouncer.database.name="app",pgbouncer.user.name="app"}'
+      - series: 'pgbouncer.pool.active_server.count{service.name="pgbouncer",service.namespace="obenhub-lab",obenhub.cluster.name="slice1",service.instance.id="pgbouncer",pgbouncer.database.name="app",user.name="app"}'
         values: '17x120'
     alert_rule_test:
       - eval_time: 10m
@@ -396,7 +396,7 @@ tests:
         values: '0x120'
       - series: 'pgbouncer.database.server_connection.limit{service.name="pgbouncer",service.namespace="obenhub-lab",obenhub.cluster.name="slice1",service.instance.id="pgbouncer",pgbouncer.database.name="app"}'
         values: '0x120'
-      - series: 'pgbouncer.pool.active_server.count{service.name="pgbouncer",service.namespace="obenhub-lab",obenhub.cluster.name="slice1",service.instance.id="pgbouncer",pgbouncer.database.name="app",pgbouncer.user.name="app"}'
+      - series: 'pgbouncer.pool.active_server.count{service.name="pgbouncer",service.namespace="obenhub-lab",obenhub.cluster.name="slice1",service.instance.id="pgbouncer",pgbouncer.database.name="app",user.name="app"}'
         values: '5x120'
     alert_rule_test:
       - eval_time: 10m
@@ -415,7 +415,7 @@ tests:
         values: '0x120'
       - series: 'pgbouncer.database.server_connection.limit{service.name="pgbouncer",service.namespace="obenhub-lab",obenhub.cluster.name="slice1",service.instance.id="pgbouncer",pgbouncer.database.name="app"}'
         values: '5x120'
-      - series: 'pgbouncer.pool.active_server.count{service.name="pgbouncer",service.namespace="obenhub-lab",obenhub.cluster.name="slice1",service.instance.id="pgbouncer",pgbouncer.database.name="app",pgbouncer.user.name="app"}'
+      - series: 'pgbouncer.pool.active_server.count{service.name="pgbouncer",service.namespace="obenhub-lab",obenhub.cluster.name="slice1",service.instance.id="pgbouncer",pgbouncer.database.name="app",user.name="app"}'
         values: '_x12 5x108'
     alert_rule_test:
       - eval_time: 7m30s
@@ -433,7 +433,7 @@ tests:
               service.namespace: obenhub-lab
               obenhub.cluster.name: slice1
               pgbouncer.database.name: app
-              pgbouncer.user.name: app
+              user.name: app
             exp_annotations:
               summary: "PgBouncer pool app/app used 100% of its pool_size over 5m"
 
@@ -448,7 +448,7 @@ tests:
         values: '0x120'
       - series: 'pgbouncer.database.server_connection.limit{service.name="pgbouncer",service.namespace="obenhub-lab",obenhub.cluster.name="slice1",service.instance.id="pgbouncer",pgbouncer.database.name="pgbouncer"}'
         values: '5x120'
-      - series: 'pgbouncer.pool.active_server.count{service.name="pgbouncer",service.namespace="obenhub-lab",obenhub.cluster.name="slice1",service.instance.id="pgbouncer",pgbouncer.database.name="pgbouncer",pgbouncer.user.name="pgbouncer"}'
+      - series: 'pgbouncer.pool.active_server.count{service.name="pgbouncer",service.namespace="obenhub-lab",obenhub.cluster.name="slice1",service.instance.id="pgbouncer",pgbouncer.database.name="pgbouncer",user.name="pgbouncer"}'
         values: '5x120'
     alert_rule_test:
       - eval_time: 10m
@@ -467,7 +467,7 @@ tests:
         values: '0x120'
       - series: 'pgbouncer.database.server_connection.limit{service.name="pgbouncer",service.namespace="obenhub-lab",obenhub.cluster.name="slice1",service.instance.id="pgbouncer",pgbouncer.database.name="app"}'
         values: '5x120'
-      - series: 'pgbouncer.pool.active_server.count{service.name="pgbouncer",service.namespace="obenhub-lab",obenhub.cluster.name="slice1",service.instance.id="pgbouncer",pgbouncer.database.name="app",pgbouncer.user.name="app"}'
+      - series: 'pgbouncer.pool.active_server.count{service.name="pgbouncer",service.namespace="obenhub-lab",obenhub.cluster.name="slice1",service.instance.id="pgbouncer",pgbouncer.database.name="app",user.name="app"}'
         values: '5x120'
     alert_rule_test:
       - eval_time: 10m
@@ -486,7 +486,7 @@ tests:
         values: '0x120'
       - series: 'pgbouncer.database.server_connection.limit{service.name="pgbouncer",service.namespace="obenhub-lab",obenhub.cluster.name="slice1",service.instance.id="pgbouncer",pgbouncer.database.name="app"}'
         values: '5x120'
-      - series: 'pgbouncer.pool.active_server.count{service.name="pgbouncer",service.namespace="obenhub-lab",obenhub.cluster.name="slice1",service.instance.id="pgbouncer",pgbouncer.database.name="app",pgbouncer.user.name="app"}'
+      - series: 'pgbouncer.pool.active_server.count{service.name="pgbouncer",service.namespace="obenhub-lab",obenhub.cluster.name="slice1",service.instance.id="pgbouncer",pgbouncer.database.name="app",user.name="app"}'
         values: '5x120'
     alert_rule_test:
       - eval_time: 10m
@@ -505,7 +505,7 @@ tests:
         values: '0x120'
       - series: 'pgbouncer.database.server_connection.limit{service.name="pgbouncer",service.namespace="obenhub-lab",obenhub.cluster.name="slice1",service.instance.id="pgbouncer",pgbouncer.database.name="app"}'
         values: '5x120'
-      - series: 'pgbouncer.pool.active_server.count{service.name="pgbouncer",service.namespace="obenhub-lab",obenhub.cluster.name="slice1",service.instance.id="pgbouncer",pgbouncer.database.name="app",pgbouncer.user.name="app"}'
+      - series: 'pgbouncer.pool.active_server.count{service.name="pgbouncer",service.namespace="obenhub-lab",obenhub.cluster.name="slice1",service.instance.id="pgbouncer",pgbouncer.database.name="app",user.name="app"}'
         values: '5x6 0x114'
     alert_rule_test:
       - eval_time: 10m
@@ -673,10 +673,10 @@ tests:
       - series: 'pgbouncer.database.disabled{service.name="pgbouncer",service.namespace="obenhub-lab",obenhub.cluster.name="slice1",service.instance.id="pgbouncer",pgbouncer.database.name="app"}'
         values: '0x60'
       - series: 'pgbouncer.stats.wait_time{service.name="pgbouncer",service.namespace="obenhub-lab",obenhub.cluster.name="slice1",service.instance.id="pgbouncer",pgbouncer.database.name="app"}'
-        values: '0+20000000x60'
+        values: '0+20x60'
       - series: 'pgbouncer.stats.server_assignment{service.name="pgbouncer",service.namespace="obenhub-lab",obenhub.cluster.name="slice1",service.instance.id="pgbouncer",pgbouncer.database.name="app"}'
         values: '0+100x60'
-      - series: 'pgbouncer.pool.oldest_wait_age{service.name="pgbouncer",service.namespace="obenhub-lab",obenhub.cluster.name="slice1",service.instance.id="pgbouncer",pgbouncer.database.name="app",pgbouncer.user.name="app"}'
+      - series: 'pgbouncer.pool.oldest_wait_age{service.name="pgbouncer",service.namespace="obenhub-lab",obenhub.cluster.name="slice1",service.instance.id="pgbouncer",pgbouncer.database.name="app",user.name="app"}'
         values: '0x30 1x30'
     alert_rule_test:
       - eval_time: 1m
@@ -707,7 +707,7 @@ tests:
       - series: 'pgbouncer.database.disabled{service.name="pgbouncer",service.namespace="obenhub-lab",obenhub.cluster.name="slice1",service.instance.id="pgbouncer",pgbouncer.database.name="app"}'
         values: '0x60'
       - series: 'pgbouncer.stats.wait_time{service.name="pgbouncer",service.namespace="obenhub-lab",obenhub.cluster.name="slice1",service.instance.id="pgbouncer",pgbouncer.database.name="app"}'
-        values: '0+5000000x60'
+        values: '0+5x60'
       - series: 'pgbouncer.stats.server_assignment{service.name="pgbouncer",service.namespace="obenhub-lab",obenhub.cluster.name="slice1",service.instance.id="pgbouncer",pgbouncer.database.name="app"}'
         values: '0+100x60'
     alert_rule_test:
@@ -745,7 +745,7 @@ tests:
       - series: 'pgbouncer.database.disabled{service.name="pgbouncer",service.namespace="obenhub-lab",obenhub.cluster.name="slice1",service.instance.id="pgbouncer",pgbouncer.database.name="app"}'
         values: '0x120'
       - series: 'pgbouncer.stats.wait_time{service.name="pgbouncer",service.namespace="obenhub-lab",obenhub.cluster.name="slice1",service.instance.id="pgbouncer",pgbouncer.database.name="app"}'
-        values: '0x20 1046000000x100'
+        values: '0x20 1046x100'
       - series: 'pgbouncer.stats.server_assignment{service.name="pgbouncer",service.namespace="obenhub-lab",obenhub.cluster.name="slice1",service.instance.id="pgbouncer",pgbouncer.database.name="app"}'
         values: '500x120'
     alert_rule_test:
@@ -764,10 +764,10 @@ tests:
       - series: 'pgbouncer.database.disabled{service.name="pgbouncer",service.namespace="obenhub-lab",obenhub.cluster.name="slice1",service.instance.id="pgbouncer",pgbouncer.database.name="app"}'
         values: '0x120'
       - series: 'pgbouncer.stats.wait_time{service.name="pgbouncer",service.namespace="obenhub-lab",obenhub.cluster.name="slice1",service.instance.id="pgbouncer",pgbouncer.database.name="app"}'
-        values: '0x20 1046000000x100'
+        values: '0x20 1046x100'
       - series: 'pgbouncer.stats.server_assignment{service.name="pgbouncer",service.namespace="obenhub-lab",obenhub.cluster.name="slice1",service.instance.id="pgbouncer",pgbouncer.database.name="app"}'
         values: '500+1x120'
-      - series: 'pgbouncer.pool.oldest_wait_age{service.name="pgbouncer",service.namespace="obenhub-lab",obenhub.cluster.name="slice1",service.instance.id="pgbouncer",pgbouncer.database.name="app",pgbouncer.user.name="app"}'
+      - series: 'pgbouncer.pool.oldest_wait_age{service.name="pgbouncer",service.namespace="obenhub-lab",obenhub.cluster.name="slice1",service.instance.id="pgbouncer",pgbouncer.database.name="app",user.name="app"}'
         values: '0x12 6x8 0x100'
     alert_rule_test:
       - eval_time: 8m
@@ -781,12 +781,12 @@ tests:
       - series: 'pgbouncer.list.item.count{service.instance.id="pgbouncer",pgbouncer.list.name="databases"}'
         values: '2x200'
       - series: 'pgbouncer.stats.wait_time{service.name="pgbouncer",service.namespace="obenhub-lab",obenhub.cluster.name="slice1",service.instance.id="pgbouncer",pgbouncer.database.name="app"}'
-        values: '0+50000000x200'
+        values: '0+50x200'
       - series: 'pgbouncer.stats.server_assignment{service.name="pgbouncer",service.namespace="obenhub-lab",obenhub.cluster.name="slice1",service.instance.id="pgbouncer",pgbouncer.database.name="app"}'
         values: '0+100x200'
-      - series: 'pgbouncer.pool.oldest_wait_age{service.name="pgbouncer",service.namespace="obenhub-lab",obenhub.cluster.name="slice1",service.instance.id="pgbouncer",pgbouncer.database.name="app",pgbouncer.user.name="app"}'
+      - series: 'pgbouncer.pool.oldest_wait_age{service.name="pgbouncer",service.namespace="obenhub-lab",obenhub.cluster.name="slice1",service.instance.id="pgbouncer",pgbouncer.database.name="app",user.name="app"}'
         values: '2x7 6x2 2x7 6x2 2x7 6x2 2x7 6x2 2x7 6x2 2x7 6x2 2x7 6x2 2x7 6x2 2x7 6x2 2x7 6x2 2x7 6x2 2x7'
-      - series: 'pgbouncer.pool.oldest_wait_age_remainder{service.name="pgbouncer",service.namespace="obenhub-lab",obenhub.cluster.name="slice1",service.instance.id="pgbouncer",pgbouncer.database.name="app",pgbouncer.user.name="app"}'
+      - series: 'pgbouncer.pool.oldest_wait_subsecond_age{service.name="pgbouncer",service.namespace="obenhub-lab",obenhub.cluster.name="slice1",service.instance.id="pgbouncer",pgbouncer.database.name="app",user.name="app"}'
         values: '0x200'
     alert_rule_test:
       - eval_time: 25m
@@ -813,16 +813,16 @@ tests:
       - series: 'pgbouncer.list.item.count{service.instance.id="pgbouncer",pgbouncer.list.name="databases"}'
         values: '2x120'
       - series: 'pgbouncer.stats.wait_time{service.name="pgbouncer",service.namespace="obenhub-lab",obenhub.cluster.name="slice1",service.instance.id="pgbouncer",pgbouncer.database.name="app"}'
-        values: '0x20 1046000000x100'
+        values: '0x20 1046x100'
       - series: 'pgbouncer.stats.server_assignment{service.name="pgbouncer",service.namespace="obenhub-lab",obenhub.cluster.name="slice1",service.instance.id="pgbouncer",pgbouncer.database.name="app"}'
         values: '500+1x120'
-      - series: 'pgbouncer.pool.oldest_wait_age{service.name="pgbouncer",service.namespace="obenhub-lab",obenhub.cluster.name="slice1",service.instance.id="pgbouncer",pgbouncer.database.name="app",pgbouncer.user.name="app"}'
+      - series: 'pgbouncer.pool.oldest_wait_age{service.name="pgbouncer",service.namespace="obenhub-lab",obenhub.cluster.name="slice1",service.instance.id="pgbouncer",pgbouncer.database.name="app",user.name="app"}'
         values: '0x12 6x8 0x100'
       - series: 'pgbouncer.stats.wait_time{service.name="pgbouncer",service.namespace="obenhub-lab",obenhub.cluster.name="slice1",service.instance.id="pgbouncer",pgbouncer.database.name="other"}'
-        values: '0+20000000x120'
+        values: '0+20x120'
       - series: 'pgbouncer.stats.server_assignment{service.name="pgbouncer",service.namespace="obenhub-lab",obenhub.cluster.name="slice1",service.instance.id="pgbouncer",pgbouncer.database.name="other"}'
         values: '0+100x120'
-      - series: 'pgbouncer.pool.oldest_wait_age{service.name="pgbouncer",service.namespace="obenhub-lab",obenhub.cluster.name="slice1",service.instance.id="pgbouncer",pgbouncer.database.name="other",pgbouncer.user.name="app"}'
+      - series: 'pgbouncer.pool.oldest_wait_age{service.name="pgbouncer",service.namespace="obenhub-lab",obenhub.cluster.name="slice1",service.instance.id="pgbouncer",pgbouncer.database.name="other",user.name="app"}'
         values: '0x120'
     alert_rule_test:
       - eval_time: 8m
@@ -849,10 +849,10 @@ tests:
       - series: 'pgbouncer.database.disabled{service.name="pgbouncer",service.namespace="obenhub-lab",obenhub.cluster.name="slice1",service.instance.id="pgbouncer",pgbouncer.database.name="app"}'
         values: '0x120'
       - series: 'pgbouncer.stats.wait_time{service.name="pgbouncer",service.namespace="obenhub-lab",obenhub.cluster.name="slice1",service.instance.id="pgbouncer",pgbouncer.database.name="app"}'
-        values: '0+20000000x60'
+        values: '0+20x60'
       - series: 'pgbouncer.stats.server_assignment{service.name="pgbouncer",service.namespace="obenhub-lab",obenhub.cluster.name="slice1",service.instance.id="pgbouncer",pgbouncer.database.name="app"}'
         values: '0+100x60'
-      - series: 'pgbouncer.pool.oldest_wait_age{service.name="pgbouncer",service.namespace="obenhub-lab",obenhub.cluster.name="slice1",service.instance.id="pgbouncer",pgbouncer.database.name="app",pgbouncer.user.name="app"}'
+      - series: 'pgbouncer.pool.oldest_wait_age{service.name="pgbouncer",service.namespace="obenhub-lab",obenhub.cluster.name="slice1",service.instance.id="pgbouncer",pgbouncer.database.name="app",user.name="app"}'
         values: '6x4 0x56'
     alert_rule_test:
       - eval_time: 6m
@@ -883,7 +883,7 @@ tests:
       - series: 'pgbouncer.database.disabled{service.name="pgbouncer",service.namespace="obenhub-lab",obenhub.cluster.name="slice1",service.instance.id="pgbouncer",pgbouncer.database.name="app"}'
         values: '0x60'
       - series: 'pgbouncer.stats.wait_time{service.name="pgbouncer",service.namespace="obenhub-lab",obenhub.cluster.name="slice1",service.instance.id="pgbouncer",pgbouncer.database.name="app"}'
-        values: '0+20000000x60'
+        values: '0+20x60'
       - series: 'pgbouncer.stats.server_assignment{service.name="pgbouncer",service.namespace="obenhub-lab",obenhub.cluster.name="slice1",service.instance.id="pgbouncer",pgbouncer.database.name="app"}'
         values: '0+100x60'
     alert_rule_test:
@@ -902,7 +902,7 @@ tests:
       - series: 'pgbouncer.database.disabled{service.name="pgbouncer",service.namespace="obenhub-lab",obenhub.cluster.name="slice1",service.instance.id="pgbouncer",pgbouncer.database.name="app"}'
         values: '0x60'
       - series: 'pgbouncer.stats.wait_time{service.name="pgbouncer",service.namespace="obenhub-lab",obenhub.cluster.name="slice1",service.instance.id="pgbouncer",pgbouncer.database.name="app"}'
-        values: '0+20000000x60'
+        values: '0+20x60'
       - series: 'pgbouncer.stats.server_assignment{service.name="pgbouncer",service.namespace="obenhub-lab",obenhub.cluster.name="slice1",service.instance.id="pgbouncer",pgbouncer.database.name="app"}'
         values: '0+100x60'
     alert_rule_test:

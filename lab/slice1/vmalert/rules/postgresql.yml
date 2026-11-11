@@ -108,8 +108,8 @@ groups:
 
   # PgBouncer (stage 2). SHOW POOLS gives the oldest waiting client as whole
   # seconds (pgbouncer.pool.oldest_wait_age, SHOW POOLS maxwait) plus the
-  # microseconds beyond them (oldest_wait_age_remainder, maxwait_us); the sum
-  # is the wait.
+  # part below one second (oldest_wait_subsecond_age, maxwait_us, converted
+  # to seconds by the Collector); the sum is the wait.
   - name: pgbouncer
     interval: 15s
     rules:
@@ -143,7 +143,7 @@ groups:
         expr: |
           (
             pgbouncer.pool.oldest_wait_age{pgbouncer.database.name!="pgbouncer"}
-              + pgbouncer.pool.oldest_wait_age_remainder{pgbouncer.database.name!="pgbouncer"} / 1e6 > 5
+              + pgbouncer.pool.oldest_wait_subsecond_age{pgbouncer.database.name!="pgbouncer"} > 5
           )
             unless on(service.instance.id, pgbouncer.database.name)
           (pgbouncer.database.paused == 1 or pgbouncer.database.disabled == 1)
@@ -153,7 +153,7 @@ groups:
         labels:
           severity: warning
         annotations:
-          summary: 'PgBouncer pool {{ (index $labels "pgbouncer.database.name") }}/{{ (index $labels "pgbouncer.user.name") }} has a client waiting {{ $value | humanizeDuration }} for a server connection'
+          summary: 'PgBouncer pool {{ (index $labels "pgbouncer.database.name") }}/{{ (index $labels "user.name") }} has a client waiting {{ $value | humanizeDuration }} for a server connection'
 
       # The three rules below are not for the console (database pgbouncer),
       # not for a paused or disabled database and not while the target is
@@ -184,7 +184,7 @@ groups:
         labels:
           severity: warning
         annotations:
-          summary: 'PgBouncer pool {{ (index $labels "pgbouncer.database.name") }}/{{ (index $labels "pgbouncer.user.name") }} used {{ $value | humanizePercentage }} of its pool_size over 5m'
+          summary: 'PgBouncer pool {{ (index $labels "pgbouncer.database.name") }}/{{ (index $labels "user.name") }} used {{ $value | humanizePercentage }} of its pool_size over 5m'
 
       # Client connections against max_client_conn, two tiers as at
       # PostgresConnectionSaturation (old for 1m, W' = 75s, 5 points): critical at a
@@ -238,8 +238,8 @@ groups:
       # Average wait per server assignment over 5 m, in seconds. Complements
       # PgbouncerClientsWaiting (oldest waiter over 5 s): many short waits that
       # never reach 5 s. total_wait_time grows when a waiting client is
-      # activated (activate_client, src/objects.c:845; microseconds, SHOW
-      # STATS). A client that died while queued is activated too, when a
+      # activated (activate_client, src/objects.c:845; microseconds in SHOW
+      # STATS, converted to seconds by the Collector). A client that died while queued is activated too, when a
       # server frees up, but gets no assignment: measured 2026-11-08, ending
       # pgbouncer-pool-saturated added about 1046 s of wait with no assignment.
       # Such a lump would dominate the average for the 5 m window, however
@@ -255,8 +255,7 @@ groups:
         expr: |
           (
             rate(pgbouncer.stats.wait_time{pgbouncer.database.name!="pgbouncer"}[5m])
-              / (rate(pgbouncer.stats.server_assignment{pgbouncer.database.name!="pgbouncer"}[5m]) > 0)
-              / 1e6 > 0.1
+              / (rate(pgbouncer.stats.server_assignment{pgbouncer.database.name!="pgbouncer"}[5m]) > 0) > 0.1
           )
             unless on(service.instance.id, pgbouncer.database.name)
           max by(service.instance.id, pgbouncer.database.name) (

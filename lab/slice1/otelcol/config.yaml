@@ -167,8 +167,8 @@ receivers:
           - {metric_name: pgbouncer.pool.idle_server.count, value_column: sv_idle, attribute_columns: [database, user], value_type: int, data_type: gauge, unit: '{connection}', description: "Server connections unused and immediately usable"}
           - {metric_name: pgbouncer.pool.used_server.count, value_column: sv_used, attribute_columns: [database, user], value_type: int, data_type: gauge, unit: '{connection}', description: "Server connections idle for more than server_check_delay"}
           - {metric_name: pgbouncer.pool.login_server.count, value_column: sv_login, attribute_columns: [database, user], value_type: int, data_type: gauge, unit: '{connection}', description: "Server connections currently logging in"}
-          - {metric_name: pgbouncer.pool.oldest_wait_age, value_column: maxwait, attribute_columns: [database, user], value_type: int, data_type: gauge, unit: s, description: "Whole seconds the oldest waiting client has waited; add maxwait_us / 1e6"}
-          - {metric_name: pgbouncer.pool.oldest_wait_age_remainder, value_column: maxwait_us, attribute_columns: [database, user], value_type: int, data_type: gauge, unit: us, description: "Microseconds beyond maxwait"}
+          - {metric_name: pgbouncer.pool.oldest_wait_age, value_column: maxwait, attribute_columns: [database, user], value_type: int, data_type: gauge, unit: s, description: "Whole seconds the oldest waiting client has waited (SHOW POOLS maxwait); the part below one second is oldest_wait_subsecond_age"}
+          - {metric_name: pgbouncer.pool.oldest_wait_subsecond_age, value_column: maxwait_us, attribute_columns: [database, user], value_type: int, data_type: gauge, unit: us, description: "Part of the oldest waiting client wait below one second (SHOW POOLS maxwait_us), in seconds after the transform"}
       - sql: SHOW DATABASES
         metrics:
           - {metric_name: pgbouncer.database.server_connection.limit, value_column: pool_size, attribute_columns: [name], value_type: int, data_type: gauge, unit: '{connection}', description: "Configured maximum server connections per user pool"}
@@ -260,18 +260,31 @@ processors:
   # SHOW output cannot be aliased in SQL, so the console's column names are
   # renamed here: database (SHOW POOLS, SHOW STATS) and name (SHOW DATABASES)
   # are the same thing. `insert` keeps an existing value and does nothing when
-  # the source attribute is absent. Assumption (not run): attributesprocessor
-  # v0.164.0 applies these actions to metric data point attributes.
+  # the source attribute is absent. Verified on 2026-11-12 with contrib 0.164.0
+  # against the slice1 lab.
   attributes/pgbouncer:
     actions:
       - {key: pgbouncer.database.name, from_attribute: database, action: insert}
       - {key: pgbouncer.database.name, from_attribute: name, action: insert}
-      - {key: pgbouncer.user.name, from_attribute: user, action: insert}
+      - {key: user.name, from_attribute: user, action: insert}
       - {key: pgbouncer.list.name, from_attribute: list, action: insert}
       - {key: database, action: delete}
       - {key: name, action: delete}
       - {key: user, action: delete}
       - {key: list, action: delete}
+  # SHOW STATS and SHOW POOLS report microseconds; the pack queries declare
+  # unit us so that this condition finds them, and the values leave the
+  # Collector in seconds. Order matters: the datapoint statement runs first,
+  # while metric.unit is still us, then the metric statement changes the unit.
+  # Verified at contrib 0.164.0 against the live PgBouncer (audit, 2026-11-12).
+  transform/pgbouncer-seconds:
+    metric_statements:
+      - context: datapoint
+        statements:
+          - set(value_double, Double(value_int) / 1000000.0) where metric.unit == "us"
+      - context: metric
+        statements:
+          - set(unit, "s") where unit == "us"
   batch: {}
 
 exporters:
@@ -314,7 +327,7 @@ service:
       exporters: [otlp_http/vm]
     metrics/pgbouncer:
       receivers: [sql_query/pgbouncer]
-      processors: [memory_limiter, attributes/pgbouncer, resource/pgbouncer, batch]
+      processors: [memory_limiter, attributes/pgbouncer, transform/pgbouncer-seconds, resource/pgbouncer, batch]
       exporters: [otlp_http/vm]
     logs/primary:
       receivers: [file_log/primary]

@@ -69,6 +69,9 @@ Kubernetes attributes) are used as they arrive.
    (`Postgres`, `Pgbouncer`, `Patroni`, `Etcd`, `CNPG`, `Kubernetes`, `Host`,
    `Collector`), then the condition. Acronyms stay upper case (`WAL`, `CNPG`).
    Two alerts never describe the same condition.
+   The one exception to the prefix is `Watchdog`, the always-firing heartbeat
+   of the alert pipeline: its name is an Alertmanager convention and belongs
+   to no component.
 6. **Generated reference.** The metric list of each pack is generated from its
    query file and checked in `mise run check`; it is not written by hand.
 
