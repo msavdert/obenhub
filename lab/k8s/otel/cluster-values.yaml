@@ -1,0 +1,79 @@
+# Values for the opentelemetry-collector chart (versions.sh), release
+# "cluster": one Deployment replica for the cluster-wide telemetry (k8s_cluster
+# metrics and Kubernetes events). Placeholders in ${UPPER_CASE} are filled by
+# scripts/up.sh; ${env:...} is the Collector's own syntax.
+# Preset behaviour: chart templates/_config.tpl at chart 0.178.3.
+mode: deployment
+replicaCount: 1
+fullnameOverride: otelcol-cluster
+
+image:
+  repository: ${OTELCOL_IMAGE_REPOSITORY}
+  tag: ${OTELCOL_IMAGE_TAG}
+  digest: ${OTELCOL_IMAGE_DIGEST}
+command:
+  name: otelcol-contrib
+
+presets:
+  kubernetesAttributes:
+    enabled: true
+  clusterMetrics:
+    enabled: true
+  kubernetesEvents:
+    enabled: true
+
+# Receive nothing, so no Service either (it would have no ports).
+service:
+  enabled: false
+ports:
+  otlp: {enabled: false}
+  otlp-http: {enabled: false}
+  jaeger-compact: {enabled: false}
+  jaeger-thrift: {enabled: false}
+  jaeger-grpc: {enabled: false}
+  zipkin: {enabled: false}
+
+extraEnvs:
+  - name: OBENHUB_GATEWAY_ENDPOINT
+    value: "${GATEWAY_ENDPOINT}"
+
+telemetry:
+  resourceAttributes:
+    extra:
+      service.namespace: obenhub-lab
+      service.name: otelcol
+      service.instance.id: otelcol-cluster
+
+config:
+  receivers:
+    jaeger: null
+    otlp: null
+    prometheus: null
+    zipkin: null
+  exporters:
+    debug: null
+    otlp_http/gateway:
+      endpoint: ${env:OBENHUB_GATEWAY_ENDPOINT}
+  service:
+    telemetry:
+      metrics:
+        level: normal
+        readers:
+          - periodic:
+              interval: 15000
+              exporter:
+                otlp:
+                  protocol: http/protobuf
+                  endpoint: ${env:OBENHUB_GATEWAY_ENDPOINT}/v1/metrics
+    pipelines:
+      traces: null
+      # receivers: k8s_cluster is added by the preset
+      metrics:
+        receivers: []
+        processors: [memory_limiter, k8s_attributes, batch]
+        exporters: [otlp_http/gateway]
+      # receivers: the events receiver is added by the preset
+      logs:
+        receivers: []
+        processors: [memory_limiter, k8s_attributes, batch]
+        exporters: [otlp_http/gateway]

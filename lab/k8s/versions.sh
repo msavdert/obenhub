@@ -22,3 +22,17 @@ CNPG_MANIFEST_URL="https://raw.githubusercontent.com/cloudnative-pg/cloudnative-
 # `docker buildx imagetools inspect` on 2026-11-10.
 # renovate: datasource=docker
 PG_IMAGE=ghcr.io/cloudnative-pg/postgresql:18.6-system-trixie@sha256:48a0038fdd9672d12853d5300666b2592f97f9d34a993ea42e3ecb5a9a5e43e3
+
+# Collector Helm chart opentelemetry-collector, release tag
+# opentelemetry-collector-<version> of open-telemetry/opentelemetry-helm-charts
+# (Chart.yaml version 0.178.3, appVersion 0.163.2, read 2026-11-10).
+# renovate: datasource=github-releases depName=open-telemetry/opentelemetry-helm-charts extractVersion=^opentelemetry-collector-(?<version>.+)$
+OTEL_CHART_VERSION=0.178.3
+OTEL_CHART_REPO=https://open-telemetry.github.io/opentelemetry-helm-charts
+
+# Collector contrib image: the version lab/pgha/versions.sh OTELCOL_VERSION and
+# lab/pgha/mon/compose.yaml run (the chart's appVersion is older; the image is
+# set explicitly). The digest is the multi-arch index digest, read from the
+# registry with `docker buildx imagetools inspect` on 2026-11-10.
+# renovate: datasource=docker
+OTELCOL_IMAGE=otel/opentelemetry-collector-contrib:0.164.0@sha256:340c9ca6a36617084c6661bdc4f0fe92b7cda5a805d61673ec8db375fddc522b

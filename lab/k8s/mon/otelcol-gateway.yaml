@@ -1,0 +1,57 @@
+# k8s gateway Collector: receives plain OTLP/HTTP from the Collectors in the
+# kind cluster (lab/k8s/otel) and forwards to VictoriaMetrics and
+# VictoriaLogs. It is published only on the kind Docker network's gateway
+# address (compose.yaml), so the traffic stays on this box's bridge; pgha
+# uses mutual TLS because there the traffic crosses VMs. The Collectors set
+# all resource attributes; the gateway adds none.
+# OTLP receiver HTTP settings: receiver/otlpreceiver at contrib v0.164.0.
+extensions:
+  health_check:
+    endpoint: 0.0.0.0:13133
+
+receivers:
+  otlp:
+    protocols:
+      http:
+        endpoint: 0.0.0.0:4318
+
+processors:
+  memory_limiter:
+    check_interval: 1s
+    limit_mib: 200
+  batch: {}
+
+exporters:
+  otlp_http/vm:
+    endpoint: http://victoriametrics:8428/opentelemetry
+  otlp_http/vl:
+    endpoint: http://victorialogs:9428/insert/opentelemetry
+    headers:
+      VL-Stream-Fields: service.namespace,service.name,service.instance.id
+
+service:
+  extensions: [health_check]
+  telemetry:
+    resource:
+      attributes:
+        - {name: service.namespace, value: obenhub-lab}
+        - {name: service.name, value: otelcol}
+        - {name: service.instance.id, value: otelcol-gateway}
+    metrics:
+      level: normal
+      readers:
+        - periodic:
+            interval: 15000
+            exporter:
+              otlp:
+                protocol: http/protobuf
+                endpoint: http://victoriametrics:8428/opentelemetry/v1/metrics
+  pipelines:
+    metrics:
+      receivers: [otlp]
+      processors: [memory_limiter, batch]
+      exporters: [otlp_http/vm]
+    logs:
+      receivers: [otlp]
+      processors: [memory_limiter, batch]
+      exporters: [otlp_http/vl]

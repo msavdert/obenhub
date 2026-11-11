@@ -1,0 +1,224 @@
+# Values for the opentelemetry-collector chart (versions.sh), release "agent":
+# the Collector DaemonSet, one pod per worker node (the control plane is
+# tainted, so it has none). Placeholders in ${UPPER_CASE} are filled from
+# versions.sh and the running kind network by scripts/up.sh; ${env:...} is the
+# Collector's own syntax and is left alone.
+# Preset behaviour: chart templates/_config.tpl at chart 0.178.3. Component
+# keys: receivers kubeletstats, receiver_creator, postgresql, sql_query,
+# file_log and processors k8s_attributes, transform in contrib v0.164.0; the
+# chart renames filelog and k8sattributes to those names itself.
+mode: daemonset
+fullnameOverride: otelcol-agent
+
+image:
+  repository: ${OTELCOL_IMAGE_REPOSITORY}
+  tag: ${OTELCOL_IMAGE_TAG}
+  digest: ${OTELCOL_IMAGE_DIGEST}
+command:
+  name: otelcol-contrib
+
+presets:
+  kubernetesAttributes:
+    enabled: true
+  kubeletMetrics:
+    enabled: true
+  logsCollection:
+    enabled: true
+    # keep file offsets across restarts (hostPath /var/lib/otelcol)
+    storeCheckpoints: true
+
+# The container logs under /var/log/pods are root-readable on the kind nodes.
+securityContext:
+  runAsUser: 0
+  runAsGroup: 0
+
+# Receive nothing: the chart opens hostPorts for these by default.
+ports:
+  otlp: {enabled: false}
+  otlp-http: {enabled: false}
+  jaeger-compact: {enabled: false}
+  jaeger-thrift: {enabled: false}
+  jaeger-grpc: {enabled: false}
+  zipkin: {enabled: false}
+
+# Roll the pods when the pack, the CA or the monitoring password changes (the
+# ConfigMaps and the Secret do not restart pods by themselves).
+podAnnotations:
+  obenhub.io/inputs-sha256: "${INPUTS_SHA256}"
+
+extraEnvs:
+  - name: OBENHUB_GATEWAY_ENDPOINT
+    value: "${GATEWAY_ENDPOINT}"
+  - name: OTEL_MONITOR_PASSWORD
+    valueFrom:
+      secretKeyRef:
+        name: pg-otel-monitor
+        key: password
+extraVolumes:
+  - name: pack-postgresql
+    configMap:
+      name: obenhub-pack-postgresql
+  - name: pg-ca
+    configMap:
+      name: obenhub-pg-ca
+extraVolumeMounts:
+  - {name: pack-postgresql, mountPath: /etc/obenhub/packs/postgresql, readOnly: true}
+  - {name: pg-ca, mountPath: /etc/obenhub/pg-ca, readOnly: true}
+
+telemetry:
+  resourceAttributes:
+    extra:
+      service.namespace: obenhub-lab
+      service.name: otelcol
+      # named by the node, like the Collectors of lab/pgha by theirs
+      service.instance.id: otelcol-agent-${env:OTEL_K8S_NODE_NAME}
+
+config:
+  extensions:
+    k8s_observer:
+      auth_type: serviceAccount
+      # only the pods on this node: every agent scrapes its own node
+      node: ${env:K8S_NODE_NAME}
+      observe_pods: true
+  receivers:
+    jaeger: null
+    otlp: null
+    prometheus: null
+    zipkin: null
+    # kind's kubelet serves a self-signed certificate
+    kubeletstats:
+      insecure_skip_verify: true
+    # The container logs of the pods; the Collectors' own are excluded (the
+    # chart README warns about the log loop). The JSON line of an
+    # obenhub namespace pod (CloudNativePG logs JSON) is parsed into
+    # attributes; processors.transform/cnpg lifts the PostgreSQL record.
+    file_log:
+      exclude:
+        - /var/log/pods/obenhub-otel_*/opentelemetry-collector/*.log
+      operators:
+        - type: container
+          id: container-parser
+          max_log_size: 102400
+        - type: json_parser
+          id: cnpg-json
+          if: 'body startsWith "{" && resource["k8s.namespace.name"] == "obenhub"'
+          parse_from: body
+    # The PostgreSQL pack against every CloudNativePG instance pod on this
+    # node, as lab/pgha/files/otelcol.yaml.tmpl instantiates it; the receivers
+    # are created per pod endpoint, so there is one set per pod and none per
+    # role. `endpoint` is the pod IP. CloudNativePG's server certificate names
+    # only the Services (pg-rw, pg-r, pg-ro), never a pod, so the hostname
+    # cannot be verified: sql_query verifies the chain against the cluster CA
+    # (verify-ca), postgresql supports only verify-full or no verification and
+    # uses TLS without verifying (sslmode require).
+    receiver_creator/postgresql:
+      watch_observers: [k8s_observer]
+      receivers:
+        postgresql:
+          rule: type == "pod" && labels["cnpg.io/cluster"] == "pg" && labels["cnpg.io/podRole"] == "instance"
+          config:
+            endpoint: '`endpoint`:5432'
+            transport: tcp
+            username: otel_monitor
+            password: ${env:OTEL_MONITOR_PASSWORD}
+            databases: [postgres]
+            collection_interval: 15s
+            metrics:
+              postgresql.deadlocks:
+                enabled: true
+            tls:
+              insecure: false
+              insecure_skip_verify: true
+        sql_query:
+          rule: type == "pod" && labels["cnpg.io/cluster"] == "pg" && labels["cnpg.io/podRole"] == "instance"
+          config:
+            driver: postgres
+            host: '`endpoint`'
+            port: 5432
+            database: postgres
+            username: otel_monitor
+            password: ${env:OTEL_MONITOR_PASSWORD}
+            additional_params:
+              sslmode: verify-ca
+              sslrootcert: /etc/obenhub/pg-ca/ca.crt
+            max_open_conn: 3
+            collection_interval: 15s
+            timeout: 10s
+            queries: ${file:/etc/obenhub/packs/postgresql/queries.yaml}
+  processors:
+    # Same attribute names as lab/pgha/files/otelcol.yaml.tmpl; the instance is
+    # the pod (k8s.pod.name is set by receiver_creator), never a role.
+    resource/postgresql:
+      attributes:
+        - {key: service.namespace, value: obenhub-lab, action: upsert}
+        - {key: service.name, value: postgresql, action: upsert}
+        - {key: service.instance.id, from_attribute: k8s.pod.name, action: upsert}
+        - {key: server.address, from_attribute: k8s.pod.name, action: upsert}
+        - {key: server.port, value: '5432', action: upsert}
+        - {key: db.system.name, value: postgresql, action: upsert}
+        - {key: db.cluster.name, value: pg, action: upsert}
+    # CloudNativePG logs {"logger":"postgres","msg":"record","record":{...}}.
+    # Body: the server message; the attributes keep the names of the jsonlog
+    # fields pgha collects.
+    transform/cnpg:
+      error_mode: ignore
+      log_statements:
+        # The postgres container of an instance pod gets the identity the
+        # metrics have (resource/postgresql), so logs and metrics join on it.
+        - context: resource
+          conditions:
+            - attributes["k8s.namespace.name"] == "obenhub" and attributes["k8s.container.name"] == "postgres"
+          statements:
+            - set(attributes["service.namespace"], "obenhub-lab")
+            - set(attributes["service.name"], "postgresql")
+            - set(attributes["service.instance.id"], attributes["k8s.pod.name"])
+            - set(attributes["server.address"], attributes["k8s.pod.name"])
+            - set(attributes["server.port"], "5432")
+            - set(attributes["db.system.name"], "postgresql")
+            - set(attributes["db.cluster.name"], "pg")
+        - context: log
+          statements:
+            - set(body, attributes["msg"]) where attributes["msg"] != nil
+            - set(body, attributes["record"]["message"]) where IsMap(attributes["record"]) and attributes["record"]["message"] != nil
+            # Every jsonlog field becomes a flat attribute, as pgha keeps them.
+            - merge_maps(attributes, attributes["record"], "insert") where IsMap(attributes["record"])
+            - set(severity_text, attributes["error_severity"]) where attributes["error_severity"] != nil
+            - set(severity_number, SEVERITY_NUMBER_DEBUG) where IsMatch(attributes["error_severity"], "^DEBUG[1-5]$")
+            - set(severity_number, SEVERITY_NUMBER_INFO) where IsMatch(attributes["error_severity"], "^(LOG|INFO|NOTICE)$")
+            - set(severity_number, SEVERITY_NUMBER_WARN) where attributes["error_severity"] == "WARNING"
+            - set(severity_number, SEVERITY_NUMBER_ERROR) where attributes["error_severity"] == "ERROR"
+            - set(severity_number, SEVERITY_NUMBER_FATAL) where IsMatch(attributes["error_severity"], "^(FATAL|PANIC)$")
+            - delete_key(attributes, "msg")
+            - delete_key(attributes, "record") where IsMap(attributes["record"])
+  exporters:
+    debug: null
+    otlp_http/gateway:
+      endpoint: ${env:OBENHUB_GATEWAY_ENDPOINT}
+  service:
+    extensions: [health_check, k8s_observer]
+    telemetry:
+      metrics:
+        level: normal
+        readers:
+          - periodic:
+              interval: 15000
+              exporter:
+                otlp:
+                  protocol: http/protobuf
+                  endpoint: ${env:OBENHUB_GATEWAY_ENDPOINT}/v1/metrics
+    pipelines:
+      traces: null
+      # receivers: kubeletstats is added by the preset
+      metrics:
+        receivers: []
+        processors: [memory_limiter, k8s_attributes, batch]
+        exporters: [otlp_http/gateway]
+      metrics/postgresql:
+        receivers: [receiver_creator/postgresql]
+        processors: [memory_limiter, k8s_attributes, resource/postgresql, batch]
+        exporters: [otlp_http/gateway]
+      # receivers: file_log is added by the preset
+      logs:
+        receivers: []
+        processors: [memory_limiter, k8s_attributes, transform/cnpg, batch]
+        exporters: [otlp_http/gateway]

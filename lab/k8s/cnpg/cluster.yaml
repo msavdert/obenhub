@@ -23,3 +23,18 @@ spec:
     initdb:
       database: app
       owner: app
+  # The monitoring role of the Collectors (lab/k8s/otel): pg_monitor, as
+  # lab/pgha/files/post-bootstrap.sh creates it. The Secret is made by
+  # scripts/up.sh (random password, never written to the repository). A
+  # managed role cannot carry the per-role statement_timeout that pgha sets.
+  managed:
+    roles:
+      - name: otel_monitor
+        ensure: present
+        login: true
+        comment: OpenTelemetry Collector monitoring role
+        inRoles:
+          - pg_monitor
+          - pg_use_reserved_connections
+        passwordSecret:
+          name: pg-otel-monitor

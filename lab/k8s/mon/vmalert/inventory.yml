@@ -1,0 +1,24 @@
+# k8s inventory: the Collectors this lab expects (lab/k8s/otel). The rules that
+# read it are the shared PostgreSQL pack, lab/packs/postgresql/rules.yml.
+# Same record name and shape as lab/pgha/mon/vmalert/inventory.yml.
+# CollectorAbsent reads the Collectors by their self-telemetry
+# service.instance.id: the gateway, the cluster Deployment, and one agent per
+# worker node (the DaemonSet runs on the workers only, the control plane is
+# tainted), named by the node. obenhub.upstream names the Collector a Collector
+# sends through; the gateway sends its own telemetry straight to VictoriaMetrics.
+# No obenhub.expected_target: which agent collects a PostgreSQL pod depends on
+# where the scheduler put it, so that mapping is not static (assumption: the
+# PostgreSQL target rules come with the Kubernetes rules, stage 4 item 4).
+groups:
+  - name: inventory
+    interval: 15s
+    rules:
+      - record: obenhub.expected_collector
+        expr: |
+          union(
+            label_set(vector(1), "service.namespace", "obenhub-lab", "service.instance.id", "otelcol-gateway"),
+            label_set(vector(1), "service.namespace", "obenhub-lab", "service.instance.id", "otelcol-cluster", "obenhub.upstream", "otelcol-gateway"),
+            label_set(vector(1), "service.namespace", "obenhub-lab", "service.instance.id", "otelcol-agent-obenhub-worker", "obenhub.upstream", "otelcol-gateway"),
+            label_set(vector(1), "service.namespace", "obenhub-lab", "service.instance.id", "otelcol-agent-obenhub-worker2", "obenhub.upstream", "otelcol-gateway"),
+            label_set(vector(1), "service.namespace", "obenhub-lab", "service.instance.id", "otelcol-agent-obenhub-worker3", "obenhub.upstream", "otelcol-gateway")
+          )

@@ -4,17 +4,72 @@ A kind cluster (one control plane, three workers, cluster name `obenhub`)
 running the CloudNativePG operator and one `Cluster` named `pg` in namespace
 `obenhub`: three PostgreSQL 18 instances, one per worker (required pod
 anti-affinity on `kubernetes.io/hostname`), 1Gi each on kind's default
-StorageClass, database `app`. No monitoring yet.
+StorageClass, database `app`. Collectors in the cluster push to a backend
+Compose project on the box (`obenhub-k8s`).
 
 Needs Docker, `kind` 0.33.0 (the release whose node image `versions.sh`
-pins), `kubectl`, and `fs.inotify.max_user_watches` >= 524288
+pins), `kubectl`, `helm`, `openssl`, and `fs.inotify.max_user_watches` >= 524288
 and `max_user_instances` >= 512 ([kind known issues][kind-ki]); `up.sh` stops
 without changing sysctls if they are lower.
 
 ```sh
-lab/k8s/scripts/up.sh     # idempotent; about 4 minutes from nothing
-lab/k8s/scripts/down.sh   # deletes the kind cluster and all its data
+lab/k8s/scripts/up.sh     # idempotent; about 7 minutes from nothing
+lab/k8s/scripts/down.sh   # deletes the kind cluster, the backend and all data
 ```
+
+## Monitoring
+
+```text
+kind cluster                                   box (Compose project obenhub-k8s)
+  agent DaemonSet (3, one per worker)  --+
+    kubeletstats, container logs,        |  OTLP/HTTP, plain
+    PostgreSQL pack per CNPG pod         +-> gateway Collector -> VictoriaMetrics, VictoriaLogs
+  cluster Deployment (1)               --+   (172.16.9.1:44317)    vmalert -> Alertmanager, Grafana
+    k8s_cluster, Kubernetes events
+```
+
+- Backend (`mon/`): the images and flags of `lab/pgha/mon`. Ports on
+  127.0.0.1: VictoriaMetrics 48428, VictoriaLogs 49428, vmalert 48880,
+  Alertmanager 49093, Grafana 43000. The gateway listens on the IPv4 gateway
+  of the `kind` Docker network (`172.16.9.1` on the last run), port 44317,
+  which `up.sh` reads with `docker network inspect` into `mon/.env`
+  (gitignored). The traffic stays on this box's bridge, so it is plain OTLP/HTTP
+  where pgha uses mutual TLS across VMs.
+- Collectors (`otel/`): the official `opentelemetry-collector` Helm chart,
+  two releases in namespace `obenhub-otel`, image
+  `otel/opentelemetry-collector-contrib` pinned by tag and digest in
+  `versions.sh`. Presets: `kubernetesAttributes` (all pipelines),
+  `kubeletMetrics`, `logsCollection` (agent), `clusterMetrics`,
+  `kubernetesEvents` (cluster).
+- PostgreSQL pack: `receiver_creator` with `k8s_observer` creates the
+  `postgresql` receiver and the `sql_query` receiver with
+  `lab/packs/postgresql/queries.yaml` (mounted from a ConfigMap) for every
+  pod labelled `cnpg.io/cluster=pg` on the agent's own node. Series are named
+  by pod (`service.instance.id`, `server.address` = `pg-1`...), never by role,
+  and carry the `k8s.*` attributes.
+- Container logs of CloudNativePG are JSON; the agent parses the line and, for
+  `logger=postgres`, turns every field of `record` (`error_severity`,
+  `sql_state_code`, `query`, ...) into a flat attribute, as pgha does, and the
+  record message into the body. Every line of an instance's `postgres`
+  container, the instance manager's included (`logger` tells them apart),
+  carries the metrics' identity (`service.instance.id` = pod). The
+  Collectors' own logs are excluded.
+- Role: a CloudNativePG managed role `otel_monitor` (`pg_monitor`,
+  `pg_use_reserved_connections`) with a random password in the Secret
+  `pg-otel-monitor`, which `up.sh` creates once and copies to `obenhub-otel`.
+  CloudNativePG's server certificate names only the Services, so the pod
+  address cannot be verified: `sql_query` uses `sslmode=verify-ca` against the
+  cluster CA (ConfigMap `obenhub-pg-ca`, public certificate), the `postgresql`
+  receiver has no such mode and uses TLS without verification.
+  The CA is copied when `up.sh` runs; after CloudNativePG rotates it (90 days
+  by default, per the audit; not observed here), `sql_query` fails until
+  `up.sh` runs again.
+- Alerts: vmalert loads `lab/packs/postgresql/rules.yml` unchanged and
+  `mon/vmalert/inventory.yml`, which lists the five Collectors (gateway,
+  cluster, one agent per worker named by the node) for `CollectorAbsent`;
+  unit tests in `mon/vmalert/tests/collectors.yml` (`mise run
+  lab:k8s:rules-test`). There is no PostgreSQL target inventory (which agent
+  collects a pod depends on scheduling) and no Kubernetes rules yet.
 
 All versions are pinned in `versions.sh`, with the source of each. The kind
 and Cluster manifests hold a `${...}` placeholder that `up.sh` fills from it.
@@ -34,5 +89,36 @@ operand `postgresql:18.6-system-trixie`. Result:
   primary's pod IP with `pg_is_in_recovery()` false, and `pg-3` (in
   recovery) then read it back
 - a second `up.sh` changes nothing and returns in about 2 seconds
+
+## Collectors checked on 2026-11-10
+
+`up.sh` from nothing took 6m28s: cluster ready after 245 s, backend 125 s
+(most of it Grafana's plugin download and `--wait`), Secret, ConfigMaps and
+both Helm releases 18 s. Chart `opentelemetry-collector` 0.178.3, image
+`otel/opentelemetry-collector-contrib` 0.164.0. A second run changes nothing
+(both releases `unchanged`, 6 s). Then, in VictoriaMetrics and VictoriaLogs:
+
+- `postgresql.collection.heartbeat` and the other pack series exist for
+  `pg-1`, `pg-2` and `pg-3`, with `k8s.pod.name`, `k8s.node.name` and
+  `k8s.pod.uid`; `kubeletstats` (`k8s.pod.cpu.usage` on all three workers) and
+  `k8s_cluster` (`k8s.node.condition_ready`, `k8s.deployment.available`) series
+  are present; `otelcol_process_uptime` exists for the gateway, the cluster
+  Collector and the three agents
+- `select 1/0` on `pg-1` arrives as one log record with `error_severity`
+  `ERROR`, `sql_state_code` `22012`, `user_name`, `database_name`,
+  `backend_type`, `process_id` and the message `division by zero` as the body
+- Kubernetes events arrive as log records (scaling `otelcol-cluster` to 2 and
+  back gave `ScalingReplicaSet`, `Scheduled`, `Started`, `Killing`). The
+  `k8sobjects` receiver in `watch` mode emitted none for events that happened
+  before it started. The event body is a map without a message field, so
+  VictoriaLogs shows its `_msg` placeholder; the text is in `object.note`
+- vmalert, ten quiet minutes: only `Watchdog`. Keeping the agent off
+  `obenhub-worker2` with a node affinity patch raised `CollectorAbsent` for
+  `otelcol-agent-obenhub-worker2` alone (active 2 minutes after the patch,
+  firing when read at 5m45s); removing the patch cleared it. On a fresh backend `CollectorAbsent` fires for the
+  Collectors that are not yet installed, then clears once they push
+
+Not checked: a run on a cluster other than this one, and recovery after a
+restart of the gateway container while the Collectors are running.
 
 [kind-ki]: https://kind.sigs.k8s.io/docs/user/known-issues/#pod-errors-due-to-too-many-open-files

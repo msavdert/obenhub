@@ -1,0 +1,146 @@
+# k8s backend, run on the box next to the kind cluster (lab/k8s): the
+# Collectors in the cluster push plain OTLP/HTTP to the gateway, published on
+# the kind Docker network's IPv4 gateway address; everything else listens on
+# 127.0.0.1 only. Images, versions and flags are those of lab/pgha/mon/compose.yaml
+# (same services, so the stage 3 Alertmanager config and Grafana provisioning
+# are mounted from there unchanged).
+# Start with: lab/k8s/scripts/up.sh (it writes .env from the running kind network).
+
+name: obenhub-k8s
+
+services:
+  gateway:
+    image: otel/opentelemetry-collector-contrib:0.164.0
+    container_name: obenhub-k8s-gateway
+    restart: unless-stopped
+    mem_limit: 256m
+    command: ["--config=/etc/otelcol/config.yaml"]
+    # only on the kind network's gateway address: reachable from the cluster
+    # nodes, not from the LAN
+    ports:
+      - "${GATEWAY_IP:?run: lab/k8s/scripts/up.sh (it generates lab/k8s/mon/.env)}:${GATEWAY_PORT:?}:4318"
+    volumes:
+      - ./otelcol-gateway.yaml:/etc/otelcol/config.yaml:ro
+    depends_on:
+      victoriametrics:
+        condition: service_healthy
+      victorialogs:
+        condition: service_started
+    networks:
+      - mon
+
+  victoriametrics:
+    image: victoriametrics/victoria-metrics:v1.155.0
+    container_name: obenhub-k8s-victoriametrics
+    restart: unless-stopped
+    mem_limit: 512m
+    command: ["-retentionPeriod=7d", "-opentelemetry.promoteScopeMetadata=false"]
+    ports:
+      - "127.0.0.1:48428:8428"
+    volumes:
+      - vm-data:/victoria-metrics-data
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:8428/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    networks:
+      - mon
+
+  victorialogs:
+    image: victoriametrics/victoria-logs:v1.53.0
+    container_name: obenhub-k8s-victorialogs
+    restart: unless-stopped
+    mem_limit: 256m
+    ports:
+      - "127.0.0.1:49428:9428"
+    volumes:
+      - vl-data:/victoria-logs-data
+    # no healthcheck: the image has no shell or wget
+    networks:
+      - mon
+
+  vmalert:
+    image: victoriametrics/vmalert:v1.155.0
+    container_name: obenhub-k8s-vmalert
+    restart: unless-stopped
+    mem_limit: 128m
+    command:
+      - -datasource.url=http://victoriametrics:8428
+      - -remoteWrite.url=http://victoriametrics:8428
+      - -notifier.url=http://alertmanager:9093
+      - -rule=/etc/vmalert/inventory.yml
+      - -rule=/etc/vmalert/pack/*.yml
+      - -evaluationInterval=15s
+    ports:
+      - "127.0.0.1:48880:8880"
+    volumes:
+      - ./vmalert/inventory.yml:/etc/vmalert/inventory.yml:ro
+      - ../../packs/postgresql/rules.yml:/etc/vmalert/pack/postgresql.yml:ro
+    depends_on:
+      victoriametrics:
+        condition: service_healthy
+      alertmanager:
+        condition: service_started
+    networks:
+      - mon
+
+  alertmanager:
+    image: prom/alertmanager:v0.34.2
+    container_name: obenhub-k8s-alertmanager
+    restart: unless-stopped
+    mem_limit: 128m
+    command:
+      - --config.file=/etc/alertmanager/alertmanager.yml
+      - --storage.path=/alertmanager
+    ports:
+      - "127.0.0.1:49093:9093"
+    volumes:
+      - ../../stage3/alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+      - am-data:/alertmanager
+    depends_on:
+      - victorialogs
+    networks:
+      - mon
+
+  # AGPL-3.0, run unmodified as a separate service (ADR 0004); nothing of it
+  # is copied into this repository. Plugins are downloaded at start.
+  grafana:
+    image: grafana/grafana:13.3.0
+    container_name: obenhub-k8s-grafana
+    restart: unless-stopped
+    mem_limit: 512m
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: "${GRAFANA_ADMIN_PASSWORD:?run: lab/k8s/scripts/up.sh (it generates lab/k8s/mon/.env)}"
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
+      GF_PLUGINS_PREINSTALL_SYNC: victoriametrics-metrics-datasource@1.0.1,victoriametrics-logs-datasource@0.33.1
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+      GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
+      GF_ANALYTICS_CHECK_FOR_PLUGIN_UPDATES: "false"
+    ports:
+      - "127.0.0.1:43000:3000"
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ../../stage3/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ../../stage3/grafana/dashboards:/var/lib/obenhub/dashboards:ro
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:3000/api/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 40
+      start_period: 30s
+    depends_on:
+      - victoriametrics
+      - victorialogs
+    networks:
+      - mon
+
+networks:
+  mon: {}
+
+volumes:
+  vm-data: {}
+  vl-data: {}
+  am-data: {}
+  grafana-data: {}

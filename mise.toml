@@ -66,6 +66,10 @@ run = """docker run --rm -v "$PWD/lab:/lab:ro" victoriametrics/vmalert-tool:v1.1
 description = "unit-test Collector liveness in the pgha inventory with the shared pack rules (vmalert-tool); needs docker"
 run = """docker run --rm -v "$PWD/lab:/lab:ro" victoriametrics/vmalert-tool:v1.155.0 unittest --files=/lab/pgha/mon/vmalert/tests/collectors.yml"""
 
+[tasks."lab:k8s:rules-test"]
+description = "unit-test Collector liveness in the k8s inventory with the shared PostgreSQL pack rules (vmalert-tool); needs docker"
+run = """docker run --rm -v "$PWD/lab:/lab:ro" victoriametrics/vmalert-tool:v1.155.0 unittest --files=/lab/k8s/mon/vmalert/tests/collectors.yml"""
+
 [tasks."lab:host:rules-test"]
 description = "unit-test the shared host pack rules (lab/packs/host, vmalert-tool); needs docker"
 run = """docker run --rm -v "$PWD/lab:/lab:ro" victoriametrics/vmalert-tool:v1.155.0 unittest --files=/lab/packs/host/tests/host.yml"""
@@ -100,6 +104,7 @@ depends = [
   "lab:stage3:rules-test",
   "lab:pgha:rules-test",
   "lab:pgha:rules-gen-check",
+  "lab:k8s:rules-test",
   "docs:build",
 ]
 
