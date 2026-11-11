@@ -236,6 +236,9 @@ processors:
       - {key: server.port, value: '5432', action: upsert}
       - {key: db.system.name, value: postgresql, action: upsert}
       - {key: db.cluster.name, value: slice1, action: upsert}
+  # A logical subscriber is a cluster of its own: it is not a member of the
+  # streaming pair, so it must not share db.cluster.name with it
+  # (PostgresMultiplePrimaries counts writable members per db.cluster.name).
   resource/subscriber:
     attributes:
       - {key: service.namespace, value: obenhub-lab, action: upsert}
@@ -244,7 +247,7 @@ processors:
       - {key: server.address, value: pg-subscriber, action: upsert}
       - {key: server.port, value: '5432', action: upsert}
       - {key: db.system.name, value: postgresql, action: upsert}
-      - {key: db.cluster.name, value: slice1, action: upsert}
+      - {key: db.cluster.name, value: slice1-subscriber, action: upsert}
   resource/pgbouncer:
     attributes:
       - {key: service.namespace, value: obenhub-lab, action: upsert}

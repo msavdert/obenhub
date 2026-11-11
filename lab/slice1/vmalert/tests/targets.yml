@@ -110,7 +110,7 @@ tests:
               service.instance.id: pg-subscriber
               service.namespace: obenhub-lab
               service.name: postgresql
-              db.cluster.name: slice1
+              db.cluster.name: slice1-subscriber
               obenhub.collector: otelcol-slice1
             exp_annotations:
               summary: "No heartbeat from pg-subscriber"

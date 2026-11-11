@@ -52,7 +52,7 @@ tests:
               kind: mxid
             exp_annotations:
               summary: 'mxid age of app on pg-primary is 79.16% of the wraparound limit'
-          # xid exactly 0.5 of template1 (not above): no alert
+              # xid exactly 0.5 of template1 (not above): no alert
 
   - name: idle in transaction tiers and boundaries
     interval: 15s

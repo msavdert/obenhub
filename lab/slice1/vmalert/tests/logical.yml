@@ -7,9 +7,9 @@ tests:
   - name: apply errors that keep rising fire for the subscriber; a flat counter does not
     interval: 15s
     input_series:
-      - series: 'postgresql.subscription.apply_errors{service.name="postgresql",service.namespace="obenhub-lab",db.cluster.name="slice1",service.instance.id="pg-subscriber",subscription_name="app_sub"}'
+      - series: 'postgresql.subscription.apply_errors{service.name="postgresql",service.namespace="obenhub-lab",db.cluster.name="slice1-subscriber",service.instance.id="pg-subscriber",subscription_name="app_sub"}'
         values: '0x8 1+1x30'
-      - series: 'postgresql.subscription.sync_errors{service.name="postgresql",service.namespace="obenhub-lab",db.cluster.name="slice1",service.instance.id="pg-subscriber",subscription_name="app_sub"}'
+      - series: 'postgresql.subscription.sync_errors{service.name="postgresql",service.namespace="obenhub-lab",db.cluster.name="slice1-subscriber",service.instance.id="pg-subscriber",subscription_name="app_sub"}'
         values: '0x40'
     alert_rule_test:
       - eval_time: 1m
@@ -25,7 +25,7 @@ tests:
               service.instance.id: pg-subscriber
               service.name: postgresql
               service.namespace: obenhub-lab
-              db.cluster.name: slice1
+              db.cluster.name: slice1-subscriber
               subscription_name: app_sub
             exp_annotations:
               summary: Subscription app_sub on pg-subscriber has apply or sync errors
@@ -35,15 +35,15 @@ tests:
     input_series:
       - series: 'postgresql.collection.heartbeat{service.instance.id="pg-subscriber"}'
         values: '1x60'
-      - series: 'postgresql.subscription.enabled{service.name="postgresql",service.namespace="obenhub-lab",db.cluster.name="slice1",service.instance.id="pg-subscriber",subscription_name="app_sub"}'
+      - series: 'postgresql.subscription.enabled{service.name="postgresql",service.namespace="obenhub-lab",db.cluster.name="slice1-subscriber",service.instance.id="pg-subscriber",subscription_name="app_sub"}'
         values: '1x60'
-      - series: 'postgresql.subscription.apply_worker_running{service.name="postgresql",service.namespace="obenhub-lab",db.cluster.name="slice1",service.instance.id="pg-subscriber",subscription_name="app_sub"}'
+      - series: 'postgresql.subscription.apply_worker_running{service.name="postgresql",service.namespace="obenhub-lab",db.cluster.name="slice1-subscriber",service.instance.id="pg-subscriber",subscription_name="app_sub"}'
         values: '1x8 0x52'
-      - series: 'postgresql.subscription.last_msg_age{service.name="postgresql",service.namespace="obenhub-lab",db.cluster.name="slice1",service.instance.id="pg-subscriber",subscription_name="app_sub"}'
+      - series: 'postgresql.subscription.last_msg_age{service.name="postgresql",service.namespace="obenhub-lab",db.cluster.name="slice1-subscriber",service.instance.id="pg-subscriber",subscription_name="app_sub"}'
         values: '5x8 0x52'
-      - series: 'postgresql.subscription.apply_errors{service.name="postgresql",service.namespace="obenhub-lab",db.cluster.name="slice1",service.instance.id="pg-subscriber",subscription_name="app_sub"}'
+      - series: 'postgresql.subscription.apply_errors{service.name="postgresql",service.namespace="obenhub-lab",db.cluster.name="slice1-subscriber",service.instance.id="pg-subscriber",subscription_name="app_sub"}'
         values: '0x8 1x52'
-      - series: 'postgresql.subscription.sync_errors{service.name="postgresql",service.namespace="obenhub-lab",db.cluster.name="slice1",service.instance.id="pg-subscriber",subscription_name="app_sub"}'
+      - series: 'postgresql.subscription.sync_errors{service.name="postgresql",service.namespace="obenhub-lab",db.cluster.name="slice1-subscriber",service.instance.id="pg-subscriber",subscription_name="app_sub"}'
         values: '0x60'
     alert_rule_test:
       - eval_time: 4m30s
@@ -59,7 +59,7 @@ tests:
               service.instance.id: pg-subscriber
               service.name: postgresql
               service.namespace: obenhub-lab
-              db.cluster.name: slice1
+              db.cluster.name: slice1-subscriber
               subscription_name: app_sub
             exp_annotations:
               summary: Subscription app_sub on pg-subscriber is enabled but not receiving
@@ -67,9 +67,9 @@ tests:
   - name: a sync error alone fires; resolves once the window holds no increase
     interval: 15s
     input_series:
-      - series: 'postgresql.subscription.apply_errors{service.name="postgresql",service.namespace="obenhub-lab",db.cluster.name="slice1",service.instance.id="pg-subscriber",subscription_name="app_sub"}'
+      - series: 'postgresql.subscription.apply_errors{service.name="postgresql",service.namespace="obenhub-lab",db.cluster.name="slice1-subscriber",service.instance.id="pg-subscriber",subscription_name="app_sub"}'
         values: '0x40'
-      - series: 'postgresql.subscription.sync_errors{service.name="postgresql",service.namespace="obenhub-lab",db.cluster.name="slice1",service.instance.id="pg-subscriber",subscription_name="app_sub"}'
+      - series: 'postgresql.subscription.sync_errors{service.name="postgresql",service.namespace="obenhub-lab",db.cluster.name="slice1-subscriber",service.instance.id="pg-subscriber",subscription_name="app_sub"}'
         values: '0x8 3x32'
     alert_rule_test:
       - eval_time: 2m30s
@@ -81,7 +81,7 @@ tests:
               service.instance.id: pg-subscriber
               service.name: postgresql
               service.namespace: obenhub-lab
-              db.cluster.name: slice1
+              db.cluster.name: slice1-subscriber
               subscription_name: app_sub
             exp_annotations:
               summary: Subscription app_sub on pg-subscriber has apply or sync errors
@@ -95,15 +95,15 @@ tests:
     input_series:
       - series: 'postgresql.collection.heartbeat{service.instance.id="pg-subscriber"}'
         values: '1x60'
-      - series: 'postgresql.subscription.enabled{service.name="postgresql",service.namespace="obenhub-lab",db.cluster.name="slice1",service.instance.id="pg-subscriber",subscription_name="app_sub"}'
+      - series: 'postgresql.subscription.enabled{service.name="postgresql",service.namespace="obenhub-lab",db.cluster.name="slice1-subscriber",service.instance.id="pg-subscriber",subscription_name="app_sub"}'
         values: '1x60'
-      - series: 'postgresql.subscription.apply_worker_running{service.name="postgresql",service.namespace="obenhub-lab",db.cluster.name="slice1",service.instance.id="pg-subscriber",subscription_name="app_sub"}'
+      - series: 'postgresql.subscription.apply_worker_running{service.name="postgresql",service.namespace="obenhub-lab",db.cluster.name="slice1-subscriber",service.instance.id="pg-subscriber",subscription_name="app_sub"}'
         values: '1x8 0x52'
-      - series: 'postgresql.subscription.last_msg_age{service.name="postgresql",service.namespace="obenhub-lab",db.cluster.name="slice1",service.instance.id="pg-subscriber",subscription_name="app_sub"}'
+      - series: 'postgresql.subscription.last_msg_age{service.name="postgresql",service.namespace="obenhub-lab",db.cluster.name="slice1-subscriber",service.instance.id="pg-subscriber",subscription_name="app_sub"}'
         values: '5x8 0x52'
-      - series: 'postgresql.subscription.apply_errors{service.name="postgresql",service.namespace="obenhub-lab",db.cluster.name="slice1",service.instance.id="pg-subscriber",subscription_name="app_sub"}'
+      - series: 'postgresql.subscription.apply_errors{service.name="postgresql",service.namespace="obenhub-lab",db.cluster.name="slice1-subscriber",service.instance.id="pg-subscriber",subscription_name="app_sub"}'
         values: '0x60'
-      - series: 'postgresql.subscription.sync_errors{service.name="postgresql",service.namespace="obenhub-lab",db.cluster.name="slice1",service.instance.id="pg-subscriber",subscription_name="app_sub"}'
+      - series: 'postgresql.subscription.sync_errors{service.name="postgresql",service.namespace="obenhub-lab",db.cluster.name="slice1-subscriber",service.instance.id="pg-subscriber",subscription_name="app_sub"}'
         values: '0x60'
     alert_rule_test:
       - eval_time: 1m
@@ -119,7 +119,7 @@ tests:
               service.instance.id: pg-subscriber
               service.name: postgresql
               service.namespace: obenhub-lab
-              db.cluster.name: slice1
+              db.cluster.name: slice1-subscriber
               subscription_name: app_sub
             exp_annotations:
               summary: Subscription app_sub on pg-subscriber is enabled but not receiving
@@ -129,15 +129,15 @@ tests:
     input_series:
       - series: 'postgresql.collection.heartbeat{service.instance.id="pg-subscriber"}'
         values: '1x60'
-      - series: 'postgresql.subscription.enabled{service.name="postgresql",service.namespace="obenhub-lab",db.cluster.name="slice1",service.instance.id="pg-subscriber",subscription_name="app_sub"}'
+      - series: 'postgresql.subscription.enabled{service.name="postgresql",service.namespace="obenhub-lab",db.cluster.name="slice1-subscriber",service.instance.id="pg-subscriber",subscription_name="app_sub"}'
         values: '1x60'
-      - series: 'postgresql.subscription.apply_worker_running{service.name="postgresql",service.namespace="obenhub-lab",db.cluster.name="slice1",service.instance.id="pg-subscriber",subscription_name="app_sub"}'
+      - series: 'postgresql.subscription.apply_worker_running{service.name="postgresql",service.namespace="obenhub-lab",db.cluster.name="slice1-subscriber",service.instance.id="pg-subscriber",subscription_name="app_sub"}'
         values: '1x8 0 0 1 0 0 0 1 0 0 0 0 1 0 0 0 0 0 0 1 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0'
-      - series: 'postgresql.subscription.last_msg_age{service.name="postgresql",service.namespace="obenhub-lab",db.cluster.name="slice1",service.instance.id="pg-subscriber",subscription_name="app_sub"}'
+      - series: 'postgresql.subscription.last_msg_age{service.name="postgresql",service.namespace="obenhub-lab",db.cluster.name="slice1-subscriber",service.instance.id="pg-subscriber",subscription_name="app_sub"}'
         values: '5x8 0x52'
-      - series: 'postgresql.subscription.apply_errors{service.name="postgresql",service.namespace="obenhub-lab",db.cluster.name="slice1",service.instance.id="pg-subscriber",subscription_name="app_sub"}'
+      - series: 'postgresql.subscription.apply_errors{service.name="postgresql",service.namespace="obenhub-lab",db.cluster.name="slice1-subscriber",service.instance.id="pg-subscriber",subscription_name="app_sub"}'
         values: '0x60'
-      - series: 'postgresql.subscription.sync_errors{service.name="postgresql",service.namespace="obenhub-lab",db.cluster.name="slice1",service.instance.id="pg-subscriber",subscription_name="app_sub"}'
+      - series: 'postgresql.subscription.sync_errors{service.name="postgresql",service.namespace="obenhub-lab",db.cluster.name="slice1-subscriber",service.instance.id="pg-subscriber",subscription_name="app_sub"}'
         values: '0x60'
     alert_rule_test:
       - eval_time: 8m
@@ -149,7 +149,7 @@ tests:
               service.instance.id: pg-subscriber
               service.name: postgresql
               service.namespace: obenhub-lab
-              db.cluster.name: slice1
+              db.cluster.name: slice1-subscriber
               subscription_name: app_sub
             exp_annotations:
               summary: Subscription app_sub on pg-subscriber is enabled but not receiving
@@ -159,15 +159,15 @@ tests:
     input_series:
       - series: 'postgresql.collection.heartbeat{service.instance.id="pg-subscriber"}'
         values: '1x60'
-      - series: 'postgresql.subscription.enabled{service.name="postgresql",service.namespace="obenhub-lab",db.cluster.name="slice1",service.instance.id="pg-subscriber",subscription_name="app_sub"}'
+      - series: 'postgresql.subscription.enabled{service.name="postgresql",service.namespace="obenhub-lab",db.cluster.name="slice1-subscriber",service.instance.id="pg-subscriber",subscription_name="app_sub"}'
         values: '1x60'
-      - series: 'postgresql.subscription.apply_worker_running{service.name="postgresql",service.namespace="obenhub-lab",db.cluster.name="slice1",service.instance.id="pg-subscriber",subscription_name="app_sub"}'
+      - series: 'postgresql.subscription.apply_worker_running{service.name="postgresql",service.namespace="obenhub-lab",db.cluster.name="slice1-subscriber",service.instance.id="pg-subscriber",subscription_name="app_sub"}'
         values: '1x60'
-      - series: 'postgresql.subscription.last_msg_age{service.name="postgresql",service.namespace="obenhub-lab",db.cluster.name="slice1",service.instance.id="pg-subscriber",subscription_name="app_sub"}'
+      - series: 'postgresql.subscription.last_msg_age{service.name="postgresql",service.namespace="obenhub-lab",db.cluster.name="slice1-subscriber",service.instance.id="pg-subscriber",subscription_name="app_sub"}'
         values: '30x8 30+15x52'
-      - series: 'postgresql.subscription.apply_errors{service.name="postgresql",service.namespace="obenhub-lab",db.cluster.name="slice1",service.instance.id="pg-subscriber",subscription_name="app_sub"}'
+      - series: 'postgresql.subscription.apply_errors{service.name="postgresql",service.namespace="obenhub-lab",db.cluster.name="slice1-subscriber",service.instance.id="pg-subscriber",subscription_name="app_sub"}'
         values: '0x60'
-      - series: 'postgresql.subscription.sync_errors{service.name="postgresql",service.namespace="obenhub-lab",db.cluster.name="slice1",service.instance.id="pg-subscriber",subscription_name="app_sub"}'
+      - series: 'postgresql.subscription.sync_errors{service.name="postgresql",service.namespace="obenhub-lab",db.cluster.name="slice1-subscriber",service.instance.id="pg-subscriber",subscription_name="app_sub"}'
         values: '0x60'
     alert_rule_test:
       - eval_time: 1m
@@ -183,7 +183,7 @@ tests:
               service.instance.id: pg-subscriber
               service.name: postgresql
               service.namespace: obenhub-lab
-              db.cluster.name: slice1
+              db.cluster.name: slice1-subscriber
               subscription_name: app_sub
             exp_annotations:
               summary: Subscription app_sub on pg-subscriber is enabled but not receiving
@@ -193,11 +193,11 @@ tests:
     input_series:
       - series: 'postgresql.collection.heartbeat{service.instance.id="pg-subscriber"}'
         values: '1x60'
-      - series: 'postgresql.subscription.enabled{service.name="postgresql",service.namespace="obenhub-lab",db.cluster.name="slice1",service.instance.id="pg-subscriber",subscription_name="app_sub"}'
+      - series: 'postgresql.subscription.enabled{service.name="postgresql",service.namespace="obenhub-lab",db.cluster.name="slice1-subscriber",service.instance.id="pg-subscriber",subscription_name="app_sub"}'
         values: '0x60'
-      - series: 'postgresql.subscription.apply_worker_running{service.name="postgresql",service.namespace="obenhub-lab",db.cluster.name="slice1",service.instance.id="pg-subscriber",subscription_name="app_sub"}'
+      - series: 'postgresql.subscription.apply_worker_running{service.name="postgresql",service.namespace="obenhub-lab",db.cluster.name="slice1-subscriber",service.instance.id="pg-subscriber",subscription_name="app_sub"}'
         values: '0x60'
-      - series: 'postgresql.subscription.last_msg_age{service.name="postgresql",service.namespace="obenhub-lab",db.cluster.name="slice1",service.instance.id="pg-subscriber",subscription_name="app_sub"}'
+      - series: 'postgresql.subscription.last_msg_age{service.name="postgresql",service.namespace="obenhub-lab",db.cluster.name="slice1-subscriber",service.instance.id="pg-subscriber",subscription_name="app_sub"}'
         values: '0x60'
     alert_rule_test:
       - eval_time: 10m
@@ -210,15 +210,15 @@ tests:
     input_series:
       - series: 'postgresql.collection.heartbeat{service.instance.id="pg-subscriber"}'
         values: '1x60'
-      - series: 'postgresql.subscription.enabled{service.name="postgresql",service.namespace="obenhub-lab",db.cluster.name="slice1",service.instance.id="pg-subscriber",subscription_name="app_sub"}'
+      - series: 'postgresql.subscription.enabled{service.name="postgresql",service.namespace="obenhub-lab",db.cluster.name="slice1-subscriber",service.instance.id="pg-subscriber",subscription_name="app_sub"}'
         values: '1x60'
-      - series: 'postgresql.subscription.apply_worker_running{service.name="postgresql",service.namespace="obenhub-lab",db.cluster.name="slice1",service.instance.id="pg-subscriber",subscription_name="app_sub"}'
+      - series: 'postgresql.subscription.apply_worker_running{service.name="postgresql",service.namespace="obenhub-lab",db.cluster.name="slice1-subscriber",service.instance.id="pg-subscriber",subscription_name="app_sub"}'
         values: '0x60'
-      - series: 'postgresql.subscription.last_msg_age{service.name="postgresql",service.namespace="obenhub-lab",db.cluster.name="slice1",service.instance.id="pg-subscriber",subscription_name="app_sub"}'
+      - series: 'postgresql.subscription.last_msg_age{service.name="postgresql",service.namespace="obenhub-lab",db.cluster.name="slice1-subscriber",service.instance.id="pg-subscriber",subscription_name="app_sub"}'
         values: '0x60'
-      - series: 'postgresql.subscription.apply_errors{service.name="postgresql",service.namespace="obenhub-lab",db.cluster.name="slice1",service.instance.id="pg-subscriber",subscription_name="app_sub"}'
+      - series: 'postgresql.subscription.apply_errors{service.name="postgresql",service.namespace="obenhub-lab",db.cluster.name="slice1-subscriber",service.instance.id="pg-subscriber",subscription_name="app_sub"}'
         values: '0+1x60'
-      - series: 'postgresql.subscription.sync_errors{service.name="postgresql",service.namespace="obenhub-lab",db.cluster.name="slice1",service.instance.id="pg-subscriber",subscription_name="app_sub"}'
+      - series: 'postgresql.subscription.sync_errors{service.name="postgresql",service.namespace="obenhub-lab",db.cluster.name="slice1-subscriber",service.instance.id="pg-subscriber",subscription_name="app_sub"}'
         values: '0x60'
     alert_rule_test:
       - eval_time: 10m
@@ -234,7 +234,7 @@ tests:
               service.instance.id: pg-subscriber
               service.name: postgresql
               service.namespace: obenhub-lab
-              db.cluster.name: slice1
+              db.cluster.name: slice1-subscriber
               subscription_name: app_sub
             exp_annotations:
               summary: Subscription app_sub on pg-subscriber has apply or sync errors
@@ -244,15 +244,15 @@ tests:
     input_series:
       - series: 'postgresql.collection.heartbeat{service.instance.id="pg-subscriber"}'
         values: '1x8 _x52'
-      - series: 'postgresql.subscription.enabled{service.name="postgresql",service.namespace="obenhub-lab",db.cluster.name="slice1",service.instance.id="pg-subscriber",subscription_name="app_sub"}'
+      - series: 'postgresql.subscription.enabled{service.name="postgresql",service.namespace="obenhub-lab",db.cluster.name="slice1-subscriber",service.instance.id="pg-subscriber",subscription_name="app_sub"}'
         values: '1x60'
-      - series: 'postgresql.subscription.apply_worker_running{service.name="postgresql",service.namespace="obenhub-lab",db.cluster.name="slice1",service.instance.id="pg-subscriber",subscription_name="app_sub"}'
+      - series: 'postgresql.subscription.apply_worker_running{service.name="postgresql",service.namespace="obenhub-lab",db.cluster.name="slice1-subscriber",service.instance.id="pg-subscriber",subscription_name="app_sub"}'
         values: '0x60'
-      - series: 'postgresql.subscription.last_msg_age{service.name="postgresql",service.namespace="obenhub-lab",db.cluster.name="slice1",service.instance.id="pg-subscriber",subscription_name="app_sub"}'
+      - series: 'postgresql.subscription.last_msg_age{service.name="postgresql",service.namespace="obenhub-lab",db.cluster.name="slice1-subscriber",service.instance.id="pg-subscriber",subscription_name="app_sub"}'
         values: '0x60'
-      - series: 'postgresql.subscription.apply_errors{service.name="postgresql",service.namespace="obenhub-lab",db.cluster.name="slice1",service.instance.id="pg-subscriber",subscription_name="app_sub"}'
+      - series: 'postgresql.subscription.apply_errors{service.name="postgresql",service.namespace="obenhub-lab",db.cluster.name="slice1-subscriber",service.instance.id="pg-subscriber",subscription_name="app_sub"}'
         values: '0x60'
-      - series: 'postgresql.subscription.sync_errors{service.name="postgresql",service.namespace="obenhub-lab",db.cluster.name="slice1",service.instance.id="pg-subscriber",subscription_name="app_sub"}'
+      - series: 'postgresql.subscription.sync_errors{service.name="postgresql",service.namespace="obenhub-lab",db.cluster.name="slice1-subscriber",service.instance.id="pg-subscriber",subscription_name="app_sub"}'
         values: '0x60'
     alert_rule_test:
       - eval_time: 10m
@@ -376,15 +376,15 @@ tests:
     input_series:
       - series: 'postgresql.collection.heartbeat{service.instance.id="pg-subscriber"}'
         values: '1x60'
-      - series: 'postgresql.subscription.enabled{service.name="postgresql",service.namespace="obenhub-lab",db.cluster.name="slice1",service.instance.id="pg-subscriber",subscription_name="app_sub"}'
+      - series: 'postgresql.subscription.enabled{service.name="postgresql",service.namespace="obenhub-lab",db.cluster.name="slice1-subscriber",service.instance.id="pg-subscriber",subscription_name="app_sub"}'
         values: '1x60'
-      - series: 'postgresql.subscription.apply_worker_running{service.name="postgresql",service.namespace="obenhub-lab",db.cluster.name="slice1",service.instance.id="pg-subscriber",subscription_name="app_sub"}'
+      - series: 'postgresql.subscription.apply_worker_running{service.name="postgresql",service.namespace="obenhub-lab",db.cluster.name="slice1-subscriber",service.instance.id="pg-subscriber",subscription_name="app_sub"}'
         values: '1x8 0x52'
-      - series: 'postgresql.subscription.last_msg_age{service.name="postgresql",service.namespace="obenhub-lab",db.cluster.name="slice1",service.instance.id="pg-subscriber",subscription_name="app_sub"}'
+      - series: 'postgresql.subscription.last_msg_age{service.name="postgresql",service.namespace="obenhub-lab",db.cluster.name="slice1-subscriber",service.instance.id="pg-subscriber",subscription_name="app_sub"}'
         values: '5x8 0x52'
-      - series: 'postgresql.subscription.apply_errors{service.name="postgresql",service.namespace="obenhub-lab",db.cluster.name="slice1",service.instance.id="pg-subscriber",subscription_name="app_sub"}'
+      - series: 'postgresql.subscription.apply_errors{service.name="postgresql",service.namespace="obenhub-lab",db.cluster.name="slice1-subscriber",service.instance.id="pg-subscriber",subscription_name="app_sub"}'
         values: '0x60'
-      - series: 'postgresql.subscription.sync_errors{service.name="postgresql",service.namespace="obenhub-lab",db.cluster.name="slice1",service.instance.id="pg-subscriber",subscription_name="app_sub"}'
+      - series: 'postgresql.subscription.sync_errors{service.name="postgresql",service.namespace="obenhub-lab",db.cluster.name="slice1-subscriber",service.instance.id="pg-subscriber",subscription_name="app_sub"}'
         values: '0x60'
     alert_rule_test:
       - eval_time: 3m30s   # 45 s after the first match
@@ -400,7 +400,7 @@ tests:
               service.instance.id: pg-subscriber
               service.name: postgresql
               service.namespace: obenhub-lab
-              db.cluster.name: slice1
+              db.cluster.name: slice1-subscriber
               subscription_name: app_sub
             exp_annotations:
               summary: Subscription app_sub on pg-subscriber is enabled but not receiving
@@ -411,9 +411,9 @@ tests:
   - name: exactly two errors two minutes apart fire; nothing fires once both have left the window
     interval: 15s
     input_series:
-      - series: 'postgresql.subscription.apply_errors{service.name="postgresql",service.namespace="obenhub-lab",db.cluster.name="slice1",service.instance.id="pg-subscriber",subscription_name="app_sub"}'
+      - series: 'postgresql.subscription.apply_errors{service.name="postgresql",service.namespace="obenhub-lab",db.cluster.name="slice1-subscriber",service.instance.id="pg-subscriber",subscription_name="app_sub"}'
         values: '0x8 1x8 2x40'
-      - series: 'postgresql.subscription.sync_errors{service.name="postgresql",service.namespace="obenhub-lab",db.cluster.name="slice1",service.instance.id="pg-subscriber",subscription_name="app_sub"}'
+      - series: 'postgresql.subscription.sync_errors{service.name="postgresql",service.namespace="obenhub-lab",db.cluster.name="slice1-subscriber",service.instance.id="pg-subscriber",subscription_name="app_sub"}'
         values: '0x60'
     alert_rule_test:
       - eval_time: 3m   # one error so far
@@ -429,7 +429,7 @@ tests:
               service.instance.id: pg-subscriber
               service.name: postgresql
               service.namespace: obenhub-lab
-              db.cluster.name: slice1
+              db.cluster.name: slice1-subscriber
               subscription_name: app_sub
             exp_annotations:
               summary: Subscription app_sub on pg-subscriber has apply or sync errors

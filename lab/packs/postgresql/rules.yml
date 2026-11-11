@@ -406,3 +406,44 @@ groups:
           severity: warning
         annotations:
           summary: '{{ $labels.metric }} vanished on {{ (index $labels "service.instance.id") }}'
+
+      # Two or more instances of one cluster are writable at the same time
+      # (postgresql.recovery.active == 0): two primaries, split brain. This
+      # reads PostgreSQL itself, so it holds with any cluster manager or none
+      # (Patroni, CloudNativePG, a manual promote). A cluster is the set of
+      # members of one physical (streaming) replication group: they share
+      # db.cluster.name (on Kubernetes with k8s.namespace.name, as in
+      # packs/cnpg). A logical subscriber is a cluster of its own and has its
+      # own db.cluster.name (slice1-subscriber), or it would always count as a
+      # second primary.
+      # Only fresh samples count: last_over_time over 30 s (two 15 s
+      # collections) returns the latest value per series and drops a series
+      # that has not reported for 30 s: a dead primary's last 0 would
+      # otherwise live on for the backend's staleness lookback (minutes) and
+      # fire next to the promoted primary. The inner max by service.instance.id
+      # keeps one value per instance: a recreated Kubernetes pod of the same
+      # name is a new series (k8s.pod.uid) and the deleted pod's last 0 must
+      # not count twice; max prefers "in recovery" (1), so this can only hide
+      # an alert, never invent one.
+      # "for" is 45 s (three evaluations). On CloudNativePG the deleted
+      # primary's last 0 overlaps the promoted replica's 0 for roughly 10 to
+      # 40 s (lab/k8s primary-deleted run: replica writable about 6 s after
+      # the kill, the new pod starts at +6 s, then recovery and up to one 15 s
+      # scrape before it reports 1). With a 30 s window the stale 0 is gone
+      # before a 45 s hold can complete. Patroni: the leader key expires 20 to
+      # 30 s after the last sample, so the overlap is shorter still.
+      # Trade-off, accepted: a real split brain shorter than about 60 s (the
+      # hold plus a window's worth of samples) is not alerted; dropping a
+      # series after two missed collections can only hide an alert.
+      - alert: PostgresMultiplePrimaries
+        expr: |
+          count by (db.cluster.name, k8s.namespace.name) (
+            max by (db.cluster.name, k8s.namespace.name, service.instance.id) (
+              last_over_time(postgresql.recovery.active[30s])
+            ) == 0
+          ) > 1
+        for: 45s
+        labels:
+          severity: critical
+        annotations:
+          summary: 'Cluster {{ (index $labels "db.cluster.name") }} has {{ $value }} writable instances (split brain)'
