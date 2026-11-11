@@ -221,7 +221,7 @@ contrib 0.165.1.
 - [x] kind cluster (one control plane, three workers), the CloudNativePG
       operator from its release manifest, one `Cluster` of three
       PostgreSQL 18 instances, one per worker (`lab/k8s`)
-- [ ] Collector as a DaemonSet: the PostgreSQL pack against every instance
+- [x] Collector as a DaemonSet: the PostgreSQL pack against every instance
       pod (`receivercreator`, named by pod and never by role),
       `kubeletstats`, and container logs with the PostgreSQL `record` of
       CloudNativePG's JSON log parsed; one Deployment for `k8scluster` and
