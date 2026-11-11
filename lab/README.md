@@ -4,14 +4,18 @@ What runs today. Every lab sends telemetry through OpenTelemetry Collectors to
 its own VictoriaMetrics, VictoriaLogs, vmalert, Alertmanager and Grafana
 backend, and has fault scenarios that inject a failure, wait for the expected
 alert to fire and resolve, and fail on any unexpected alert. Scenario results
-are appended to the lab's `results/runs.jsonl`.
+are appended to the lab's `results/runs.jsonl`. The `mise run` tasks below run
+a lab's scenarios as a suite (`lab/scenarios/run-suite.sh`: clean tree outside
+`results/`, one run at a time on the host, every record carries the `suite` id
+and `detected_at`, the time each expected alert first fired); a scenario run on
+its own is a smoke run and records `suite: null`.
 
 | Lab | Topology | Where it runs | Scenarios | Evidence |
 | --- | --- | --- | --- | --- |
 | [slice1](slice1) | PostgreSQL 18 primary, standby, logical subscriber, PgBouncer; one Collector | Docker Compose on the host | `mise run lab:scenarios` | [results](slice1/results) |
 | [stage3](stage3) | Three etcd members and three PostgreSQL 18 nodes under Patroni; one Collector | Docker Compose on the host | `mise run lab:stage3:scenarios` | [results](stage3/results) |
 | [pgha](pgha) | The same Patroni cluster on three Debian VMs; a Collector per node and a gateway | Three VMs plus Compose backend on the host | `mise run lab:pgha:scenarios` | [results](pgha/results) |
-| [k8s](k8s) | CloudNativePG `Cluster` of three PostgreSQL 18 instances on kind; Collector DaemonSet and Deployment | kind on the host | `lab/k8s/scenarios/<name>.sh` | [results](k8s/results) |
+| [k8s](k8s) | CloudNativePG `Cluster` of three PostgreSQL 18 instances on kind; Collector DaemonSet and Deployment | kind on the host | `mise run lab:k8s:scenarios` | [results](k8s/results) |
 
 Shared parts:
 

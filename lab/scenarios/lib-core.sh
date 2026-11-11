@@ -1,17 +1,23 @@
 #!/usr/bin/env bash
 # shellcheck disable=SC2034
-# Lab-independent machinery of the Patroni fault scenarios, shared by
-# lab/stage3/scenarios/lib.sh (Compose) and lab/pgha/scenarios/lib.sh (VMs).
+# Lab-independent machinery of the fault scenarios, shared by the lab adapters
+# lab/slice1/scenarios/lib.sh, lab/stage3/scenarios/lib.sh (Compose),
+# lab/pgha/scenarios/lib.sh (VMs) and lab/k8s/scenarios/lib.sh.
 # Source it from a lab adapter, never from a scenario and never run it. A
 # scenario defines EXPECT, inject() and revert() and calls run_scenario (see
 # lab/stage3/scenarios/cluster-paused.sh for the smallest example). EXPECT may
 # be (re)set inside inject(): the node a scenario picks is only known then,
 # and nodes are named, never roles.
 #
-# The config reload and hash check (reload_config, config_hash) and the part
-# from "run bookkeeping" on were copied from lab/slice1/scenarios/lib.sh, which
-# stays unchanged because the top of that file is bound to the slice 1
-# containers.
+# Slice 1 has no Patroni: its adapter defines only what its scenarios use and
+# leaves the Patroni and etcd helpers below undefined (they are called at run
+# time, by scenarios that need them).
+#
+# Every record carries `suite` (SUITE_ID exported by lab/scenarios/run-suite.sh,
+# null for a single scenario run) and `detected_at` (EXPECT entry as written ->
+# time of its first firing notification, null when never seen). A scenario
+# refuses to start while another run, suite or single, holds the host-wide lock
+# (guard.sh).
 #
 # Sink = VictoriaLogs; every Alertmanager notification is one record whose
 # commonLabels.alertname / commonLabels.service_instance_id identify the group.
@@ -28,6 +34,12 @@
 #   CLUSTER        Patroni scope
 #   ETCD_MEMBERS   array of etcd member names (as they appear as
 #                  service.instance.id)
+# and may set these
+#   VMALERT_LOADED_CAT  shell command run in the vmalert container that prints
+#                  the files of CONFIG_FILES that vmalert reads, in the same
+#                  order (default: inventory.yml, then pack/*.yml)
+#   CRASH_RESTARTS initial value of the optional crash_restarts field, a JSON
+#                  value (e.g. null); the field is omitted when unset
 # and defines these functions (before or after, they are called at run time)
 #   ptl ARGS...        patronictl on the first node that answers
 #   psql_n NODE ARGS.. psql as superuser on the node's local socket
@@ -38,9 +50,16 @@
 #   etcd_move_leader TARGET
 #   load_running       the load generator runs on every node that needs it
 #   component_versions JSON array of component version strings
+#   lab_precondition   lab part of the pre-flight (sets PRE_ERR, returns 1)
+# and optionally
+#   lab_final_checks   run after the unexpected-alert check, before extra_checks
 #
 # Needs: curl, jq, the lab running.
 
+# shellcheck source=lab/scenarios/guard.sh
+. "$(dirname "${BASH_SOURCE[0]}")/guard.sh"
+
+VMALERT_LOADED_CAT=${VMALERT_LOADED_CAT:-cat /etc/vmalert/inventory.yml /etc/vmalert/pack/*.yml}
 DETECT_TIMEOUT=${DETECT_TIMEOUT:-600}
 # optional cap in seconds from the injection for the whole detection phase (all EXPECT entries together); empty = only the per-alert DETECT_TIMEOUT
 DETECT_DEADLINE=${DETECT_DEADLINE:-}
@@ -166,6 +185,9 @@ UNEXPECTED="[]"
 REVERTED=0
 WRITTEN=0
 CONFIG_HASH=""   # alerting config as loaded by the containers (reload_config); empty = not checked
+CRASH_RESTARTS=${CRASH_RESTARTS-}   # PostgreSQL crash restarts logged during the run; empty = field not recorded, null = not checked
+DETECTED_AT="{}"   # EXPECT entry -> first firing notification time
+SUITE_ID=${SUITE_ID:-}   # set by run-suite.sh; empty = single scenario run
 EXPECT=()          # entries "AlertName:instance" (instance may be empty)
 ALLOW=()           # delivered alerts that are a known consequence of the fault; not waited for, not unexpected
 
@@ -185,21 +207,20 @@ window_alerts() {
   printf '%s\n' "$out" | jq -r '[.["commonLabels.alertname"], (.["commonLabels.service_instance_id"] // ""), .status, .n] | @tsv'
 }
 
-# provenance: git HEAD, dirty flag, hash of the alerting configuration
-git_sha() { git -C "$LAB_DIR" rev-parse --short HEAD 2>/dev/null || echo unknown; }
-git_dirty() { [ -n "$(git -C "$LAB_DIR" status --porcelain 2>/dev/null)" ] && echo true || echo false; }
+# provenance: git_sha and git_dirty (guard.sh: dirty = changes outside
+# lab/*/results/), hash of the alerting configuration
 config_hash() {
   ( export LC_ALL=C
     cat "${CONFIG_FILES[@]}" 2>/dev/null | sha256sum | cut -c1-12 )
 }
-# The same files as the containers see them, in the same order. Both labs
-# mount them at these paths (the vmalert pack files sort by name, the
-# order each adapter's CONFIG_FILES lists them in). No output and status 1
+# The same files as the containers see them, in the same order (the vmalert
+# pack files sort by name, the order each adapter's CONFIG_FILES lists them in;
+# VMALERT_LOADED_CAT says where the container reads them). No output and status 1
 # when a container cannot be read.
 loaded_config_hash() {
   local h
   h=$( ( set -o pipefail
-    { docker exec "$VMALERT_C" sh -c 'export LC_ALL=C; cat /etc/vmalert/inventory.yml /etc/vmalert/pack/*.yml' \
+    { docker exec "$VMALERT_C" sh -c "export LC_ALL=C; $VMALERT_LOADED_CAT" \
         && docker exec "$AM_C" cat /etc/alertmanager/alertmanager.yml; } | sha256sum | cut -c1-12 ) 2>/dev/null ) || return 1
   printf '%s\n' "$h"
 }
@@ -222,7 +243,8 @@ write_result() {
     --arg gsha "$(git_sha)" --argjson gdirty "$(git_dirty)" --arg chash "$CONFIG_HASH" \
     --argjson expected "$exp" --argjson unexpected "$UNEXPECTED" \
     --argjson pass "$pass" --argjson reasons "$reasons" \
-    --argjson components "$(component_versions)" --arg extra "${EXTRA_JSON:-null}" '
+    --argjson components "$(component_versions)" --arg extra "${EXTRA_JSON:-null}" \
+    --arg suite "$SUITE_ID" --argjson det "$DETECTED_AT" --arg crash "$CRASH_RESTARTS" '
     def nz: if . == "" then null else . end;
     {scenario: $scenario, start: ($start|nz), inject: ($inject|nz), detected: ($detected|nz),
      resolved: ($resolved|nz), end: ($end|nz),
@@ -231,7 +253,9 @@ write_result() {
      inject_seconds: ($tinject|nz|if . then tonumber else . end), hold_seconds: ($hold|tonumber),
      git_sha: $gsha, git_dirty: $gdirty, config_sha256: ($chash|nz),
      expected_alert: $expected, unexpected_alerts: $unexpected,
-     pass: $pass, failure_reasons: $reasons, extra: ($extra|fromjson), images: $components}' \
+     pass: $pass, failure_reasons: $reasons, extra: ($extra|fromjson), images: $components,
+     suite: ($suite|nz), detected_at: (reduce $expected[] as $e ({}; .[$e] = ($det[$e] // null)))}
+    + (if $crash == "" then {} else {crash_restarts: ($crash|fromjson)} end)' \
     >>"$RESULTS"
   log "result appended to $RESULTS (pass=$pass)"
 }
@@ -252,6 +276,9 @@ on_exit() {
 # and extra_checks(). With an empty EXPECT nothing is waited for (control).
 run_scenario() {
   SCENARIO=$1
+  # one run at a time on the host (guard.sh): inside a suite SUITE_ID is kept,
+  # otherwise the lock is taken here and the run is a smoke run (suite null)
+  scenario_lock || { echo "refusing to start $SCENARIO: another lab run holds $SUITE_LOCK_FILE" >&2; exit 3; }
   trap on_exit EXIT
   trap 'exit 130' INT TERM
 
@@ -280,6 +307,7 @@ run_scenario() {
       done
       if [ -z "$t" ]; then FAILS+=("not detected: $e within ${DETECT_DEADLINE:-$DETECT_TIMEOUT}s"); continue; fi
       log "delivered firing $e at $t"
+      DETECTED_AT=$(jq -c --arg k "$e" --arg v "$t" '.[$k] = $v' <<<"$DETECTED_AT")
       if [ -z "$last" ] || later "$t" "$last"; then last=$t; fi
     done
     if [ -n "$last" ]; then T_DETECT=$last; S_DETECT=$(secs "$T_INJECT" "$T_DETECT"); log "time to detect ${S_DETECT}s"; fi
@@ -330,6 +358,8 @@ run_scenario() {
     NF >= 4 { key = $1 ":" $2; if (index("," want, "," key ",") == 0) print $1 "\t" $2 "\t" $3 "\t" $4 }' \
     | jq -R -s -c 'split("\n") | map(select(length>0) | split("\t") | {alertname: .[0], instance: .[1], status: .[2], count: (.[3]|tonumber)})')
   if [ "$UNEXPECTED" != "[]" ]; then FAILS+=("unexpected alerts delivered: $UNEXPECTED"); fi
+
+  if declare -F lab_final_checks >/dev/null; then lab_final_checks || true; fi
 
   if declare -F extra_checks >/dev/null; then extra_checks || true; fi
   exit 0

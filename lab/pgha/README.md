@@ -66,8 +66,9 @@ memory metrics it needs are off by default and enabled in
 ## Fault scenarios
 
 `mise run lab:pgha:scenario <name>` runs one scenario against the VMs;
-`mise run lab:pgha:scenarios` runs all of them, `control` last. Each result is
-one line in `results/runs.jsonl`, with the same fields as
+`mise run lab:pgha:scenarios` runs all of them, `control` last, as a suite
+(see [lab/README.md](../README.md)). Each result is one line in
+`results/runs.jsonl`, with the same fields as
 `lab/stage3/results/runs.jsonl` (component versions, read from the nodes, sit
 under `images`). The machinery is `lab/scenarios/lib-core.sh`, shared with
 stage 3; `scenarios/lib.sh` is the adapter that reaches the nodes over ssh.
