@@ -8,7 +8,10 @@ are appended to the lab's `results/runs.jsonl`. The `mise run` tasks below run
 a lab's scenarios as a suite (`lab/scenarios/run-suite.sh`: clean tree outside
 `results/`, one run at a time on the host, every record carries the `suite` id
 and `detected_at`, the time each expected alert first fired); a scenario run on
-its own is a smoke run and records `suite: null`.
+its own is a smoke run and records `suite: null`. Suites run on a commit of
+`main`, and their results come back through a pull request, so that the
+recorded `git_sha` stays in the history; `mise run lab:evidence` lists the
+labs whose latest passing suite predates their code.
 
 | Lab | Topology | Where it runs | Scenarios | Evidence |
 | --- | --- | --- | --- | --- |
