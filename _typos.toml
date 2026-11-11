@@ -1,6 +1,10 @@
 [default]
 # Hex digests in lab result rows (lab/*/results/runs.jsonl) are not words.
-extend-ignore-re = ['"(git_sha|config_sha256)":"[0-9a-f]+"']
+# Commit links release-please writes into CHANGELOG.md: ([abc1234](.../commit/<sha>)).
+extend-ignore-re = [
+  '"(git_sha|config_sha256)":"[0-9a-f]+"',
+  '\[[0-9a-f]{7,40}\]\([^)]*/commit/[0-9a-f]{7,40}\)',
+]
 
 [default.extend-words]
 obenhub = "obenhub"
