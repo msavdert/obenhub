@@ -208,6 +208,34 @@ Then the same cluster on three VMs, because the operating-system layer
       2026-11-10; on the VMs Patroni is frozen and the watchdog resets the
       leader)
 
+## Stage 4: CloudNativePG on kind
+
+A kind cluster on the lab host with its own backend Compose project
+(`obenhub-k8s`), so the pgha lab keeps running. The operating-system faults
+stay on the pgha VMs: kind nodes share the host kernel. Versions read
+2026-11-10, unconfirmed until a run: CloudNativePG 1.30.1 (Apache-2.0;
+Kubernetes 1.34 to 1.36, PostgreSQL 14 to 18), kind 0.33.0 with
+`kindest/node:v1.36.4` (1.37 is outside CloudNativePG's matrix), Collector
+contrib 0.165.1.
+
+- [ ] kind cluster (one control plane, three workers), the CloudNativePG
+      operator from its release manifest, one `Cluster` of three
+      PostgreSQL 18 instances, one per worker
+- [ ] Collector as a DaemonSet: the PostgreSQL pack against every instance
+      pod (`receivercreator`, named by pod and never by role),
+      `kubeletstats`, and container logs with the PostgreSQL `record` of
+      CloudNativePG's JSON log parsed; one Deployment for `k8scluster` and
+      Kubernetes events; `k8sattributes` on all signals
+- [ ] CloudNativePG's exporter scraped only for operator state
+      (`cnpg_collector_*`, `cnpg_last_error`) with its default queries off:
+      the pack already covers PostgreSQL, as with Patroni `/metrics` in
+      stage 3
+- [ ] Alert rules with unit tests, each fired by one fault scenario: primary
+      pod deleted (failover), worker node stopped, instance fenced,
+      switchover, a replica cut from the primary, and an HA replication slot
+      retaining WAL; plus a no-fault control run. Event reasons are taken
+      from the run (`kubectl get events`), not assumed
+
 ## Stage 5: cloud-managed PostgreSQL
 
 Waits until the project is mature. AWS and Azure give managed PostgreSQL
