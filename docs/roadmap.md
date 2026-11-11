@@ -218,9 +218,9 @@ Kubernetes 1.34 to 1.36, PostgreSQL 14 to 18), kind 0.33.0 with
 `kindest/node:v1.36.4` (1.37 is outside CloudNativePG's matrix), Collector
 contrib 0.165.1.
 
-- [ ] kind cluster (one control plane, three workers), the CloudNativePG
+- [x] kind cluster (one control plane, three workers), the CloudNativePG
       operator from its release manifest, one `Cluster` of three
-      PostgreSQL 18 instances, one per worker
+      PostgreSQL 18 instances, one per worker (`lab/k8s`)
 - [ ] Collector as a DaemonSet: the PostgreSQL pack against every instance
       pod (`receivercreator`, named by pod and never by role),
       `kubeletstats`, and container logs with the PostgreSQL `record` of
