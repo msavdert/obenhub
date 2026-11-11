@@ -33,9 +33,7 @@ lists them.
 - Documents describe what runs. Plans go only in `docs/roadmap.md`.
 - Depth before breadth (ADR 0001): finish the first PostgreSQL slice before a
   second engine or topology. Check breadth requests against the ADR.
-- Metric and attribute naming follows the naming contract ADR 0002 calls
-  for. It is written with the first query pack; until then, follow the
-  upstream receivers and the semantic conventions.
+- Metric, attribute and alert names follow the naming contract, ADR 0006.
 - Prefer standard upstream building blocks over custom code (ADR 0001, 0003).
 - Licences (ADR 0004): everything is Apache-2.0; no GPL or AGPL in what the
   project ships or builds. SQL or configuration copied from another project
