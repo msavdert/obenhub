@@ -1,0 +1,14 @@
+---
+# ${KIND_NODE_IMAGE} is substituted from versions.sh by scripts/up.sh;
+# the cluster name comes from KIND_CLUSTER (kind create --name).
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+nodes:
+  - role: control-plane
+    image: ${KIND_NODE_IMAGE}
+  - role: worker
+    image: ${KIND_NODE_IMAGE}
+  - role: worker
+    image: ${KIND_NODE_IMAGE}
+  - role: worker
+    image: ${KIND_NODE_IMAGE}
