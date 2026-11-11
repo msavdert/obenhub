@@ -2,9 +2,13 @@ extends: default
 ignore: |
   node_modules/
 rules:
-  line-length:
-    max: 120
-    level: warning
+  # Off: the long lines are PromQL/MetricsQL expressions in alert rules and
+  # their unit tests (median 171 characters, longest 538), SQL in the
+  # PostgreSQL query pack, and URLs. Wrapping them with YAML block scalars
+  # changes nothing the parser sees but hurts review of the expressions, and a
+  # raised limit would only move the 419 warnings that buried real ones.
+  # Markdown line length is a separate rule in .markdownlint-cli2.yaml.
+  line-length: disable
   truthy:
     allowed-values: ["true", "false", "on", "off"]
     check-keys: false

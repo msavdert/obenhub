@@ -10,9 +10,10 @@ mise run check
 ```
 
 `mise run check` runs the linters (workflows, YAML, Markdown, spelling,
-relative links, editorconfig, shell) and the alert-rule unit tests of every
-pack and lab, which run `vmalert-tool` in Docker and pull its image on first
-use. `mise run eol` checks product end-of-life dates and needs network.
+relative links, editorconfig, shell, Python with ruff), validates every
+Compose file and Collector config, and runs the alert-rule unit tests of every
+pack and lab. Those and the Compose and Collector checks use Docker and pull
+images on first use. `mise run eol` checks product end-of-life dates and needs network.
 
 ## Commits and pull requests
 
