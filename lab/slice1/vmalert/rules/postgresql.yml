@@ -16,7 +16,7 @@ groups:
           union(
             label_set(vector(1), "service.namespace", "obenhub-lab", "service.name", "postgresql", "db.cluster.name", "slice1", "service.instance.id", "pg-primary", "obenhub.collector", "otelcol-slice1"),
             label_set(vector(1), "service.namespace", "obenhub-lab", "service.name", "postgresql", "db.cluster.name", "slice1", "service.instance.id", "pg-standby", "obenhub.collector", "otelcol-slice1"),
-            label_set(vector(1), "service.namespace", "obenhub-lab", "service.name", "postgresql", "db.cluster.name", "slice1", "service.instance.id", "pg-subscriber", "obenhub.collector", "otelcol-slice1"),
+            label_set(vector(1), "service.namespace", "obenhub-lab", "service.name", "postgresql", "db.cluster.name", "slice1-subscriber", "service.instance.id", "pg-subscriber", "obenhub.collector", "otelcol-slice1"),
             label_set(vector(1), "service.namespace", "obenhub-lab", "service.name", "pgbouncer", "db.cluster.name", "slice1", "service.instance.id", "pgbouncer", "obenhub.collector", "otelcol-slice1")
           )
 

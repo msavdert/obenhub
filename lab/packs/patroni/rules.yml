@@ -58,6 +58,45 @@ groups:
         annotations:
           summary: 'Cluster {{ $labels.scope }} has no writable primary'
 
+      # Two or more members of one scope report patroni_primary == 1 at the
+      # same time: two writable primaries, split brain. Only fresh samples
+      # count: last_over_time over 30 s (two 15 s scrapes, so one missed scrape
+      # is tolerated) returns each member's latest value and drops a member
+      # that has not reported for 30 s. Without it a member whose Collector
+      # died keeps its last 1 for the backend's implicit staleness lookback
+      # (minutes), and after a failover that stale 1 plus the new leader's 1
+      # would fire. A live member that is demoted reports 0 at its next
+      # scrape, so its old 1 does not count either. The inner min by
+      # service.instance.id makes it count members, not series: one member
+      # with two series (a changed label set) is one member, and it is a
+      # primary only if all its fresh series say 1, so this can only hide an
+      # alert, never invent one.
+      # "for" is 45 s (three evaluations). A dead leader's last 1 stays in the
+      # window up to 30 s; a replica is promoted only after the leader key
+      # expires, which is 20 to 30 s after the leader's last refresh (ttl 30 s,
+      # stage3/postgres/patroni.yml, pgha/files/patroni.yml.tmpl; the last
+      # refresh is up to loop_wait, 10 s, before the last sample; assumption:
+      # ttl and loop_wait are not changed). So the stale 1 is gone before the
+      # hold can complete. A planned switchover demotes the old leader first;
+      # the overlap there is at most one scrape, 15 s.
+      # Trade-off, accepted: a real split brain shorter than about 60 s (the
+      # hold plus a window's worth of samples) is not alerted, and a primary
+      # whose Patroni is unreachable (no fresh sample) is not counted;
+      # PatroniTargetAbsent and PostgresMultiplePrimaries (which reads
+      # PostgreSQL itself) cover that.
+      - alert: PatroniMultiplePrimaries
+        expr: |
+          count by (scope) (
+            min by (scope, service.instance.id) (
+              last_over_time(patroni_primary[30s])
+            ) == 1
+          ) > 1
+        for: 45s
+        labels:
+          severity: critical
+        annotations:
+          summary: 'Cluster {{ $labels.scope }} has {{ $value }} members reporting primary (split brain)'
+
       # The highest timeline any node reports rose compared with the highest
       # one seen in the hour before the last 3 m (a rolling maximum, so the
       # zeros of a gap do not count as a lower baseline). It holds for 3 m,

@@ -142,9 +142,9 @@ tests:
     input_series:
       - series: 'postgresql.collection.heartbeat{service.instance.id="pg-subscriber"}'
         values: '1x120'
-      - series: 'postgresql.subscription.apply_worker_running{service.name="postgresql",service.namespace="obenhub-lab",db.cluster.name="slice1",service.instance.id="pg-subscriber",subscription_name="app_sub"}'
+      - series: 'postgresql.subscription.apply_worker_running{service.name="postgresql",service.namespace="obenhub-lab",db.cluster.name="slice1-subscriber",service.instance.id="pg-subscriber",subscription_name="app_sub"}'
         values: '1x8 _x112'
-      - series: 'postgresql.subscription.enabled{service.name="postgresql",service.namespace="obenhub-lab",db.cluster.name="slice1",service.instance.id="pg-subscriber",subscription_name="app_sub"}'
+      - series: 'postgresql.subscription.enabled{service.name="postgresql",service.namespace="obenhub-lab",db.cluster.name="slice1-subscriber",service.instance.id="pg-subscriber",subscription_name="app_sub"}'
         values: '1x120'
     alert_rule_test:
       - eval_time: 6m
@@ -158,7 +158,7 @@ tests:
               subscription_name: app_sub
               service.name: postgresql
               service.namespace: obenhub-lab
-              db.cluster.name: slice1
+              db.cluster.name: slice1-subscriber
             exp_annotations:
               summary: postgresql.subscription.apply_worker_running vanished on pg-subscriber
 

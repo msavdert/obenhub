@@ -1,6 +1,7 @@
 # One test group per Patroni rule: PatroniNoWritablePrimary,
 # PatroniFailoverHappened, PatroniReplicaNotEligible, PatroniClusterPaused,
-# PatroniPendingRestart. Series shapes follow what Patroni 4.1.5 reports:
+# PatroniPendingRestart, PatroniMultiplePrimaries. Series shapes follow what
+# Patroni 4.1.5 reports:
 # timeline and xlog_location are 0 on a replica, received/replayed are 0 on
 # the leader.
 # The inventory is per lab; these tests use the stage 3 one (pg-1..3, etcd-1..3).
@@ -66,6 +67,157 @@ tests:
         groupname: patroni
         alertname: PatroniNoWritablePrimary
         exp_alerts: []
+
+  # --- multiple primaries ----------------------------------------------------
+  - name: two fresh primaries fire only after the 45 s hold, with the scope and the count
+    interval: 15s
+    input_series:
+      - series: 'patroni_primary{scope="stage3",service.instance.id="pg-1"}'
+        values: '1x60'
+      - series: 'patroni_primary{scope="stage3",service.instance.id="pg-2"}'
+        values: '0x8 1x52'
+      - series: 'patroni_primary{scope="stage3",service.instance.id="pg-3"}'
+        values: '0x60'
+    alert_rule_test:
+      - eval_time: 1m   # one primary
+        groupname: patroni
+        alertname: PatroniMultiplePrimaries
+        exp_alerts: []
+      - eval_time: 2m30s   # two primaries for 30 s, below the hold
+        groupname: patroni
+        alertname: PatroniMultiplePrimaries
+        exp_alerts: []
+      - eval_time: 4m
+        groupname: patroni
+        alertname: PatroniMultiplePrimaries
+        exp_alerts:
+          - exp_labels: {severity: critical, scope: stage3}
+            exp_annotations:
+              summary: Cluster stage3 has 2 members reporting primary (split brain)
+
+  - name: a single primary does not fire
+    interval: 15s
+    input_series:
+      - series: 'patroni_primary{scope="stage3",service.instance.id="pg-1"}'
+        values: '1x60'
+      - series: 'patroni_primary{scope="stage3",service.instance.id="pg-2"}'
+        values: '0x60'
+      - series: 'patroni_primary{scope="stage3",service.instance.id="pg-3"}'
+        values: '0x60'
+    alert_rule_test:
+      - eval_time: 4m
+        groupname: patroni
+        alertname: PatroniMultiplePrimaries
+        exp_alerts: []
+
+  - name: a dead leader's stale 1 next to the new primary does not fire (failover)
+    interval: 15s
+    input_series:
+      # Worst case: pg-2 reports its first 1 at 1m30, two scrapes before pg-1
+      # reports its last 1 (2m) and stops (its Collector died). The stale 1
+      # stays in a 30 s window until 2m15 only, so the overlap (1m30 to 2m15)
+      # is 45 s, which does not fire (the hold must be exceeded). With a 45 s
+      # window the overlap lasts to 2m30 (60 s) and the alert fires; without
+      # last_over_time (the 5 m lookback) it fires too. Both mutations fail
+      # this test (checked in a scratch copy, 2026-11-11).
+      - series: 'patroni_primary{scope="stage3",service.instance.id="pg-1"}'
+        values: '1x8 _x52'
+      - series: 'patroni_primary{scope="stage3",service.instance.id="pg-2"}'
+        values: '0x6 1x54'
+      - series: 'patroni_primary{scope="stage3",service.instance.id="pg-3"}'
+        values: '0x60'
+    alert_rule_test:
+      - eval_time: 2m15s
+        groupname: patroni
+        alertname: PatroniMultiplePrimaries
+        exp_alerts: []
+      - eval_time: 2m30s
+        groupname: patroni
+        alertname: PatroniMultiplePrimaries
+        exp_alerts: []
+      - eval_time: 2m45s
+        groupname: patroni
+        alertname: PatroniMultiplePrimaries
+        exp_alerts: []
+      - eval_time: 3m
+        groupname: patroni
+        alertname: PatroniMultiplePrimaries
+        exp_alerts: []
+      - eval_time: 5m   # the stale 1 left the window long ago
+        groupname: patroni
+        alertname: PatroniMultiplePrimaries
+        exp_alerts: []
+
+  - name: a planned switchover overlapping for one scrape does not fire
+    interval: 15s
+    input_series:
+      - series: 'patroni_primary{scope="stage3",service.instance.id="pg-1"}'
+        values: '1x8 0x52'
+      - series: 'patroni_primary{scope="stage3",service.instance.id="pg-2"}'
+        values: '0x8 1x52'
+    alert_rule_test:
+      - eval_time: 2m
+        groupname: patroni
+        alertname: PatroniMultiplePrimaries
+        exp_alerts: []
+      - eval_time: 2m30s
+        groupname: patroni
+        alertname: PatroniMultiplePrimaries
+        exp_alerts: []
+      - eval_time: 4m
+        groupname: patroni
+        alertname: PatroniMultiplePrimaries
+        exp_alerts: []
+
+  - name: one member that appears as two series counts once
+    interval: 15s
+    input_series:
+      # pg-1 reports patroni_primary with two label sets (the Collector's
+      # resource changed); it is one member, so there is one primary.
+      - series: 'patroni_primary{scope="stage3",service.instance.id="pg-1",k8s.pod.uid="a"}'
+        values: '1x60'
+      - series: 'patroni_primary{scope="stage3",service.instance.id="pg-1",k8s.pod.uid="b"}'
+        values: '1x60'
+      - series: 'patroni_primary{scope="stage3",service.instance.id="pg-2"}'
+        values: '0x60'
+    alert_rule_test:
+      - eval_time: 4m
+        groupname: patroni
+        alertname: PatroniMultiplePrimaries
+        exp_alerts: []
+
+  - name: one primary in each of two scopes does not fire
+    interval: 15s
+    input_series:
+      - series: 'patroni_primary{scope="stage3",service.instance.id="pg-1"}'
+        values: '1x60'
+      - series: 'patroni_primary{scope="other",service.instance.id="pg-1"}'
+        values: '1x60'
+      - series: 'patroni_primary{scope="other",service.instance.id="pg-2"}'
+        values: '0x60'
+    alert_rule_test:
+      - eval_time: 4m
+        groupname: patroni
+        alertname: PatroniMultiplePrimaries
+        exp_alerts: []
+
+  - name: split brain in one scope fires for that scope only
+    interval: 15s
+    input_series:
+      - series: 'patroni_primary{scope="stage3",service.instance.id="pg-1"}'
+        values: '1x60'
+      - series: 'patroni_primary{scope="other",service.instance.id="pg-1"}'
+        values: '1x60'
+      - series: 'patroni_primary{scope="other",service.instance.id="pg-2"}'
+        values: '1x60'
+    alert_rule_test:
+      - eval_time: 4m
+        groupname: patroni
+        alertname: PatroniMultiplePrimaries
+        exp_alerts:
+          - exp_labels: {severity: critical, scope: other}
+            exp_annotations:
+              summary: Cluster other has 2 members reporting primary (split brain)
 
   # --- failover happened -----------------------------------------------------
   - name: a timeline change fires, holds 3 m, then resolves
