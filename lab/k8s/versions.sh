@@ -7,13 +7,25 @@ KIND_CLUSTER=obenhub
 
 # kind node image: kind v0.33.0 release notes
 # https://github.com/kubernetes-sigs/kind/releases/tag/v0.33.0 (tag and digest
-# verified there). It moves with the kind release, so Renovate leaves it alone.
+# verified there). It should move together with kind (mise.toml): Renovate may
+# propose a newer node image, and renovate.json holds back minor and major
+# bumps. A node image not listed in the kind release notes is untested with
+# that kind (assumption: patch releases of the same minor work).
+# renovate: datasource=docker
 KIND_NODE_IMAGE=kindest/node:v1.36.4@sha256:099e049362a1526b2db71494e1947aae99bd16290d7c895f2b7ea312e3cbfaed
 
-# CloudNativePG release manifest at its release tag.
+# CloudNativePG release manifest at its release tag. The release's
+# cnpg-<version>-checksums.txt lists only the kubectl-cnpg archives, not the
+# manifest, so CNPG_MANIFEST_SHA256 is the sha256 of the manifest downloaded
+# from CNPG_MANIFEST_URL on 2026-11-11 (the same bytes as the release asset
+# cnpg-1.30.1.yaml). A new CNPG_VERSION needs a new sha256: up.sh fails until
+# it is updated (`curl -fsSL "$CNPG_MANIFEST_URL" | sha256sum`, after reading
+# the diff). The kubectl-cnpg plugin is pinned in mise.toml at the same
+# version; scripts/check-tools.sh fails when they differ.
 # renovate: datasource=github-releases depName=cloudnative-pg/cloudnative-pg extractVersion=^v(?<version>.+)$
 CNPG_VERSION=1.30.1
 CNPG_MANIFEST_URL="https://raw.githubusercontent.com/cloudnative-pg/cloudnative-pg/v${CNPG_VERSION}/releases/cnpg-${CNPG_VERSION}.yaml"
+CNPG_MANIFEST_SHA256=37237f145d8138256ea25ae830f87759255665ff08f8d552fdd8224a5ec032fb
 
 # PostgreSQL 18 operand: DefaultImageName in pkg/versions/versions.go at tag
 # v1.30.1 of cloudnative-pg/cloudnative-pg is

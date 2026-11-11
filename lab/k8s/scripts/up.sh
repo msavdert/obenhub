@@ -17,6 +17,15 @@ for v in KIND_CLUSTER KIND_NODE_IMAGE PG_IMAGE OTELCOL_IMAGE OTEL_CHART_VERSION 
   esac
 done
 
+# The pinned tools (mise.toml). Run directly from a shell without mise
+# activated, the script re-runs itself once under `mise exec`.
+if ! "${here}/scripts/check-tools.sh" >/dev/null 2>&1 && [ -z "${OBENHUB_MISE_REEXEC:-}" ] && command -v mise >/dev/null; then
+  export OBENHUB_MISE_REEXEC=1
+  cd "${here}/../.."
+  exec mise exec -- "${here}/scripts/up.sh" "$@"
+fi
+"${here}/scripts/check-tools.sh"
+
 name="${KIND_CLUSTER}"
 # The CollectorAbsent inventory names the agents after the kind nodes.
 if ! grep -q "otelcol-agent-${name}-worker\"" "${here}/mon/vmalert/inventory.yml"; then
@@ -43,7 +52,17 @@ if ! kind get clusters 2>/dev/null | grep -qx "${name}"; then
     kind create cluster --name "${name}" --config -
 fi
 
-k apply --server-side -f "${CNPG_MANIFEST_URL}"
+# The operator manifest is downloaded once, checked against the sha256 recorded
+# in versions.sh and only then applied.
+cnpg_manifest="$(mktemp)"
+trap 'rm -f "${cnpg_manifest}"' EXIT
+curl -fsSL --retry 3 -o "${cnpg_manifest}" "${CNPG_MANIFEST_URL}"
+cnpg_sha="$(sha256sum "${cnpg_manifest}" | cut -d' ' -f1)"
+if [ "${cnpg_sha}" != "${CNPG_MANIFEST_SHA256}" ]; then
+  echo "CloudNativePG manifest ${CNPG_MANIFEST_URL}: sha256 ${cnpg_sha}, versions.sh CNPG_MANIFEST_SHA256 ${CNPG_MANIFEST_SHA256}" >&2
+  exit 1
+fi
+k apply --server-side -f "${cnpg_manifest}"
 k -n cnpg-system rollout status deployment/cnpg-controller-manager --timeout=300s
 
 # The monitoring role's password: generated once, kept in a Secret (never in a
@@ -96,7 +115,7 @@ k -n "${otel_ns}" create secret generic "${monitor_secret}" \
   --from-file=password=<(k -n obenhub get secret "${monitor_secret}" -o jsonpath='{.data.password}' | base64 -d) \
   --dry-run=client -o yaml | k apply -f - >/dev/null
 ca_file="$(mktemp)"
-trap 'rm -f "${ca_file}"' EXIT
+trap 'rm -f "${cnpg_manifest}" "${ca_file}"' EXIT
 k -n obenhub get secret pg-ca -o jsonpath='{.data.ca\.crt}' | base64 -d >"${ca_file}"
 k -n "${otel_ns}" create configmap obenhub-pack-postgresql \
   --from-file=queries.yaml="${repo_root}/lab/packs/postgresql/queries.yaml" --dry-run=client -o yaml | k apply -f - >/dev/null

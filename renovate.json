@@ -54,6 +54,18 @@
       "enabled": false
     },
     {
+      "description": "The kind lab: the Kubernetes minor (node image, kubectl) and the kind release move together and deliberately; patch releases only",
+      "matchPackageNames": [
+        "kindest/node",
+        "kubectl"
+      ],
+      "matchUpdateTypes": [
+        "major",
+        "minor"
+      ],
+      "enabled": false
+    },
+    {
       "description": "VictoriaMetrics single-node, vmalert and vmalert-tool share one release train",
       "matchPackageNames": [
         "victoriametrics/victoria-metrics",

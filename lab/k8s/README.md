@@ -7,10 +7,25 @@ anti-affinity on `kubernetes.io/hostname`), 1Gi each on kind's default
 StorageClass, database `app`. Collectors in the cluster push to a backend
 Compose project on the box (`obenhub-k8s`).
 
-Needs Docker, `kind` 0.33.0 (the release whose node image `versions.sh`
-pins), `kubectl`, `helm`, `openssl`, and `fs.inotify.max_user_watches` >= 524288
-and `max_user_instances` >= 512 ([kind known issues][kind-ki]); `up.sh` stops
-without changing sysctls if they are lower.
+## Prerequisites
+
+- Docker, with access to the internet (images, the CloudNativePG manifest, the
+  Helm chart repository).
+- `curl`, `jq`, `sha256sum`, `openssl`.
+- The tools pinned in [`mise.toml`](../../mise.toml): `kind` 0.33.0 (the
+  release whose node image `versions.sh` pins), `kubectl` 1.36.6 (within one
+  minor of the node image's Kubernetes 1.36), `helm` 4.3.1 and the
+  `kubectl-cnpg` plugin 1.30.1 (the scenarios call `kubectl cnpg promote`).
+  `mise install` fetches them. `scripts/check-tools.sh` compares them with the
+  pins; `up.sh` runs it first and, outside a mise-activated shell, re-runs
+  itself once under `mise exec --`. The scenarios do not re-run themselves:
+  start them with `mise run lab:k8s:scenarios` or `mise exec -- lab/k8s/scenarios/<name>.sh`.
+- `fs.inotify.max_user_watches` >= 524288 and `max_user_instances` >= 512
+  ([kind known issues][kind-ki]); `up.sh` stops without changing sysctls if
+  they are lower.
+- Free ports on 127.0.0.1 (VictoriaMetrics 48428, VictoriaLogs 49428, vmalert
+  48880, Alertmanager 49093, Grafana 43000) and 44317 on the `kind` network's
+  gateway address (see Monitoring).
 
 ```sh
 lab/k8s/scripts/up.sh     # idempotent; about 7 minutes from nothing
@@ -117,11 +132,11 @@ client acknowledges rows.
   Secret `pg-app`. It logs each acknowledged id to `/work/acked` in its pod;
   the role-changing scenarios fail when one of those rows is not on the new
   primary.
-- `switchover`: `kubectl cnpg promote` when the plugin is installed (it is not
-  on this box), otherwise the same change made directly (`status.targetPrimary`
-  on the Cluster, which the plugin sets, per its source at v1.30.1).
-- `fenced`: the annotation `cnpg.io/fencedInstances` on the Cluster (the plugin
-  is not installed). The fenced pod's exporter keeps serving
+- `switchover`: `kubectl cnpg promote` (the plugin pinned in `mise.toml`; it
+  sets `status.targetPrimary` on the Cluster, per its source at v1.30.1, see
+  `promote_to` in `scenarios/lib.sh`).
+- `fenced`: the annotation `cnpg.io/fencedInstances` set directly on the
+  Cluster. The fenced pod's exporter keeps serving
   `cnpg_collector_fencing_on`, which `CNPGInstanceFenced` reads; its pack
   series stop.
 - `replica-cut`, `slot-retaining-wal`: a NetworkPolicy on the primary admits

@@ -11,6 +11,30 @@ pgha-N  Collector --OTLP/HTTP, mutual TLS--> gateway :34318 (LAN address of the 
                                                '-> vmalert -> Alertmanager -> VictoriaLogs
 ```
 
+## Prerequisites
+
+What `scripts/provision.sh` and the scenarios require; nothing else is
+assumed.
+
+- Three Debian 13 amd64 VMs with the addresses in `nodes.sh`
+  (`pgha-1=10.0.0.16`, `pgha-2=10.0.0.17`, `pgha-3=10.0.0.18`, subnet
+  `10.0.0.0/24`), able to reach the internet over https (apt, PGDG, GitHub
+  release downloads) and the gateway at `GATEWAY_IP:GATEWAY_PORT` of
+  `nodes.sh` (this box, `10.0.0.11:34318`).
+- ssh aliases `pgha-1`, `pgha-2` and `pgha-3` (the node names) in the ssh
+  configuration of the user who runs the scripts, key login without a
+  prompt (`BatchMode=yes`), to a user with passwordless `sudo`. The scenarios
+  use the same aliases.
+- A watchdog device: Patroni runs with watchdog mode required and
+  `provision.sh` stops when `/dev/watchdog` is missing; it only changes the
+  group of an existing device (udev rule, group `postgres`) and loads no
+  module. On the lab VMs the device comes from the kernel module `i6300esb`
+  (the virtual watchdog of the hypervisor; observed on `pgha-1`, 2026-11-11).
+  `softdog` would also create it (assumption: not used here).
+- On this box: Docker (backend Compose project), `openssl` (certificates),
+  `curl`, `jq` and the tools of [`mise.toml`](../../mise.toml); the backend
+  and scenarios are run through `mise run` (`mise install` first).
+
 ## Commands
 
 ```sh
