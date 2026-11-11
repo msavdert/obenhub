@@ -104,10 +104,12 @@ lab/k8s/scenarios/worker-stopped.sh      # power cut of the primary's worker nod
 ```
 
 The machinery is `lab/scenarios/lib-core.sh`, shared with stage 3 and pgha;
-`scenarios/lib.sh` is the adapter (Cluster status instead of Patroni). Each run appends one
-line to `results/runs.jsonl`. A scenario refuses to start unless the Cluster
-is healthy (3 ready instances, one primary, two streaming replicas) and the
-load client acknowledges rows.
+`scenarios/lib.sh` is the adapter (Cluster status instead of Patroni). Each run
+appends one line to `results/runs.jsonl`. `mise run lab:k8s:scenarios` runs them
+all as a suite, `control` last (see [lab/README.md](../README.md)). A scenario
+refuses to start unless the Cluster is healthy (3 ready instances, one primary,
+two streaming replicas) and the load
+client acknowledges rows.
 
 - Load client: Deployment `obenhub-load` (`load/load.yaml`, applied by
   `up.sh`), the operand image, about five inserts a second through `pg-rw`
