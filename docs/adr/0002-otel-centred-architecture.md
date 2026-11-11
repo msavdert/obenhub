@@ -1,6 +1,6 @@
 # ADR 0002: OpenTelemetry-centred architecture and reference backend
 
-- Status: Accepted
+- Status: Accepted; decision 2 refined by ADR 0005
 - Date: 2026-11-06 (revised the same day after an external multi-model review, not published: OCB,
   gateway tier and role attribute deferred or changed)
 
@@ -86,6 +86,7 @@ as first-class signals next to metrics, and backends that can be swapped.
 ## Not yet verified
 
 - SigNoz `ee/LICENSE` terms.
-- Whether each Victoria component accepts every OTLP signal we need without an
-  extra translation step; checked when the first slice runs.
+- VictoriaTraces with OTLP traces. VictoriaMetrics and VictoriaLogs take the
+  Collector's OTLP metrics and logs without a translation step in every lab
+  (first in `lab/slice1`, 2026-11-06).
 - Perses support for VictoriaLogs and VictoriaTraces.

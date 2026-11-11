@@ -12,6 +12,7 @@ decisions are in [docs/adr](docs/adr):
 - [0002 OpenTelemetry-centred architecture and reference backend](docs/adr/0002-otel-centred-architecture.md)
 - [0003 Receiver strategy](docs/adr/0003-receiver-strategy.md)
 - [0004 Licence policy](docs/adr/0004-licence-policy.md)
+- [0005 Collector topology, scraped endpoints, packs and MetricsQL](docs/adr/0005-lab-collection-topology-and-packs.md)
 
 ## Development
 

@@ -24,6 +24,6 @@ has a real page.
 
 ## Start here
 
-- [Decisions](adr/README.md): the four ADRs so far.
+- [Decisions](adr/README.md): the ADRs.
 - [Roadmap](roadmap.md): what is planned, and in what order.
 - [Changelog](changelog.md): released changes.

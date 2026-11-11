@@ -6,6 +6,7 @@
 | [0002](0002-otel-centred-architecture.md) | OpenTelemetry-centred architecture and reference backend | Accepted |
 | [0003](0003-receiver-strategy.md) | Receiver strategy - engine receivers, SQL query packs, upstream | Accepted |
 | [0004](0004-licence-policy.md) | Licence policy | Accepted |
+| [0005](0005-lab-collection-topology-and-packs.md) | Collector topology, scraped endpoints, packs and MetricsQL | Accepted |
 
 ## Template
 
