@@ -36,7 +36,7 @@ tests:
               service.instance.id: pg-2
               service.namespace: obenhub-lab
               service.name: postgresql
-              db.cluster.name: stage3
+              obenhub.cluster.name: stage3
               obenhub.collector: otelcol-stage3
             exp_annotations:
               summary: "No heartbeat from pg-2"
@@ -77,7 +77,7 @@ tests:
               service.instance.id: pg-2
               service.namespace: obenhub-lab
               service.name: postgresql
-              db.cluster.name: stage3
+              obenhub.cluster.name: stage3
               obenhub.collector: otelcol-stage3
             exp_annotations:
               summary: "No heartbeat from pg-2"

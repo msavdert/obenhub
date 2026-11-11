@@ -223,7 +223,7 @@ processors:
       - {key: server.address, value: pg-1, action: upsert}
       - {key: server.port, value: '5432', action: upsert}
       - {key: db.system.name, value: postgresql, action: upsert}
-      - {key: db.cluster.name, value: stage3, action: upsert}
+      - {key: obenhub.cluster.name, value: stage3, action: upsert}
   resource/pg-1-patroni:
     attributes:
       - {key: service.namespace, value: obenhub-lab, action: upsert}
@@ -232,7 +232,7 @@ processors:
       - {key: server.address, value: pg-1, action: upsert}
       - {key: server.port, value: '8008', action: upsert}
       - {key: db.system.name, value: postgresql, action: upsert}
-      - {key: db.cluster.name, value: stage3, action: upsert}
+      - {key: obenhub.cluster.name, value: stage3, action: upsert}
   resource/pg-2:
     attributes:
       - {key: service.namespace, value: obenhub-lab, action: upsert}
@@ -241,7 +241,7 @@ processors:
       - {key: server.address, value: pg-2, action: upsert}
       - {key: server.port, value: '5432', action: upsert}
       - {key: db.system.name, value: postgresql, action: upsert}
-      - {key: db.cluster.name, value: stage3, action: upsert}
+      - {key: obenhub.cluster.name, value: stage3, action: upsert}
   resource/pg-2-patroni:
     attributes:
       - {key: service.namespace, value: obenhub-lab, action: upsert}
@@ -250,7 +250,7 @@ processors:
       - {key: server.address, value: pg-2, action: upsert}
       - {key: server.port, value: '8008', action: upsert}
       - {key: db.system.name, value: postgresql, action: upsert}
-      - {key: db.cluster.name, value: stage3, action: upsert}
+      - {key: obenhub.cluster.name, value: stage3, action: upsert}
   resource/pg-3:
     attributes:
       - {key: service.namespace, value: obenhub-lab, action: upsert}
@@ -259,7 +259,7 @@ processors:
       - {key: server.address, value: pg-3, action: upsert}
       - {key: server.port, value: '5432', action: upsert}
       - {key: db.system.name, value: postgresql, action: upsert}
-      - {key: db.cluster.name, value: stage3, action: upsert}
+      - {key: obenhub.cluster.name, value: stage3, action: upsert}
   resource/pg-3-patroni:
     attributes:
       - {key: service.namespace, value: obenhub-lab, action: upsert}
@@ -268,7 +268,7 @@ processors:
       - {key: server.address, value: pg-3, action: upsert}
       - {key: server.port, value: '8008', action: upsert}
       - {key: db.system.name, value: postgresql, action: upsert}
-      - {key: db.cluster.name, value: stage3, action: upsert}
+      - {key: obenhub.cluster.name, value: stage3, action: upsert}
   resource/etcd-1:
     attributes:
       - {key: service.namespace, value: obenhub-lab, action: upsert}

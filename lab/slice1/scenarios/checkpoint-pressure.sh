@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# Scenario checkpoint-pressure: lower max_wal_size on the primary and write with pgbench into a scratch database, so WAL reaches max_wal_size long before checkpoint_timeout; expect CheckpointsRequested for pg-primary. Revert resets max_wal_size, reloads and drops the scratch database. The load is rate limited to stay clear of the replication alerts on the standby and the subscriber.
+# Scenario checkpoint-pressure: lower max_wal_size on the primary and write with pgbench into a scratch database, so WAL reaches max_wal_size long before checkpoint_timeout; expect PostgresCheckpointsRequested for pg-primary. Revert resets max_wal_size, reloads and drops the scratch database. The load is rate limited to stay clear of the replication alerts on the standby and the subscriber.
 # shellcheck disable=SC1091,SC2034
 set -uo pipefail
 . "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 
-EXPECT=("CheckpointsRequested:pg-primary")
+EXPECT=("PostgresCheckpointsRequested:pg-primary")
 DB=obenhub_ckpt
 WAL_SIZE=${WAL_SIZE:-48MB}
 RATE=${RATE:-400}       # pgbench transactions per second, all clients together

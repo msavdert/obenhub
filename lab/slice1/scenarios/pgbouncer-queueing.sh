@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Scenario pgbouncer-queueing: more busy clients than the pool has server connections, each transaction short (pg_sleep(0.1)), so clients queue for a fraction of a second at a time. Expect PgbouncerPoolSaturated (the pool sits at its size) and PgbouncerWaitTime (the average wait per server assignment is about 0.2 s: 15 clients, pool of 5, 0.1 s per transaction). PgbouncerClientsWaiting must not fire: the oldest waiter stays far below 5 s, which is the case this scenario exists for (many short waits that SHOW POOLS maxwait never shows); the unexpected-alert check of run_scenario covers it, and after_detect also fails on a maxwait of 5 s or more.
-# pgbench runs inside pg-primary and connects to PgBouncer over the Compose network as the app role; the password is read from stdin, not argv or env of docker. pg_sleep in a short transaction holds no long snapshot, so SnapshotHeldTooLong stays out.
+# pgbench runs inside pg-primary and connects to PgBouncer over the Compose network as the app role; the password is read from stdin, not argv or env of docker. pg_sleep in a short transaction holds no long snapshot, so PostgresSnapshotHeldTooLong stays out.
 # shellcheck disable=SC1091,SC2034
 set -uo pipefail
 . "$(dirname "${BASH_SOURCE[0]}")/lib.sh"

@@ -11,28 +11,28 @@ tests:
     interval: 15s
     input_series:
       # 2^31 = 2147483648; 0.5 -> 1073741824, 0.75 -> 1610612736
-      - series: 'postgresql.database.xid_age{service.instance.id="pg-primary",datname="app"}'
+      - series: 'postgresql.database.xid_age{service.instance.id="pg-primary",postgresql.database.name="app"}'
         values: '1100000000x60'
-      - series: 'postgresql.database.xid_age{service.instance.id="pg-primary",datname="postgres"}'
+      - series: 'postgresql.database.xid_age{service.instance.id="pg-primary",postgresql.database.name="postgres"}'
         values: '1610612736x60'
-      - series: 'postgresql.database.xid_age{service.instance.id="pg-primary",datname="template1"}'
+      - series: 'postgresql.database.xid_age{service.instance.id="pg-primary",postgresql.database.name="template1"}'
         values: '1073741824x60'
-      - series: 'postgresql.database.mxid_age{service.instance.id="pg-primary",datname="app"}'
+      - series: 'postgresql.database.mxid_age{service.instance.id="pg-primary",postgresql.database.name="app"}'
         values: '1700000000x60'
-      - series: 'postgresql.database.mxid_age{service.instance.id="pg-primary",datname="postgres"}'
+      - series: 'postgresql.database.mxid_age{service.instance.id="pg-primary",postgresql.database.name="postgres"}'
         values: '0x60'
       - series: 'postgresql.recovery.active{service.instance.id="pg-primary"}'
         values: '0x60'
     alert_rule_test:
       - eval_time: 6m
         groupname: postgresql
-        alertname: TransactionIdWraparound
+        alertname: PostgresTransactionIdWraparound
         exp_alerts:
           # xid 0.512 of app: warning
           - exp_labels:
               severity: warning
               service.instance.id: pg-primary
-              datname: app
+              postgresql.database.name: app
               kind: xid
             exp_annotations:
               summary: 'xid age of app on pg-primary is 51.22% of the wraparound limit'
@@ -40,7 +40,7 @@ tests:
           - exp_labels:
               severity: warning
               service.instance.id: pg-primary
-              datname: postgres
+              postgresql.database.name: postgres
               kind: xid
             exp_annotations:
               summary: 'xid age of postgres on pg-primary is 75% of the wraparound limit'
@@ -48,7 +48,7 @@ tests:
           - exp_labels:
               severity: critical
               service.instance.id: pg-primary
-              datname: app
+              postgresql.database.name: app
               kind: mxid
             exp_annotations:
               summary: 'mxid age of app on pg-primary is 79.16% of the wraparound limit'
@@ -69,11 +69,11 @@ tests:
     alert_rule_test:
       - eval_time: 1m
         groupname: postgresql
-        alertname: IdleInTransaction
+        alertname: PostgresIdleInTransaction
         exp_alerts: []
       - eval_time: 5m
         groupname: postgresql
-        alertname: IdleInTransaction
+        alertname: PostgresIdleInTransaction
         exp_alerts:
           - exp_labels:
               severity: warning
@@ -101,11 +101,11 @@ tests:
     alert_rule_test:
       - eval_time: 1m
         groupname: postgresql
-        alertname: BlockedSessions
+        alertname: PostgresBlockedSessions
         exp_alerts: []
       - eval_time: 3m
         groupname: postgresql
-        alertname: BlockedSessions
+        alertname: PostgresBlockedSessions
         exp_alerts:
           - exp_labels:
               severity: warning
@@ -123,11 +123,11 @@ tests:
     alert_rule_test:
       - eval_time: 1m
         groupname: postgresql
-        alertname: Deadlocks
+        alertname: PostgresDeadlocks
         exp_alerts: []
       - eval_time: 3m
         groupname: postgresql
-        alertname: Deadlocks
+        alertname: PostgresDeadlocks
         exp_alerts:
           - exp_labels:
               severity: warning
@@ -137,7 +137,7 @@ tests:
               summary: '1 deadlock(s) in postgres on pg-primary in the last 5 minutes'
       - eval_time: 6m
         groupname: postgresql
-        alertname: Deadlocks
+        alertname: PostgresDeadlocks
         exp_alerts:
           - exp_labels:
               severity: warning
@@ -147,11 +147,11 @@ tests:
               summary: '1 deadlock(s) in postgres on pg-primary in the last 5 minutes'
       - eval_time: 7m30s
         groupname: postgresql
-        alertname: Deadlocks
+        alertname: PostgresDeadlocks
         exp_alerts: []
       - eval_time: 12m
         groupname: postgresql
-        alertname: Deadlocks
+        alertname: PostgresDeadlocks
         exp_alerts: []
 
   - name: a counter reset to zero does not fire
@@ -162,11 +162,11 @@ tests:
     alert_rule_test:
       - eval_time: 3m
         groupname: postgresql
-        alertname: Deadlocks
+        alertname: PostgresDeadlocks
         exp_alerts: []
       - eval_time: 6m
         groupname: postgresql
-        alertname: Deadlocks
+        alertname: PostgresDeadlocks
         exp_alerts: []
 
   - name: requested checkpoints fire on the primary only, above three in five minutes
@@ -193,7 +193,7 @@ tests:
     alert_rule_test:
       - eval_time: 3m
         groupname: postgresql
-        alertname: CheckpointsRequested
+        alertname: PostgresCheckpointsRequested
         exp_alerts:
           - exp_labels:
               severity: warning
@@ -203,20 +203,20 @@ tests:
               summary: 'pg-primary had 8 requested checkpoints in 5 minutes (lab threshold)'
       - eval_time: 20m
         groupname: postgresql
-        alertname: CheckpointsRequested
+        alertname: PostgresCheckpointsRequested
         exp_alerts: []
 
   - name: an inactive physical slot fires on the primary only
     interval: 15s
     input_series:
-      - series: 'postgresql.replication_slot.inactive_seconds{service.instance.id="pg-primary",slot_name="spare",slot_type="physical"}'
+      - series: 'postgresql.replication_slot.inactive_age{service.instance.id="pg-primary",postgresql.replication_slot.name="spare",postgresql.replication_slot.type="physical"}'
         values: '0x4 150x56'
       # an active slot, a logical slot and the replica-side copy do not fire
-      - series: 'postgresql.replication_slot.inactive_seconds{service.instance.id="pg-primary",slot_name="standby1",slot_type="physical"}'
+      - series: 'postgresql.replication_slot.inactive_age{service.instance.id="pg-primary",postgresql.replication_slot.name="standby1",postgresql.replication_slot.type="physical"}'
         values: '0x60'
-      - series: 'postgresql.replication_slot.inactive_seconds{service.instance.id="pg-primary",slot_name="app_sub",slot_type="logical"}'
+      - series: 'postgresql.replication_slot.inactive_age{service.instance.id="pg-primary",postgresql.replication_slot.name="app_sub",postgresql.replication_slot.type="logical"}'
         values: '500x60'
-      - series: 'postgresql.replication_slot.inactive_seconds{service.instance.id="pg-standby",slot_name="spare",slot_type="physical"}'
+      - series: 'postgresql.replication_slot.inactive_age{service.instance.id="pg-standby",postgresql.replication_slot.name="spare",postgresql.replication_slot.type="physical"}'
         values: '500x60'
       - series: 'postgresql.recovery.active{service.instance.id="pg-primary"}'
         values: '0x60'
@@ -225,72 +225,72 @@ tests:
     alert_rule_test:
       - eval_time: 1m
         groupname: postgresql
-        alertname: PhysicalSlotInactive
+        alertname: PostgresPhysicalSlotInactive
         exp_alerts: []
       - eval_time: 4m
         groupname: postgresql
-        alertname: PhysicalSlotInactive
+        alertname: PostgresPhysicalSlotInactive
         exp_alerts:
           - exp_labels:
               severity: warning
               service.instance.id: pg-primary
-              slot_name: spare
-              slot_type: physical
+              postgresql.replication_slot.name: spare
+              postgresql.replication_slot.type: physical
             exp_annotations:
               summary: 'Physical slot spare on pg-primary has been inactive for 2m 30s (lab threshold)'
 
-  - name: an inactive but invalidated physical slot does not fire PhysicalSlotInactive
+  - name: an inactive but invalidated physical slot does not fire PostgresPhysicalSlotInactive
     interval: 15s
     input_series:
-      - series: 'postgresql.replication_slot.inactive_seconds{service.instance.id="pg-primary",slot_name="gone",slot_type="physical"}'
+      - series: 'postgresql.replication_slot.inactive_age{service.instance.id="pg-primary",postgresql.replication_slot.name="gone",postgresql.replication_slot.type="physical"}'
         values: '500x60'
-      - series: 'postgresql.replication_slot.invalidated{service.instance.id="pg-primary",slot_name="gone",slot_type="physical",invalidation_reason="wal_removed"}'
+      - series: 'postgresql.replication_slot.invalidated{service.instance.id="pg-primary",postgresql.replication_slot.name="gone",postgresql.replication_slot.type="physical",postgresql.replication_slot.invalidation_reason="wal_removed"}'
         values: '1x60'
       # same state, not invalidated: still fires
-      - series: 'postgresql.replication_slot.inactive_seconds{service.instance.id="pg-primary",slot_name="spare",slot_type="physical"}'
+      - series: 'postgresql.replication_slot.inactive_age{service.instance.id="pg-primary",postgresql.replication_slot.name="spare",postgresql.replication_slot.type="physical"}'
         values: '500x60'
-      - series: 'postgresql.replication_slot.invalidated{service.instance.id="pg-primary",slot_name="spare",slot_type="physical",invalidation_reason=""}'
+      - series: 'postgresql.replication_slot.invalidated{service.instance.id="pg-primary",postgresql.replication_slot.name="spare",postgresql.replication_slot.type="physical",postgresql.replication_slot.invalidation_reason=""}'
         values: '0x60'
       - series: 'postgresql.recovery.active{service.instance.id="pg-primary"}'
         values: '0x60'
     alert_rule_test:
       - eval_time: 4m
         groupname: postgresql
-        alertname: PhysicalSlotInactive
+        alertname: PostgresPhysicalSlotInactive
         exp_alerts:
           - exp_labels:
               severity: warning
               service.instance.id: pg-primary
-              slot_name: spare
-              slot_type: physical
+              postgresql.replication_slot.name: spare
+              postgresql.replication_slot.type: physical
             exp_annotations:
               summary: 'Physical slot spare on pg-primary has been inactive for 8m 20s (lab threshold)'
 
   - name: an invalidated slot is critical, with the reason; a valid slot is not
     interval: 15s
     input_series:
-      - series: 'postgresql.replication_slot.invalidated{service.name="postgresql",service.namespace="obenhub-lab",db.cluster.name="slice1",service.instance.id="pg-primary",slot_name="app_sub",slot_type="logical",invalidation_reason="wal_removed"}'
+      - series: 'postgresql.replication_slot.invalidated{service.name="postgresql",service.namespace="obenhub-lab",obenhub.cluster.name="slice1",service.instance.id="pg-primary",postgresql.replication_slot.name="app_sub",postgresql.replication_slot.type="logical",postgresql.replication_slot.invalidation_reason="wal_removed"}'
         values: '0x8 1x52'
-      - series: 'postgresql.replication_slot.invalidated{service.name="postgresql",service.namespace="obenhub-lab",db.cluster.name="slice1",service.instance.id="pg-primary",slot_name="standby1",slot_type="physical",invalidation_reason=""}'
+      - series: 'postgresql.replication_slot.invalidated{service.name="postgresql",service.namespace="obenhub-lab",obenhub.cluster.name="slice1",service.instance.id="pg-primary",postgresql.replication_slot.name="standby1",postgresql.replication_slot.type="physical",postgresql.replication_slot.invalidation_reason=""}'
         values: '0x60'
     alert_rule_test:
       - eval_time: 1m
         groupname: postgresql
-        alertname: ReplicationSlotInvalidated
+        alertname: PostgresReplicationSlotInvalidated
         exp_alerts: []
       - eval_time: 5m
         groupname: postgresql
-        alertname: ReplicationSlotInvalidated
+        alertname: PostgresReplicationSlotInvalidated
         exp_alerts:
           - exp_labels:
               severity: critical
               service.instance.id: pg-primary
               service.name: postgresql
               service.namespace: obenhub-lab
-              db.cluster.name: slice1
-              slot_name: app_sub
-              slot_type: logical
-              invalidation_reason: wal_removed
+              obenhub.cluster.name: slice1
+              postgresql.replication_slot.name: app_sub
+              postgresql.replication_slot.type: logical
+              postgresql.replication_slot.invalidation_reason: wal_removed
             exp_annotations:
               summary: Slot app_sub on pg-primary is invalidated (wal_removed)
 
@@ -303,7 +303,7 @@ tests:
     alert_rule_test:
       - eval_time: 3m
         groupname: postgresql
-        alertname: IdleInTransaction
+        alertname: PostgresIdleInTransaction
         exp_alerts:
           - exp_labels:
               severity: warning
@@ -312,7 +312,7 @@ tests:
               summary: 'A session on a has been idle in a transaction for 1m 30s (lab threshold)'
       - eval_time: 3m15s
         groupname: postgresql
-        alertname: IdleInTransaction
+        alertname: PostgresIdleInTransaction
         exp_alerts:
           - exp_labels:
               severity: warning
@@ -321,7 +321,7 @@ tests:
               summary: 'A session on a has been idle in a transaction for 1m 30s (lab threshold)'
       - eval_time: 3m30s
         groupname: postgresql
-        alertname: IdleInTransaction
+        alertname: PostgresIdleInTransaction
         exp_alerts:
           - exp_labels:
               severity: warning
@@ -330,7 +330,7 @@ tests:
               summary: 'A session on a has been idle in a transaction for 1m 30s (lab threshold)'
       - eval_time: 3m45s
         groupname: postgresql
-        alertname: IdleInTransaction
+        alertname: PostgresIdleInTransaction
         exp_alerts:
           - exp_labels:
               severity: critical
@@ -339,7 +339,7 @@ tests:
               summary: 'A session on a has been idle in a transaction for 3m 20s (lab threshold)'
       - eval_time: 4m
         groupname: postgresql
-        alertname: IdleInTransaction
+        alertname: PostgresIdleInTransaction
         exp_alerts:
           - exp_labels:
               severity: critical
@@ -348,7 +348,7 @@ tests:
               summary: 'A session on a has been idle in a transaction for 3m 20s (lab threshold)'
       - eval_time: 4m15s
         groupname: postgresql
-        alertname: IdleInTransaction
+        alertname: PostgresIdleInTransaction
         exp_alerts:
           - exp_labels:
               severity: critical
@@ -357,7 +357,7 @@ tests:
               summary: 'A session on a has been idle in a transaction for 3m 20s (lab threshold)'
       - eval_time: 4m30s
         groupname: postgresql
-        alertname: IdleInTransaction
+        alertname: PostgresIdleInTransaction
         exp_alerts:
           - exp_labels:
               severity: critical
@@ -373,7 +373,7 @@ tests:
     alert_rule_test:
       - eval_time: 4m45s
         groupname: postgresql
-        alertname: IdleInTransaction
+        alertname: PostgresIdleInTransaction
         exp_alerts:
           - exp_labels:
               severity: critical
@@ -382,7 +382,7 @@ tests:
               summary: 'A session on a has been idle in a transaction for 3m 20s (lab threshold)'
       - eval_time: 5m
         groupname: postgresql
-        alertname: IdleInTransaction
+        alertname: PostgresIdleInTransaction
         exp_alerts:
           - exp_labels:
               severity: critical
@@ -391,7 +391,7 @@ tests:
               summary: 'A session on a has been idle in a transaction for 3m 20s (lab threshold)'
       - eval_time: 5m15s
         groupname: postgresql
-        alertname: IdleInTransaction
+        alertname: PostgresIdleInTransaction
         exp_alerts:
           - exp_labels:
               severity: warning
@@ -400,7 +400,7 @@ tests:
               summary: 'A session on a has been idle in a transaction for 1m 30s (lab threshold)'
       - eval_time: 5m30s
         groupname: postgresql
-        alertname: IdleInTransaction
+        alertname: PostgresIdleInTransaction
         exp_alerts:
           - exp_labels:
               severity: warning
@@ -409,7 +409,7 @@ tests:
               summary: 'A session on a has been idle in a transaction for 1m 30s (lab threshold)'
       - eval_time: 5m45s
         groupname: postgresql
-        alertname: IdleInTransaction
+        alertname: PostgresIdleInTransaction
         exp_alerts:
           - exp_labels:
               severity: warning
@@ -418,7 +418,7 @@ tests:
               summary: 'A session on a has been idle in a transaction for 1m 30s (lab threshold)'
       - eval_time: 6m
         groupname: postgresql
-        alertname: IdleInTransaction
+        alertname: PostgresIdleInTransaction
         exp_alerts:
           - exp_labels:
               severity: warning
@@ -434,7 +434,7 @@ tests:
     alert_rule_test:
       - eval_time: 4m45s
         groupname: postgresql
-        alertname: IdleInTransaction
+        alertname: PostgresIdleInTransaction
         exp_alerts:
           - exp_labels:
               severity: critical
@@ -443,7 +443,7 @@ tests:
               summary: 'A session on a has been idle in a transaction for 3m 20s (lab threshold)'
       - eval_time: 5m
         groupname: postgresql
-        alertname: IdleInTransaction
+        alertname: PostgresIdleInTransaction
         exp_alerts:
           - exp_labels:
               severity: critical
@@ -452,7 +452,7 @@ tests:
               summary: 'A session on a has been idle in a transaction for 3m 20s (lab threshold)'
       - eval_time: 5m15s
         groupname: postgresql
-        alertname: IdleInTransaction
+        alertname: PostgresIdleInTransaction
         exp_alerts:
           - exp_labels:
               severity: warning
@@ -461,7 +461,7 @@ tests:
               summary: 'A session on a has been idle in a transaction for 1m 30s (lab threshold)'
       - eval_time: 5m30s
         groupname: postgresql
-        alertname: IdleInTransaction
+        alertname: PostgresIdleInTransaction
         exp_alerts:
           - exp_labels:
               severity: warning
@@ -470,7 +470,7 @@ tests:
               summary: 'A session on a has been idle in a transaction for 1m 30s (lab threshold)'
       - eval_time: 5m45s
         groupname: postgresql
-        alertname: IdleInTransaction
+        alertname: PostgresIdleInTransaction
         exp_alerts:
           - exp_labels:
               severity: warning
@@ -479,7 +479,7 @@ tests:
               summary: 'A session on a has been idle in a transaction for 1m 30s (lab threshold)'
       - eval_time: 6m
         groupname: postgresql
-        alertname: IdleInTransaction
+        alertname: PostgresIdleInTransaction
         exp_alerts:
           - exp_labels:
               severity: critical
@@ -488,7 +488,7 @@ tests:
               summary: 'A session on a has been idle in a transaction for 3m 20s (lab threshold)'
       - eval_time: 6m15s
         groupname: postgresql
-        alertname: IdleInTransaction
+        alertname: PostgresIdleInTransaction
         exp_alerts:
           - exp_labels:
               severity: critical
@@ -497,7 +497,7 @@ tests:
               summary: 'A session on a has been idle in a transaction for 3m 20s (lab threshold)'
       - eval_time: 6m30s
         groupname: postgresql
-        alertname: IdleInTransaction
+        alertname: PostgresIdleInTransaction
         exp_alerts:
           - exp_labels:
               severity: critical
@@ -513,19 +513,19 @@ tests:
     alert_rule_test:
       - eval_time: 3m
         groupname: postgresql
-        alertname: IdleInTransaction
+        alertname: PostgresIdleInTransaction
         exp_alerts: []
       - eval_time: 3m15s
         groupname: postgresql
-        alertname: IdleInTransaction
+        alertname: PostgresIdleInTransaction
         exp_alerts: []
       - eval_time: 3m30s
         groupname: postgresql
-        alertname: IdleInTransaction
+        alertname: PostgresIdleInTransaction
         exp_alerts: []
       - eval_time: 3m45s
         groupname: postgresql
-        alertname: IdleInTransaction
+        alertname: PostgresIdleInTransaction
         exp_alerts:
           - exp_labels:
               severity: critical
@@ -534,7 +534,7 @@ tests:
               summary: 'A session on a has been idle in a transaction for 3m 20s (lab threshold)'
       - eval_time: 4m
         groupname: postgresql
-        alertname: IdleInTransaction
+        alertname: PostgresIdleInTransaction
         exp_alerts:
           - exp_labels:
               severity: critical
@@ -543,7 +543,7 @@ tests:
               summary: 'A session on a has been idle in a transaction for 3m 20s (lab threshold)'
       - eval_time: 4m15s
         groupname: postgresql
-        alertname: IdleInTransaction
+        alertname: PostgresIdleInTransaction
         exp_alerts:
           - exp_labels:
               severity: critical
@@ -555,74 +555,74 @@ tests:
   - name: wraparound tiers - escalation, exactly one tier at every evaluation
     interval: 15s
     input_series:
-      - series: 'postgresql.database.xid_age{service.instance.id="pg-primary",datname="app"}'
+      - series: 'postgresql.database.xid_age{service.instance.id="pg-primary",postgresql.database.name="app"}'
         values: '1200000000x40 1700000000x80'
       - series: 'postgresql.recovery.active{service.instance.id="pg-primary"}'
         values: '0x200'
     alert_rule_test:
       - eval_time: 14m30s
         groupname: postgresql
-        alertname: TransactionIdWraparound
+        alertname: PostgresTransactionIdWraparound
         exp_alerts:
           - exp_labels:
               severity: warning
               service.instance.id: pg-primary
-              datname: app
+              postgresql.database.name: app
               kind: xid
             exp_annotations:
               summary: 'xid age of app on pg-primary is 55.88% of the wraparound limit'
       - eval_time: 14m45s
         groupname: postgresql
-        alertname: TransactionIdWraparound
+        alertname: PostgresTransactionIdWraparound
         exp_alerts:
           - exp_labels:
               severity: warning
               service.instance.id: pg-primary
-              datname: app
+              postgresql.database.name: app
               kind: xid
             exp_annotations:
               summary: 'xid age of app on pg-primary is 55.88% of the wraparound limit'
       - eval_time: 15m
         groupname: postgresql
-        alertname: TransactionIdWraparound
+        alertname: PostgresTransactionIdWraparound
         exp_alerts:
           - exp_labels:
               severity: warning
               service.instance.id: pg-primary
-              datname: app
+              postgresql.database.name: app
               kind: xid
             exp_annotations:
               summary: 'xid age of app on pg-primary is 55.88% of the wraparound limit'
       - eval_time: 15m15s
         groupname: postgresql
-        alertname: TransactionIdWraparound
+        alertname: PostgresTransactionIdWraparound
         exp_alerts:
           - exp_labels:
               severity: critical
               service.instance.id: pg-primary
-              datname: app
+              postgresql.database.name: app
               kind: xid
             exp_annotations:
               summary: 'xid age of app on pg-primary is 79.16% of the wraparound limit'
       - eval_time: 15m30s
         groupname: postgresql
-        alertname: TransactionIdWraparound
+        alertname: PostgresTransactionIdWraparound
         exp_alerts:
           - exp_labels:
               severity: critical
               service.instance.id: pg-primary
-              datname: app
+              postgresql.database.name: app
               kind: xid
             exp_annotations:
               summary: 'xid age of app on pg-primary is 79.16% of the wraparound limit'
       - eval_time: 15m45s
         groupname: postgresql
-        alertname: TransactionIdWraparound
+        alertname: PostgresTransactionIdWraparound
         exp_alerts:
           - exp_labels:
               severity: critical
               service.instance.id: pg-primary
-              datname: app
+              postgresql.database.name: app
               kind: xid
             exp_annotations:
               summary: 'xid age of app on pg-primary is 79.16% of the wraparound limit'
@@ -630,53 +630,53 @@ tests:
   - name: wraparound tiers - a jump from below the warning threshold straight above the critical one never shows the warning
     interval: 15s
     input_series:
-      - series: 'postgresql.database.xid_age{service.instance.id="pg-primary",datname="app"}'
+      - series: 'postgresql.database.xid_age{service.instance.id="pg-primary",postgresql.database.name="app"}'
         values: '100000000x40 1700000000x80'
       - series: 'postgresql.recovery.active{service.instance.id="pg-primary"}'
         values: '0x200'
     alert_rule_test:
       - eval_time: 14m30s
         groupname: postgresql
-        alertname: TransactionIdWraparound
+        alertname: PostgresTransactionIdWraparound
         exp_alerts: []
       - eval_time: 14m45s
         groupname: postgresql
-        alertname: TransactionIdWraparound
+        alertname: PostgresTransactionIdWraparound
         exp_alerts: []
       - eval_time: 15m
         groupname: postgresql
-        alertname: TransactionIdWraparound
+        alertname: PostgresTransactionIdWraparound
         exp_alerts: []
       - eval_time: 15m15s
         groupname: postgresql
-        alertname: TransactionIdWraparound
+        alertname: PostgresTransactionIdWraparound
         exp_alerts:
           - exp_labels:
               severity: critical
               service.instance.id: pg-primary
-              datname: app
+              postgresql.database.name: app
               kind: xid
             exp_annotations:
               summary: 'xid age of app on pg-primary is 79.16% of the wraparound limit'
       - eval_time: 15m30s
         groupname: postgresql
-        alertname: TransactionIdWraparound
+        alertname: PostgresTransactionIdWraparound
         exp_alerts:
           - exp_labels:
               severity: critical
               service.instance.id: pg-primary
-              datname: app
+              postgresql.database.name: app
               kind: xid
             exp_annotations:
               summary: 'xid age of app on pg-primary is 79.16% of the wraparound limit'
       - eval_time: 15m45s
         groupname: postgresql
-        alertname: TransactionIdWraparound
+        alertname: PostgresTransactionIdWraparound
         exp_alerts:
           - exp_labels:
               severity: critical
               service.instance.id: pg-primary
-              datname: app
+              postgresql.database.name: app
               kind: xid
             exp_annotations:
               summary: 'xid age of app on pg-primary is 79.16% of the wraparound limit'
@@ -684,26 +684,26 @@ tests:
   - name: wraparound on a standby never fires, the same age on the primary does
     interval: 15s
     input_series:
-      - series: 'postgresql.database.xid_age{service.instance.id="pg-standby",datname="app"}'
+      - series: 'postgresql.database.xid_age{service.instance.id="pg-standby",postgresql.database.name="app"}'
         values: '1700000000x80'
-      - series: 'postgresql.database.xid_age{service.instance.id="pg-primary",datname="app"}'
+      - series: 'postgresql.database.xid_age{service.instance.id="pg-primary",postgresql.database.name="app"}'
         values: '1700000000x80'
       - series: 'postgresql.recovery.active{service.instance.id="pg-primary"}'
         values: '0x80'
       - series: 'postgresql.recovery.active{service.instance.id="pg-standby"}'
         values: '1x80'
       # an age in the warning band on the standby exercises the warning tier's gate
-      - series: 'postgresql.database.mxid_age{service.instance.id="pg-standby",datname="app"}'
+      - series: 'postgresql.database.mxid_age{service.instance.id="pg-standby",postgresql.database.name="app"}'
         values: '1300000000x80'
     alert_rule_test:
       - eval_time: 19m
         groupname: postgresql
-        alertname: TransactionIdWraparound
+        alertname: PostgresTransactionIdWraparound
         exp_alerts:
           - exp_labels:
               severity: critical
               service.instance.id: pg-primary
-              datname: app
+              postgresql.database.name: app
               kind: xid
             exp_annotations:
               summary: 'xid age of app on pg-primary is 79.16% of the wraparound limit'
@@ -717,15 +717,15 @@ tests:
     alert_rule_test:
       - eval_time: 1m
         groupname: postgresql
-        alertname: IdleInTransaction
+        alertname: PostgresIdleInTransaction
         exp_alerts: []
       - eval_time: 1m15s
         groupname: postgresql
-        alertname: IdleInTransaction
+        alertname: PostgresIdleInTransaction
         exp_alerts: []
       - eval_time: 1m30s
         groupname: postgresql
-        alertname: IdleInTransaction
+        alertname: PostgresIdleInTransaction
         exp_alerts:
           - exp_labels:
               severity: critical
@@ -734,7 +734,7 @@ tests:
               summary: 'A session on a has been idle in a transaction for 3m 20s (lab threshold)'
       - eval_time: 1m45s
         groupname: postgresql
-        alertname: IdleInTransaction
+        alertname: PostgresIdleInTransaction
         exp_alerts:
           - exp_labels:
               severity: critical
@@ -743,7 +743,7 @@ tests:
               summary: 'A session on a has been idle in a transaction for 3m 20s (lab threshold)'
       - eval_time: 2m
         groupname: postgresql
-        alertname: IdleInTransaction
+        alertname: PostgresIdleInTransaction
         exp_alerts:
           - exp_labels:
               severity: critical
@@ -755,122 +755,122 @@ tests:
   - name: wraparound warm-up - a new series above the critical threshold stays silent until its window is full
     interval: 15s
     input_series:
-      - series: 'postgresql.database.xid_age{service.instance.id="pg-primary",datname="app"}'
+      - series: 'postgresql.database.xid_age{service.instance.id="pg-primary",postgresql.database.name="app"}'
         values: '_x4 1700000000x100'
       - series: 'postgresql.recovery.active{service.instance.id="pg-primary"}'
         values: '0x200'
     alert_rule_test:
       - eval_time: 1m
         groupname: postgresql
-        alertname: TransactionIdWraparound
+        alertname: PostgresTransactionIdWraparound
         exp_alerts: []
       - eval_time: 1m45s
         groupname: postgresql
-        alertname: TransactionIdWraparound
+        alertname: PostgresTransactionIdWraparound
         exp_alerts: []
       - eval_time: 2m30s
         groupname: postgresql
-        alertname: TransactionIdWraparound
+        alertname: PostgresTransactionIdWraparound
         exp_alerts: []
       - eval_time: 3m15s
         groupname: postgresql
-        alertname: TransactionIdWraparound
+        alertname: PostgresTransactionIdWraparound
         exp_alerts: []
       - eval_time: 4m
         groupname: postgresql
-        alertname: TransactionIdWraparound
+        alertname: PostgresTransactionIdWraparound
         exp_alerts: []
       - eval_time: 4m45s
         groupname: postgresql
-        alertname: TransactionIdWraparound
+        alertname: PostgresTransactionIdWraparound
         exp_alerts: []
       - eval_time: 5m30s
         groupname: postgresql
-        alertname: TransactionIdWraparound
+        alertname: PostgresTransactionIdWraparound
         exp_alerts: []
       - eval_time: 6m
         groupname: postgresql
-        alertname: TransactionIdWraparound
+        alertname: PostgresTransactionIdWraparound
         exp_alerts:
           - exp_labels:
               severity: critical
               service.instance.id: pg-primary
-              datname: app
+              postgresql.database.name: app
               kind: xid
             exp_annotations:
               summary: 'xid age of app on pg-primary is 79.16% of the wraparound limit'
       - eval_time: 6m15s
         groupname: postgresql
-        alertname: TransactionIdWraparound
+        alertname: PostgresTransactionIdWraparound
         exp_alerts:
           - exp_labels:
               severity: critical
               service.instance.id: pg-primary
-              datname: app
+              postgresql.database.name: app
               kind: xid
             exp_annotations:
               summary: 'xid age of app on pg-primary is 79.16% of the wraparound limit'
       - eval_time: 6m30s
         groupname: postgresql
-        alertname: TransactionIdWraparound
+        alertname: PostgresTransactionIdWraparound
         exp_alerts:
           - exp_labels:
               severity: critical
               service.instance.id: pg-primary
-              datname: app
+              postgresql.database.name: app
               kind: xid
             exp_annotations:
               summary: 'xid age of app on pg-primary is 79.16% of the wraparound limit'
 
-  # --- ReplicationSlotRetainingWAL (threshold 512 MiB = 536870912, hold 2m) ---
+  # --- PostgresReplicationSlotRetainingWAL (threshold 512 MiB = 536870912, hold 2m) ---
   - name: a valid slot above 512 MiB on a primary fires after the hold; below, on a replica copy, and invalidated stay quiet
     interval: 15s
     input_series:
       # 600 MiB from the start: fires
-      - series: 'postgresql.replication_slot.retained_bytes{service.instance.id="pg-1",slot_name="_cnpg_pg_2",slot_type="physical"}'
+      - series: 'postgresql.replication_slot.retained_wal{service.instance.id="pg-1",postgresql.replication_slot.name="_cnpg_pg_2",postgresql.replication_slot.type="physical"}'
         values: '629145600x60'
-      - series: 'postgresql.replication_slot.invalidated{service.instance.id="pg-1",slot_name="_cnpg_pg_2",slot_type="physical",invalidation_reason=""}'
+      - series: 'postgresql.replication_slot.invalidated{service.instance.id="pg-1",postgresql.replication_slot.name="_cnpg_pg_2",postgresql.replication_slot.type="physical",postgresql.replication_slot.invalidation_reason=""}'
         values: '0x60'
       # 400 MiB: below the threshold
-      - series: 'postgresql.replication_slot.retained_bytes{service.instance.id="pg-1",slot_name="_cnpg_pg_3",slot_type="physical"}'
+      - series: 'postgresql.replication_slot.retained_wal{service.instance.id="pg-1",postgresql.replication_slot.name="_cnpg_pg_3",postgresql.replication_slot.type="physical"}'
         values: '419430400x60'
       # 900 MiB but invalidated: retains nothing, has its own alert
-      - series: 'postgresql.replication_slot.retained_bytes{service.instance.id="pg-1",slot_name="gone",slot_type="physical"}'
+      - series: 'postgresql.replication_slot.retained_wal{service.instance.id="pg-1",postgresql.replication_slot.name="gone",postgresql.replication_slot.type="physical"}'
         values: '943718400x60'
-      - series: 'postgresql.replication_slot.invalidated{service.instance.id="pg-1",slot_name="gone",slot_type="physical",invalidation_reason="wal_removed"}'
+      - series: 'postgresql.replication_slot.invalidated{service.instance.id="pg-1",postgresql.replication_slot.name="gone",postgresql.replication_slot.type="physical",postgresql.replication_slot.invalidation_reason="wal_removed"}'
         values: '1x60'
       - series: 'postgresql.recovery.active{service.instance.id="pg-1"}'
         values: '0x60'
       # a replica's copy of a slot, large on purpose: replicas are out of scope
-      - series: 'postgresql.replication_slot.retained_bytes{service.instance.id="pg-2",slot_name="_cnpg_pg_3",slot_type="physical"}'
+      - series: 'postgresql.replication_slot.retained_wal{service.instance.id="pg-2",postgresql.replication_slot.name="_cnpg_pg_3",postgresql.replication_slot.type="physical"}'
         values: '629145600x60'
       - series: 'postgresql.recovery.active{service.instance.id="pg-2"}'
         values: '1x60'
     alert_rule_test:
       - eval_time: 1m30s   # pending, below the 2m hold
         groupname: postgresql
-        alertname: ReplicationSlotRetainingWAL
+        alertname: PostgresReplicationSlotRetainingWAL
         exp_alerts: []
       - eval_time: 2m30s   # firing just after the hold: pins `for` from above
         groupname: postgresql
-        alertname: ReplicationSlotRetainingWAL
+        alertname: PostgresReplicationSlotRetainingWAL
         exp_alerts:
           - exp_labels:
               severity: warning
               service.instance.id: pg-1
-              slot_name: _cnpg_pg_2
-              slot_type: physical
+              postgresql.replication_slot.name: _cnpg_pg_2
+              postgresql.replication_slot.type: physical
             exp_annotations:
               summary: 'Slot _cnpg_pg_2 on pg-1 retains 600MiB of WAL (lab threshold)'
       - eval_time: 4m
         groupname: postgresql
-        alertname: ReplicationSlotRetainingWAL
+        alertname: PostgresReplicationSlotRetainingWAL
         exp_alerts:
           - exp_labels:
               severity: warning
               service.instance.id: pg-1
-              slot_name: _cnpg_pg_2
-              slot_type: physical
+              postgresql.replication_slot.name: _cnpg_pg_2
+              postgresql.replication_slot.type: physical
             exp_annotations:
               summary: 'Slot _cnpg_pg_2 on pg-1 retains 600MiB of WAL (lab threshold)'
 
@@ -878,29 +878,29 @@ tests:
     interval: 15s
     input_series:
       # 90 s above (6 samples), then back to 1 MB
-      - series: 'postgresql.replication_slot.retained_bytes{service.instance.id="pg-1",slot_name="blip",slot_type="physical"}'
+      - series: 'postgresql.replication_slot.retained_wal{service.instance.id="pg-1",postgresql.replication_slot.name="blip",postgresql.replication_slot.type="physical"}'
         values: '1000000x4 629145600x6 1000000x50'
       # exactly 512 MiB is not above it
-      - series: 'postgresql.replication_slot.retained_bytes{service.instance.id="pg-1",slot_name="edge",slot_type="physical"}'
+      - series: 'postgresql.replication_slot.retained_wal{service.instance.id="pg-1",postgresql.replication_slot.name="edge",postgresql.replication_slot.type="physical"}'
         values: '536870912x60'
       # fires, then catches up at 6m
-      - series: 'postgresql.replication_slot.retained_bytes{service.instance.id="pg-1",slot_name="lag",slot_type="physical"}'
+      - series: 'postgresql.replication_slot.retained_wal{service.instance.id="pg-1",postgresql.replication_slot.name="lag",postgresql.replication_slot.type="physical"}'
         values: '629145600x24 1000000x36'
       - series: 'postgresql.recovery.active{service.instance.id="pg-1"}'
         values: '0x60'
     alert_rule_test:
       - eval_time: 5m
         groupname: postgresql
-        alertname: ReplicationSlotRetainingWAL
+        alertname: PostgresReplicationSlotRetainingWAL
         exp_alerts:
           - exp_labels:
               severity: warning
               service.instance.id: pg-1
-              slot_name: lag
-              slot_type: physical
+              postgresql.replication_slot.name: lag
+              postgresql.replication_slot.type: physical
             exp_annotations:
               summary: 'Slot lag on pg-1 retains 600MiB of WAL (lab threshold)'
       - eval_time: 7m
         groupname: postgresql
-        alertname: ReplicationSlotRetainingWAL
+        alertname: PostgresReplicationSlotRetainingWAL
         exp_alerts: []

@@ -1,7 +1,7 @@
 # Kubernetes alert rules, for the kind lab (lab/k8s). They read the cluster
 # level Collector's k8s_cluster receiver (the otelcol-cluster Deployment), not
-# the PostgreSQL pack. Pack metric names are provisional until the naming
-# contract (ADR 0002).
+# the PostgreSQL pack. Names follow the naming
+# contract (ADR 0006).
 groups:
   - name: k8s
     interval: 15s

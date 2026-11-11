@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# Scenario idle-in-transaction: leave a read committed transaction idle on the primary (BEGIN; SELECT 1; then nothing, so no snapshot and no xid is held); expect IdleInTransaction for pg-primary, first as warning (idle over 60 s) and then as critical (over 180 s). EXPECT matches alertname and instance only, so after_detect waits for the critical tier and checks both severities in the delivered notifications.
+# Scenario idle-in-transaction: leave a read committed transaction idle on the primary (BEGIN; SELECT 1; then nothing, so no snapshot and no xid is held); expect PostgresIdleInTransaction for pg-primary, first as warning (idle over 60 s) and then as critical (over 180 s). EXPECT matches alertname and instance only, so after_detect waits for the critical tier and checks both severities in the delivered notifications.
 # shellcheck disable=SC1091,SC2034
 set -uo pipefail
 . "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 
-EXPECT=("IdleInTransaction:pg-primary")
+EXPECT=("PostgresIdleInTransaction:pg-primary")
 APPNAME=slice1-idle-in-transaction
 inject() {
   docker exec -d -e PGAPPNAME="$APPNAME" "$PRIMARY" sh -c \
@@ -14,9 +14,9 @@ inject() {
 }
 after_detect() {
   # the warning was delivered (EXPECT saw a firing record); now wait for the critical tier
-  wait_until 300 "IdleInTransaction critical delivered" severity_seen IdleInTransaction pg-primary "$T_INJECT" critical \
-    || { FAILS+=("IdleInTransaction critical was not delivered"); return 1; }
-  severity_seen IdleInTransaction pg-primary "$T_INJECT" warning || { FAILS+=("IdleInTransaction warning was not delivered before the critical"); return 1; }
+  wait_until 300 "PostgresIdleInTransaction critical delivered" severity_seen PostgresIdleInTransaction pg-primary "$T_INJECT" critical \
+    || { FAILS+=("PostgresIdleInTransaction critical was not delivered"); return 1; }
+  severity_seen PostgresIdleInTransaction pg-primary "$T_INJECT" warning || { FAILS+=("PostgresIdleInTransaction warning was not delivered before the critical"); return 1; }
   EXTRA_JSON='{"tiers_seen": ["warning", "critical"]}'
 }
 revert() {

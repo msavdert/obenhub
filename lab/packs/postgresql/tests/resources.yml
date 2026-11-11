@@ -1,5 +1,5 @@
 # Tests for the shared PostgreSQL pack rules (lab/slice1 and lab/stage3 use them).
-# SnapshotHeldTooLong and ConnectionSaturation.
+# PostgresSnapshotHeldTooLong and PostgresConnectionSaturation.
 rule_files:
   - ../rules.yml
 evaluation_interval: 15s
@@ -15,11 +15,11 @@ tests:
     alert_rule_test:
       - eval_time: 1m
         groupname: postgresql
-        alertname: SnapshotHeldTooLong
+        alertname: PostgresSnapshotHeldTooLong
         exp_alerts: []
       - eval_time: 3m
         groupname: postgresql
-        alertname: SnapshotHeldTooLong
+        alertname: PostgresSnapshotHeldTooLong
         exp_alerts:
           - exp_labels:
               severity: warning
@@ -35,28 +35,28 @@ tests:
     alert_rule_test:
       - eval_time: 5m
         groupname: postgresql
-        alertname: SnapshotHeldTooLong
+        alertname: PostgresSnapshotHeldTooLong
         exp_alerts: []
 
   - name: saturation fires above 85 percent of capacity on one server only
     interval: 15s
     input_series:
-      - series: 'postgresql.connection.client{service.instance.id="pg-primary"}'
+      - series: 'postgresql.client_connection.count{service.instance.id="pg-primary"}'
         values: '5x4 90x56'
-      - series: 'postgresql.connection.client_capacity{service.instance.id="pg-primary"}'
+      - series: 'postgresql.client_connection.limit{service.instance.id="pg-primary"}'
         values: '97x60'
-      - series: 'postgresql.connection.client{service.instance.id="pg-standby"}'
+      - series: 'postgresql.client_connection.count{service.instance.id="pg-standby"}'
         values: '5x60'
-      - series: 'postgresql.connection.client_capacity{service.instance.id="pg-standby"}'
+      - series: 'postgresql.client_connection.limit{service.instance.id="pg-standby"}'
         values: '97x60'
     alert_rule_test:
       - eval_time: 1m
         groupname: postgresql
-        alertname: ConnectionSaturation
+        alertname: PostgresConnectionSaturation
         exp_alerts: []
       - eval_time: 4m
         groupname: postgresql
-        alertname: ConnectionSaturation
+        alertname: PostgresConnectionSaturation
         exp_alerts:
           - exp_labels:
               severity: warning
@@ -67,46 +67,46 @@ tests:
   - name: saturation at 80 percent or with a missing capacity series does not fire
     interval: 15s
     input_series:
-      - series: 'postgresql.connection.client{service.instance.id="pg-primary"}'
+      - series: 'postgresql.client_connection.count{service.instance.id="pg-primary"}'
         values: '78x60'
-      - series: 'postgresql.connection.client_capacity{service.instance.id="pg-primary"}'
+      - series: 'postgresql.client_connection.limit{service.instance.id="pg-primary"}'
         values: '97x60'
-      - series: 'postgresql.connection.client{service.instance.id="pg-standby"}'
+      - series: 'postgresql.client_connection.count{service.instance.id="pg-standby"}'
         values: '95x60'
     alert_rule_test:
       - eval_time: 8m
         groupname: postgresql
-        alertname: ConnectionSaturation
+        alertname: PostgresConnectionSaturation
         exp_alerts: []
 
   - name: saturation tiers, boundary and escalation (one tier per series)
     interval: 15s
     input_series:
       # 95 of 100 = 0.95: critical
-      - series: 'postgresql.connection.client{service.instance.id="pg-crit"}'
+      - series: 'postgresql.client_connection.count{service.instance.id="pg-crit"}'
         values: '95x60'
       # 0.95 exactly (19 of 20) belongs to the critical tier
-      - series: 'postgresql.connection.client{service.instance.id="pg-edge"}'
+      - series: 'postgresql.client_connection.count{service.instance.id="pg-edge"}'
         values: '19x60'
       # 0.90: warning only
-      - series: 'postgresql.connection.client{service.instance.id="pg-warn"}'
+      - series: 'postgresql.client_connection.count{service.instance.id="pg-warn"}'
         values: '90x60'
       # 0.90 for 3 minutes, then 0.98
-      - series: 'postgresql.connection.client{service.instance.id="pg-esc"}'
+      - series: 'postgresql.client_connection.count{service.instance.id="pg-esc"}'
         values: '90x12 98x48'
-      - series: 'postgresql.connection.client_capacity{service.instance.id="pg-crit"}'
+      - series: 'postgresql.client_connection.limit{service.instance.id="pg-crit"}'
         values: '100x60'
-      - series: 'postgresql.connection.client_capacity{service.instance.id="pg-edge"}'
+      - series: 'postgresql.client_connection.limit{service.instance.id="pg-edge"}'
         values: '20x60'
-      - series: 'postgresql.connection.client_capacity{service.instance.id="pg-warn"}'
+      - series: 'postgresql.client_connection.limit{service.instance.id="pg-warn"}'
         values: '100x60'
-      - series: 'postgresql.connection.client_capacity{service.instance.id="pg-esc"}'
+      - series: 'postgresql.client_connection.limit{service.instance.id="pg-esc"}'
         values: '100x60'
     alert_rule_test:
       # pg-esc: warning while at 0.90, ...
       - eval_time: 2m30s
         groupname: postgresql
-        alertname: ConnectionSaturation
+        alertname: PostgresConnectionSaturation
         exp_alerts:
           - exp_labels:
               severity: critical
@@ -131,7 +131,7 @@ tests:
       # ... then the critical only (steady state)
       - eval_time: 5m
         groupname: postgresql
-        alertname: ConnectionSaturation
+        alertname: PostgresConnectionSaturation
         exp_alerts:
           - exp_labels:
               severity: critical
@@ -158,14 +158,14 @@ tests:
   - name: saturation tiers - escalation, exactly one tier at every evaluation
     interval: 15s
     input_series:
-      - series: 'postgresql.connection.client{service.instance.id="a"}'
+      - series: 'postgresql.client_connection.count{service.instance.id="a"}'
         values: '90x12 98x48'
-      - series: 'postgresql.connection.client_capacity{service.instance.id="a"}'
+      - series: 'postgresql.client_connection.limit{service.instance.id="a"}'
         values: '100x60'
     alert_rule_test:
       - eval_time: 3m
         groupname: postgresql
-        alertname: ConnectionSaturation
+        alertname: PostgresConnectionSaturation
         exp_alerts:
           - exp_labels:
               severity: warning
@@ -174,7 +174,7 @@ tests:
               summary: 'a client connections above 85% of capacity'
       - eval_time: 3m15s
         groupname: postgresql
-        alertname: ConnectionSaturation
+        alertname: PostgresConnectionSaturation
         exp_alerts:
           - exp_labels:
               severity: warning
@@ -183,7 +183,7 @@ tests:
               summary: 'a client connections above 85% of capacity'
       - eval_time: 3m30s
         groupname: postgresql
-        alertname: ConnectionSaturation
+        alertname: PostgresConnectionSaturation
         exp_alerts:
           - exp_labels:
               severity: warning
@@ -192,7 +192,7 @@ tests:
               summary: 'a client connections above 85% of capacity'
       - eval_time: 3m45s
         groupname: postgresql
-        alertname: ConnectionSaturation
+        alertname: PostgresConnectionSaturation
         exp_alerts:
           - exp_labels:
               severity: warning
@@ -201,7 +201,7 @@ tests:
               summary: 'a client connections above 85% of capacity'
       - eval_time: 4m
         groupname: postgresql
-        alertname: ConnectionSaturation
+        alertname: PostgresConnectionSaturation
         exp_alerts:
           - exp_labels:
               severity: warning
@@ -210,7 +210,7 @@ tests:
               summary: 'a client connections above 85% of capacity'
       - eval_time: 4m15s
         groupname: postgresql
-        alertname: ConnectionSaturation
+        alertname: PostgresConnectionSaturation
         exp_alerts:
           - exp_labels:
               severity: critical
@@ -219,7 +219,7 @@ tests:
               summary: 'a client connections at or above 95% of capacity'
       - eval_time: 4m30s
         groupname: postgresql
-        alertname: ConnectionSaturation
+        alertname: PostgresConnectionSaturation
         exp_alerts:
           - exp_labels:
               severity: critical
@@ -228,7 +228,7 @@ tests:
               summary: 'a client connections at or above 95% of capacity'
       - eval_time: 4m45s
         groupname: postgresql
-        alertname: ConnectionSaturation
+        alertname: PostgresConnectionSaturation
         exp_alerts:
           - exp_labels:
               severity: critical
@@ -237,7 +237,7 @@ tests:
               summary: 'a client connections at or above 95% of capacity'
       - eval_time: 5m
         groupname: postgresql
-        alertname: ConnectionSaturation
+        alertname: PostgresConnectionSaturation
         exp_alerts:
           - exp_labels:
               severity: critical
@@ -248,14 +248,14 @@ tests:
   - name: saturation tiers - de-escalation, the warning follows the critical at once
     interval: 15s
     input_series:
-      - series: 'postgresql.connection.client{service.instance.id="a"}'
+      - series: 'postgresql.client_connection.count{service.instance.id="a"}'
         values: '98x20 90x40'
-      - series: 'postgresql.connection.client_capacity{service.instance.id="a"}'
+      - series: 'postgresql.client_connection.limit{service.instance.id="a"}'
         values: '100x60'
     alert_rule_test:
       - eval_time: 4m30s
         groupname: postgresql
-        alertname: ConnectionSaturation
+        alertname: PostgresConnectionSaturation
         exp_alerts:
           - exp_labels:
               severity: critical
@@ -264,7 +264,7 @@ tests:
               summary: 'a client connections at or above 95% of capacity'
       - eval_time: 4m45s
         groupname: postgresql
-        alertname: ConnectionSaturation
+        alertname: PostgresConnectionSaturation
         exp_alerts:
           - exp_labels:
               severity: critical
@@ -273,7 +273,7 @@ tests:
               summary: 'a client connections at or above 95% of capacity'
       - eval_time: 5m
         groupname: postgresql
-        alertname: ConnectionSaturation
+        alertname: PostgresConnectionSaturation
         exp_alerts:
           - exp_labels:
               severity: critical
@@ -282,7 +282,7 @@ tests:
               summary: 'a client connections at or above 95% of capacity'
       - eval_time: 5m15s
         groupname: postgresql
-        alertname: ConnectionSaturation
+        alertname: PostgresConnectionSaturation
         exp_alerts:
           - exp_labels:
               severity: warning
@@ -291,7 +291,7 @@ tests:
               summary: 'a client connections above 85% of capacity'
       - eval_time: 5m30s
         groupname: postgresql
-        alertname: ConnectionSaturation
+        alertname: PostgresConnectionSaturation
         exp_alerts:
           - exp_labels:
               severity: warning
@@ -300,7 +300,7 @@ tests:
               summary: 'a client connections above 85% of capacity'
       - eval_time: 5m45s
         groupname: postgresql
-        alertname: ConnectionSaturation
+        alertname: PostgresConnectionSaturation
         exp_alerts:
           - exp_labels:
               severity: warning
@@ -309,7 +309,7 @@ tests:
               summary: 'a client connections above 85% of capacity'
       - eval_time: 6m
         groupname: postgresql
-        alertname: ConnectionSaturation
+        alertname: PostgresConnectionSaturation
         exp_alerts:
           - exp_labels:
               severity: warning
@@ -318,7 +318,7 @@ tests:
               summary: 'a client connections above 85% of capacity'
       - eval_time: 6m15s
         groupname: postgresql
-        alertname: ConnectionSaturation
+        alertname: PostgresConnectionSaturation
         exp_alerts:
           - exp_labels:
               severity: warning
@@ -329,14 +329,14 @@ tests:
   - name: saturation tiers - a single dip while critical shows the warning for the window, then the critical returns
     interval: 15s
     input_series:
-      - series: 'postgresql.connection.client{service.instance.id="a"}'
+      - series: 'postgresql.client_connection.count{service.instance.id="a"}'
         values: '98x20 90 98x39'
-      - series: 'postgresql.connection.client_capacity{service.instance.id="a"}'
+      - series: 'postgresql.client_connection.limit{service.instance.id="a"}'
         values: '100x60'
     alert_rule_test:
       - eval_time: 4m30s
         groupname: postgresql
-        alertname: ConnectionSaturation
+        alertname: PostgresConnectionSaturation
         exp_alerts:
           - exp_labels:
               severity: critical
@@ -345,7 +345,7 @@ tests:
               summary: 'a client connections at or above 95% of capacity'
       - eval_time: 4m45s
         groupname: postgresql
-        alertname: ConnectionSaturation
+        alertname: PostgresConnectionSaturation
         exp_alerts:
           - exp_labels:
               severity: critical
@@ -354,7 +354,7 @@ tests:
               summary: 'a client connections at or above 95% of capacity'
       - eval_time: 5m
         groupname: postgresql
-        alertname: ConnectionSaturation
+        alertname: PostgresConnectionSaturation
         exp_alerts:
           - exp_labels:
               severity: critical
@@ -363,7 +363,7 @@ tests:
               summary: 'a client connections at or above 95% of capacity'
       - eval_time: 5m15s
         groupname: postgresql
-        alertname: ConnectionSaturation
+        alertname: PostgresConnectionSaturation
         exp_alerts:
           - exp_labels:
               severity: warning
@@ -372,7 +372,7 @@ tests:
               summary: 'a client connections above 85% of capacity'
       - eval_time: 5m30s
         groupname: postgresql
-        alertname: ConnectionSaturation
+        alertname: PostgresConnectionSaturation
         exp_alerts:
           - exp_labels:
               severity: warning
@@ -381,7 +381,7 @@ tests:
               summary: 'a client connections above 85% of capacity'
       - eval_time: 5m45s
         groupname: postgresql
-        alertname: ConnectionSaturation
+        alertname: PostgresConnectionSaturation
         exp_alerts:
           - exp_labels:
               severity: warning
@@ -390,7 +390,7 @@ tests:
               summary: 'a client connections above 85% of capacity'
       - eval_time: 6m
         groupname: postgresql
-        alertname: ConnectionSaturation
+        alertname: PostgresConnectionSaturation
         exp_alerts:
           - exp_labels:
               severity: warning
@@ -399,7 +399,7 @@ tests:
               summary: 'a client connections above 85% of capacity'
       - eval_time: 6m15s
         groupname: postgresql
-        alertname: ConnectionSaturation
+        alertname: PostgresConnectionSaturation
         exp_alerts:
           - exp_labels:
               severity: warning
@@ -408,7 +408,7 @@ tests:
               summary: 'a client connections above 85% of capacity'
       - eval_time: 6m30s
         groupname: postgresql
-        alertname: ConnectionSaturation
+        alertname: PostgresConnectionSaturation
         exp_alerts:
           - exp_labels:
               severity: critical
@@ -417,7 +417,7 @@ tests:
               summary: 'a client connections at or above 95% of capacity'
       - eval_time: 6m45s
         groupname: postgresql
-        alertname: ConnectionSaturation
+        alertname: PostgresConnectionSaturation
         exp_alerts:
           - exp_labels:
               severity: critical
@@ -426,7 +426,7 @@ tests:
               summary: 'a client connections at or above 95% of capacity'
       - eval_time: 7m
         groupname: postgresql
-        alertname: ConnectionSaturation
+        alertname: PostgresConnectionSaturation
         exp_alerts:
           - exp_labels:
               severity: critical
@@ -437,34 +437,34 @@ tests:
   - name: saturation tiers - a jump from below the warning threshold straight above the critical one never shows the warning
     interval: 15s
     input_series:
-      - series: 'postgresql.connection.client{service.instance.id="a"}'
+      - series: 'postgresql.client_connection.count{service.instance.id="a"}'
         values: '50x12 98x48'
-      - series: 'postgresql.connection.client_capacity{service.instance.id="a"}'
+      - series: 'postgresql.client_connection.limit{service.instance.id="a"}'
         values: '100x60'
     alert_rule_test:
       - eval_time: 3m
         groupname: postgresql
-        alertname: ConnectionSaturation
+        alertname: PostgresConnectionSaturation
         exp_alerts: []
       - eval_time: 3m15s
         groupname: postgresql
-        alertname: ConnectionSaturation
+        alertname: PostgresConnectionSaturation
         exp_alerts: []
       - eval_time: 3m30s
         groupname: postgresql
-        alertname: ConnectionSaturation
+        alertname: PostgresConnectionSaturation
         exp_alerts: []
       - eval_time: 3m45s
         groupname: postgresql
-        alertname: ConnectionSaturation
+        alertname: PostgresConnectionSaturation
         exp_alerts: []
       - eval_time: 4m
         groupname: postgresql
-        alertname: ConnectionSaturation
+        alertname: PostgresConnectionSaturation
         exp_alerts: []
       - eval_time: 4m15s
         groupname: postgresql
-        alertname: ConnectionSaturation
+        alertname: PostgresConnectionSaturation
         exp_alerts:
           - exp_labels:
               severity: critical
@@ -473,7 +473,7 @@ tests:
               summary: 'a client connections at or above 95% of capacity'
       - eval_time: 4m30s
         groupname: postgresql
-        alertname: ConnectionSaturation
+        alertname: PostgresConnectionSaturation
         exp_alerts:
           - exp_labels:
               severity: critical
@@ -482,7 +482,7 @@ tests:
               summary: 'a client connections at or above 95% of capacity'
       - eval_time: 4m45s
         groupname: postgresql
-        alertname: ConnectionSaturation
+        alertname: PostgresConnectionSaturation
         exp_alerts:
           - exp_labels:
               severity: critical
@@ -494,30 +494,30 @@ tests:
   - name: saturation warm-up - a new series above the critical threshold stays silent until its window is full
     interval: 15s
     input_series:
-      - series: 'postgresql.connection.client{service.instance.id="a"}'
+      - series: 'postgresql.client_connection.count{service.instance.id="a"}'
         values: '_x4 98x56'
-      - series: 'postgresql.connection.client_capacity{service.instance.id="a"}'
+      - series: 'postgresql.client_connection.limit{service.instance.id="a"}'
         values: '100x100'
     alert_rule_test:
       - eval_time: 1m
         groupname: postgresql
-        alertname: ConnectionSaturation
+        alertname: PostgresConnectionSaturation
         exp_alerts: []
       - eval_time: 1m15s
         groupname: postgresql
-        alertname: ConnectionSaturation
+        alertname: PostgresConnectionSaturation
         exp_alerts: []
       - eval_time: 1m30s
         groupname: postgresql
-        alertname: ConnectionSaturation
+        alertname: PostgresConnectionSaturation
         exp_alerts: []
       - eval_time: 1m45s
         groupname: postgresql
-        alertname: ConnectionSaturation
+        alertname: PostgresConnectionSaturation
         exp_alerts: []
       - eval_time: 2m
         groupname: postgresql
-        alertname: ConnectionSaturation
+        alertname: PostgresConnectionSaturation
         exp_alerts:
           - exp_labels:
               severity: critical
@@ -526,7 +526,7 @@ tests:
               summary: 'a client connections at or above 95% of capacity'
       - eval_time: 2m15s
         groupname: postgresql
-        alertname: ConnectionSaturation
+        alertname: PostgresConnectionSaturation
         exp_alerts:
           - exp_labels:
               severity: critical
@@ -535,7 +535,7 @@ tests:
               summary: 'a client connections at or above 95% of capacity'
       - eval_time: 2m30s
         groupname: postgresql
-        alertname: ConnectionSaturation
+        alertname: PostgresConnectionSaturation
         exp_alerts:
           - exp_labels:
               severity: critical
@@ -547,14 +547,14 @@ tests:
   - name: saturation warm-up - a return after a gap longer than the lookback starts the window again
     interval: 15s
     input_series:
-      - series: 'postgresql.connection.client{service.instance.id="a"}'
+      - series: 'postgresql.client_connection.count{service.instance.id="a"}'
         values: '_x4 98x12 _x30 98x30'
-      - series: 'postgresql.connection.client_capacity{service.instance.id="a"}'
+      - series: 'postgresql.client_connection.limit{service.instance.id="a"}'
         values: '100x100'
     alert_rule_test:
       - eval_time: 3m45s
         groupname: postgresql
-        alertname: ConnectionSaturation
+        alertname: PostgresConnectionSaturation
         exp_alerts:
           - exp_labels:
               severity: critical
@@ -563,7 +563,7 @@ tests:
               summary: 'a client connections at or above 95% of capacity'
       - eval_time: 4m
         groupname: postgresql
-        alertname: ConnectionSaturation
+        alertname: PostgresConnectionSaturation
         exp_alerts:
           - exp_labels:
               severity: critical
@@ -572,7 +572,7 @@ tests:
               summary: 'a client connections at or above 95% of capacity'
       - eval_time: 4m15s
         groupname: postgresql
-        alertname: ConnectionSaturation
+        alertname: PostgresConnectionSaturation
         exp_alerts:
           - exp_labels:
               severity: critical
@@ -581,31 +581,31 @@ tests:
               summary: 'a client connections at or above 95% of capacity'
       - eval_time: 4m30s
         groupname: postgresql
-        alertname: ConnectionSaturation
+        alertname: PostgresConnectionSaturation
         exp_alerts: []
       - eval_time: 5m
         groupname: postgresql
-        alertname: ConnectionSaturation
+        alertname: PostgresConnectionSaturation
         exp_alerts: []
       - eval_time: 8m
         groupname: postgresql
-        alertname: ConnectionSaturation
+        alertname: PostgresConnectionSaturation
         exp_alerts: []
       - eval_time: 11m45s
         groupname: postgresql
-        alertname: ConnectionSaturation
+        alertname: PostgresConnectionSaturation
         exp_alerts: []
       - eval_time: 12m
         groupname: postgresql
-        alertname: ConnectionSaturation
+        alertname: PostgresConnectionSaturation
         exp_alerts: []
       - eval_time: 12m30s
         groupname: postgresql
-        alertname: ConnectionSaturation
+        alertname: PostgresConnectionSaturation
         exp_alerts: []
       - eval_time: 12m45s
         groupname: postgresql
-        alertname: ConnectionSaturation
+        alertname: PostgresConnectionSaturation
         exp_alerts:
           - exp_labels:
               severity: critical
@@ -614,7 +614,7 @@ tests:
               summary: 'a client connections at or above 95% of capacity'
       - eval_time: 13m
         groupname: postgresql
-        alertname: ConnectionSaturation
+        alertname: PostgresConnectionSaturation
         exp_alerts:
           - exp_labels:
               severity: critical
@@ -625,14 +625,14 @@ tests:
   - name: saturation warm-up - one lost sample does not restart the window
     interval: 15s
     input_series:
-      - series: 'postgresql.connection.client{service.instance.id="a"}'
+      - series: 'postgresql.client_connection.count{service.instance.id="a"}'
         values: '_x4 98x12 _ 98x30'
-      - series: 'postgresql.connection.client_capacity{service.instance.id="a"}'
+      - series: 'postgresql.client_connection.limit{service.instance.id="a"}'
         values: '100x100'
     alert_rule_test:
       - eval_time: 2m
         groupname: postgresql
-        alertname: ConnectionSaturation
+        alertname: PostgresConnectionSaturation
         exp_alerts:
           - exp_labels:
               severity: critical
@@ -641,7 +641,7 @@ tests:
               summary: 'a client connections at or above 95% of capacity'
       - eval_time: 2m15s
         groupname: postgresql
-        alertname: ConnectionSaturation
+        alertname: PostgresConnectionSaturation
         exp_alerts:
           - exp_labels:
               severity: critical
@@ -650,7 +650,7 @@ tests:
               summary: 'a client connections at or above 95% of capacity'
       - eval_time: 2m30s
         groupname: postgresql
-        alertname: ConnectionSaturation
+        alertname: PostgresConnectionSaturation
         exp_alerts:
           - exp_labels:
               severity: critical
@@ -659,7 +659,7 @@ tests:
               summary: 'a client connections at or above 95% of capacity'
       - eval_time: 2m45s
         groupname: postgresql
-        alertname: ConnectionSaturation
+        alertname: PostgresConnectionSaturation
         exp_alerts:
           - exp_labels:
               severity: critical
@@ -668,7 +668,7 @@ tests:
               summary: 'a client connections at or above 95% of capacity'
       - eval_time: 3m
         groupname: postgresql
-        alertname: ConnectionSaturation
+        alertname: PostgresConnectionSaturation
         exp_alerts:
           - exp_labels:
               severity: critical
@@ -677,7 +677,7 @@ tests:
               summary: 'a client connections at or above 95% of capacity'
       - eval_time: 3m15s
         groupname: postgresql
-        alertname: ConnectionSaturation
+        alertname: PostgresConnectionSaturation
         exp_alerts:
           - exp_labels:
               severity: critical
@@ -686,7 +686,7 @@ tests:
               summary: 'a client connections at or above 95% of capacity'
       - eval_time: 3m30s
         groupname: postgresql
-        alertname: ConnectionSaturation
+        alertname: PostgresConnectionSaturation
         exp_alerts:
           - exp_labels:
               severity: critical
@@ -695,7 +695,7 @@ tests:
               summary: 'a client connections at or above 95% of capacity'
       - eval_time: 3m45s
         groupname: postgresql
-        alertname: ConnectionSaturation
+        alertname: PostgresConnectionSaturation
         exp_alerts:
           - exp_labels:
               severity: critical
@@ -704,7 +704,7 @@ tests:
               summary: 'a client connections at or above 95% of capacity'
       - eval_time: 4m
         groupname: postgresql
-        alertname: ConnectionSaturation
+        alertname: PostgresConnectionSaturation
         exp_alerts:
           - exp_labels:
               severity: critical
@@ -713,7 +713,7 @@ tests:
               summary: 'a client connections at or above 95% of capacity'
       - eval_time: 4m15s
         groupname: postgresql
-        alertname: ConnectionSaturation
+        alertname: PostgresConnectionSaturation
         exp_alerts:
           - exp_labels:
               severity: critical
@@ -722,7 +722,7 @@ tests:
               summary: 'a client connections at or above 95% of capacity'
       - eval_time: 4m30s
         groupname: postgresql
-        alertname: ConnectionSaturation
+        alertname: PostgresConnectionSaturation
         exp_alerts:
           - exp_labels:
               severity: critical
@@ -731,7 +731,7 @@ tests:
               summary: 'a client connections at or above 95% of capacity'
       - eval_time: 4m45s
         groupname: postgresql
-        alertname: ConnectionSaturation
+        alertname: PostgresConnectionSaturation
         exp_alerts:
           - exp_labels:
               severity: critical
@@ -740,7 +740,7 @@ tests:
               summary: 'a client connections at or above 95% of capacity'
       - eval_time: 5m
         groupname: postgresql
-        alertname: ConnectionSaturation
+        alertname: PostgresConnectionSaturation
         exp_alerts:
           - exp_labels:
               severity: critical
@@ -749,7 +749,7 @@ tests:
               summary: 'a client connections at or above 95% of capacity'
       - eval_time: 5m15s
         groupname: postgresql
-        alertname: ConnectionSaturation
+        alertname: PostgresConnectionSaturation
         exp_alerts:
           - exp_labels:
               severity: critical
@@ -758,7 +758,7 @@ tests:
               summary: 'a client connections at or above 95% of capacity'
       - eval_time: 5m30s
         groupname: postgresql
-        alertname: ConnectionSaturation
+        alertname: PostgresConnectionSaturation
         exp_alerts:
           - exp_labels:
               severity: critical
@@ -767,7 +767,7 @@ tests:
               summary: 'a client connections at or above 95% of capacity'
       - eval_time: 5m45s
         groupname: postgresql
-        alertname: ConnectionSaturation
+        alertname: PostgresConnectionSaturation
         exp_alerts:
           - exp_labels:
               severity: critical
@@ -776,7 +776,7 @@ tests:
               summary: 'a client connections at or above 95% of capacity'
       - eval_time: 6m
         groupname: postgresql
-        alertname: ConnectionSaturation
+        alertname: PostgresConnectionSaturation
         exp_alerts:
           - exp_labels:
               severity: critical

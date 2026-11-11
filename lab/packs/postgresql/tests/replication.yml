@@ -1,6 +1,6 @@
 # Tests for the shared PostgreSQL pack rules (lab/slice1 and lab/stage3 use them).
-# StandbyNotStreaming and ReplayBacklog gate on recovery.active == 1;
-# StandbyNotStreaming is also silent while no node is writable.
+# PostgresStandbyNotStreaming and PostgresReplayBacklog gate on recovery.active == 1;
+# PostgresStandbyNotStreaming is also silent while no node is writable.
 # PostgresMultiplePrimaries is at the end.
 rule_files:
   - ../rules.yml
@@ -21,15 +21,15 @@ tests:
     alert_rule_test:
       - eval_time: 1m   # still streaming
         groupname: postgresql
-        alertname: StandbyNotStreaming
+        alertname: PostgresStandbyNotStreaming
         exp_alerts: []
       - eval_time: 2m30s   # 0 for 30s, below the 1m hold
         groupname: postgresql
-        alertname: StandbyNotStreaming
+        alertname: PostgresStandbyNotStreaming
         exp_alerts: []
       - eval_time: 5m
         groupname: postgresql
-        alertname: StandbyNotStreaming
+        alertname: PostgresStandbyNotStreaming
         exp_alerts:
           - exp_labels:
               severity: critical
@@ -47,7 +47,7 @@ tests:
     alert_rule_test:
       - eval_time: 8m
         groupname: postgresql
-        alertname: StandbyNotStreaming
+        alertname: PostgresStandbyNotStreaming
         exp_alerts: []
 
   - name: not streaming does not fire when only recovery.active is missing
@@ -58,7 +58,7 @@ tests:
     alert_rule_test:
       - eval_time: 8m
         groupname: postgresql
-        alertname: StandbyNotStreaming
+        alertname: PostgresStandbyNotStreaming
         exp_alerts: []
 
   - name: a short startup blip of streaming=0 does not fire
@@ -71,7 +71,7 @@ tests:
     alert_rule_test:
       - eval_time: 3m
         groupname: postgresql
-        alertname: StandbyNotStreaming
+        alertname: PostgresStandbyNotStreaming
         exp_alerts: []
 
   - name: promoted standby (recovery.active 0) is no longer expected to stream
@@ -84,7 +84,7 @@ tests:
     alert_rule_test:
       - eval_time: 8m
         groupname: postgresql
-        alertname: StandbyNotStreaming
+        alertname: PostgresStandbyNotStreaming
         exp_alerts: []
 
   - name: backlog above 16 MiB fires on the standby; 0 and the primary do not
@@ -101,11 +101,11 @@ tests:
     alert_rule_test:
       - eval_time: 1m
         groupname: postgresql
-        alertname: ReplayBacklog
+        alertname: PostgresReplayBacklog
         exp_alerts: []
       - eval_time: 5m
         groupname: postgresql
-        alertname: ReplayBacklog
+        alertname: PostgresReplayBacklog
         exp_alerts:
           - exp_labels:
               severity: warning
@@ -123,7 +123,7 @@ tests:
     alert_rule_test:
       - eval_time: 8m
         groupname: postgresql
-        alertname: ReplayBacklog
+        alertname: PostgresReplayBacklog
         exp_alerts: []
 
   - name: not streaming is silent when no node is writable (quorum lost, all in recovery)
@@ -140,7 +140,7 @@ tests:
     alert_rule_test:
       - eval_time: 8m
         groupname: postgresql
-        alertname: StandbyNotStreaming
+        alertname: PostgresStandbyNotStreaming
         exp_alerts: []
 
   - name: not streaming ignores a deleted pod's stale primary sample under the recreated pod (k8s.pod.uid)
@@ -159,7 +159,7 @@ tests:
     alert_rule_test:
       - eval_time: 3m
         groupname: postgresql
-        alertname: StandbyNotStreaming
+        alertname: PostgresStandbyNotStreaming
         exp_alerts: []
 
   - name: not streaming still fires for a pod in recovery that does not stream (k8s.pod.uid on both sides)
@@ -174,7 +174,7 @@ tests:
     alert_rule_test:
       - eval_time: 3m
         groupname: postgresql
-        alertname: StandbyNotStreaming
+        alertname: PostgresStandbyNotStreaming
         exp_alerts:
           - exp_labels:
               severity: critical
@@ -187,11 +187,11 @@ tests:
   - name: two fresh writable instances of one cluster fire only after the 45 s hold
     interval: 15s
     input_series:
-      - series: 'postgresql.recovery.active{db.cluster.name="c1",service.instance.id="pg-1"}'
+      - series: 'postgresql.recovery.active{obenhub.cluster.name="c1",service.instance.id="pg-1"}'
         values: '0x60'
-      - series: 'postgresql.recovery.active{db.cluster.name="c1",service.instance.id="pg-2"}'
+      - series: 'postgresql.recovery.active{obenhub.cluster.name="c1",service.instance.id="pg-2"}'
         values: '1x8 0x52'
-      - series: 'postgresql.recovery.active{db.cluster.name="c1",service.instance.id="pg-3"}'
+      - series: 'postgresql.recovery.active{obenhub.cluster.name="c1",service.instance.id="pg-3"}'
         values: '1x60'
     alert_rule_test:
       - eval_time: 1m
@@ -206,16 +206,16 @@ tests:
         groupname: postgresql
         alertname: PostgresMultiplePrimaries
         exp_alerts:
-          - exp_labels: {severity: critical, db.cluster.name: c1}
+          - exp_labels: {severity: critical, obenhub.cluster.name: c1}
             exp_annotations:
               summary: Cluster c1 has 2 writable instances (split brain)
 
   - name: one writable instance does not fire
     interval: 15s
     input_series:
-      - series: 'postgresql.recovery.active{db.cluster.name="c1",service.instance.id="pg-1"}'
+      - series: 'postgresql.recovery.active{obenhub.cluster.name="c1",service.instance.id="pg-1"}'
         values: '0x60'
-      - series: 'postgresql.recovery.active{db.cluster.name="c1",service.instance.id="pg-2"}'
+      - series: 'postgresql.recovery.active{obenhub.cluster.name="c1",service.instance.id="pg-2"}'
         values: '1x60'
     alert_rule_test:
       - eval_time: 4m
@@ -231,9 +231,9 @@ tests:
       # window until 2m15 only, so the overlap (1m45 to 2m15) is shorter than
       # the 45 s hold. With a 45 s window the overlap lasts to 2m30 and the
       # alert fires; without last_over_time (the 5 m lookback) it fires too.
-      - series: 'postgresql.recovery.active{db.cluster.name="c1",service.instance.id="pg-1"}'
+      - series: 'postgresql.recovery.active{obenhub.cluster.name="c1",service.instance.id="pg-1"}'
         values: '0x8 _x52'
-      - series: 'postgresql.recovery.active{db.cluster.name="c1",service.instance.id="pg-2"}'
+      - series: 'postgresql.recovery.active{obenhub.cluster.name="c1",service.instance.id="pg-2"}'
         values: '1x6 0x54'
     alert_rule_test:
       - eval_time: 2m30s
@@ -256,13 +256,13 @@ tests:
   - name: writable instances in different clusters do not fire (a logical subscriber is its own cluster)
     interval: 15s
     input_series:
-      - series: 'postgresql.recovery.active{db.cluster.name="slice1",service.instance.id="pg-primary"}'
+      - series: 'postgresql.recovery.active{obenhub.cluster.name="slice1",service.instance.id="pg-primary"}'
         values: '0x60'
-      - series: 'postgresql.recovery.active{db.cluster.name="slice1",service.instance.id="pg-standby"}'
+      - series: 'postgresql.recovery.active{obenhub.cluster.name="slice1",service.instance.id="pg-standby"}'
         values: '1x60'
-      - series: 'postgresql.recovery.active{db.cluster.name="slice1-subscriber",service.instance.id="pg-subscriber"}'
+      - series: 'postgresql.recovery.active{obenhub.cluster.name="slice1-subscriber",service.instance.id="pg-subscriber"}'
         values: '0x60'
-      - series: 'postgresql.recovery.active{db.cluster.name="c2",service.instance.id="pg-1"}'
+      - series: 'postgresql.recovery.active{obenhub.cluster.name="c2",service.instance.id="pg-1"}'
         values: '0x60'
     alert_rule_test:
       - eval_time: 4m
@@ -273,9 +273,9 @@ tests:
   - name: the same cluster name in two namespaces is two clusters
     interval: 15s
     input_series:
-      - series: 'postgresql.recovery.active{db.cluster.name="pg",k8s.namespace.name="a",service.instance.id="pg-1",k8s.pod.uid="u1"}'
+      - series: 'postgresql.recovery.active{obenhub.cluster.name="pg",k8s.namespace.name="a",service.instance.id="pg-1",k8s.pod.uid="u1"}'
         values: '0x60'
-      - series: 'postgresql.recovery.active{db.cluster.name="pg",k8s.namespace.name="b",service.instance.id="pg-1",k8s.pod.uid="u2"}'
+      - series: 'postgresql.recovery.active{obenhub.cluster.name="pg",k8s.namespace.name="b",service.instance.id="pg-1",k8s.pod.uid="u2"}'
         values: '0x60'
     alert_rule_test:
       - eval_time: 4m
@@ -290,11 +290,11 @@ tests:
       # at 2m15s while the old series lingers to 3m30. pg-2 is promoted at
       # 2m15s. Counting series instead of instances (k8s.pod.uid in the inner
       # max by) makes this test fail (checked in a scratch copy).
-      - series: 'postgresql.recovery.active{db.cluster.name="pg",k8s.namespace.name="a",service.instance.id="pg-1",k8s.pod.uid="old"}'
+      - series: 'postgresql.recovery.active{obenhub.cluster.name="pg",k8s.namespace.name="a",service.instance.id="pg-1",k8s.pod.uid="old"}'
         values: '0x14 _x46'
-      - series: 'postgresql.recovery.active{db.cluster.name="pg",k8s.namespace.name="a",service.instance.id="pg-1",k8s.pod.uid="new"}'
+      - series: 'postgresql.recovery.active{obenhub.cluster.name="pg",k8s.namespace.name="a",service.instance.id="pg-1",k8s.pod.uid="new"}'
         values: '_x9 1x51'
-      - series: 'postgresql.recovery.active{db.cluster.name="pg",k8s.namespace.name="a",service.instance.id="pg-2",k8s.pod.uid="p2"}'
+      - series: 'postgresql.recovery.active{obenhub.cluster.name="pg",k8s.namespace.name="a",service.instance.id="pg-2",k8s.pod.uid="p2"}'
         values: '1x9 0x51'
     alert_rule_test:
       - eval_time: 3m

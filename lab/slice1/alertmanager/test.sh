@@ -48,21 +48,21 @@ sys.exit(0 if ($expr) else 1)" <<<"$json"; then
 }
 
 # 1. grouping per instance
-post "[$(alert ReplayBacklog pg-primary),$(alert ReplayBacklog pg-standby)]"
+post "[$(alert PostgresReplayBacklog pg-primary),$(alert PostgresReplayBacklog pg-standby)]"
 sleep 2
 groups="$(curl -fs "$base/api/v2/alerts/groups")"
-check "ReplayBacklog forms one group per instance" \
-  "sorted(g['labels'].get('service_instance_id') for g in d if g['labels']['alertname']=='ReplayBacklog') == ['pg-primary','pg-standby']" "$groups"
+check "PostgresReplayBacklog forms one group per instance" \
+  "sorted(g['labels'].get('service_instance_id') for g in d if g['labels']['alertname']=='PostgresReplayBacklog') == ['pg-primary','pg-standby']" "$groups"
 
 # 2. per-instance inhibition: standby target absent mutes only standby series
-post "[$(alert PostgresTargetAbsent pg-standby),$(alert SeriesVanished pg-standby),$(alert SeriesVanished pg-primary)]"
+post "[$(alert PostgresTargetAbsent pg-standby),$(alert PostgresSeriesVanished pg-standby),$(alert PostgresSeriesVanished pg-primary)]"
 sleep 2
 alerts="$(curl -fs "$base/api/v2/alerts")"
 inhibited='lambda n, i: [x for x in d if x["labels"]["alertname"]==n and x["labels"].get("service_instance_id")==i][0]["status"]["inhibitedBy"]'
-check "SeriesVanished on the standby is inhibited by its own PostgresTargetAbsent" \
-  "bool(($inhibited)('SeriesVanished','pg-standby'))" "$alerts"
-check "SeriesVanished on the primary is NOT inhibited" \
-  "not ($inhibited)('SeriesVanished','pg-primary')" "$alerts"
+check "PostgresSeriesVanished on the standby is inhibited by its own PostgresTargetAbsent" \
+  "bool(($inhibited)('PostgresSeriesVanished','pg-standby'))" "$alerts"
+check "PostgresSeriesVanished on the primary is NOT inhibited" \
+  "not ($inhibited)('PostgresSeriesVanished','pg-primary')" "$alerts"
 check "PostgresTargetAbsent itself is not inhibited" \
   "not ($inhibited)('PostgresTargetAbsent','pg-standby')" "$alerts"
 
@@ -72,11 +72,11 @@ sleep 2
 alerts="$(curl -fs "$base/api/v2/alerts")"
 check "CollectorAbsent mutes PostgresTargetAbsent" \
   "bool(($inhibited)('PostgresTargetAbsent','pg-standby'))" "$alerts"
-check "CollectorAbsent mutes SeriesVanished on the primary" \
-  "bool(($inhibited)('SeriesVanished','pg-primary'))" "$alerts"
+check "CollectorAbsent mutes PostgresSeriesVanished on the primary" \
+  "bool(($inhibited)('PostgresSeriesVanished','pg-primary'))" "$alerts"
 check "CollectorAbsent mutes PgbouncerTargetAbsent" \
   "bool(($inhibited)('PgbouncerTargetAbsent','pgbouncer'))" "$alerts"
-check "ReplayBacklog is never inhibited" \
-  "not ($inhibited)('ReplayBacklog','pg-primary')" "$alerts"
+check "PostgresReplayBacklog is never inhibited" \
+  "not ($inhibited)('PostgresReplayBacklog','pg-primary')" "$alerts"
 
 exit "$fail"

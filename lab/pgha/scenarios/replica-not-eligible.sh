@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Scenario replica-not-eligible: cut one replica from the leader's PostgreSQL port and write about 100 MB on the leader, beyond maximum_lag_on_failover (16 MiB). The cut is an nftables table "inet obenhub_fault" on the replica that drops tcp 5432 to and from the leader's address (its WAL receiver stops; its DCS session, Patroni REST and monitoring stay). Revert deletes the table. Needs nftables on the node (provision.sh). Expect PatroniReplicaNotEligible on that replica; its StandbyNotStreaming follows once the WAL receiver has timed out.
+# Scenario replica-not-eligible: cut one replica from the leader's PostgreSQL port and write about 100 MB on the leader, beyond maximum_lag_on_failover (16 MiB). The cut is an nftables table "inet obenhub_fault" on the replica that drops tcp 5432 to and from the leader's address (its WAL receiver stops; its DCS session, Patroni REST and monitoring stay). Revert deletes the table. Needs nftables on the node (provision.sh). Expect PatroniReplicaNotEligible on that replica; its PostgresStandbyNotStreaming follows once the WAL receiver has timed out.
 # shellcheck disable=SC1091,SC2034
 set -uo pipefail
 . "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
@@ -10,7 +10,7 @@ inject() {
   R=$(first_replica) && [ -n "$R" ] || return 1
   L=$(leader_name) && [ -n "$L" ] || return 1
   lip=$(node_ip "$L") || return 1
-  EXPECT=("PatroniReplicaNotEligible:$R" "StandbyNotStreaming:$R")
+  EXPECT=("PatroniReplicaNotEligible:$R" "PostgresStandbyNotStreaming:$R")
   CUT=1
   fault_table_add "$R" <<NFT || return 1
 table inet obenhub_fault {

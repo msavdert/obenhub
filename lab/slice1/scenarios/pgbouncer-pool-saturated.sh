@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# Scenario pgbouncer-pool-saturated: hold more open transactions through PgBouncer than the pool has server connections (default_pool_size); the extra clients queue. Expect PgbouncerClientsWaiting, PgbouncerPoolSaturated (a correct reaction: the pool sits at its size for the whole run, detected after the 5 m window fills, about 6 min, inside DETECT_TIMEOUT and query_wait_timeout) and IdleInTransaction for pg-primary; ConnectionSaturation on the primary must not fire (the pool is far below max_connections). IdleInTransaction is a correct reaction, not a side effect: the pool is saturated by sessions idle in a transaction, held for as long as it takes to detect, which is past the 60 s threshold plus its window; run_scenario waits for every EXPECT entry before it reverts. Ending the run releases the queued clients, whose whole wait then lands in the SHOW STATS wait time without an assignment; PgbouncerWaitTime ignores that (see the rule).
+# Scenario pgbouncer-pool-saturated: hold more open transactions through PgBouncer than the pool has server connections (default_pool_size); the extra clients queue. Expect PgbouncerClientsWaiting, PgbouncerPoolSaturated (a correct reaction: the pool sits at its size for the whole run, detected after the 5 m window fills, about 6 min, inside DETECT_TIMEOUT and query_wait_timeout) and PostgresIdleInTransaction for pg-primary; PostgresConnectionSaturation on the primary must not fire (the pool is far below max_connections). PostgresIdleInTransaction is a correct reaction, not a side effect: the pool is saturated by sessions idle in a transaction, held for as long as it takes to detect, which is past the 60 s threshold plus its window; run_scenario waits for every EXPECT entry before it reverts. Ending the run releases the queued clients, whose whole wait then lands in the SHOW STATS wait time without an assignment; PgbouncerWaitTime ignores that (see the rule).
 # One psql per client, each in an open transaction (BEGIN; SELECT 1; then idle), so the server connection stays linked to its client.
-# Idle in transaction rather than pg_sleep: no snapshot is held, so SnapshotHeldTooLong stays out of this scenario.
+# Idle in transaction rather than pg_sleep: no snapshot is held, so PostgresSnapshotHeldTooLong stays out of this scenario.
 # shellcheck disable=SC1091,SC2034
 set -uo pipefail
 . "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 
-EXPECT=("PgbouncerClientsWaiting:pgbouncer" "PgbouncerPoolSaturated:pgbouncer" "IdleInTransaction:pg-primary")
+EXPECT=("PgbouncerClientsWaiting:pgbouncer" "PgbouncerPoolSaturated:pgbouncer" "PostgresIdleInTransaction:pg-primary")
 CLIENTS_EXTRA=${CLIENTS_EXTRA:-3}   # clients beyond the pool size
 CLIENT_PID=""
 POOL_SIZE=0

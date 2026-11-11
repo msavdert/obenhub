@@ -10,7 +10,7 @@
 # 2026-11-07 on Patroni 4.1.5), so cluster-wide values are max by (scope).
 # Suppression is written into the expressions, not into Alertmanager inhibits
 # (lab/slice1 lesson: vmalert's startsAt predates group_wait, so inhibits race).
-# Pack metric names are provisional until the naming contract (ADR 0002).
+# Names follow the naming contract (ADR 0006).
 groups:
   - name: patroni
     interval: 15s

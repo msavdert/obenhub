@@ -1151,7 +1151,7 @@ tests:
               severity: critical
               service.namespace: obenhub-lab
               service.name: postgresql
-              db.cluster.name: pgha
+              obenhub.cluster.name: pgha
               service.instance.id: pgha-2
               obenhub.collector: otelcol-pgha-2
             exp_annotations:
@@ -1184,7 +1184,7 @@ tests:
               severity: critical
               service.namespace: obenhub-lab
               service.name: postgresql
-              db.cluster.name: pgha
+              obenhub.cluster.name: pgha
               service.instance.id: pgha-2
               obenhub.collector: otelcol-pgha-2
             exp_annotations:
@@ -1217,7 +1217,7 @@ tests:
               severity: critical
               service.namespace: obenhub-lab
               service.name: postgresql
-              db.cluster.name: pgha
+              obenhub.cluster.name: pgha
               service.instance.id: pgha-2
               obenhub.collector: otelcol-pgha-2
             exp_annotations:
@@ -1250,7 +1250,7 @@ tests:
               severity: critical
               service.namespace: obenhub-lab
               service.name: postgresql
-              db.cluster.name: pgha
+              obenhub.cluster.name: pgha
               service.instance.id: pgha-2
               obenhub.collector: otelcol-pgha-2
             exp_annotations:
@@ -1283,7 +1283,7 @@ tests:
               severity: critical
               service.namespace: obenhub-lab
               service.name: postgresql
-              db.cluster.name: pgha
+              obenhub.cluster.name: pgha
               service.instance.id: pgha-2
               obenhub.collector: otelcol-pgha-2
             exp_annotations:
@@ -2101,7 +2101,7 @@ tests:
               severity: critical
               service.namespace: obenhub-lab
               service.name: patroni
-              db.cluster.name: pgha
+              obenhub.cluster.name: pgha
               service.instance.id: pgha-1
               obenhub.collector: otelcol-pgha-1
             exp_annotations:
@@ -2141,7 +2141,7 @@ tests:
               severity: critical
               service.namespace: obenhub-lab
               service.name: patroni
-              db.cluster.name: pgha
+              obenhub.cluster.name: pgha
               service.instance.id: pgha-1
               obenhub.collector: otelcol-pgha-1
             exp_annotations:
@@ -2181,7 +2181,7 @@ tests:
               severity: critical
               service.namespace: obenhub-lab
               service.name: patroni
-              db.cluster.name: pgha
+              obenhub.cluster.name: pgha
               service.instance.id: pgha-1
               obenhub.collector: otelcol-pgha-1
             exp_annotations:
@@ -2456,7 +2456,7 @@ tests:
               severity: critical
               service.namespace: obenhub-lab
               service.name: postgresql
-              db.cluster.name: pgha
+              obenhub.cluster.name: pgha
               service.instance.id: pgha-1
               obenhub.collector: otelcol-pgha-1
             exp_annotations:
@@ -2496,7 +2496,7 @@ tests:
               severity: critical
               service.namespace: obenhub-lab
               service.name: postgresql
-              db.cluster.name: pgha
+              obenhub.cluster.name: pgha
               service.instance.id: pgha-1
               obenhub.collector: otelcol-pgha-1
             exp_annotations:
@@ -2536,7 +2536,7 @@ tests:
               severity: critical
               service.namespace: obenhub-lab
               service.name: postgresql
-              db.cluster.name: pgha
+              obenhub.cluster.name: pgha
               service.instance.id: pgha-1
               obenhub.collector: otelcol-pgha-1
             exp_annotations:
@@ -3916,7 +3916,7 @@ tests:
               severity: critical
               service.namespace: obenhub-lab
               service.name: patroni
-              db.cluster.name: pgha
+              obenhub.cluster.name: pgha
               service.instance.id: pgha-1
               obenhub.collector: otelcol-pgha-1
             exp_annotations:
@@ -3952,7 +3952,7 @@ tests:
               severity: critical
               service.namespace: obenhub-lab
               service.name: patroni
-              db.cluster.name: pgha
+              obenhub.cluster.name: pgha
               service.instance.id: pgha-1
               obenhub.collector: otelcol-pgha-1
             exp_annotations:
@@ -3988,7 +3988,7 @@ tests:
               severity: critical
               service.namespace: obenhub-lab
               service.name: patroni
-              db.cluster.name: pgha
+              obenhub.cluster.name: pgha
               service.instance.id: pgha-1
               obenhub.collector: otelcol-pgha-1
             exp_annotations:
@@ -4024,7 +4024,7 @@ tests:
               severity: critical
               service.namespace: obenhub-lab
               service.name: patroni
-              db.cluster.name: pgha
+              obenhub.cluster.name: pgha
               service.instance.id: pgha-1
               obenhub.collector: otelcol-pgha-1
             exp_annotations:
@@ -4166,7 +4166,7 @@ tests:
               severity: critical
               service.namespace: obenhub-lab
               service.name: patroni
-              db.cluster.name: pgha
+              obenhub.cluster.name: pgha
               service.instance.id: pgha-2
               obenhub.collector: otelcol-pgha-2
             exp_annotations:
@@ -4209,7 +4209,7 @@ tests:
               severity: critical
               service.namespace: obenhub-lab
               service.name: patroni
-              db.cluster.name: pgha
+              obenhub.cluster.name: pgha
               service.instance.id: pgha-2
               obenhub.collector: otelcol-pgha-2
             exp_annotations:
@@ -4692,7 +4692,7 @@ tests:
               severity: critical
               service.namespace: obenhub-lab
               service.name: patroni
-              db.cluster.name: pgha
+              obenhub.cluster.name: pgha
               service.instance.id: pgha-2
               obenhub.collector: otelcol-pgha-2
             exp_annotations:
@@ -4735,7 +4735,7 @@ tests:
               severity: critical
               service.namespace: obenhub-lab
               service.name: patroni
-              db.cluster.name: pgha
+              obenhub.cluster.name: pgha
               service.instance.id: pgha-2
               obenhub.collector: otelcol-pgha-2
             exp_annotations:

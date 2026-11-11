@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# Scenario subscription-disabled: ALTER SUBSCRIPTION ... DISABLE and write on the publisher; expect LogicalSlotRetainingWal for pg-primary only. A disabled subscription must not raise LogicalSubscriptionNotStreaming (enabled 0 never matches), so any other delivered alert fails the run.
+# Scenario subscription-disabled: ALTER SUBSCRIPTION ... DISABLE and write on the publisher; expect PostgresLogicalSlotStalled for pg-primary only. A disabled subscription must not raise PostgresLogicalSubscriptionNotStreaming (enabled 0 never matches), so any other delivered alert fails the run.
 # shellcheck disable=SC1091,SC2034
 set -uo pipefail
 . "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 
-EXPECT=("LogicalSlotRetainingWal:pg-primary")
+EXPECT=("PostgresLogicalSlotStalled:pg-primary")
 DISABLED=0
 inject() {
   psql_sa -c "ALTER SUBSCRIPTION $SUBSCRIPTION DISABLE" >/dev/null || return 1

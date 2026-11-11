@@ -161,20 +161,20 @@ receivers:
     queries:
       - sql: SHOW POOLS
         metrics:
-          - {metric_name: pgbouncer.pool.clients_active, value_column: cl_active, attribute_columns: [database, user], value_type: int, data_type: gauge, description: "Client connections linked to a server connection"}
-          - {metric_name: pgbouncer.pool.clients_waiting, value_column: cl_waiting, attribute_columns: [database, user], value_type: int, data_type: gauge, description: "Client connections waiting for a server connection"}
-          - {metric_name: pgbouncer.pool.servers_active, value_column: sv_active, attribute_columns: [database, user], value_type: int, data_type: gauge, description: "Server connections linked to a client"}
-          - {metric_name: pgbouncer.pool.servers_idle, value_column: sv_idle, attribute_columns: [database, user], value_type: int, data_type: gauge, description: "Server connections unused and immediately usable"}
-          - {metric_name: pgbouncer.pool.servers_used, value_column: sv_used, attribute_columns: [database, user], value_type: int, data_type: gauge, description: "Server connections idle for more than server_check_delay"}
-          - {metric_name: pgbouncer.pool.servers_login, value_column: sv_login, attribute_columns: [database, user], value_type: int, data_type: gauge, description: "Server connections currently logging in"}
-          - {metric_name: pgbouncer.pool.maxwait, value_column: maxwait, attribute_columns: [database, user], value_type: int, data_type: gauge, unit: s, description: "Whole seconds the oldest waiting client has waited; add maxwait_us / 1e6"}
-          - {metric_name: pgbouncer.pool.maxwait_us, value_column: maxwait_us, attribute_columns: [database, user], value_type: int, data_type: gauge, unit: us, description: "Microseconds beyond maxwait"}
+          - {metric_name: pgbouncer.pool.active_client.count, value_column: cl_active, attribute_columns: [database, user], value_type: int, data_type: gauge, unit: '{connection}', description: "Client connections linked to a server connection"}
+          - {metric_name: pgbouncer.pool.waiting_client.count, value_column: cl_waiting, attribute_columns: [database, user], value_type: int, data_type: gauge, unit: '{connection}', description: "Client connections waiting for a server connection"}
+          - {metric_name: pgbouncer.pool.active_server.count, value_column: sv_active, attribute_columns: [database, user], value_type: int, data_type: gauge, unit: '{connection}', description: "Server connections linked to a client"}
+          - {metric_name: pgbouncer.pool.idle_server.count, value_column: sv_idle, attribute_columns: [database, user], value_type: int, data_type: gauge, unit: '{connection}', description: "Server connections unused and immediately usable"}
+          - {metric_name: pgbouncer.pool.used_server.count, value_column: sv_used, attribute_columns: [database, user], value_type: int, data_type: gauge, unit: '{connection}', description: "Server connections idle for more than server_check_delay"}
+          - {metric_name: pgbouncer.pool.login_server.count, value_column: sv_login, attribute_columns: [database, user], value_type: int, data_type: gauge, unit: '{connection}', description: "Server connections currently logging in"}
+          - {metric_name: pgbouncer.pool.oldest_wait_age, value_column: maxwait, attribute_columns: [database, user], value_type: int, data_type: gauge, unit: s, description: "Whole seconds the oldest waiting client has waited; add maxwait_us / 1e6"}
+          - {metric_name: pgbouncer.pool.oldest_wait_age_remainder, value_column: maxwait_us, attribute_columns: [database, user], value_type: int, data_type: gauge, unit: us, description: "Microseconds beyond maxwait"}
       - sql: SHOW DATABASES
         metrics:
-          - {metric_name: pgbouncer.database.pool_size, value_column: pool_size, attribute_columns: [name], value_type: int, data_type: gauge, description: "Configured maximum server connections per user pool"}
-          - {metric_name: pgbouncer.database.connections, value_column: current_connections, attribute_columns: [name], value_type: int, data_type: gauge, description: "Current server connections to the database"}
-          - {metric_name: pgbouncer.database.paused, value_column: paused, attribute_columns: [name], value_type: int, data_type: gauge, description: "1 when the database is paused"}
-          - {metric_name: pgbouncer.database.disabled, value_column: disabled, attribute_columns: [name], value_type: int, data_type: gauge, description: "1 when the database is disabled"}
+          - {metric_name: pgbouncer.database.server_connection.limit, value_column: pool_size, attribute_columns: [name], value_type: int, data_type: gauge, unit: '{connection}', description: "Configured maximum server connections per user pool"}
+          - {metric_name: pgbouncer.database.server_connection.count, value_column: current_connections, attribute_columns: [name], value_type: int, data_type: gauge, unit: '{connection}', description: "Current server connections to the database"}
+          - {metric_name: pgbouncer.database.paused, value_column: paused, attribute_columns: [name], value_type: int, data_type: gauge, unit: "1", description: "1 when the database is paused"}
+          - {metric_name: pgbouncer.database.disabled, value_column: disabled, attribute_columns: [name], value_type: int, data_type: gauge, unit: "1", description: "1 when the database is disabled"}
       # SHOW STATS: one row per database, totals since process start (no reset
       # on RELOAD), times in microseconds (PgBouncer 1.26.1, commit f03e9bf).
       # total_wait_time grows only when a waiting client is activated
@@ -188,9 +188,9 @@ receivers:
       # 0.1 s of pg_sleep plus 0.2 s of wait gave 0.304 s average query time.
       - sql: SHOW STATS
         metrics:
-          - {metric_name: pgbouncer.stats.server_assignments, value_column: total_server_assignment_count, attribute_columns: [database], value_type: int, data_type: sum, monotonic: true, aggregation: cumulative, description: "Server connections assigned to clients, since process start"}
-          - {metric_name: pgbouncer.stats.transactions, value_column: total_xact_count, attribute_columns: [database], value_type: int, data_type: sum, monotonic: true, aggregation: cumulative, description: "Transactions pooled, since process start"}
-          - {metric_name: pgbouncer.stats.queries, value_column: total_query_count, attribute_columns: [database], value_type: int, data_type: sum, monotonic: true, aggregation: cumulative, description: "Queries pooled, since process start"}
+          - {metric_name: pgbouncer.stats.server_assignment, value_column: total_server_assignment_count, attribute_columns: [database], value_type: int, data_type: sum, monotonic: true, aggregation: cumulative, unit: '{assignment}', description: "Server connections assigned to clients, since process start"}
+          - {metric_name: pgbouncer.stats.transaction, value_column: total_xact_count, attribute_columns: [database], value_type: int, data_type: sum, monotonic: true, aggregation: cumulative, unit: '{transaction}', description: "Transactions pooled, since process start"}
+          - {metric_name: pgbouncer.stats.query, value_column: total_query_count, attribute_columns: [database], value_type: int, data_type: sum, monotonic: true, aggregation: cumulative, unit: '{query}', description: "Queries pooled, since process start"}
           - {metric_name: pgbouncer.stats.wait_time, value_column: total_wait_time, attribute_columns: [database], value_type: int, data_type: sum, monotonic: true, aggregation: cumulative, unit: us, description: "Time clients waited for a server connection, counted when the wait ends in an assignment"}
           - {metric_name: pgbouncer.stats.transaction_time, value_column: total_xact_time, attribute_columns: [database], value_type: int, data_type: sum, monotonic: true, aggregation: cumulative, unit: us, description: "Time server connections spent in transactions"}
           - {metric_name: pgbouncer.stats.query_time, value_column: total_query_time, attribute_columns: [database], value_type: int, data_type: sum, monotonic: true, aggregation: cumulative, unit: us, description: "Time server connections spent running queries"}
@@ -204,19 +204,19 @@ receivers:
       # (the receiver reads every column of every row) but the row is still emitted.
       - sql: SHOW CONFIG
         metrics:
-          - {metric_name: pgbouncer.config.max_client_conn, value_column: value, row_condition: {column: key, value: max_client_conn}, value_type: int, data_type: gauge, description: "max_client_conn setting"}
+          - {metric_name: pgbouncer.client_connection.limit, value_column: value, row_condition: {column: key, value: max_client_conn}, value_type: int, data_type: gauge, unit: '{connection}', description: "max_client_conn setting"}
       # Heartbeat: SHOW LISTS always has a row "databases" (a count, at least
       # the console itself); any answer from the console proves it is up.
       - sql: SHOW LISTS
         metrics:
-          - {metric_name: pgbouncer.list.items, value_column: items, attribute_columns: [list], value_type: int, data_type: gauge, description: "Count per SHOW LISTS entry"}
+          - {metric_name: pgbouncer.list.item.count, value_column: items, attribute_columns: [list], value_type: int, data_type: gauge, unit: '{item}', description: "Count per SHOW LISTS entry"}
 
 processors:
   memory_limiter:
     check_interval: 1s
     limit_mib: 256
-  # Attribute names are assumptions: service.* and db.system.name follow the
-  # semantic conventions as remembered, db.cluster.name is a guess. No role
+  # Attribute names: service.* and db.system.name follow the semantic
+  # conventions, obenhub.cluster.name is a project attribute (ADR 0006). No role
   # attribute on purpose: a standby can be promoted.
   resource/primary:
     attributes:
@@ -226,7 +226,7 @@ processors:
       - {key: server.address, value: pg-primary, action: upsert}
       - {key: server.port, value: '5432', action: upsert}
       - {key: db.system.name, value: postgresql, action: upsert}
-      - {key: db.cluster.name, value: slice1, action: upsert}
+      - {key: obenhub.cluster.name, value: slice1, action: upsert}
   resource/standby:
     attributes:
       - {key: service.namespace, value: obenhub-lab, action: upsert}
@@ -235,10 +235,10 @@ processors:
       - {key: server.address, value: pg-standby, action: upsert}
       - {key: server.port, value: '5432', action: upsert}
       - {key: db.system.name, value: postgresql, action: upsert}
-      - {key: db.cluster.name, value: slice1, action: upsert}
+      - {key: obenhub.cluster.name, value: slice1, action: upsert}
   # A logical subscriber is a cluster of its own: it is not a member of the
-  # streaming pair, so it must not share db.cluster.name with it
-  # (PostgresMultiplePrimaries counts writable members per db.cluster.name).
+  # streaming pair, so it must not share obenhub.cluster.name with it
+  # (PostgresMultiplePrimaries counts writable members per obenhub.cluster.name).
   resource/subscriber:
     attributes:
       - {key: service.namespace, value: obenhub-lab, action: upsert}
@@ -247,7 +247,7 @@ processors:
       - {key: server.address, value: pg-subscriber, action: upsert}
       - {key: server.port, value: '5432', action: upsert}
       - {key: db.system.name, value: postgresql, action: upsert}
-      - {key: db.cluster.name, value: slice1-subscriber, action: upsert}
+      - {key: obenhub.cluster.name, value: slice1-subscriber, action: upsert}
   resource/pgbouncer:
     attributes:
       - {key: service.namespace, value: obenhub-lab, action: upsert}
@@ -256,7 +256,22 @@ processors:
       - {key: server.address, value: pgbouncer, action: upsert}
       - {key: server.port, value: '6432', action: upsert}
       - {key: db.system.name, value: pgbouncer, action: upsert}
-      - {key: db.cluster.name, value: slice1, action: upsert}
+      - {key: obenhub.cluster.name, value: slice1, action: upsert}
+  # SHOW output cannot be aliased in SQL, so the console's column names are
+  # renamed here: database (SHOW POOLS, SHOW STATS) and name (SHOW DATABASES)
+  # are the same thing. `insert` keeps an existing value and does nothing when
+  # the source attribute is absent. Assumption (not run): attributesprocessor
+  # v0.164.0 applies these actions to metric data point attributes.
+  attributes/pgbouncer:
+    actions:
+      - {key: pgbouncer.database.name, from_attribute: database, action: insert}
+      - {key: pgbouncer.database.name, from_attribute: name, action: insert}
+      - {key: pgbouncer.user.name, from_attribute: user, action: insert}
+      - {key: pgbouncer.list.name, from_attribute: list, action: insert}
+      - {key: database, action: delete}
+      - {key: name, action: delete}
+      - {key: user, action: delete}
+      - {key: list, action: delete}
   batch: {}
 
 exporters:
@@ -299,7 +314,7 @@ service:
       exporters: [otlp_http/vm]
     metrics/pgbouncer:
       receivers: [sql_query/pgbouncer]
-      processors: [memory_limiter, resource/pgbouncer, batch]
+      processors: [memory_limiter, attributes/pgbouncer, resource/pgbouncer, batch]
       exporters: [otlp_http/vm]
     logs/primary:
       receivers: [file_log/primary]

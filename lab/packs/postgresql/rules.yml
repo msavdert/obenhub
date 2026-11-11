@@ -3,8 +3,8 @@
 # series obenhub.expected_collector (one per Collector) and obenhub.expected_target
 # (with an obenhub.collector label naming the Collector that collects it) in its
 # own inventory group; PostgresTargetAbsent reads the service.name="postgresql"
-# entries, CollectorAbsent the Collectors. Pack metric names are provisional
-# until the naming contract (ADR 0002).
+# entries, CollectorAbsent the Collectors. Names follow the naming
+# contract (ADR 0006).
 # Gating: standby-only rules join on recovery.active == 1, so a primary never
 # matches and missing data never fires.
 groups:
@@ -67,7 +67,7 @@ groups:
       # absent alerts, because their gate matches on it. A missing label
       # matches nothing on the right, so it fires too. The for: 1m rides out
       # the start-up order of the inventory groups.
-      - alert: InventoryCollectorUnknown
+      - alert: CollectorUnknown
         expr: |
           (obenhub.expected_target or obenhub.expected_scrape)
             unless on(obenhub.collector)
@@ -78,7 +78,7 @@ groups:
         annotations:
           summary: 'Inventory entry {{ (index $labels "service.name") }} {{ (index $labels "service.instance.id") }} names an unknown Collector ("{{ (index $labels "obenhub.collector") }}")'
 
-      - alert: StandbyNotStreaming
+      - alert: PostgresStandbyNotStreaming
         # Not while no PostgreSQL in the lab is writable: then every node is in
         # recovery and none can stream; a cluster manager's own alert says that
         # (stage 3: PatroniNoWritablePrimary). The guard is lab-wide, not per
@@ -103,7 +103,7 @@ groups:
         annotations:
           summary: '{{ (index $labels "service.instance.id") }} is in recovery and not streaming'
 
-      - alert: ReplayBacklog
+      - alert: PostgresReplayBacklog
         expr: |
           postgresql.replay.backlog > 16 * 1024 * 1024
             and on(service.instance.id)
@@ -114,7 +114,7 @@ groups:
         annotations:
           summary: '{{ (index $labels "service.instance.id") }} replay backlog is {{ $value | humanize1024 }}B'
 
-      - alert: SnapshotHeldTooLong
+      - alert: PostgresSnapshotHeldTooLong
         expr: postgresql.snapshot.oldest_age > 120
         for: 30s
         labels:
@@ -146,14 +146,14 @@ groups:
       # Suppression lives in the expressions, not in Alertmanager inhibit rules
       # (see lab/slice1/alertmanager). $value in the summaries is the lowest
       # value of the window, not the latest one.
-      # ConnectionSaturation, old for 1m, W' = 75s (5 points): critical at a ratio
+      # PostgresConnectionSaturation, old for 1m, W' = 75s (5 points): critical at a ratio
       # of 0.95 or more, warning above 0.85 and below 0.95.
-      - alert: ConnectionSaturation
+      - alert: PostgresConnectionSaturation
         expr: |
           WITH (
-            r = postgresql.connection.client
+            r = postgresql.client_connection.count
               / on(service.instance.id)
-            postgresql.connection.client_capacity,
+            postgresql.client_connection.limit,
             x = min_over_time(r[75s:15s]),
             n = count_over_time(r[75s:15s])
           )
@@ -163,12 +163,12 @@ groups:
         annotations:
           summary: '{{ (index $labels "service.instance.id") }} client connections above 85% of capacity'
 
-      - alert: ConnectionSaturation
+      - alert: PostgresConnectionSaturation
         expr: |
           WITH (
-            r = postgresql.connection.client
+            r = postgresql.client_connection.count
               / on(service.instance.id)
-            postgresql.connection.client_capacity,
+            postgresql.client_connection.limit,
             x = min_over_time(r[75s:15s]),
             n = count_over_time(r[75s:15s])
           )
@@ -184,12 +184,12 @@ groups:
       # dbsight survey (pgMonitor at 862ff68, crunchy-alert-rules-pg.yml.example
       # L320-L359); that file was not re-read here, so the numbers are an
       # unconfirmed assumption. `kind` tells transaction ids from multixact ids;
-      # datname comes from the pack. Primary only: a physical standby repeats the
+      # postgresql.database.name comes from the pack. Primary only: a physical standby repeats the
       # primary's datfrozenxid, so it would alert twice. Not reachable in a lab
       # run (it takes about a billion transactions): unit tests only, the metric
       # itself is present in both labs. Tiers as described above, old for 5m, W' = 315s (21 points):
       # critical above 0.75, warning above 0.5 up to and including 0.75.
-      - alert: TransactionIdWraparound
+      - alert: PostgresTransactionIdWraparound
         expr: |
           WITH (
             f = label_set(postgresql.database.xid_age / 2147483648, "kind", "xid")
@@ -204,9 +204,9 @@ groups:
         labels:
           severity: warning
         annotations:
-          summary: '{{ $labels.kind }} age of {{ $labels.datname }} on {{ (index $labels "service.instance.id") }} is {{ $value | humanizePercentage }} of the wraparound limit'
+          summary: '{{ $labels.kind }} age of {{ (index $labels "postgresql.database.name") }} on {{ (index $labels "service.instance.id") }} is {{ $value | humanizePercentage }} of the wraparound limit'
 
-      - alert: TransactionIdWraparound
+      - alert: PostgresTransactionIdWraparound
         expr: |
           WITH (
             f = label_set(postgresql.database.xid_age / 2147483648, "kind", "xid")
@@ -221,16 +221,16 @@ groups:
         labels:
           severity: critical
         annotations:
-          summary: '{{ $labels.kind }} age of {{ $labels.datname }} on {{ (index $labels "service.instance.id") }} is {{ $value | humanizePercentage }} of the wraparound limit'
+          summary: '{{ $labels.kind }} age of {{ (index $labels "postgresql.database.name") }} on {{ (index $labels "service.instance.id") }} is {{ $value | humanizePercentage }} of the wraparound limit'
 
       # Idle in a transaction is a session that stopped talking, not a long
       # statement: postgresql.transaction.idle_age counts from the moment it
-      # went idle. SnapshotHeldTooLong is the other half (the xmin horizon,
+      # went idle. PostgresSnapshotHeldTooLong is the other half (the xmin horizon,
       # held by a running query as well). Thresholds are lab thresholds, scaled
       # down from pgMonitor's 300 s and 900 s (same survey, L199-L216,
       # unconfirmed here). Tiers as described above, old for 30s, W' = 45s (3 points): critical above 180 s,
       # warning above 60 s up to and including 180 s.
-      - alert: IdleInTransaction
+      - alert: PostgresIdleInTransaction
         expr: |
           WITH (
             x = min_over_time(postgresql.transaction.idle_age[45s:15s]),
@@ -242,7 +242,7 @@ groups:
         annotations:
           summary: 'A session on {{ (index $labels "service.instance.id") }} has been idle in a transaction for {{ $value | humanizeDuration }} (lab threshold)'
 
-      - alert: IdleInTransaction
+      - alert: PostgresIdleInTransaction
         expr: |
           WITH (
             x = min_over_time(postgresql.transaction.idle_age[45s:15s]),
@@ -256,7 +256,7 @@ groups:
 
       # The oldest lock wait. Lab threshold; one tier, because a wait is a
       # symptom whose cause (the blocker) the pack does not name.
-      - alert: BlockedSessions
+      - alert: PostgresBlockedSessions
         expr: postgresql.lock.oldest_wait_age > 30
         for: 30s
         labels:
@@ -275,7 +275,7 @@ groups:
       # rise back above the first sample within the window can hide deadlocks.
       # Any deadlock in the last 5 minutes fires: PostgreSQL
       # resolves it by aborting one session, so this is evidence, not a page.
-      - alert: Deadlocks
+      - alert: PostgresDeadlocks
         expr: last_over_time(postgresql.deadlocks[5m]) - first_over_time(postgresql.deadlocks[5m]) > 0
         labels:
           severity: warning
@@ -292,9 +292,9 @@ groups:
       # labs (a handful of requested checkpoints per day) and the
       # checkpoint-pressure scenario. The 5 minute window keeps the resolve
       # time inside the scenario's 10 minute limit.
-      # Last minus first sample, for the reason given at Deadlocks.
+      # Last minus first sample, for the reason given at PostgresDeadlocks.
       # Primary only: a standby counts restartpoints.
-      - alert: CheckpointsRequested
+      - alert: PostgresCheckpointsRequested
         expr: |
           (
             last_over_time(postgresql.bgwriter.checkpoint.count{type="requested"}[5m])
@@ -312,12 +312,12 @@ groups:
       # max_slot_wal_keep_size. Primary only: Patroni keeps member slots on
       # replicas too, and those are inactive by design. Lab threshold. An
       # invalidated slot retains no WAL and has its own alert
-      # (ReplicationSlotInvalidated, below), so it is excluded.
-      - alert: PhysicalSlotInactive
+      # (PostgresReplicationSlotInvalidated, below), so it is excluded.
+      - alert: PostgresPhysicalSlotInactive
         expr: |
           (
-            postgresql.replication_slot.inactive_seconds{slot_type="physical"} > 120
-              unless on(service.instance.id, slot_name)
+            postgresql.replication_slot.inactive_age{postgresql.replication_slot.type="physical"} > 120
+              unless on(service.instance.id, postgresql.replication_slot.name)
             postgresql.replication_slot.invalidated == 1
           )
             and on(service.instance.id)
@@ -326,18 +326,18 @@ groups:
         labels:
           severity: warning
         annotations:
-          summary: 'Physical slot {{ $labels.slot_name }} on {{ (index $labels "service.instance.id") }} has been inactive for {{ $value | humanizeDuration }} (lab threshold)'
+          summary: 'Physical slot {{ (index $labels "postgresql.replication_slot.name") }} on {{ (index $labels "service.instance.id") }} has been inactive for {{ $value | humanizeDuration }} (lab threshold)'
 
       # Any slot, physical or logical, on any node. Lab scenario slot-invalidated (slice1): an
       # unused physical slot falls more than max_slot_wal_keep_size behind and
       # a CHECKPOINT removes its WAL (wal_status lost, reason wal_removed).
-      - alert: ReplicationSlotInvalidated
+      - alert: PostgresReplicationSlotInvalidated
         expr: postgresql.replication_slot.invalidated == 1
         for: 30s
         labels:
           severity: critical
         annotations:
-          summary: 'Slot {{ $labels.slot_name }} on {{ (index $labels "service.instance.id") }} is invalidated ({{ $labels.invalidation_reason }})'
+          summary: 'Slot {{ (index $labels "postgresql.replication_slot.name") }} on {{ (index $labels "service.instance.id") }} is invalidated ({{ (index $labels "postgresql.replication_slot.invalidation_reason") }})'
 
       # A slot, valid and not yet invalidated, that holds back more than
       # 512 MiB of WAL on a primary: the volume is filling. Fires per slot,
@@ -346,12 +346,12 @@ groups:
       # against the k8s lab's guard max_slot_wal_keep_size = 1GB (lab/k8s/cnpg/cluster.yaml,
       # read as -1 = unlimited on 2026-11-11): half of it, so the alert comes
       # while the slot is still valid. An invalidated slot retains nothing and
-      # has ReplicationSlotInvalidated. Primary only: CloudNativePG (and
-      # Patroni) copy slots to the replicas, where retained_bytes is a few
+      # has PostgresReplicationSlotInvalidated. Primary only: CloudNativePG (and
+      # Patroni) copy slots to the replicas, where retained_wal is a few
       # hundred KB to 1 MB and means nothing (read on the k8s, pgha and stage3
       # labs on 2026-11-11).
       # Read from the existing labs on 2026-11-11 (pgha, stage3, slice1; five
-      # days of history, 30 s steps): in their normal state retained_bytes on a
+      # days of history, 30 s steps): in their normal state retained_wal on a
       # primary is below 1 MB. Replay-heavy scenarios push a valid slot past
       # 256 MiB for under 6 minutes in total (stage3 reached 411 MB), never
       # past 512 MiB; slice1 slot-invalidated and subscription-disabled each
@@ -366,11 +366,11 @@ groups:
       # autovacuum: that doubled the WAL in the first run and the slot passed
       # the guard (status unreserved).
       # Lab scenario: lab/k8s/scenarios/slot-retaining-wal.sh.
-      - alert: ReplicationSlotRetainingWAL
+      - alert: PostgresReplicationSlotRetainingWAL
         expr: |
           (
-            postgresql.replication_slot.retained_bytes > 512 * 1024 * 1024
-              unless on(service.instance.id, slot_name)
+            postgresql.replication_slot.retained_wal > 512 * 1024 * 1024
+              unless on(service.instance.id, postgresql.replication_slot.name)
             postgresql.replication_slot.invalidated == 1
           )
             and on(service.instance.id)
@@ -379,7 +379,7 @@ groups:
         labels:
           severity: warning
         annotations:
-          summary: 'Slot {{ $labels.slot_name }} on {{ (index $labels "service.instance.id") }} retains {{ $value | humanize1024 }}B of WAL (lab threshold)'
+          summary: 'Slot {{ (index $labels "postgresql.replication_slot.name") }} on {{ (index $labels "service.instance.id") }} retains {{ $value | humanize1024 }}B of WAL (lab threshold)'
 
       # Covers the pack and postgresqlreceiver's database.count (a canary for the
       # receiver). Every pack query returns at least one row on every node, or
@@ -392,11 +392,11 @@ groups:
       # subscriber; the match is per instance, so a node that never had them
       # is silent. Dropping the last slot or subscription on purpose therefore
       # alerts for up to an hour; that is accepted, not filtered.
-      - alert: SeriesVanished
+      - alert: PostgresSeriesVanished
         expr: |
-          label_copy(last_over_time({__name__=~"postgresql[.](recovery[.]active|wal_receiver[.]streaming|replay[.](backlog|paused)|snapshot[.]oldest_age|connection[.](client|client_capacity)|database[.](count|xid_age|mxid_age)|transaction[.]idle_age|lock[.](waiting_sessions|oldest_wait_age)|replication_slot[.](active|retained_bytes|unconfirmed_bytes|wal_status|invalidated|inactive_seconds)|subscription[.](enabled|apply_worker_running|last_msg_age|apply_errors|sync_errors|conflicts))"}[1h]) keep_metric_names, "__name__", "metric")
+          label_copy(last_over_time({__name__=~"postgresql[.](recovery[.]active|wal_receiver[.]streaming|replay[.](backlog|paused)|snapshot[.]oldest_age|client_connection[.](count|limit)|database[.](count|xid_age|mxid_age)|transaction[.]idle_age|lock[.](waiting_session[.]count|oldest_wait_age)|replication_slot[.](active|retained_wal|unconfirmed_wal|wal_status|invalidated|inactive_age)|subscription[.](enabled|apply_worker_running|last_msg_age|apply_error|sync_error|conflict))"}[1h]) keep_metric_names, "__name__", "metric")
             unless on(metric, service.instance.id)
-          label_copy(present_over_time({__name__=~"postgresql[.](recovery[.]active|wal_receiver[.]streaming|replay[.](backlog|paused)|snapshot[.]oldest_age|connection[.](client|client_capacity)|database[.](count|xid_age|mxid_age)|transaction[.]idle_age|lock[.](waiting_sessions|oldest_wait_age)|replication_slot[.](active|retained_bytes|unconfirmed_bytes|wal_status|invalidated|inactive_seconds)|subscription[.](enabled|apply_worker_running|last_msg_age|apply_errors|sync_errors|conflicts))"}[2m]) keep_metric_names, "__name__", "metric")
+          label_copy(present_over_time({__name__=~"postgresql[.](recovery[.]active|wal_receiver[.]streaming|replay[.](backlog|paused)|snapshot[.]oldest_age|client_connection[.](count|limit)|database[.](count|xid_age|mxid_age)|transaction[.]idle_age|lock[.](waiting_session[.]count|oldest_wait_age)|replication_slot[.](active|retained_wal|unconfirmed_wal|wal_status|invalidated|inactive_age)|subscription[.](enabled|apply_worker_running|last_msg_age|apply_error|sync_error|conflict))"}[2m]) keep_metric_names, "__name__", "metric")
             and on(service.instance.id)
           present_over_time(postgresql.collection.heartbeat[2m])
         # Only while the target's heartbeat lives: a dead target or Collector
@@ -412,9 +412,9 @@ groups:
       # reads PostgreSQL itself, so it holds with any cluster manager or none
       # (Patroni, CloudNativePG, a manual promote). A cluster is the set of
       # members of one physical (streaming) replication group: they share
-      # db.cluster.name (on Kubernetes with k8s.namespace.name, as in
+      # obenhub.cluster.name (on Kubernetes with k8s.namespace.name, as in
       # packs/cnpg). A logical subscriber is a cluster of its own and has its
-      # own db.cluster.name (slice1-subscriber), or it would always count as a
+      # own obenhub.cluster.name (slice1-subscriber), or it would always count as a
       # second primary.
       # Only fresh samples count: last_over_time over 30 s (two 15 s
       # collections) returns the latest value per series and drops a series
@@ -437,8 +437,8 @@ groups:
       # series after two missed collections can only hide an alert.
       - alert: PostgresMultiplePrimaries
         expr: |
-          count by (db.cluster.name, k8s.namespace.name) (
-            max by (db.cluster.name, k8s.namespace.name, service.instance.id) (
+          count by (obenhub.cluster.name, k8s.namespace.name) (
+            max by (obenhub.cluster.name, k8s.namespace.name, service.instance.id) (
               last_over_time(postgresql.recovery.active[30s])
             ) == 0
           ) > 1
@@ -446,4 +446,4 @@ groups:
         labels:
           severity: critical
         annotations:
-          summary: 'Cluster {{ (index $labels "db.cluster.name") }} has {{ $value }} writable instances (split brain)'
+          summary: 'Cluster {{ (index $labels "obenhub.cluster.name") }} has {{ $value }} writable instances (split brain)'

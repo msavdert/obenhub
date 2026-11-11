@@ -1,12 +1,12 @@
 # PostgreSQL pack: the sql_query list shared by every PostgreSQL target of
 # lab/slice1 and lab/stage3 (embedded with ${file:...} in each otelcol config).
 # One query per concern, so a failing query loses only its own metrics while
-# the heartbeat continues. Metric names are provisional until the naming
-# contract (ADR 0002). The slot and subscription queries return no rows where
+# the heartbeat continues. Names follow the naming contract
+# (ADR 0006); attribute columns are dotted aliases. The slot and subscription queries return no rows where
 # there are none, so a node without them simply has no such series.
 - sql: SELECT 1 AS collection_heartbeat
   metrics:
-    - {metric_name: postgresql.collection.heartbeat, value_column: collection_heartbeat, value_type: int, data_type: gauge, description: "1 whenever the heartbeat query succeeded"}
+    - {metric_name: postgresql.collection.heartbeat, value_column: collection_heartbeat, value_type: int, data_type: gauge, unit: "1", description: "1 whenever the heartbeat query succeeded"}
 - sql: |
     SELECT
       CASE WHEN pg_is_in_recovery() THEN 1 ELSE 0 END AS recovery_active,
@@ -18,10 +18,10 @@
             THEN (pg_get_wal_replay_pause_state() <> 'not paused')::int
             ELSE 0 END AS replay_paused
   metrics:
-    - {metric_name: postgresql.recovery.active, value_column: recovery_active, value_type: int, data_type: gauge, description: "1 when the server is in recovery"}
-    - {metric_name: postgresql.wal_receiver.streaming, value_column: wal_receiver_streaming, value_type: int, data_type: gauge, description: "1 when a WAL receiver is streaming (always 0 on a primary)"}
+    - {metric_name: postgresql.recovery.active, value_column: recovery_active, value_type: int, data_type: gauge, unit: "1", description: "1 when the server is in recovery"}
+    - {metric_name: postgresql.wal_receiver.streaming, value_column: wal_receiver_streaming, value_type: int, data_type: gauge, unit: "1", description: "1 when a WAL receiver is streaming (always 0 on a primary)"}
     - {metric_name: postgresql.replay.backlog, value_column: replay_backlog, value_type: double, data_type: gauge, unit: By, description: "Received but not yet replayed WAL"}
-    - {metric_name: postgresql.replay.paused, value_column: replay_paused, value_type: int, data_type: gauge, description: "1 when WAL replay is paused"}
+    - {metric_name: postgresql.replay.paused, value_column: replay_paused, value_type: int, data_type: gauge, unit: "1", description: "1 when WAL replay is paused"}
 - sql: |
     SELECT
       coalesce((SELECT max(extract(epoch FROM clock_timestamp() - xact_start))
@@ -29,24 +29,24 @@
                   WHERE (backend_xmin IS NOT NULL OR backend_xid IS NOT NULL)
                     AND backend_type = 'client backend'
                     AND pid <> pg_backend_pid()), 0)::float8 AS snapshot_oldest_age,
-      (SELECT count(*) FROM pg_stat_activity WHERE backend_type = 'client backend')::int AS connection_client,
+      (SELECT count(*) FROM pg_stat_activity WHERE backend_type = 'client backend')::int AS client_connection_count,
       (current_setting('max_connections')::int
           - current_setting('superuser_reserved_connections')::int
-          - current_setting('reserved_connections')::int) AS connection_client_capacity
+          - current_setting('reserved_connections')::int) AS client_connection_limit
   metrics:
     - {metric_name: postgresql.snapshot.oldest_age, value_column: snapshot_oldest_age, value_type: double, data_type: gauge, unit: s, description: "Age of the oldest client transaction holding a snapshot or an xid"}
-    - {metric_name: postgresql.connection.client, value_column: connection_client, value_type: int, data_type: gauge, description: "Client backends"}
-    - {metric_name: postgresql.connection.client_capacity, value_column: connection_client_capacity, value_type: int, data_type: gauge, description: "max_connections minus reserved slots"}
+    - {metric_name: postgresql.client_connection.count, value_column: client_connection_count, value_type: int, data_type: gauge, unit: '{connection}', description: "Client backends"}
+    - {metric_name: postgresql.client_connection.limit, value_column: client_connection_limit, value_type: int, data_type: gauge, unit: '{connection}', description: "max_connections minus reserved slots"}
 # Wraparound: one row per database, template databases included (they are
 # frozen by autovacuum like the rest). age() and mxid_age() count transactions
 # and multixacts since datfrozenxid / datminmxid; both wrap at 2^31 (about 2.1
 # billion), which is the denominator the rules use.
 - sql: |
-    SELECT datname, age(datfrozenxid)::bigint AS xid_age, mxid_age(datminmxid)::bigint AS mxid_age
+    SELECT datname AS "postgresql.database.name", age(datfrozenxid)::bigint AS xid_age, mxid_age(datminmxid)::bigint AS mxid_age
     FROM pg_database
   metrics:
-    - {metric_name: postgresql.database.xid_age, value_column: xid_age, attribute_columns: [datname], value_type: int, data_type: gauge, description: "age(datfrozenxid) of the database, in transactions"}
-    - {metric_name: postgresql.database.mxid_age, value_column: mxid_age, attribute_columns: [datname], value_type: int, data_type: gauge, description: "mxid_age(datminmxid) of the database, in multixacts"}
+    - {metric_name: postgresql.database.xid_age, value_column: xid_age, attribute_columns: ["postgresql.database.name"], value_type: int, data_type: gauge, unit: '{transaction}', description: "age(datfrozenxid) of the database, in transactions"}
+    - {metric_name: postgresql.database.mxid_age, value_column: mxid_age, attribute_columns: ["postgresql.database.name"], value_type: int, data_type: gauge, unit: '{multixact}', description: "mxid_age(datminmxid) of the database, in multixacts"}
 # Time spent idle inside a transaction, as opposed to a long running statement
 # or a held snapshot (postgresql.snapshot.oldest_age): state_change is when the
 # session last changed state, so for an idle session it is the moment it went
@@ -68,44 +68,44 @@
 # them, once) per collection.
 - sql: |
     SELECT
-      count(DISTINCT pid)::int AS waiting_sessions,
+      count(DISTINCT pid)::int AS lock_waiting_session_count,
       coalesce(max(extract(epoch FROM clock_timestamp() - waitstart)), 0)::float8 AS oldest_wait_age
     FROM pg_locks
     WHERE NOT granted
   metrics:
-    - {metric_name: postgresql.lock.waiting_sessions, value_column: waiting_sessions, value_type: int, data_type: gauge, description: "Sessions waiting for a lock"}
+    - {metric_name: postgresql.lock.waiting_session.count, value_column: lock_waiting_session_count, value_type: int, data_type: gauge, unit: '{session}', description: "Sessions waiting for a lock"}
     - {metric_name: postgresql.lock.oldest_wait_age, value_column: oldest_wait_age, value_type: double, data_type: gauge, unit: s, description: "Longest current lock wait (0 when none)"}
 # One row per replication slot, on every node. Without a slot there is
 # no series, which is no fault. The current LSN is read with
 # pg_last_wal_receive_lsn() in recovery, where pg_current_wal_lsn() errors.
 # wal_status as a number: 0 reserved, 1 extended, 2 unreserved, 3 lost,
-# -1 none (no restart_lsn). inactive_seconds is 0 while the slot is active.
+# -1 none (no restart_lsn). inactive_age is 0 while the slot is active.
 - sql: |
     SELECT
-      slot_name,
-      slot_type,
+      slot_name AS "postgresql.replication_slot.name",
+      slot_type AS "postgresql.replication_slot.type",
       active::int AS active,
-      coalesce(pg_wal_lsn_diff(CASE WHEN pg_is_in_recovery() THEN pg_last_wal_receive_lsn() ELSE pg_current_wal_lsn() END, restart_lsn), 0)::float8 AS retained_bytes,
-      coalesce(pg_wal_lsn_diff(CASE WHEN pg_is_in_recovery() THEN pg_last_wal_receive_lsn() ELSE pg_current_wal_lsn() END, confirmed_flush_lsn), 0)::float8 AS unconfirmed_bytes,
+      coalesce(pg_wal_lsn_diff(CASE WHEN pg_is_in_recovery() THEN pg_last_wal_receive_lsn() ELSE pg_current_wal_lsn() END, restart_lsn), 0)::float8 AS retained_wal,
+      coalesce(pg_wal_lsn_diff(CASE WHEN pg_is_in_recovery() THEN pg_last_wal_receive_lsn() ELSE pg_current_wal_lsn() END, confirmed_flush_lsn), 0)::float8 AS unconfirmed_wal,
       CASE wal_status WHEN 'reserved' THEN 0 WHEN 'extended' THEN 1 WHEN 'unreserved' THEN 2 WHEN 'lost' THEN 3 ELSE -1 END AS wal_status,
       (invalidation_reason IS NOT NULL)::int AS invalidated,
-      coalesce(invalidation_reason, '') AS invalidation_reason,
-      coalesce(extract(epoch FROM clock_timestamp() - inactive_since), 0)::float8 AS inactive_seconds
+      coalesce(invalidation_reason, '') AS "postgresql.replication_slot.invalidation_reason",
+      coalesce(extract(epoch FROM clock_timestamp() - inactive_since), 0)::float8 AS inactive_age
     FROM pg_replication_slots
   metrics:
-    - {metric_name: postgresql.replication_slot.active, value_column: active, attribute_columns: [slot_name, slot_type], value_type: int, data_type: gauge, description: "1 when a process is streaming from the slot"}
-    - {metric_name: postgresql.replication_slot.retained_bytes, value_column: retained_bytes, attribute_columns: [slot_name, slot_type], value_type: double, data_type: gauge, unit: By, description: "WAL kept for the slot: current LSN minus restart_lsn"}
-    - {metric_name: postgresql.replication_slot.unconfirmed_bytes, value_column: unconfirmed_bytes, attribute_columns: [slot_name, slot_type], value_type: double, data_type: gauge, unit: By, description: "Logical slots: current LSN minus confirmed_flush_lsn (0 for physical slots)"}
-    - {metric_name: postgresql.replication_slot.wal_status, value_column: wal_status, attribute_columns: [slot_name, slot_type], value_type: int, data_type: gauge, description: "0 reserved, 1 extended, 2 unreserved, 3 lost, -1 none"}
-    - {metric_name: postgresql.replication_slot.invalidated, value_column: invalidated, attribute_columns: [slot_name, slot_type, invalidation_reason], value_type: int, data_type: gauge, description: "1 when the slot is invalidated; the reason is an attribute"}
-    - {metric_name: postgresql.replication_slot.inactive_seconds, value_column: inactive_seconds, attribute_columns: [slot_name, slot_type], value_type: double, data_type: gauge, unit: s, description: "Seconds since the slot became inactive (0 while active)"}
+    - {metric_name: postgresql.replication_slot.active, value_column: active, attribute_columns: ["postgresql.replication_slot.name", "postgresql.replication_slot.type"], value_type: int, data_type: gauge, unit: "1", description: "1 when a process is streaming from the slot"}
+    - {metric_name: postgresql.replication_slot.retained_wal, value_column: retained_wal, attribute_columns: ["postgresql.replication_slot.name", "postgresql.replication_slot.type"], value_type: double, data_type: gauge, unit: By, description: "WAL kept for the slot: current LSN minus restart_lsn"}
+    - {metric_name: postgresql.replication_slot.unconfirmed_wal, value_column: unconfirmed_wal, attribute_columns: ["postgresql.replication_slot.name", "postgresql.replication_slot.type"], value_type: double, data_type: gauge, unit: By, description: "Logical slots: current LSN minus confirmed_flush_lsn (0 for physical slots)"}
+    - {metric_name: postgresql.replication_slot.wal_status, value_column: wal_status, attribute_columns: ["postgresql.replication_slot.name", "postgresql.replication_slot.type"], value_type: int, data_type: gauge, unit: "1", description: "0 reserved, 1 extended, 2 unreserved, 3 lost, -1 none"}
+    - {metric_name: postgresql.replication_slot.invalidated, value_column: invalidated, attribute_columns: ["postgresql.replication_slot.name", "postgresql.replication_slot.type", "postgresql.replication_slot.invalidation_reason"], value_type: int, data_type: gauge, unit: "1", description: "1 when the slot is invalidated; the reason is an attribute"}
+    - {metric_name: postgresql.replication_slot.inactive_age, value_column: inactive_age, attribute_columns: ["postgresql.replication_slot.name", "postgresql.replication_slot.type"], value_type: double, data_type: gauge, unit: s, description: "Seconds since the slot became inactive (0 while active)"}
 # One row per subscription, built from pg_subscription so a subscription
 # without a worker still reports (apply_worker_running 0). Only subname
 # and subenabled are read: subconninfo is not readable by pg_monitor.
 # last_msg_age is 0 while there is no apply worker row.
 - sql: |
     SELECT
-      s.subname AS subscription_name,
+      s.subname AS "postgresql.subscription.name",
       s.subenabled::int AS enabled,
       (EXISTS (SELECT 1 FROM pg_stat_subscription a WHERE a.subid = s.oid AND a.worker_type = 'apply' AND a.pid IS NOT NULL))::int AS apply_worker_running,
       coalesce((SELECT extract(epoch FROM clock_timestamp() - max(a.last_msg_receipt_time)) FROM pg_stat_subscription a WHERE a.subid = s.oid AND a.worker_type = 'apply'), 0)::float8 AS last_msg_age,
@@ -114,14 +114,14 @@
     FROM pg_subscription s
     LEFT JOIN pg_stat_subscription_stats t ON t.subid = s.oid
   metrics:
-    - {metric_name: postgresql.subscription.enabled, value_column: enabled, attribute_columns: [subscription_name], value_type: int, data_type: gauge, description: "1 when the subscription is enabled"}
-    - {metric_name: postgresql.subscription.apply_worker_running, value_column: apply_worker_running, attribute_columns: [subscription_name], value_type: int, data_type: gauge, description: "1 when an apply worker process exists for the subscription"}
-    - {metric_name: postgresql.subscription.last_msg_age, value_column: last_msg_age, attribute_columns: [subscription_name], value_type: double, data_type: gauge, unit: s, description: "Seconds since the apply worker last received a message from the publisher (0 without a worker)"}
-    - {metric_name: postgresql.subscription.apply_errors, value_column: apply_errors, attribute_columns: [subscription_name], value_type: int, data_type: sum, monotonic: true, aggregation: cumulative, description: "pg_stat_subscription_stats.apply_error_count"}
-    - {metric_name: postgresql.subscription.sync_errors, value_column: sync_errors, attribute_columns: [subscription_name], value_type: int, data_type: sum, monotonic: true, aggregation: cumulative, description: "pg_stat_subscription_stats.sync_error_count"}
+    - {metric_name: postgresql.subscription.enabled, value_column: enabled, attribute_columns: ["postgresql.subscription.name"], value_type: int, data_type: gauge, unit: "1", description: "1 when the subscription is enabled"}
+    - {metric_name: postgresql.subscription.apply_worker_running, value_column: apply_worker_running, attribute_columns: ["postgresql.subscription.name"], value_type: int, data_type: gauge, unit: "1", description: "1 when an apply worker process exists for the subscription"}
+    - {metric_name: postgresql.subscription.last_msg_age, value_column: last_msg_age, attribute_columns: ["postgresql.subscription.name"], value_type: double, data_type: gauge, unit: s, description: "Seconds since the apply worker last received a message from the publisher (0 without a worker)"}
+    - {metric_name: postgresql.subscription.apply_error, value_column: apply_errors, attribute_columns: ["postgresql.subscription.name"], value_type: int, data_type: sum, monotonic: true, aggregation: cumulative, unit: '{error}', description: "pg_stat_subscription_stats.apply_error_count"}
+    - {metric_name: postgresql.subscription.sync_error, value_column: sync_errors, attribute_columns: ["postgresql.subscription.name"], value_type: int, data_type: sum, monotonic: true, aggregation: cumulative, unit: '{error}', description: "pg_stat_subscription_stats.sync_error_count"}
 # The seven PostgreSQL 18 conflict counters as one metric.
 - sql: |
-    SELECT t.subname AS subscription_name, c.conflict_type, c.n::bigint AS conflicts
+    SELECT t.subname AS "postgresql.subscription.name", c.conflict_type AS "postgresql.conflict.type", c.n::bigint AS conflicts
     FROM pg_stat_subscription_stats t
     CROSS JOIN LATERAL (VALUES
       ('insert_exists', t.confl_insert_exists),
@@ -133,4 +133,4 @@
       ('multiple_unique_conflicts', t.confl_multiple_unique_conflicts)
     ) AS c(conflict_type, n)
   metrics:
-    - {metric_name: postgresql.subscription.conflicts, value_column: conflicts, attribute_columns: [subscription_name, conflict_type], value_type: int, data_type: sum, monotonic: true, aggregation: cumulative, description: "pg_stat_subscription_stats confl_* counters, by conflict type"}
+    - {metric_name: postgresql.subscription.conflict, value_column: conflicts, attribute_columns: ["postgresql.subscription.name", "postgresql.conflict.type"], value_type: int, data_type: sum, monotonic: true, aggregation: cumulative, unit: '{conflict}', description: "pg_stat_subscription_stats confl_* counters, by conflict type"}

@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# Scenario snapshot-held: leave a repeatable-read transaction open on the primary; expect SnapshotHeldTooLong for pg-primary.
+# Scenario snapshot-held: leave a repeatable-read transaction open on the primary; expect PostgresSnapshotHeldTooLong for pg-primary.
 # shellcheck disable=SC1091,SC2034
 set -uo pipefail
 . "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 
-EXPECT=("SnapshotHeldTooLong:pg-primary")
+EXPECT=("PostgresSnapshotHeldTooLong:pg-primary")
 APPNAME=slice1-snapshot-held
 inject() {
   docker exec -d -e PGAPPNAME="$APPNAME" "$PRIMARY" timeout 1200 psql -U postgres -X \

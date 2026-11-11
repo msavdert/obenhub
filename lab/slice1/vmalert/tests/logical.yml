@@ -1,4 +1,4 @@
-# LogicalApplyErrors, LogicalSubscriptionNotStreaming, LogicalSlotRetainingWal.
+# PostgresLogicalApplyErrors, PostgresLogicalSubscriptionNotStreaming, PostgresLogicalSlotStalled.
 rule_files:
   - ../rules/postgresql.yml
 evaluation_interval: 15s
@@ -7,26 +7,26 @@ tests:
   - name: apply errors that keep rising fire for the subscriber; a flat counter does not
     interval: 15s
     input_series:
-      - series: 'postgresql.subscription.apply_errors{service.name="postgresql",service.namespace="obenhub-lab",db.cluster.name="slice1-subscriber",service.instance.id="pg-subscriber",subscription_name="app_sub"}'
+      - series: 'postgresql.subscription.apply_error{service.name="postgresql",service.namespace="obenhub-lab",obenhub.cluster.name="slice1-subscriber",service.instance.id="pg-subscriber",postgresql.subscription.name="app_sub"}'
         values: '0x8 1+1x30'
-      - series: 'postgresql.subscription.sync_errors{service.name="postgresql",service.namespace="obenhub-lab",db.cluster.name="slice1-subscriber",service.instance.id="pg-subscriber",subscription_name="app_sub"}'
+      - series: 'postgresql.subscription.sync_error{service.name="postgresql",service.namespace="obenhub-lab",obenhub.cluster.name="slice1-subscriber",service.instance.id="pg-subscriber",postgresql.subscription.name="app_sub"}'
         values: '0x40'
     alert_rule_test:
       - eval_time: 1m
         groupname: logical-replication
-        alertname: LogicalApplyErrors
+        alertname: PostgresLogicalApplyErrors
         exp_alerts: []
       - eval_time: 4m
         groupname: logical-replication
-        alertname: LogicalApplyErrors
+        alertname: PostgresLogicalApplyErrors
         exp_alerts:
           - exp_labels:
               severity: critical
               service.instance.id: pg-subscriber
               service.name: postgresql
               service.namespace: obenhub-lab
-              db.cluster.name: slice1-subscriber
-              subscription_name: app_sub
+              obenhub.cluster.name: slice1-subscriber
+              postgresql.subscription.name: app_sub
             exp_annotations:
               summary: Subscription app_sub on pg-subscriber has apply or sync errors
 
@@ -35,59 +35,59 @@ tests:
     input_series:
       - series: 'postgresql.collection.heartbeat{service.instance.id="pg-subscriber"}'
         values: '1x60'
-      - series: 'postgresql.subscription.enabled{service.name="postgresql",service.namespace="obenhub-lab",db.cluster.name="slice1-subscriber",service.instance.id="pg-subscriber",subscription_name="app_sub"}'
+      - series: 'postgresql.subscription.enabled{service.name="postgresql",service.namespace="obenhub-lab",obenhub.cluster.name="slice1-subscriber",service.instance.id="pg-subscriber",postgresql.subscription.name="app_sub"}'
         values: '1x60'
-      - series: 'postgresql.subscription.apply_worker_running{service.name="postgresql",service.namespace="obenhub-lab",db.cluster.name="slice1-subscriber",service.instance.id="pg-subscriber",subscription_name="app_sub"}'
+      - series: 'postgresql.subscription.apply_worker_running{service.name="postgresql",service.namespace="obenhub-lab",obenhub.cluster.name="slice1-subscriber",service.instance.id="pg-subscriber",postgresql.subscription.name="app_sub"}'
         values: '1x8 0x52'
-      - series: 'postgresql.subscription.last_msg_age{service.name="postgresql",service.namespace="obenhub-lab",db.cluster.name="slice1-subscriber",service.instance.id="pg-subscriber",subscription_name="app_sub"}'
+      - series: 'postgresql.subscription.last_msg_age{service.name="postgresql",service.namespace="obenhub-lab",obenhub.cluster.name="slice1-subscriber",service.instance.id="pg-subscriber",postgresql.subscription.name="app_sub"}'
         values: '5x8 0x52'
-      - series: 'postgresql.subscription.apply_errors{service.name="postgresql",service.namespace="obenhub-lab",db.cluster.name="slice1-subscriber",service.instance.id="pg-subscriber",subscription_name="app_sub"}'
+      - series: 'postgresql.subscription.apply_error{service.name="postgresql",service.namespace="obenhub-lab",obenhub.cluster.name="slice1-subscriber",service.instance.id="pg-subscriber",postgresql.subscription.name="app_sub"}'
         values: '0x8 1x52'
-      - series: 'postgresql.subscription.sync_errors{service.name="postgresql",service.namespace="obenhub-lab",db.cluster.name="slice1-subscriber",service.instance.id="pg-subscriber",subscription_name="app_sub"}'
+      - series: 'postgresql.subscription.sync_error{service.name="postgresql",service.namespace="obenhub-lab",obenhub.cluster.name="slice1-subscriber",service.instance.id="pg-subscriber",postgresql.subscription.name="app_sub"}'
         values: '0x60'
     alert_rule_test:
       - eval_time: 4m30s
         groupname: logical-replication
-        alertname: LogicalApplyErrors
+        alertname: PostgresLogicalApplyErrors
         exp_alerts: []
       - eval_time: 4m30s
         groupname: logical-replication
-        alertname: LogicalSubscriptionNotStreaming
+        alertname: PostgresLogicalSubscriptionNotStreaming
         exp_alerts:
           - exp_labels:
               severity: critical
               service.instance.id: pg-subscriber
               service.name: postgresql
               service.namespace: obenhub-lab
-              db.cluster.name: slice1-subscriber
-              subscription_name: app_sub
+              obenhub.cluster.name: slice1-subscriber
+              postgresql.subscription.name: app_sub
             exp_annotations:
               summary: Subscription app_sub on pg-subscriber is enabled but not receiving
 
   - name: a sync error alone fires; resolves once the window holds no increase
     interval: 15s
     input_series:
-      - series: 'postgresql.subscription.apply_errors{service.name="postgresql",service.namespace="obenhub-lab",db.cluster.name="slice1-subscriber",service.instance.id="pg-subscriber",subscription_name="app_sub"}'
+      - series: 'postgresql.subscription.apply_error{service.name="postgresql",service.namespace="obenhub-lab",obenhub.cluster.name="slice1-subscriber",service.instance.id="pg-subscriber",postgresql.subscription.name="app_sub"}'
         values: '0x40'
-      - series: 'postgresql.subscription.sync_errors{service.name="postgresql",service.namespace="obenhub-lab",db.cluster.name="slice1-subscriber",service.instance.id="pg-subscriber",subscription_name="app_sub"}'
+      - series: 'postgresql.subscription.sync_error{service.name="postgresql",service.namespace="obenhub-lab",obenhub.cluster.name="slice1-subscriber",service.instance.id="pg-subscriber",postgresql.subscription.name="app_sub"}'
         values: '0x8 3x32'
     alert_rule_test:
       - eval_time: 2m30s
         groupname: logical-replication
-        alertname: LogicalApplyErrors
+        alertname: PostgresLogicalApplyErrors
         exp_alerts:
           - exp_labels:
               severity: critical
               service.instance.id: pg-subscriber
               service.name: postgresql
               service.namespace: obenhub-lab
-              db.cluster.name: slice1-subscriber
-              subscription_name: app_sub
+              obenhub.cluster.name: slice1-subscriber
+              postgresql.subscription.name: app_sub
             exp_annotations:
               summary: Subscription app_sub on pg-subscriber has apply or sync errors
       - eval_time: 8m
         groupname: logical-replication
-        alertname: LogicalApplyErrors
+        alertname: PostgresLogicalApplyErrors
         exp_alerts: []
 
   - name: no apply worker for 5 m on an enabled subscription fires
@@ -95,32 +95,32 @@ tests:
     input_series:
       - series: 'postgresql.collection.heartbeat{service.instance.id="pg-subscriber"}'
         values: '1x60'
-      - series: 'postgresql.subscription.enabled{service.name="postgresql",service.namespace="obenhub-lab",db.cluster.name="slice1-subscriber",service.instance.id="pg-subscriber",subscription_name="app_sub"}'
+      - series: 'postgresql.subscription.enabled{service.name="postgresql",service.namespace="obenhub-lab",obenhub.cluster.name="slice1-subscriber",service.instance.id="pg-subscriber",postgresql.subscription.name="app_sub"}'
         values: '1x60'
-      - series: 'postgresql.subscription.apply_worker_running{service.name="postgresql",service.namespace="obenhub-lab",db.cluster.name="slice1-subscriber",service.instance.id="pg-subscriber",subscription_name="app_sub"}'
+      - series: 'postgresql.subscription.apply_worker_running{service.name="postgresql",service.namespace="obenhub-lab",obenhub.cluster.name="slice1-subscriber",service.instance.id="pg-subscriber",postgresql.subscription.name="app_sub"}'
         values: '1x8 0x52'
-      - series: 'postgresql.subscription.last_msg_age{service.name="postgresql",service.namespace="obenhub-lab",db.cluster.name="slice1-subscriber",service.instance.id="pg-subscriber",subscription_name="app_sub"}'
+      - series: 'postgresql.subscription.last_msg_age{service.name="postgresql",service.namespace="obenhub-lab",obenhub.cluster.name="slice1-subscriber",service.instance.id="pg-subscriber",postgresql.subscription.name="app_sub"}'
         values: '5x8 0x52'
-      - series: 'postgresql.subscription.apply_errors{service.name="postgresql",service.namespace="obenhub-lab",db.cluster.name="slice1-subscriber",service.instance.id="pg-subscriber",subscription_name="app_sub"}'
+      - series: 'postgresql.subscription.apply_error{service.name="postgresql",service.namespace="obenhub-lab",obenhub.cluster.name="slice1-subscriber",service.instance.id="pg-subscriber",postgresql.subscription.name="app_sub"}'
         values: '0x60'
-      - series: 'postgresql.subscription.sync_errors{service.name="postgresql",service.namespace="obenhub-lab",db.cluster.name="slice1-subscriber",service.instance.id="pg-subscriber",subscription_name="app_sub"}'
+      - series: 'postgresql.subscription.sync_error{service.name="postgresql",service.namespace="obenhub-lab",obenhub.cluster.name="slice1-subscriber",service.instance.id="pg-subscriber",postgresql.subscription.name="app_sub"}'
         values: '0x60'
     alert_rule_test:
       - eval_time: 1m
         groupname: logical-replication
-        alertname: LogicalSubscriptionNotStreaming
+        alertname: PostgresLogicalSubscriptionNotStreaming
         exp_alerts: []
       - eval_time: 6m
         groupname: logical-replication
-        alertname: LogicalSubscriptionNotStreaming
+        alertname: PostgresLogicalSubscriptionNotStreaming
         exp_alerts:
           - exp_labels:
               severity: critical
               service.instance.id: pg-subscriber
               service.name: postgresql
               service.namespace: obenhub-lab
-              db.cluster.name: slice1-subscriber
-              subscription_name: app_sub
+              obenhub.cluster.name: slice1-subscriber
+              postgresql.subscription.name: app_sub
             exp_annotations:
               summary: Subscription app_sub on pg-subscriber is enabled but not receiving
 
@@ -129,28 +129,28 @@ tests:
     input_series:
       - series: 'postgresql.collection.heartbeat{service.instance.id="pg-subscriber"}'
         values: '1x60'
-      - series: 'postgresql.subscription.enabled{service.name="postgresql",service.namespace="obenhub-lab",db.cluster.name="slice1-subscriber",service.instance.id="pg-subscriber",subscription_name="app_sub"}'
+      - series: 'postgresql.subscription.enabled{service.name="postgresql",service.namespace="obenhub-lab",obenhub.cluster.name="slice1-subscriber",service.instance.id="pg-subscriber",postgresql.subscription.name="app_sub"}'
         values: '1x60'
-      - series: 'postgresql.subscription.apply_worker_running{service.name="postgresql",service.namespace="obenhub-lab",db.cluster.name="slice1-subscriber",service.instance.id="pg-subscriber",subscription_name="app_sub"}'
+      - series: 'postgresql.subscription.apply_worker_running{service.name="postgresql",service.namespace="obenhub-lab",obenhub.cluster.name="slice1-subscriber",service.instance.id="pg-subscriber",postgresql.subscription.name="app_sub"}'
         values: '1x8 0 0 1 0 0 0 1 0 0 0 0 1 0 0 0 0 0 0 1 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0'
-      - series: 'postgresql.subscription.last_msg_age{service.name="postgresql",service.namespace="obenhub-lab",db.cluster.name="slice1-subscriber",service.instance.id="pg-subscriber",subscription_name="app_sub"}'
+      - series: 'postgresql.subscription.last_msg_age{service.name="postgresql",service.namespace="obenhub-lab",obenhub.cluster.name="slice1-subscriber",service.instance.id="pg-subscriber",postgresql.subscription.name="app_sub"}'
         values: '5x8 0x52'
-      - series: 'postgresql.subscription.apply_errors{service.name="postgresql",service.namespace="obenhub-lab",db.cluster.name="slice1-subscriber",service.instance.id="pg-subscriber",subscription_name="app_sub"}'
+      - series: 'postgresql.subscription.apply_error{service.name="postgresql",service.namespace="obenhub-lab",obenhub.cluster.name="slice1-subscriber",service.instance.id="pg-subscriber",postgresql.subscription.name="app_sub"}'
         values: '0x60'
-      - series: 'postgresql.subscription.sync_errors{service.name="postgresql",service.namespace="obenhub-lab",db.cluster.name="slice1-subscriber",service.instance.id="pg-subscriber",subscription_name="app_sub"}'
+      - series: 'postgresql.subscription.sync_error{service.name="postgresql",service.namespace="obenhub-lab",obenhub.cluster.name="slice1-subscriber",service.instance.id="pg-subscriber",postgresql.subscription.name="app_sub"}'
         values: '0x60'
     alert_rule_test:
       - eval_time: 8m
         groupname: logical-replication
-        alertname: LogicalSubscriptionNotStreaming
+        alertname: PostgresLogicalSubscriptionNotStreaming
         exp_alerts:
           - exp_labels:
               severity: critical
               service.instance.id: pg-subscriber
               service.name: postgresql
               service.namespace: obenhub-lab
-              db.cluster.name: slice1-subscriber
-              subscription_name: app_sub
+              obenhub.cluster.name: slice1-subscriber
+              postgresql.subscription.name: app_sub
             exp_annotations:
               summary: Subscription app_sub on pg-subscriber is enabled but not receiving
 
@@ -159,32 +159,32 @@ tests:
     input_series:
       - series: 'postgresql.collection.heartbeat{service.instance.id="pg-subscriber"}'
         values: '1x60'
-      - series: 'postgresql.subscription.enabled{service.name="postgresql",service.namespace="obenhub-lab",db.cluster.name="slice1-subscriber",service.instance.id="pg-subscriber",subscription_name="app_sub"}'
+      - series: 'postgresql.subscription.enabled{service.name="postgresql",service.namespace="obenhub-lab",obenhub.cluster.name="slice1-subscriber",service.instance.id="pg-subscriber",postgresql.subscription.name="app_sub"}'
         values: '1x60'
-      - series: 'postgresql.subscription.apply_worker_running{service.name="postgresql",service.namespace="obenhub-lab",db.cluster.name="slice1-subscriber",service.instance.id="pg-subscriber",subscription_name="app_sub"}'
+      - series: 'postgresql.subscription.apply_worker_running{service.name="postgresql",service.namespace="obenhub-lab",obenhub.cluster.name="slice1-subscriber",service.instance.id="pg-subscriber",postgresql.subscription.name="app_sub"}'
         values: '1x60'
-      - series: 'postgresql.subscription.last_msg_age{service.name="postgresql",service.namespace="obenhub-lab",db.cluster.name="slice1-subscriber",service.instance.id="pg-subscriber",subscription_name="app_sub"}'
+      - series: 'postgresql.subscription.last_msg_age{service.name="postgresql",service.namespace="obenhub-lab",obenhub.cluster.name="slice1-subscriber",service.instance.id="pg-subscriber",postgresql.subscription.name="app_sub"}'
         values: '30x8 30+15x52'
-      - series: 'postgresql.subscription.apply_errors{service.name="postgresql",service.namespace="obenhub-lab",db.cluster.name="slice1-subscriber",service.instance.id="pg-subscriber",subscription_name="app_sub"}'
+      - series: 'postgresql.subscription.apply_error{service.name="postgresql",service.namespace="obenhub-lab",obenhub.cluster.name="slice1-subscriber",service.instance.id="pg-subscriber",postgresql.subscription.name="app_sub"}'
         values: '0x60'
-      - series: 'postgresql.subscription.sync_errors{service.name="postgresql",service.namespace="obenhub-lab",db.cluster.name="slice1-subscriber",service.instance.id="pg-subscriber",subscription_name="app_sub"}'
+      - series: 'postgresql.subscription.sync_error{service.name="postgresql",service.namespace="obenhub-lab",obenhub.cluster.name="slice1-subscriber",service.instance.id="pg-subscriber",postgresql.subscription.name="app_sub"}'
         values: '0x60'
     alert_rule_test:
       - eval_time: 1m
         groupname: logical-replication
-        alertname: LogicalSubscriptionNotStreaming
+        alertname: PostgresLogicalSubscriptionNotStreaming
         exp_alerts: []
       - eval_time: 8m
         groupname: logical-replication
-        alertname: LogicalSubscriptionNotStreaming
+        alertname: PostgresLogicalSubscriptionNotStreaming
         exp_alerts:
           - exp_labels:
               severity: critical
               service.instance.id: pg-subscriber
               service.name: postgresql
               service.namespace: obenhub-lab
-              db.cluster.name: slice1-subscriber
-              subscription_name: app_sub
+              obenhub.cluster.name: slice1-subscriber
+              postgresql.subscription.name: app_sub
             exp_annotations:
               summary: Subscription app_sub on pg-subscriber is enabled but not receiving
 
@@ -193,16 +193,16 @@ tests:
     input_series:
       - series: 'postgresql.collection.heartbeat{service.instance.id="pg-subscriber"}'
         values: '1x60'
-      - series: 'postgresql.subscription.enabled{service.name="postgresql",service.namespace="obenhub-lab",db.cluster.name="slice1-subscriber",service.instance.id="pg-subscriber",subscription_name="app_sub"}'
+      - series: 'postgresql.subscription.enabled{service.name="postgresql",service.namespace="obenhub-lab",obenhub.cluster.name="slice1-subscriber",service.instance.id="pg-subscriber",postgresql.subscription.name="app_sub"}'
         values: '0x60'
-      - series: 'postgresql.subscription.apply_worker_running{service.name="postgresql",service.namespace="obenhub-lab",db.cluster.name="slice1-subscriber",service.instance.id="pg-subscriber",subscription_name="app_sub"}'
+      - series: 'postgresql.subscription.apply_worker_running{service.name="postgresql",service.namespace="obenhub-lab",obenhub.cluster.name="slice1-subscriber",service.instance.id="pg-subscriber",postgresql.subscription.name="app_sub"}'
         values: '0x60'
-      - series: 'postgresql.subscription.last_msg_age{service.name="postgresql",service.namespace="obenhub-lab",db.cluster.name="slice1-subscriber",service.instance.id="pg-subscriber",subscription_name="app_sub"}'
+      - series: 'postgresql.subscription.last_msg_age{service.name="postgresql",service.namespace="obenhub-lab",obenhub.cluster.name="slice1-subscriber",service.instance.id="pg-subscriber",postgresql.subscription.name="app_sub"}'
         values: '0x60'
     alert_rule_test:
       - eval_time: 10m
         groupname: logical-replication
-        alertname: LogicalSubscriptionNotStreaming
+        alertname: PostgresLogicalSubscriptionNotStreaming
         exp_alerts: []
 
   - name: not streaming is suppressed while apply errors rise
@@ -210,32 +210,32 @@ tests:
     input_series:
       - series: 'postgresql.collection.heartbeat{service.instance.id="pg-subscriber"}'
         values: '1x60'
-      - series: 'postgresql.subscription.enabled{service.name="postgresql",service.namespace="obenhub-lab",db.cluster.name="slice1-subscriber",service.instance.id="pg-subscriber",subscription_name="app_sub"}'
+      - series: 'postgresql.subscription.enabled{service.name="postgresql",service.namespace="obenhub-lab",obenhub.cluster.name="slice1-subscriber",service.instance.id="pg-subscriber",postgresql.subscription.name="app_sub"}'
         values: '1x60'
-      - series: 'postgresql.subscription.apply_worker_running{service.name="postgresql",service.namespace="obenhub-lab",db.cluster.name="slice1-subscriber",service.instance.id="pg-subscriber",subscription_name="app_sub"}'
+      - series: 'postgresql.subscription.apply_worker_running{service.name="postgresql",service.namespace="obenhub-lab",obenhub.cluster.name="slice1-subscriber",service.instance.id="pg-subscriber",postgresql.subscription.name="app_sub"}'
         values: '0x60'
-      - series: 'postgresql.subscription.last_msg_age{service.name="postgresql",service.namespace="obenhub-lab",db.cluster.name="slice1-subscriber",service.instance.id="pg-subscriber",subscription_name="app_sub"}'
+      - series: 'postgresql.subscription.last_msg_age{service.name="postgresql",service.namespace="obenhub-lab",obenhub.cluster.name="slice1-subscriber",service.instance.id="pg-subscriber",postgresql.subscription.name="app_sub"}'
         values: '0x60'
-      - series: 'postgresql.subscription.apply_errors{service.name="postgresql",service.namespace="obenhub-lab",db.cluster.name="slice1-subscriber",service.instance.id="pg-subscriber",subscription_name="app_sub"}'
+      - series: 'postgresql.subscription.apply_error{service.name="postgresql",service.namespace="obenhub-lab",obenhub.cluster.name="slice1-subscriber",service.instance.id="pg-subscriber",postgresql.subscription.name="app_sub"}'
         values: '0+1x60'
-      - series: 'postgresql.subscription.sync_errors{service.name="postgresql",service.namespace="obenhub-lab",db.cluster.name="slice1-subscriber",service.instance.id="pg-subscriber",subscription_name="app_sub"}'
+      - series: 'postgresql.subscription.sync_error{service.name="postgresql",service.namespace="obenhub-lab",obenhub.cluster.name="slice1-subscriber",service.instance.id="pg-subscriber",postgresql.subscription.name="app_sub"}'
         values: '0x60'
     alert_rule_test:
       - eval_time: 10m
         groupname: logical-replication
-        alertname: LogicalSubscriptionNotStreaming
+        alertname: PostgresLogicalSubscriptionNotStreaming
         exp_alerts: []
       - eval_time: 10m
         groupname: logical-replication
-        alertname: LogicalApplyErrors
+        alertname: PostgresLogicalApplyErrors
         exp_alerts:
           - exp_labels:
               severity: critical
               service.instance.id: pg-subscriber
               service.name: postgresql
               service.namespace: obenhub-lab
-              db.cluster.name: slice1-subscriber
-              subscription_name: app_sub
+              obenhub.cluster.name: slice1-subscriber
+              postgresql.subscription.name: app_sub
             exp_annotations:
               summary: Subscription app_sub on pg-subscriber has apply or sync errors
 
@@ -244,102 +244,102 @@ tests:
     input_series:
       - series: 'postgresql.collection.heartbeat{service.instance.id="pg-subscriber"}'
         values: '1x8 _x52'
-      - series: 'postgresql.subscription.enabled{service.name="postgresql",service.namespace="obenhub-lab",db.cluster.name="slice1-subscriber",service.instance.id="pg-subscriber",subscription_name="app_sub"}'
+      - series: 'postgresql.subscription.enabled{service.name="postgresql",service.namespace="obenhub-lab",obenhub.cluster.name="slice1-subscriber",service.instance.id="pg-subscriber",postgresql.subscription.name="app_sub"}'
         values: '1x60'
-      - series: 'postgresql.subscription.apply_worker_running{service.name="postgresql",service.namespace="obenhub-lab",db.cluster.name="slice1-subscriber",service.instance.id="pg-subscriber",subscription_name="app_sub"}'
+      - series: 'postgresql.subscription.apply_worker_running{service.name="postgresql",service.namespace="obenhub-lab",obenhub.cluster.name="slice1-subscriber",service.instance.id="pg-subscriber",postgresql.subscription.name="app_sub"}'
         values: '0x60'
-      - series: 'postgresql.subscription.last_msg_age{service.name="postgresql",service.namespace="obenhub-lab",db.cluster.name="slice1-subscriber",service.instance.id="pg-subscriber",subscription_name="app_sub"}'
+      - series: 'postgresql.subscription.last_msg_age{service.name="postgresql",service.namespace="obenhub-lab",obenhub.cluster.name="slice1-subscriber",service.instance.id="pg-subscriber",postgresql.subscription.name="app_sub"}'
         values: '0x60'
-      - series: 'postgresql.subscription.apply_errors{service.name="postgresql",service.namespace="obenhub-lab",db.cluster.name="slice1-subscriber",service.instance.id="pg-subscriber",subscription_name="app_sub"}'
+      - series: 'postgresql.subscription.apply_error{service.name="postgresql",service.namespace="obenhub-lab",obenhub.cluster.name="slice1-subscriber",service.instance.id="pg-subscriber",postgresql.subscription.name="app_sub"}'
         values: '0x60'
-      - series: 'postgresql.subscription.sync_errors{service.name="postgresql",service.namespace="obenhub-lab",db.cluster.name="slice1-subscriber",service.instance.id="pg-subscriber",subscription_name="app_sub"}'
+      - series: 'postgresql.subscription.sync_error{service.name="postgresql",service.namespace="obenhub-lab",obenhub.cluster.name="slice1-subscriber",service.instance.id="pg-subscriber",postgresql.subscription.name="app_sub"}'
         values: '0x60'
     alert_rule_test:
       - eval_time: 10m
         groupname: logical-replication
-        alertname: LogicalSubscriptionNotStreaming
+        alertname: PostgresLogicalSubscriptionNotStreaming
         exp_alerts: []
 
   - name: a logical slot inactive for over 3 m fires on the primary; the physical slot does not
     interval: 15s
     input_series:
-      - series: 'postgresql.replication_slot.inactive_seconds{service.name="postgresql",service.namespace="obenhub-lab",db.cluster.name="slice1",service.instance.id="pg-primary",slot_name="app_sub",slot_type="logical"}'
+      - series: 'postgresql.replication_slot.inactive_age{service.name="postgresql",service.namespace="obenhub-lab",obenhub.cluster.name="slice1",service.instance.id="pg-primary",postgresql.replication_slot.name="app_sub",postgresql.replication_slot.type="logical"}'
         values: '0x8 0+15x52'
-      - series: 'postgresql.replication_slot.unconfirmed_bytes{service.name="postgresql",service.namespace="obenhub-lab",db.cluster.name="slice1",service.instance.id="pg-primary",slot_name="app_sub",slot_type="logical"}'
+      - series: 'postgresql.replication_slot.unconfirmed_wal{service.name="postgresql",service.namespace="obenhub-lab",obenhub.cluster.name="slice1",service.instance.id="pg-primary",postgresql.replication_slot.name="app_sub",postgresql.replication_slot.type="logical"}'
         values: '0x60'
-      - series: 'postgresql.replication_slot.inactive_seconds{service.name="postgresql",service.namespace="obenhub-lab",db.cluster.name="slice1",service.instance.id="pg-primary",slot_name="standby1",slot_type="physical"}'
+      - series: 'postgresql.replication_slot.inactive_age{service.name="postgresql",service.namespace="obenhub-lab",obenhub.cluster.name="slice1",service.instance.id="pg-primary",postgresql.replication_slot.name="standby1",postgresql.replication_slot.type="physical"}'
         values: '0+15x60'
     alert_rule_test:
       - eval_time: 3m
         groupname: logical-replication
-        alertname: LogicalSlotRetainingWal
+        alertname: PostgresLogicalSlotStalled
         exp_alerts: []
       - eval_time: 8m
         groupname: logical-replication
-        alertname: LogicalSlotRetainingWal
+        alertname: PostgresLogicalSlotStalled
         exp_alerts:
           - exp_labels:
               severity: warning
               service.instance.id: pg-primary
               service.name: postgresql
               service.namespace: obenhub-lab
-              db.cluster.name: slice1
-              slot_name: app_sub
-              slot_type: logical
+              obenhub.cluster.name: slice1
+              postgresql.replication_slot.name: app_sub
+              postgresql.replication_slot.type: logical
             exp_annotations:
               summary: Logical slot app_sub on pg-primary is inactive or far behind and retains WAL
 
-  - name: a restart loop that keeps resetting inactive_seconds does not fire
+  - name: a restart loop that keeps resetting inactive_age does not fire
     interval: 15s
     input_series:
-      - series: 'postgresql.replication_slot.inactive_seconds{service.name="postgresql",service.namespace="obenhub-lab",db.cluster.name="slice1",service.instance.id="pg-primary",slot_name="app_sub",slot_type="logical"}'
+      - series: 'postgresql.replication_slot.inactive_age{service.name="postgresql",service.namespace="obenhub-lab",obenhub.cluster.name="slice1",service.instance.id="pg-primary",postgresql.replication_slot.name="app_sub",postgresql.replication_slot.type="logical"}'
         values: '0 3 0 0 4 0 2 0 0 5 0 0 3 0 0 0 4 0 0 2 0 0 5 0 0 3 0 0 4 0 0 0 0 3 0 0 4 0 0 0 2 0 0 5 0 0 0 3 0 0 0 4 0 0 0 0 0 0 0 0'
-      - series: 'postgresql.replication_slot.unconfirmed_bytes{service.name="postgresql",service.namespace="obenhub-lab",db.cluster.name="slice1",service.instance.id="pg-primary",slot_name="app_sub",slot_type="logical"}'
+      - series: 'postgresql.replication_slot.unconfirmed_wal{service.name="postgresql",service.namespace="obenhub-lab",obenhub.cluster.name="slice1",service.instance.id="pg-primary",postgresql.replication_slot.name="app_sub",postgresql.replication_slot.type="logical"}'
         values: '300x60'
     alert_rule_test:
       - eval_time: 14m
         groupname: logical-replication
-        alertname: LogicalSlotRetainingWal
+        alertname: PostgresLogicalSlotStalled
         exp_alerts: []
 
   - name: more than 128 MiB unconfirmed for the hold time fires
     interval: 15s
     input_series:
-      - series: 'postgresql.replication_slot.inactive_seconds{service.name="postgresql",service.namespace="obenhub-lab",db.cluster.name="slice1",service.instance.id="pg-primary",slot_name="app_sub",slot_type="logical"}'
+      - series: 'postgresql.replication_slot.inactive_age{service.name="postgresql",service.namespace="obenhub-lab",obenhub.cluster.name="slice1",service.instance.id="pg-primary",postgresql.replication_slot.name="app_sub",postgresql.replication_slot.type="logical"}'
         values: '0x60'
-      - series: 'postgresql.replication_slot.unconfirmed_bytes{service.name="postgresql",service.namespace="obenhub-lab",db.cluster.name="slice1",service.instance.id="pg-primary",slot_name="app_sub",slot_type="logical"}'
+      - series: 'postgresql.replication_slot.unconfirmed_wal{service.name="postgresql",service.namespace="obenhub-lab",obenhub.cluster.name="slice1",service.instance.id="pg-primary",postgresql.replication_slot.name="app_sub",postgresql.replication_slot.type="logical"}'
         values: '0x8 200000000x52'
     alert_rule_test:
       - eval_time: 5m
         groupname: logical-replication
-        alertname: LogicalSlotRetainingWal
+        alertname: PostgresLogicalSlotStalled
         exp_alerts:
           - exp_labels:
               severity: warning
               service.instance.id: pg-primary
               service.name: postgresql
               service.namespace: obenhub-lab
-              db.cluster.name: slice1
-              slot_name: app_sub
-              slot_type: logical
+              obenhub.cluster.name: slice1
+              postgresql.replication_slot.name: app_sub
+              postgresql.replication_slot.type: logical
             exp_annotations:
               summary: Logical slot app_sub on pg-primary is inactive or far behind and retains WAL
 
   - name: a 30 s spike above 128 MiB is held back by the hold time
     interval: 15s
     input_series:
-      - series: 'postgresql.replication_slot.inactive_seconds{service.name="postgresql",service.namespace="obenhub-lab",db.cluster.name="slice1",service.instance.id="pg-primary",slot_name="spike",slot_type="logical"}'
+      - series: 'postgresql.replication_slot.inactive_age{service.name="postgresql",service.namespace="obenhub-lab",obenhub.cluster.name="slice1",service.instance.id="pg-primary",postgresql.replication_slot.name="spike",postgresql.replication_slot.type="logical"}'
         values: '0x60'
-      - series: 'postgresql.replication_slot.unconfirmed_bytes{service.name="postgresql",service.namespace="obenhub-lab",db.cluster.name="slice1",service.instance.id="pg-primary",slot_name="spike",slot_type="logical"}'
+      - series: 'postgresql.replication_slot.unconfirmed_wal{service.name="postgresql",service.namespace="obenhub-lab",obenhub.cluster.name="slice1",service.instance.id="pg-primary",postgresql.replication_slot.name="spike",postgresql.replication_slot.type="logical"}'
         values: '0x8 200000000x2 0x50'
     alert_rule_test:
       - eval_time: 2m15s   # inside the spike: pending, not firing
         groupname: logical-replication
-        alertname: LogicalSlotRetainingWal
+        alertname: PostgresLogicalSlotStalled
         exp_alerts: []
       - eval_time: 6m
         groupname: logical-replication
-        alertname: LogicalSlotRetainingWal
+        alertname: PostgresLogicalSlotStalled
         exp_alerts: []
 
   # Hold times: the neighbouring tests fire long after the hold, so these
@@ -347,27 +347,27 @@ tests:
   - name: the slot alert holds for 1 m (unconfirmed bytes above the limit from 2m15s)
     interval: 15s
     input_series:
-      - series: 'postgresql.replication_slot.inactive_seconds{service.name="postgresql",service.namespace="obenhub-lab",db.cluster.name="slice1",service.instance.id="pg-primary",slot_name="app_sub",slot_type="logical"}'
+      - series: 'postgresql.replication_slot.inactive_age{service.name="postgresql",service.namespace="obenhub-lab",obenhub.cluster.name="slice1",service.instance.id="pg-primary",postgresql.replication_slot.name="app_sub",postgresql.replication_slot.type="logical"}'
         values: '0x60'
-      - series: 'postgresql.replication_slot.unconfirmed_bytes{service.name="postgresql",service.namespace="obenhub-lab",db.cluster.name="slice1",service.instance.id="pg-primary",slot_name="app_sub",slot_type="logical"}'
+      - series: 'postgresql.replication_slot.unconfirmed_wal{service.name="postgresql",service.namespace="obenhub-lab",obenhub.cluster.name="slice1",service.instance.id="pg-primary",postgresql.replication_slot.name="app_sub",postgresql.replication_slot.type="logical"}'
         values: '0x8 200000000x52'
     alert_rule_test:
       - eval_time: 3m   # 45 s after the first match
         groupname: logical-replication
-        alertname: LogicalSlotRetainingWal
+        alertname: PostgresLogicalSlotStalled
         exp_alerts: []
       - eval_time: 3m30s   # 75 s after
         groupname: logical-replication
-        alertname: LogicalSlotRetainingWal
+        alertname: PostgresLogicalSlotStalled
         exp_alerts:
           - exp_labels:
               severity: warning
               service.instance.id: pg-primary
               service.name: postgresql
               service.namespace: obenhub-lab
-              db.cluster.name: slice1
-              slot_name: app_sub
-              slot_type: logical
+              obenhub.cluster.name: slice1
+              postgresql.replication_slot.name: app_sub
+              postgresql.replication_slot.type: logical
             exp_annotations:
               summary: Logical slot app_sub on pg-primary is inactive or far behind and retains WAL
 
@@ -376,64 +376,64 @@ tests:
     input_series:
       - series: 'postgresql.collection.heartbeat{service.instance.id="pg-subscriber"}'
         values: '1x60'
-      - series: 'postgresql.subscription.enabled{service.name="postgresql",service.namespace="obenhub-lab",db.cluster.name="slice1-subscriber",service.instance.id="pg-subscriber",subscription_name="app_sub"}'
+      - series: 'postgresql.subscription.enabled{service.name="postgresql",service.namespace="obenhub-lab",obenhub.cluster.name="slice1-subscriber",service.instance.id="pg-subscriber",postgresql.subscription.name="app_sub"}'
         values: '1x60'
-      - series: 'postgresql.subscription.apply_worker_running{service.name="postgresql",service.namespace="obenhub-lab",db.cluster.name="slice1-subscriber",service.instance.id="pg-subscriber",subscription_name="app_sub"}'
+      - series: 'postgresql.subscription.apply_worker_running{service.name="postgresql",service.namespace="obenhub-lab",obenhub.cluster.name="slice1-subscriber",service.instance.id="pg-subscriber",postgresql.subscription.name="app_sub"}'
         values: '1x8 0x52'
-      - series: 'postgresql.subscription.last_msg_age{service.name="postgresql",service.namespace="obenhub-lab",db.cluster.name="slice1-subscriber",service.instance.id="pg-subscriber",subscription_name="app_sub"}'
+      - series: 'postgresql.subscription.last_msg_age{service.name="postgresql",service.namespace="obenhub-lab",obenhub.cluster.name="slice1-subscriber",service.instance.id="pg-subscriber",postgresql.subscription.name="app_sub"}'
         values: '5x8 0x52'
-      - series: 'postgresql.subscription.apply_errors{service.name="postgresql",service.namespace="obenhub-lab",db.cluster.name="slice1-subscriber",service.instance.id="pg-subscriber",subscription_name="app_sub"}'
+      - series: 'postgresql.subscription.apply_error{service.name="postgresql",service.namespace="obenhub-lab",obenhub.cluster.name="slice1-subscriber",service.instance.id="pg-subscriber",postgresql.subscription.name="app_sub"}'
         values: '0x60'
-      - series: 'postgresql.subscription.sync_errors{service.name="postgresql",service.namespace="obenhub-lab",db.cluster.name="slice1-subscriber",service.instance.id="pg-subscriber",subscription_name="app_sub"}'
+      - series: 'postgresql.subscription.sync_error{service.name="postgresql",service.namespace="obenhub-lab",obenhub.cluster.name="slice1-subscriber",service.instance.id="pg-subscriber",postgresql.subscription.name="app_sub"}'
         values: '0x60'
     alert_rule_test:
       - eval_time: 3m30s   # 45 s after the first match
         groupname: logical-replication
-        alertname: LogicalSubscriptionNotStreaming
+        alertname: PostgresLogicalSubscriptionNotStreaming
         exp_alerts: []
       - eval_time: 4m   # 75 s after
         groupname: logical-replication
-        alertname: LogicalSubscriptionNotStreaming
+        alertname: PostgresLogicalSubscriptionNotStreaming
         exp_alerts:
           - exp_labels:
               severity: critical
               service.instance.id: pg-subscriber
               service.name: postgresql
               service.namespace: obenhub-lab
-              db.cluster.name: slice1-subscriber
-              subscription_name: app_sub
+              obenhub.cluster.name: slice1-subscriber
+              postgresql.subscription.name: app_sub
             exp_annotations:
               summary: Subscription app_sub on pg-subscriber is enabled but not receiving
 
-  # Upper side of LogicalApplyErrors: exactly two errors, two minutes apart
+  # Upper side of PostgresLogicalApplyErrors: exactly two errors, two minutes apart
   # (steps at 2m15s and 4m15s). The 3 m window sees both; a 1 m window would
   # see one, a threshold of 3 would see none of it.
   - name: exactly two errors two minutes apart fire; nothing fires once both have left the window
     interval: 15s
     input_series:
-      - series: 'postgresql.subscription.apply_errors{service.name="postgresql",service.namespace="obenhub-lab",db.cluster.name="slice1-subscriber",service.instance.id="pg-subscriber",subscription_name="app_sub"}'
+      - series: 'postgresql.subscription.apply_error{service.name="postgresql",service.namespace="obenhub-lab",obenhub.cluster.name="slice1-subscriber",service.instance.id="pg-subscriber",postgresql.subscription.name="app_sub"}'
         values: '0x8 1x8 2x40'
-      - series: 'postgresql.subscription.sync_errors{service.name="postgresql",service.namespace="obenhub-lab",db.cluster.name="slice1-subscriber",service.instance.id="pg-subscriber",subscription_name="app_sub"}'
+      - series: 'postgresql.subscription.sync_error{service.name="postgresql",service.namespace="obenhub-lab",obenhub.cluster.name="slice1-subscriber",service.instance.id="pg-subscriber",postgresql.subscription.name="app_sub"}'
         values: '0x60'
     alert_rule_test:
       - eval_time: 3m   # one error so far
         groupname: logical-replication
-        alertname: LogicalApplyErrors
+        alertname: PostgresLogicalApplyErrors
         exp_alerts: []
       - eval_time: 4m30s
         groupname: logical-replication
-        alertname: LogicalApplyErrors
+        alertname: PostgresLogicalApplyErrors
         exp_alerts:
           - exp_labels:
               severity: critical
               service.instance.id: pg-subscriber
               service.name: postgresql
               service.namespace: obenhub-lab
-              db.cluster.name: slice1-subscriber
-              subscription_name: app_sub
+              obenhub.cluster.name: slice1-subscriber
+              postgresql.subscription.name: app_sub
             exp_annotations:
               summary: Subscription app_sub on pg-subscriber has apply or sync errors
       - eval_time: 9m   # both steps are out of the 3 m window
         groupname: logical-replication
-        alertname: LogicalApplyErrors
+        alertname: PostgresLogicalApplyErrors
         exp_alerts: []

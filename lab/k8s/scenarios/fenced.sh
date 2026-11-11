@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Scenario fenced: fence the first replica the way CloudNativePG documents it, the annotation cnpg.io/fencedInstances on the Cluster (the kubectl-cnpg plugin's `fencing on` sets the same annotation; assumption, the plugin is not installed on this box). The instance manager stops PostgreSQL in the pod; the pod stays Running, turns not ready, and its exporter keeps answering with cnpg_collector_fencing_on 1 (read 2026-11-11). Expect CNPGInstanceFenced for the replica and PhysicalSlotInactive for the primary: the fenced replica's HA slot _cnpg_<replica> has no consumer, which is the pack's rule working as designed, and it holds for as long as the fence does, so the run waits for it too. All pack series of the fenced pod stop, the heartbeat included (read 2026-11-11), so SeriesVanished stays quiet and PostgresTargetAbsent is inert on this lab (see lab/packs/cnpg/rules.yml). Pass needs both alerts, both resolved after the revert, and no other alert.
+# Scenario fenced: fence the first replica the way CloudNativePG documents it, the annotation cnpg.io/fencedInstances on the Cluster (the kubectl-cnpg plugin's `fencing on` sets the same annotation; assumption, the plugin is not installed on this box). The instance manager stops PostgreSQL in the pod; the pod stays Running, turns not ready, and its exporter keeps answering with cnpg_collector_fencing_on 1 (read 2026-11-11). Expect CNPGInstanceFenced for the replica and PostgresPhysicalSlotInactive for the primary: the fenced replica's HA slot _cnpg_<replica> has no consumer, which is the pack's rule working as designed, and it holds for as long as the fence does, so the run waits for it too. All pack series of the fenced pod stop, the heartbeat included (read 2026-11-11), so PostgresSeriesVanished stays quiet and PostgresTargetAbsent is inert on this lab (see lab/packs/cnpg/rules.yml). Pass needs both alerts, both resolved after the revert, and no other alert.
 # shellcheck disable=SC1091,SC2034
 set -uo pipefail
 . "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
@@ -10,7 +10,7 @@ REP="" PRIM="" READY_FENCED="" POD_READY_FENCED=""
 inject() {
   REP=$(first_replica) && [ -n "$REP" ] || return 1
   PRIM=$(leader_name)
-  EXPECT=("CNPGInstanceFenced:$REP" "PhysicalSlotInactive:$PRIM")
+  EXPECT=("CNPGInstanceFenced:$REP" "PostgresPhysicalSlotInactive:$PRIM")
   log "fencing $REP (primary $PRIM)"
   kc annotate cluster "$CLUSTER" "cnpg.io/fencedInstances=[\"$REP\"]" --overwrite >/dev/null
 }

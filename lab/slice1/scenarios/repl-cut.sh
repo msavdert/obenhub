@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# Scenario repl-cut: disconnect the standby from the repl network; expect StandbyNotStreaming for pg-standby.
+# Scenario repl-cut: disconnect the standby from the repl network; expect PostgresStandbyNotStreaming for pg-standby.
 # shellcheck disable=SC1091,SC2034
 set -uo pipefail
 . "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 
-EXPECT=("StandbyNotStreaming:pg-standby")
+EXPECT=("PostgresStandbyNotStreaming:pg-standby")
 STANDBY_IP=""
 inject() {
   STANDBY_IP=$(docker inspect "$STANDBY" --format "{{(index .NetworkSettings.Networks \"$REPL_NET\").IPAddress}}")

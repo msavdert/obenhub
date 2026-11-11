@@ -40,7 +40,7 @@ It scrapes only its own node (`files/otelcol.yaml.tmpl`):
 
 Resource attributes follow `lab/stage3/otelcol/config.yaml`, with
 `service.instance.id` `pgha-N` for `postgresql`, `patroni`, `etcd` and the
-`host` service (host metrics and journal), and `db.cluster.name` `pgha`.
+`host` service (host metrics and journal), and `obenhub.cluster.name` `pgha`.
 
 The monitor password reaches the node in `/etc/otelcol-contrib/monitor.env`
 (root only, read by systemd); it is not in the config.
@@ -161,8 +161,8 @@ a reset has never run.
 `network-partition-replica` (row of 22:31): pgha-1 isolated, leader pgha-2
 and timeline 14 unchanged, no VM rebooted (the watchdog is armed on the leader
 only: an assumption these runs' boot ids are consistent with, not proof).
-`EtcdNoLeader`, `StandbyNotStreaming`, `PatroniReplicaNotEligible` (the leader
-keeps writing while the replica receives nothing) and `PhysicalSlotInactive`
+`EtcdNoLeader`, `PostgresStandbyNotStreaming`, `PatroniReplicaNotEligible` (the leader
+keeps writing while the replica receives nothing) and `PostgresPhysicalSlotInactive`
 for the replica's slot on the leader all fired; the last one sets
 `seconds_to_detect`, 304.1 s. In the 21:44 row they came 115, 194, 222 and
 300 s after the start of inject (VictoriaLogs). All resolved within 101.3 s of
