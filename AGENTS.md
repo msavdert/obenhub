@@ -22,6 +22,14 @@ lists them.
 - Conventional Commits (feat, fix, docs, chore, ci, build, refactor, perf,
   test, revert; optional scope; `!` for breaking). The PR title is the
   squashed commit message.
+- Every change is a short-lived branch and a pull request, squash-merged; no
+  direct pushes to `main` (the ruleset enforces it). An agent may merge an
+  ordinary PR once `check` and `semantic-title` are green and the audit
+  passed.
+- A release is a closed milestone (a stage's closing criterion met), not a
+  session. release-please keeps its PR open and accumulates the changelog;
+  only the owner merges it. An agent never merges a release PR; it says when
+  one is ready.
 - Documents describe what runs. Plans go only in `docs/roadmap.md`.
 - Depth before breadth (ADR 0001): finish the first PostgreSQL slice before a
   second engine or topology. Check breadth requests against the ADR.
