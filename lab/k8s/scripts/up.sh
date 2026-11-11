@@ -73,6 +73,11 @@ fi
 k -n obenhub get cluster pg
 phase "cluster ready"
 
+# Write load for the fault scenarios (needs the Secret pg-app, made with the Cluster).
+sed "s|\${PG_IMAGE}|${PG_IMAGE}|g" "${here}/load/load.yaml" | k apply -f -
+k -n obenhub rollout status deployment/obenhub-load --timeout=300s
+phase "load client ready"
+
 # Backend on the box. The gateway is published on the kind network's IPv4
 # gateway, which only exists once kind has created the network.
 "${here}/scripts/gen-mon-env.sh"

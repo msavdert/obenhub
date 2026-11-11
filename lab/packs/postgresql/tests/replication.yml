@@ -141,3 +141,43 @@ tests:
         groupname: postgresql
         alertname: StandbyNotStreaming
         exp_alerts: []
+
+  - name: not streaming ignores a deleted pod's stale primary sample under the recreated pod (k8s.pod.uid)
+    interval: 15s
+    input_series:
+      - series: 'postgresql.wal_receiver.streaming{service.instance.id="pg-1",k8s.pod.uid="old"}'
+        values: '0x4'
+      - series: 'postgresql.recovery.active{service.instance.id="pg-1",k8s.pod.uid="old"}'
+        values: '0x4'
+      - series: 'postgresql.wal_receiver.streaming{service.instance.id="pg-1",k8s.pod.uid="new"}'
+        values: '_x6 1x40'
+      - series: 'postgresql.recovery.active{service.instance.id="pg-1",k8s.pod.uid="new"}'
+        values: '_x6 1x40'
+      - series: 'postgresql.recovery.active{service.instance.id="pg-2",k8s.pod.uid="p2"}'
+        values: '1x4 0x42'
+    alert_rule_test:
+      - eval_time: 3m
+        groupname: postgresql
+        alertname: StandbyNotStreaming
+        exp_alerts: []
+
+  - name: not streaming still fires for a pod in recovery that does not stream (k8s.pod.uid on both sides)
+    interval: 15s
+    input_series:
+      - series: 'postgresql.wal_receiver.streaming{service.instance.id="pg-1",k8s.pod.uid="new"}'
+        values: '0x40'
+      - series: 'postgresql.recovery.active{service.instance.id="pg-1",k8s.pod.uid="new"}'
+        values: '1x40'
+      - series: 'postgresql.recovery.active{service.instance.id="pg-2",k8s.pod.uid="p2"}'
+        values: '0x40'
+    alert_rule_test:
+      - eval_time: 3m
+        groupname: postgresql
+        alertname: StandbyNotStreaming
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              service.instance.id: pg-1
+              k8s.pod.uid: new
+            exp_annotations:
+              summary: pg-1 is in recovery and not streaming

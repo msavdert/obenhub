@@ -1,0 +1,134 @@
+# One test group per CloudNativePG rule: CNPGPrimaryChanged. Series shapes
+# follow the postgresql.recovery.active series of the k8s lab (labels read
+# 2026-11-11): a replica reports 1, the primary 0.
+rule_files:
+  - ../rules.yml
+evaluation_interval: 15s
+
+tests:
+  # --- primary changed ------------------------------------------------------
+  - name: a promotion fires once, per cluster, and resolves after the window
+    interval: 15s
+    input_series:
+      - series: 'postgresql.recovery.active{k8s.namespace.name="obenhub",db.cluster.name="pg",service.instance.id="pg-1"}'
+        values: '0x20 1x50'
+      - series: 'postgresql.recovery.active{k8s.namespace.name="obenhub",db.cluster.name="pg",service.instance.id="pg-2"}'
+        values: '1x20 0x50'
+      - series: 'postgresql.recovery.active{k8s.namespace.name="obenhub",db.cluster.name="pg",service.instance.id="pg-3"}'
+        values: '1x70'
+    alert_rule_test:
+      - eval_time: 4m30s   # still the first primary
+        groupname: cnpg
+        alertname: CNPGPrimaryChanged
+        exp_alerts: []
+      - eval_time: 6m   # pg-2 reports 0 since 5m15s
+        groupname: cnpg
+        alertname: CNPGPrimaryChanged
+        exp_alerts:
+          - exp_labels: {severity: warning, k8s.namespace.name: obenhub, db.cluster.name: pg}
+            exp_annotations:
+              summary: A replica of cluster pg (obenhub) was promoted
+      - eval_time: 7m30s   # 2m30s after the last 1 sample (5m), inside the window
+        groupname: cnpg
+        alertname: CNPGPrimaryChanged
+        exp_alerts:
+          - exp_labels: {severity: warning, k8s.namespace.name: obenhub, db.cluster.name: pg}
+            exp_annotations:
+              summary: A replica of cluster pg (obenhub) was promoted
+      - eval_time: 8m30s   # the 1 at 5m has left the 3m window
+        groupname: cnpg
+        alertname: CNPGPrimaryChanged
+        exp_alerts: []
+
+  - name: a steady primary is silent
+    interval: 15s
+    input_series:
+      - series: 'postgresql.recovery.active{k8s.namespace.name="obenhub",db.cluster.name="pg",service.instance.id="pg-1"}'
+        values: '0x60'
+      - series: 'postgresql.recovery.active{k8s.namespace.name="obenhub",db.cluster.name="pg",service.instance.id="pg-2"}'
+        values: '1x60'
+      - series: 'postgresql.recovery.active{k8s.namespace.name="obenhub",db.cluster.name="pg",service.instance.id="pg-3"}'
+        values: '1x60'
+    alert_rule_test:
+      - eval_time: 10m
+        groupname: cnpg
+        alertname: CNPGPrimaryChanged
+        exp_alerts: []
+      - eval_time: 14m
+        groupname: cnpg
+        alertname: CNPGPrimaryChanged
+        exp_alerts: []
+
+  - name: a primary pod that is absent, then back as a replica, is silent
+    interval: 15s
+    input_series:
+      # pg-1 was primary, disappears (deleted pod) and returns in recovery
+      - series: 'postgresql.recovery.active{k8s.namespace.name="obenhub",db.cluster.name="pg",service.instance.id="pg-1"}'
+        values: '0x20 _x20 1x20'
+      - series: 'postgresql.recovery.active{k8s.namespace.name="obenhub",db.cluster.name="pg",service.instance.id="pg-2"}'
+        values: '1x60'
+    alert_rule_test:
+      - eval_time: 7m   # pg-1 absent
+        groupname: cnpg
+        alertname: CNPGPrimaryChanged
+        exp_alerts: []
+      - eval_time: 14m   # pg-1 back in recovery
+        groupname: cnpg
+        alertname: CNPGPrimaryChanged
+        exp_alerts: []
+
+  - name: an instance that restarts as primary without having been a replica is silent
+    interval: 15s
+    input_series:
+      - series: 'postgresql.recovery.active{k8s.namespace.name="obenhub",db.cluster.name="pg",service.instance.id="pg-1"}'
+        values: '0x20 _x10 0x30'
+      - series: 'postgresql.recovery.active{k8s.namespace.name="obenhub",db.cluster.name="pg",service.instance.id="pg-2"}'
+        values: '1x60'
+    alert_rule_test:
+      - eval_time: 12m
+        groupname: cnpg
+        alertname: CNPGPrimaryChanged
+        exp_alerts: []
+
+  - name: two clusters are told apart by namespace and name
+    interval: 15s
+    input_series:
+      - series: 'postgresql.recovery.active{k8s.namespace.name="obenhub",db.cluster.name="pg",service.instance.id="pg-1"}'
+        values: '0x60'
+      - series: 'postgresql.recovery.active{k8s.namespace.name="obenhub",db.cluster.name="pg",service.instance.id="pg-2"}'
+        values: '1x60'
+      - series: 'postgresql.recovery.active{k8s.namespace.name="other",db.cluster.name="pg",service.instance.id="pg-1"}'
+        values: '1x20 0x40'
+      - series: 'postgresql.recovery.active{k8s.namespace.name="other",db.cluster.name="pg",service.instance.id="pg-2"}'
+        values: '0x20 1x40'
+    alert_rule_test:
+      - eval_time: 6m
+        groupname: cnpg
+        alertname: CNPGPrimaryChanged
+        exp_alerts:
+          - exp_labels: {severity: warning, k8s.namespace.name: other, db.cluster.name: pg}
+            exp_annotations:
+              summary: A replica of cluster pg (other) was promoted
+
+  - name: a deleted primary pod leaves no stale zero behind once the window has passed
+    interval: 15s
+    input_series:
+      # pg-2 is the primary and is deleted at 5m; its new pod (new uid) is a replica
+      - series: 'postgresql.recovery.active{k8s.namespace.name="obenhub",db.cluster.name="pg",service.instance.id="pg-2",k8s.pod.uid="old"}'
+        values: '0x20 _x60'
+      - series: 'postgresql.recovery.active{k8s.namespace.name="obenhub",db.cluster.name="pg",service.instance.id="pg-2",k8s.pod.uid="new"}'
+        values: '_x24 1x56'
+      - series: 'postgresql.recovery.active{k8s.namespace.name="obenhub",db.cluster.name="pg",service.instance.id="pg-1"}'
+        values: '1x21 0x59'
+    alert_rule_test:
+      - eval_time: 6m
+        groupname: cnpg
+        alertname: CNPGPrimaryChanged
+        exp_alerts:
+          - exp_labels: {severity: warning, k8s.namespace.name: obenhub, db.cluster.name: pg}
+            exp_annotations:
+              summary: A replica of cluster pg (obenhub) was promoted
+      - eval_time: 8m30s   # 3m30s after pg-1's last 1; the old pod's last 0 (5m) is 3m30s old
+        groupname: cnpg
+        alertname: CNPGPrimaryChanged
+        exp_alerts: []

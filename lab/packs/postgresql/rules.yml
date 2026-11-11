@@ -85,9 +85,15 @@ groups:
         # cluster: in slice1 the subscriber is always writable, so there it
         # never silences. "A node is writable" is read from the pack
         # (recovery.active == 0), so the two sources stay independent.
+        # The join includes k8s.pod.uid: on Kubernetes a deleted pod's last
+        # sample (streaming 0, as on any primary) stays visible for the
+        # staleness lookback and would otherwise match the recreated pod of the
+        # same name in recovery (lab/k8s primary-deleted, run 2026-11-11).
+        # Where the label is absent on both sides (VM and Compose labs) the
+        # join is unchanged.
         expr: |
           postgresql.wal_receiver.streaming == 0
-            and on(service.instance.id)
+            and on(service.instance.id, k8s.pod.uid)
           postgresql.recovery.active == 1
             and on()
           count(postgresql.recovery.active == 0) > 0

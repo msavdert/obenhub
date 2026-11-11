@@ -1,0 +1,42 @@
+# CloudNativePG alert rules, for the kind lab (lab/k8s). They read the series
+# of the shared PostgreSQL pack (lab/packs/postgresql), not CloudNativePG's
+# own exporter: on a cluster that runs the pack, the role of an instance is
+# postgresql.recovery.active (1 = in recovery), whatever manages the cluster.
+# Labels, read from VictoriaMetrics on the k8s lab on 2026-11-11: every
+# postgresql.recovery.active series carries service.instance.id (the pod name,
+# pg-1...), k8s.namespace.name, db.cluster.name (the Cluster's name, pg) and
+# k8s.pod.*, so a cluster is identified by (k8s.namespace.name, db.cluster.name).
+# Pack metric names are provisional until the naming contract (ADR 0002).
+groups:
+  - name: cnpg
+    interval: 15s
+    rules:
+      # An instance that reported recovery.active == 1 within the last 3
+      # minutes now reports 0: a replica was promoted. A planned switchover
+      # and a failover both look like this (the lab scenarios switchover and
+      # primary-deleted fire it); the Kubernetes events and the instance
+      # manager's log tell them apart, this signal does not. It holds for 3
+      # minutes after the promotion, then the last 1 sample leaves the window
+      # and the alert resolves: one firing per change.
+      # The 0 side reads the last sample of the last minute, not the instant
+      # value: a deleted pod leaves its series behind (the new pod has a new
+      # k8s.pod.uid, so a new series under the same service.instance.id), and an
+      # instant selector keeps the old series' last 0 alive for the staleness
+      # lookback (observed in the primary-deleted scenario, 2026-11-11: the alert
+      # lasted about 5 minutes instead of 3).
+      # Quiet when the pod is absent (no sample, no 0), and when an instance
+      # that was already primary restarts (it never reported 1). Accepted
+      # miss: a promoted instance whose metrics were missing for more than the
+      # whole window around the promotion, because the 1 is then too old.
+      # Lab scenario: lab/k8s/scenarios/switchover.sh, primary-deleted.sh.
+      - alert: CNPGPrimaryChanged
+        expr: |
+          max by (k8s.namespace.name, db.cluster.name) (
+            (last_over_time(postgresql.recovery.active[1m]) == 0)
+              and on(service.instance.id, k8s.namespace.name, db.cluster.name)
+            (max_over_time(postgresql.recovery.active[3m]) == 1)
+          )
+        labels:
+          severity: warning
+        annotations:
+          summary: 'A replica of cluster {{ (index $labels "db.cluster.name") }} ({{ (index $labels "k8s.namespace.name") }}) was promoted'

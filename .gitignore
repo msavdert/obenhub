@@ -13,5 +13,6 @@ site/
 /lab/stage3/results/*.log
 /lab/pgha/results/*.log
 /lab/slice1/results/*.log
+/lab/k8s/results/*.log
 /lab/pgha/.env
 /lab/pgha/pki/

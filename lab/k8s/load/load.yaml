@@ -1,0 +1,73 @@
+---
+# Light write load for the fault scenarios (lab/k8s/scenarios): about five
+# inserts a second through the pg-rw Service as the Cluster's application role.
+# The credentials are read from the Secret pg-app that CloudNativePG generates;
+# nothing is stored in this file. ${PG_IMAGE} is substituted from versions.sh by
+# scripts/up.sh (the operand image has psql).
+# One psql per row, so a failover costs the connections in flight and nothing
+# else. A row counts as acknowledged only when psql exits 0 (the commit
+# returned); its id is then appended to /work/acked as "epoch id". The client
+# does not reuse the id of a failed insert. A scenario reads that file and
+# compares it with the table. Housekeeping every 5000 rows: the file keeps the
+# last 50000 lines (about 2.8 hours), the table the last 6 hours.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: obenhub-load
+  namespace: obenhub
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: obenhub-load
+  template:
+    metadata:
+      labels:
+        app: obenhub-load
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 26
+      containers:
+        - name: load
+          image: ${PG_IMAGE}
+          command: ["bash", "-c"]
+          args:
+            - |
+              set -u
+              export PGHOST=pg-rw PGDATABASE=app PGSSLMODE=require PGCONNECT_TIMEOUT=2
+              P=(psql -X -At -v ON_ERROR_STOP=1)
+              until timeout 10 "${P[@]}" -c 'CREATE TABLE IF NOT EXISTS load_rows (id bigint PRIMARY KEY, ts timestamptz NOT NULL DEFAULT now())' >/dev/null 2>&1; do sleep 2; done
+              until i=$(timeout 10 "${P[@]}" -c 'SELECT coalesce(max(id), 0) FROM load_rows' 2>/dev/null) && [ -n "$i" ]; do sleep 2; done
+              touch /work/acked
+              while true; do
+                i=$((i + 1))
+                if timeout 5 "${P[@]}" -c "INSERT INTO load_rows (id) VALUES ($i)" >/dev/null 2>&1; then
+                  echo "$(date +%s.%N) $i" >>/work/acked
+                else
+                  sleep 0.3
+                fi
+                if [ $((i % 5000)) = 0 ]; then
+                  tail -n 50000 /work/acked >/work/acked.tmp && mv /work/acked.tmp /work/acked
+                  timeout 20 "${P[@]}" -c "DELETE FROM load_rows WHERE ts < now() - interval '6 hours'" >/dev/null 2>&1
+                fi
+                sleep 0.2
+              done
+          env:
+            - name: PGUSER
+              valueFrom:
+                secretKeyRef: {name: pg-app, key: username}
+            - name: PGPASSWORD
+              valueFrom:
+                secretKeyRef: {name: pg-app, key: password}
+          volumeMounts:
+            - name: work
+              mountPath: /work
+          resources:
+            requests: {cpu: 20m, memory: 32Mi}
+            limits: {memory: 128Mi}
+      volumes:
+        - name: work
+          emptyDir: {}

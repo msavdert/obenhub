@@ -75,12 +75,44 @@ kind cluster                                   box (Compose project obenhub-k8s)
   The CA is copied when `up.sh` runs; after CloudNativePG rotates it (90 days
   by default, per the audit; not observed here), `sql_query` fails until
   `up.sh` runs again.
-- Alerts: vmalert loads `lab/packs/postgresql/rules.yml` unchanged and
+- Alerts: vmalert loads `lab/packs/postgresql/rules.yml` unchanged,
+  `lab/packs/cnpg/rules.yml` (`CNPGPrimaryChanged`, unit tests in
+  `lab/packs/cnpg/tests/`, `mise run lab:cnpg:rules-test`) and
   `mon/vmalert/inventory.yml`, which lists the five Collectors (gateway,
   cluster, one agent per worker named by the node) for `CollectorAbsent`;
   unit tests in `mon/vmalert/tests/collectors.yml` (`mise run
   lab:k8s:rules-test`). There is no PostgreSQL target inventory (which agent
   collects a pod depends on scheduling) and no Kubernetes rules yet.
+  Notifications go to VictoriaLogs through the stage 3 Alertmanager config, as
+  in pgha.
+
+## Fault scenarios
+
+```sh
+lab/k8s/scenarios/control.sh             # no fault, CONTROL_SECONDS (default 600)
+lab/k8s/scenarios/switchover.sh          # planned switchover to a replica
+lab/k8s/scenarios/primary-deleted.sh     # kubectl delete pod of the primary
+```
+
+The machinery is `lab/scenarios/lib-core.sh`, shared with stage 3 and pgha;
+`scenarios/lib.sh` is the adapter (Cluster status instead of Patroni). Each run appends one
+line to `results/runs.jsonl`. A scenario refuses to start unless the Cluster
+is healthy (3 ready instances, one primary, two streaming replicas) and the
+load client acknowledges rows.
+
+- Load client: Deployment `obenhub-load` (`load/load.yaml`, applied by
+  `up.sh`), the operand image, about five inserts a second through `pg-rw`
+  into `app.load_rows` as the `app` role, credentials from CloudNativePG's
+  Secret `pg-app`. It logs each acknowledged id to `/work/acked` in its pod;
+  the role-changing scenarios fail when one of those rows is not on the new
+  primary.
+- `switchover`: `kubectl cnpg promote` when the plugin is installed (it is not
+  on this box), otherwise the same change made directly (`status.targetPrimary`
+  on the Cluster, which the plugin sets, per its source at v1.30.1).
+- Both role changes expect `CNPGPrimaryChanged` and record old and new
+  primary, timelines, the longest gap between acknowledged writes, the
+  acknowledged rows (from 60 s before the fault) kept and lost, and the
+  Kubernetes events of the window under `extra`.
 
 All versions are pinned in `versions.sh`, with the source of each. The kind
 and Cluster manifests hold a `${...}` placeholder that `up.sh` fills from it.
