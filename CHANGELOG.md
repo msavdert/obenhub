@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.13.0](https://github.com/msavdert/obenhub/compare/v0.12.0...v0.13.0) (2026-11-11)
+
+
+### Features
+
+* **lab:** add a host pack with filesystem and memory alerts and their pgha fault scenarios ([7e01fae](https://github.com/msavdert/obenhub/commit/7e01faec554701b557a6a18961e24d728f2129bd))
+* **lab:** add network partition scenarios and a HostRebooted alert on pgha ([43ce10d](https://github.com/msavdert/obenhub/commit/43ce10d4a04fcbda8fda67b92768cdbaa666aafc))
+* **lab:** add the pgha leader-killed scenario (Patroni frozen, watchdog reset) ([76a86ba](https://github.com/msavdert/obenhub/commit/76a86bad57823ed30171a59021cdafe9736a7f32))
+
 ## [0.12.0](https://github.com/msavdert/obenhub/compare/v0.11.0...v0.12.0) (2026-11-10)
 
 
