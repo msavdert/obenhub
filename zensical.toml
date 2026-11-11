@@ -16,6 +16,7 @@ nav = [
     "adr/0002-otel-centred-architecture.md",
     "adr/0003-receiver-strategy.md",
     "adr/0004-licence-policy.md",
+    "adr/0005-lab-collection-topology-and-packs.md",
   ] },
   { "Roadmap" = "roadmap.md" },
   { "Changelog" = "changelog.md" },

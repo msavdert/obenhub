@@ -1,6 +1,6 @@
 # ADR 0003: Receiver strategy - engine receivers, SQL query packs, upstream
 
-- Status: Accepted
+- Status: Accepted; scraped endpoints and the pack layout refined by ADR 0005
 - Date: 2026-11-06 (exporter evaluation added the same day; pack generator
   deferred the same day after a seven-model review)
 
