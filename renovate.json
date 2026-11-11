@@ -76,7 +76,8 @@
         "docker"
       ],
       "matchPackageNames": [
-        "postgres"
+        "postgres",
+        "ghcr.io/cloudnative-pg/postgresql"
       ],
       "matchUpdateTypes": [
         "major"
@@ -102,6 +103,17 @@
       "matchStrings": [
         "# renovate: datasource=(?<datasource>\\S+) depName=(?<depName>\\S+)(?: extractVersion=(?<extractVersion>\\S+))?\\s+[A-Z_]+=(?<currentValue>\\S+)"
       ]
+    },
+    {
+      "customType": "regex",
+      "description": "Container images pinned as repository:tag@digest under a '# renovate: datasource=docker' comment in lab shell scripts",
+      "managerFilePatterns": [
+        "/^lab/.+\\.sh$/"
+      ],
+      "matchStrings": [
+        "# renovate: datasource=docker\\s+[A-Z_]+=(?<depName>[^:\\s]+):(?<currentValue>[^@\\s]+)@(?<currentDigest>sha256:[0-9a-f]{64})"
+      ],
+      "datasourceTemplate": "docker"
     },
     {
       "customType": "regex",
