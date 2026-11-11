@@ -20,21 +20,26 @@ use. `mise run eol` checks product end-of-life dates and needs network.
   `type(scope): subject`, with type one of feat, fix, docs, chore, ci, build,
   refactor, perf, test, revert, and `!` after the type or scope for a breaking
   change.
-- Pull requests are squash-merged. The PR title becomes the commit message, so
-  it must follow the same format; CI checks it.
+- Every change goes through a pull request from a short-lived branch; `main`
+  takes no direct pushes. Pull requests are squash-merged. The PR title
+  becomes the commit message, so it must follow the same format; CI checks
+  it.
 - A revert commit pushed to `main` may keep git's default `Revert "<subject>"`;
   a revert PR title uses `revert: <subject>`.
 - Releases are cut by release-please from the commit history (SemVer, 0.x
-  while unstable, tags `vX.Y.Z`). The first release is 0.1.0
-  (`initial-version`). Release PRs only touch `CHANGELOG.md`, `version.txt`
+  until the first installable artefact, tags `vX.Y.Z`). A release marks a
+  closed milestone: the release PR stays open and collects the changelog
+  until a stage's closing criterion is met, and only the owner merges it. Release PRs only touch `CHANGELOG.md`, `version.txt`
   and the manifest; their CI runs start after a maintainer approves them in
   the Actions tab.
 
 ## Repository settings
 
 Set once on GitHub, not in files: Pages source "GitHub Actions"; Actions may
-create pull requests; squash merge only, branches deleted after merge; `main`
-blocks force pushes and deletion; private vulnerability reporting on.
+create pull requests; squash merge only, branches deleted after merge; private
+vulnerability reporting on. The `main` ruleset requires a pull request (no
+approvals, a single-maintainer project), the `check` and `semantic-title`
+status checks and linear history, and blocks force pushes and deletion.
 Scheduled workflows (the weekly EOL check) are disabled by GitHub after 60
 days without repository activity and must then be re-enabled.
 
