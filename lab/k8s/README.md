@@ -77,12 +77,17 @@ kind cluster                                   box (Compose project obenhub-k8s)
   `up.sh` runs again.
 - Alerts: vmalert loads `lab/packs/postgresql/rules.yml` unchanged,
   `lab/packs/cnpg/rules.yml` (`CNPGPrimaryChanged`, unit tests in
-  `lab/packs/cnpg/tests/`, `mise run lab:cnpg:rules-test`) and
+  `lab/packs/cnpg/tests/`, `mise run lab:cnpg:rules-test`),
+  `lab/packs/k8s/rules.yml` (`KubernetesNodeNotReady`, from the
+  `k8s_cluster` receiver's `k8s.node.condition_ready`; `mise run
+  lab:k8s-pack:rules-test`) and
   `mon/vmalert/inventory.yml`, which lists the five Collectors (gateway,
   cluster, one agent per worker named by the node) for `CollectorAbsent`;
   unit tests in `mon/vmalert/tests/collectors.yml` (`mise run
   lab:k8s:rules-test`). There is no PostgreSQL target inventory (which agent
-  collects a pod depends on scheduling) and no Kubernetes rules yet.
+  collects a pod depends on scheduling). `otelcol-cluster` is pinned to the
+  control-plane node (`otel/cluster-values.yaml`), so stopping a worker does not
+  take the node-condition signal with it.
   Notifications go to VictoriaLogs through the stage 3 Alertmanager config, as
   in pgha.
 
@@ -95,6 +100,7 @@ lab/k8s/scenarios/primary-deleted.sh     # kubectl delete pod of the primary
 lab/k8s/scenarios/fenced.sh              # fence a replica (cnpg.io/fencedInstances)
 lab/k8s/scenarios/replica-cut.sh         # NetworkPolicy cuts a replica from the primary
 lab/k8s/scenarios/slot-retaining-wal.sh  # the cut replica's slot retains bounded WAL
+lab/k8s/scenarios/worker-stopped.sh      # power cut of the primary's worker node
 ```
 
 The machinery is `lab/scenarios/lib-core.sh`, shared with stage 3 and pgha;
@@ -123,6 +129,14 @@ load client acknowledges rows.
   scratch table until the replica's slot retains 640 MiB. The Cluster sets
   `max_slot_wal_keep_size: 1GB` as the guard (it was unlimited, and the 1Gi
   claim is not enforced by local-path); the alert threshold is 512 MiB.
+- `worker-stopped`: `docker kill` of the kind node that runs the
+  primary (a worker free of the operator and the load client; a preparatory
+  switchover if needed), held until `CollectorAbsent` for that node's agent
+  fires (about 4 minutes down, below the pods' 300 s not-ready toleration), then
+  `docker start`. Expects `CNPGPrimaryChanged`, `KubernetesNodeNotReady` and
+  `CollectorAbsent`; the power cut is asynchronous-replication territory, so
+  lost acknowledged rows are recorded (`writer_missing`) and fail the run only
+  when one was acknowledged more than 10 s before the kill.
 - Both role changes expect `CNPGPrimaryChanged` and record old and new
   primary, timelines, the longest gap between acknowledged writes, the
   acknowledged rows (from 60 s before the fault) kept and lost, and the

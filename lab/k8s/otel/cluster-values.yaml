@@ -7,6 +7,17 @@ mode: deployment
 replicaCount: 1
 fullnameOverride: otelcol-cluster
 
+# Runs on the control-plane node, so that stopping a worker (scenario
+# worker-stopped) never takes the Collector with the node-condition signal. The
+# toleration is for kubeadm's NoSchedule taint node-role.kubernetes.io/control-plane
+# (read on the lab 2026-11-11).
+nodeSelector:
+  node-role.kubernetes.io/control-plane: ""
+tolerations:
+  - key: node-role.kubernetes.io/control-plane
+    operator: Exists
+    effect: NoSchedule
+
 image:
   repository: ${OTELCOL_IMAGE_REPOSITORY}
   tag: ${OTELCOL_IMAGE_TAG}

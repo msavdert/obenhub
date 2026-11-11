@@ -77,6 +77,7 @@ services:
     volumes:
       - ./vmalert/inventory.yml:/etc/vmalert/inventory.yml:ro
       - ../../packs/cnpg/rules.yml:/etc/vmalert/pack/cnpg.yml:ro
+      - ../../packs/k8s/rules.yml:/etc/vmalert/pack/k8s.yml:ro
       - ../../packs/postgresql/rules.yml:/etc/vmalert/pack/postgresql.yml:ro
     depends_on:
       victoriametrics:

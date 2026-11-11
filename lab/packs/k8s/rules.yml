@@ -1,0 +1,41 @@
+# Kubernetes alert rules, for the kind lab (lab/k8s). They read the cluster
+# level Collector's k8s_cluster receiver (the otelcol-cluster Deployment), not
+# the PostgreSQL pack. Pack metric names are provisional until the naming
+# contract (ADR 0002).
+groups:
+  - name: k8s
+    interval: 15s
+    rules:
+      # A node whose Ready condition is not True. The receiver maps the
+      # condition status to the value: True 1, False 0, Unknown -1, and a
+      # condition the node does not list is Unknown too (nodeConditionValues
+      # and nodeConditionValue in receiver/k8sclusterreceiver/internal/node/nodes.go,
+      # opentelemetry-collector-contrib tag v0.164.0, the version lab/k8s pins;
+      # the metric is k8s.node.condition_ready, from the receiver's
+      # node_conditions_to_report). A kubelet that stops reporting leaves the
+      # condition Unknown once the node lifecycle controller notices (-1); a
+      # kubelet that reports itself unhealthy gives False (0). Both are
+      # "!= 1". The series carries k8s.node.name and k8s.node.uid.
+      # Lab numbers (scenario worker-stopped, 2026-11-11, docker kill of the
+      # primary's node; all approximate, from the 4th smoke run): the series
+      # went to -1 about 58 s after the kill, the node lifecycle controller's
+      # NodeNotReady event came at about 47 s (the kubelet's default grace
+      # period of 40 s is an assumption, not read). The hold of 1m then fired
+      # the alert about 1m later and Alertmanager delivered it about 51 s
+      # after that. The node was Ready again 2 s after the container start.
+      # The receiver samples every 10 s (collection_interval in the deployed
+      # chart manifest); a hold of 1m rides out a single NotReady flap without
+      # adding minutes to a node that is really down.
+      # Quiet while every node reports 1, and when the series is missing
+      # (accepted miss: a node that disappears from the API, or an
+      # otelcol-cluster that is down, raises nothing here; CollectorAbsent
+      # covers the Collector). Accepted miss: a NotReady shorter than the hold.
+      # The alert says the node is not Ready, not why, and not what ran on it.
+      # Lab scenario: lab/k8s/scenarios/worker-stopped.sh.
+      - alert: KubernetesNodeNotReady
+        expr: k8s.node.condition_ready != 1
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: 'Node {{ (index $labels "k8s.node.name") }} is not Ready'

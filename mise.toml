@@ -74,6 +74,10 @@ run = """docker run --rm -v "$PWD/lab:/lab:ro" victoriametrics/vmalert-tool:v1.1
 description = "unit-test the CloudNativePG pack rules (lab/packs/cnpg, vmalert-tool); needs docker"
 run = """docker run --rm -v "$PWD/lab:/lab:ro" victoriametrics/vmalert-tool:v1.155.0 unittest --files=/lab/packs/cnpg/tests/cnpg.yml"""
 
+[tasks."lab:k8s-pack:rules-test"]
+description = "unit-test the Kubernetes pack rules (lab/packs/k8s, vmalert-tool); needs docker"
+run = """docker run --rm -v "$PWD/lab:/lab:ro" victoriametrics/vmalert-tool:v1.155.0 unittest --files=/lab/packs/k8s/tests/k8s.yml"""
+
 [tasks."lab:host:rules-test"]
 description = "unit-test the shared host pack rules (lab/packs/host, vmalert-tool); needs docker"
 run = """docker run --rm -v "$PWD/lab:/lab:ro" victoriametrics/vmalert-tool:v1.155.0 unittest --files=/lab/packs/host/tests/host.yml"""
@@ -110,6 +114,7 @@ depends = [
   "lab:pgha:rules-gen-check",
   "lab:k8s:rules-test",
   "lab:cnpg:rules-test",
+  "lab:k8s-pack:rules-test",
   "docs:build",
 ]
 

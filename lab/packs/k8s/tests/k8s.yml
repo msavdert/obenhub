@@ -1,0 +1,89 @@
+# One test group per Kubernetes rule: KubernetesNodeNotReady. Series shapes
+# follow k8s.node.condition_ready of the k8s lab (labels read 2026-11-11):
+# 1 Ready, 0 False, -1 Unknown (receiver nodes.go, contrib v0.164.0).
+rule_files:
+  - ../rules.yml
+evaluation_interval: 15s
+
+tests:
+  - name: an Unknown node fires after the hold and resolves when Ready again
+    interval: 15s
+    input_series:
+      - series: 'k8s.node.condition_ready{k8s.node.name="obenhub-worker",k8s.node.uid="u1"}'
+        values: '1x20 -1x20 1x20'
+      - series: 'k8s.node.condition_ready{k8s.node.name="obenhub-worker2",k8s.node.uid="u2"}'
+        values: '1x60'
+    alert_rule_test:
+      - eval_time: 5m30s   # not Ready since 5m, inside the hold
+        groupname: k8s
+        alertname: KubernetesNodeNotReady
+        exp_alerts: []
+      - eval_time: 6m30s
+        groupname: k8s
+        alertname: KubernetesNodeNotReady
+        exp_alerts:
+          - exp_labels: {severity: critical, k8s.node.name: obenhub-worker, k8s.node.uid: u1}
+            exp_annotations:
+              summary: Node obenhub-worker is not Ready
+      - eval_time: 10m30s   # Ready again since 10m
+        groupname: k8s
+        alertname: KubernetesNodeNotReady
+        exp_alerts: []
+
+  - name: a False node fires
+    interval: 15s
+    input_series:
+      - series: 'k8s.node.condition_ready{k8s.node.name="obenhub-worker",k8s.node.uid="u1"}'
+        values: '0x20'
+    alert_rule_test:
+      - eval_time: 4m
+        groupname: k8s
+        alertname: KubernetesNodeNotReady
+        exp_alerts:
+          - exp_labels: {severity: critical, k8s.node.name: obenhub-worker, k8s.node.uid: u1}
+            exp_annotations:
+              summary: Node obenhub-worker is not Ready
+
+  - name: a flap shorter than the hold is silent, during it and after it
+    interval: 15s
+    input_series:
+      - series: 'k8s.node.condition_ready{k8s.node.name="obenhub-worker2",k8s.node.uid="u2"}'
+        values: '1x4 -1x4 1x12'   # not 1 from 1m to 1m45s
+    alert_rule_test:
+      - eval_time: 1m30s   # in the flap, 30 s old
+        groupname: k8s
+        alertname: KubernetesNodeNotReady
+        exp_alerts: []
+      - eval_time: 4m
+        groupname: k8s
+        alertname: KubernetesNodeNotReady
+        exp_alerts: []
+
+  - name: the hold is one minute, not less
+    interval: 15s
+    input_series:
+      - series: 'k8s.node.condition_ready{k8s.node.name="obenhub-worker",k8s.node.uid="u1"}'
+        values: '1x4 -1x20'   # not 1 from 1m
+    alert_rule_test:
+      - eval_time: 1m45s   # 45 s old
+        groupname: k8s
+        alertname: KubernetesNodeNotReady
+        exp_alerts: []
+      - eval_time: 2m15s   # 75 s old
+        groupname: k8s
+        alertname: KubernetesNodeNotReady
+        exp_alerts:
+          - exp_labels: {severity: critical, k8s.node.name: obenhub-worker, k8s.node.uid: u1}
+            exp_annotations:
+              summary: Node obenhub-worker is not Ready
+
+  - name: Ready nodes and a missing series are silent
+    interval: 15s
+    input_series:
+      - series: 'k8s.node.condition_ready{k8s.node.name="obenhub-worker",k8s.node.uid="u1"}'
+        values: '1x10 _x30'
+    alert_rule_test:
+      - eval_time: 9m
+        groupname: k8s
+        alertname: KubernetesNodeNotReady
+        exp_alerts: []

@@ -230,7 +230,7 @@ contrib 0.165.1.
       (`cnpg_collector_*`, `cnpg_last_error`) with its default queries off:
       the pack already covers PostgreSQL, as with Patroni `/metrics` in
       stage 3
-- [ ] Alert rules with unit tests, each fired by one fault scenario: primary
+- [x] Alert rules with unit tests, each fired by one fault scenario: primary
       pod deleted (failover), worker node stopped, instance fenced,
       switchover, a replica cut from the primary, and an HA replication slot
       retaining WAL; plus a no-fault control run. Event reasons are taken

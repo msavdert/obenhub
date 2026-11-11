@@ -42,6 +42,8 @@
 # Needs: curl, jq, the lab running.
 
 DETECT_TIMEOUT=${DETECT_TIMEOUT:-600}
+# optional cap in seconds from the injection for the whole detection phase (all EXPECT entries together); empty = only the per-alert DETECT_TIMEOUT
+DETECT_DEADLINE=${DETECT_DEADLINE:-}
 RESOLVE_TIMEOUT=${RESOLVE_TIMEOUT:-600}
 SETTLE_TIMEOUT=${SETTLE_TIMEOUT:-300}
 
@@ -273,9 +275,10 @@ run_scenario() {
         t=$(first_record firing "$name" "$inst" "$T_INJECT" || true)
         [ -n "$t" ] && break
         if [ $(($(date +%s) - t0)) -ge "$DETECT_TIMEOUT" ]; then break; fi
+        if [ -n "$DETECT_DEADLINE" ] && [ $(($(date +%s) - ${ti%.*})) -ge "$DETECT_DEADLINE" ]; then break; fi
         sleep 5
       done
-      if [ -z "$t" ]; then FAILS+=("not detected: $e within ${DETECT_TIMEOUT}s"); continue; fi
+      if [ -z "$t" ]; then FAILS+=("not detected: $e within ${DETECT_DEADLINE:-$DETECT_TIMEOUT}s"); continue; fi
       log "delivered firing $e at $t"
       if [ -z "$last" ] || later "$t" "$last"; then last=$t; fi
     done
