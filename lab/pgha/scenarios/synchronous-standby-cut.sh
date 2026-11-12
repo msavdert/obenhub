@@ -24,7 +24,8 @@ declare -A BOOT0=()
 # A failing show-config is not "removed".
 sync_keys_removed() { local c; c=$(ptl show-config) || return 1; ! grep -q '^synchronous_' <<<"$c"; }
 
-sync_standby_member() { members | jq -r '[.[] | select(.Role == "Sync Standby")] | if length == 1 then .[0].Member else empty end'; }
+# jq -e: no output exits 4, so wait_until keeps waiting until Patroni names a Sync Standby
+sync_standby_member() { members | jq -er '[.[] | select(.Role == "Sync Standby")] | if length == 1 then .[0].Member else empty end'; }
 
 # one sample per second on the leader: epoch|elapsed|synchronous_standby_names|app:state,app:state
 # A commit that waits keeps its backend until the wait ends (the client's 8 s
