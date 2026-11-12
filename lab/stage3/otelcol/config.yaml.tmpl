@@ -1,0 +1,185 @@
+# Generated from config.yaml.tmpl by lab/stage3/scripts/gen-otelcol.sh; edit the template.
+# Stage 3 collector: three Patroni nodes, named by node and never by role.
+# Receiver keys: receiver/postgresqlreceiver and receiver/prometheusreceiver at
+# v0.164.0. The sql_query list is the shared PostgreSQL pack,
+# lab/packs/postgresql/queries.yaml, mounted at /etc/otelcol/packs/postgresql.
+extensions:
+  health_check:
+    endpoint: 0.0.0.0:13133
+  # filelog offsets survive a Collector restart (volume otelcol-data).
+  file_storage:
+    directory: /var/lib/otelcol/file_storage
+    create_directory: true
+
+receivers:
+#@for NODE in pg-1 pg-2 pg-3
+  postgresql/@NODE@:
+    endpoint: @NODE@:5432
+    transport: tcp
+    username: otel_monitor
+    password: ${env:OTEL_MONITOR_PASSWORD}
+    databases: [postgres]
+    collection_interval: 15s
+    # Optional upstream metric, off by default (receiver metadata, v0.164.0).
+    metrics:
+      postgresql.deadlocks:
+        enabled: true
+    tls:
+      insecure: true
+
+#@end
+#@for NODE in pg-1 pg-2 pg-3
+  # Patroni REST API /metrics (Prometheus text format). Contrib has no
+  # Patroni receiver, so this is the generic prometheusreceiver.
+  prometheus/@NODE@:
+    config:
+      scrape_configs:
+        - job_name: patroni
+          scrape_interval: 15s
+          scrape_timeout: 10s
+          static_configs:
+            - targets: ['@NODE@:8008']
+
+#@end
+#@for MEMBER in etcd-1 etcd-2 etcd-3
+  # etcd serves /metrics on the client URL (port 2379) in 3.6.16; checked
+  # 2026-11-07 against etcd-1, so --listen-metrics-urls is not needed. The
+  # Collector is on the dcs network for this (compose.yaml).
+  prometheus/@MEMBER@:
+    config:
+      scrape_configs:
+        - job_name: etcd
+          scrape_interval: 15s
+          scrape_timeout: 10s
+          static_configs:
+            - targets: ['@MEMBER@:2379']
+
+#@end
+#@for NODE in pg-1 pg-2 pg-3
+  file_log/@NODE@:
+    include: [/var/log/@NODE@/postgresql-*.json]
+    start_at: beginning
+    storage: file_storage
+    operators:
+      - type: json_parser
+        parse_from: body
+        # keep integers exact (query_id is a 64-bit integer)
+        parse_ints: true
+        timestamp:
+          parse_from: attributes.timestamp
+          layout: '%Y-%m-%d %H:%M:%S.%L %Z'
+        severity:
+          parse_from: attributes.error_severity
+          mapping:
+            debug: [DEBUG1, DEBUG2, DEBUG3, DEBUG4, DEBUG5]
+            info: [LOG, INFO, NOTICE]
+            warn: WARNING
+            error: ERROR
+            fatal: [FATAL, PANIC]
+      # the log body is the server message, not the raw JSON line
+      - type: move
+        from: attributes.message
+        to: body
+
+#@end
+#@for NODE in pg-1 pg-2 pg-3
+  sql_query/@NODE@:
+    driver: postgres
+    host: @NODE@
+    port: 5432
+    database: postgres
+    username: otel_monitor
+    password: ${env:OTEL_MONITOR_PASSWORD}
+    additional_params:
+      sslmode: disable
+    max_open_conn: 3
+    collection_interval: 15s
+    timeout: 10s
+    queries: ${file:/etc/otelcol/packs/postgresql/queries.yaml}
+
+#@end
+processors:
+  memory_limiter:
+    check_interval: 1s
+    limit_mib: 256
+  # Attribute names are assumptions, as in lab/slice1/otelcol/config.yaml.
+  # No role attribute on purpose: the leader moves. The Patroni scrape is its
+  # own service (service.name patroni) with the same instance id, so metrics
+  # of one node join on service.instance.id.
+#@for NODE in pg-1 pg-2 pg-3
+  resource/@NODE@:
+    attributes:
+      - {key: service.namespace, value: obenhub-lab, action: upsert}
+      - {key: service.name, value: postgresql, action: upsert}
+      - {key: service.instance.id, value: @NODE@, action: upsert}
+      - {key: server.address, value: @NODE@, action: upsert}
+      - {key: server.port, value: '5432', action: upsert}
+      - {key: db.system.name, value: postgresql, action: upsert}
+      - {key: obenhub.cluster.name, value: stage3, action: upsert}
+  resource/@NODE@-patroni:
+    attributes:
+      - {key: service.namespace, value: obenhub-lab, action: upsert}
+      - {key: service.name, value: patroni, action: upsert}
+      - {key: service.instance.id, value: @NODE@, action: upsert}
+      - {key: server.address, value: @NODE@, action: upsert}
+      - {key: server.port, value: '8008', action: upsert}
+      - {key: db.system.name, value: postgresql, action: upsert}
+      - {key: obenhub.cluster.name, value: stage3, action: upsert}
+#@end
+#@for MEMBER in etcd-1 etcd-2 etcd-3
+  resource/@MEMBER@:
+    attributes:
+      - {key: service.namespace, value: obenhub-lab, action: upsert}
+      - {key: service.name, value: etcd, action: upsert}
+      - {key: service.instance.id, value: @MEMBER@, action: upsert}
+      - {key: server.address, value: @MEMBER@, action: upsert}
+      - {key: server.port, value: '2379', action: upsert}
+#@end
+  batch: {}
+
+exporters:
+  otlp_http/vm:
+    endpoint: http://victoriametrics:8428/opentelemetry
+  otlp_http/vl:
+    endpoint: http://victorialogs:9428/insert/opentelemetry
+    headers:
+      VL-Stream-Fields: service.namespace,service.name,service.instance.id
+
+service:
+  extensions: [health_check, file_storage]
+  telemetry:
+    resource:
+      attributes:
+        - {name: service.namespace, value: obenhub-lab}
+        - {name: service.name, value: otelcol}
+        - {name: service.instance.id, value: otelcol-stage3}
+    metrics:
+      level: normal
+      readers:
+        - periodic:
+            interval: 15000
+            exporter:
+              otlp:
+                protocol: http/protobuf
+                endpoint: http://victoriametrics:8428/opentelemetry/v1/metrics
+  pipelines:
+#@for NODE in pg-1 pg-2 pg-3
+    metrics/@NODE@:
+      receivers: [postgresql/@NODE@, sql_query/@NODE@]
+      processors: [memory_limiter, resource/@NODE@, batch]
+      exporters: [otlp_http/vm]
+    metrics/@NODE@-patroni:
+      receivers: [prometheus/@NODE@]
+      processors: [memory_limiter, resource/@NODE@-patroni, batch]
+      exporters: [otlp_http/vm]
+    logs/@NODE@:
+      receivers: [file_log/@NODE@]
+      processors: [memory_limiter, resource/@NODE@, batch]
+      exporters: [otlp_http/vl]
+#@end
+#@for MEMBER in etcd-1 etcd-2 etcd-3
+    metrics/@MEMBER@:
+      receivers: [prometheus/@MEMBER@]
+      processors: [memory_limiter, resource/@MEMBER@, batch]
+      exporters: [otlp_http/vm]
+#@end

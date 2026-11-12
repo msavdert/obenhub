@@ -114,6 +114,10 @@ run = """docker run --rm -v "$PWD/lab:/lab:ro" victoriametrics/vmalert-tool:v1.1
 description = "unit-test the shared host pack rules (lab/packs/host, vmalert-tool); needs docker"
 run = """docker run --rm -v "$PWD/lab:/lab:ro" victoriametrics/vmalert-tool:v1.155.0 unittest --files=/lab/packs/host/tests/host.yml"""
 
+[tasks."lab:stage3:otelcol-check"]
+description = "fail when lab/stage3/otelcol/config.yaml differs from what its template renders (lab/stage3/scripts/gen-otelcol.sh)"
+run = "lab/stage3/scripts/gen-otelcol.sh --check"
+
 [tasks."lab:pgha:rules-gen-check"]
 description = "fail when lab/pgha/mon/vmalert/tests/collectors.yml differs from what gen-collectors.py generates"
 run = """
@@ -191,6 +195,7 @@ depends = [
   "lab:stage3:rules-test",
   "lab:pgha:rules-test",
   "lab:pgha:rules-gen-check",
+  "lab:stage3:otelcol-check",
   "lab:k8s:rules-test",
   "lab:cnpg:rules-test",
   "lab:k8s-pack:rules-test",

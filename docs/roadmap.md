@@ -24,7 +24,7 @@ A stage is done by the definition in
       live backends (in review); the scenario-only panels (alerts firing, slot
       WAL) still have to be seen with data in the full suites
 - [ ] Dedupe shared lab code: common monitoring Compose base, one
-      `gen-env.sh`, shared Patroni scenarios, stage3 Collector template
+      `gen-env.sh`, shared Patroni scenarios, stage3 Collector template (all in review)
 - [ ] Low-severity fixes: image digests, passwords on command lines, fixed
       sleeps, resource limits
 - [ ] k8s tool pinning (in review)

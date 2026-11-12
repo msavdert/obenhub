@@ -1,3 +1,4 @@
+# Generated from config.yaml.tmpl by lab/stage3/scripts/gen-otelcol.sh; edit the template.
 # Stage 3 collector: three Patroni nodes, named by node and never by role.
 # Receiver keys: receiver/postgresqlreceiver and receiver/prometheusreceiver at
 # v0.164.0. The sql_query list is the shared PostgreSQL pack,
@@ -127,8 +128,7 @@ receivers:
     start_at: beginning
     storage: file_storage
     operators:
-      - &jsonlog
-        type: json_parser
+      - type: json_parser
         parse_from: body
         # keep integers exact (query_id is a 64-bit integer)
         parse_ints: true
@@ -144,8 +144,7 @@ receivers:
             error: ERROR
             fatal: [FATAL, PANIC]
       # the log body is the server message, not the raw JSON line
-      - &body
-        type: move
+      - type: move
         from: attributes.message
         to: body
 
@@ -154,16 +153,50 @@ receivers:
     start_at: beginning
     storage: file_storage
     operators:
-      - *jsonlog
-      - *body
+      - type: json_parser
+        parse_from: body
+        # keep integers exact (query_id is a 64-bit integer)
+        parse_ints: true
+        timestamp:
+          parse_from: attributes.timestamp
+          layout: '%Y-%m-%d %H:%M:%S.%L %Z'
+        severity:
+          parse_from: attributes.error_severity
+          mapping:
+            debug: [DEBUG1, DEBUG2, DEBUG3, DEBUG4, DEBUG5]
+            info: [LOG, INFO, NOTICE]
+            warn: WARNING
+            error: ERROR
+            fatal: [FATAL, PANIC]
+      # the log body is the server message, not the raw JSON line
+      - type: move
+        from: attributes.message
+        to: body
 
   file_log/pg-3:
     include: [/var/log/pg-3/postgresql-*.json]
     start_at: beginning
     storage: file_storage
     operators:
-      - *jsonlog
-      - *body
+      - type: json_parser
+        parse_from: body
+        # keep integers exact (query_id is a 64-bit integer)
+        parse_ints: true
+        timestamp:
+          parse_from: attributes.timestamp
+          layout: '%Y-%m-%d %H:%M:%S.%L %Z'
+        severity:
+          parse_from: attributes.error_severity
+          mapping:
+            debug: [DEBUG1, DEBUG2, DEBUG3, DEBUG4, DEBUG5]
+            info: [LOG, INFO, NOTICE]
+            warn: WARNING
+            error: ERROR
+            fatal: [FATAL, PANIC]
+      # the log body is the server message, not the raw JSON line
+      - type: move
+        from: attributes.message
+        to: body
 
   sql_query/pg-1:
     driver: postgres

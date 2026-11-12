@@ -25,6 +25,9 @@ stops it. Do not run it together with a slice1 suite: both use the host lock.
   (contrib has no Patroni receiver) and on each etcd member.
 - `mise run lab:stage3:panels` runs the Patroni dashboard's panel queries
   against the live Grafana.
+- The Collector config `otelcol/config.yaml` is rendered from
+  `otelcol/config.yaml.tmpl` (`scripts/gen-otelcol.sh`; `mise run
+  lab:stage3:otelcol-check` fails when the two disagree): edit the template.
 - Each scenario reloads vmalert and Alertmanager first, checks the reload
   counters and records the hash of the rule and Alertmanager files as the
   containers read them; a mismatch with the repository fails the run.
