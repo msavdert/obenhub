@@ -31,7 +31,8 @@ stops it. Scenarios run on a clean tree, one suite at a time on the host.
 - VictoriaMetrics, VictoriaLogs, vmalert, Alertmanager with a webhook sink
   that proves delivery, an always-firing Watchdog alert the sink must keep
   receiving, and one Grafana dashboard as code (replication, slots,
-  subscription state, error counters, PgBouncer pools).
+  subscription state, error counters, PgBouncer pools). `mise run
+  lab:slice1:panels` runs its panel queries against the live Grafana.
 
 ## Scenarios
 

@@ -1,0 +1,739 @@
+{
+  "uid": "obenhub-host",
+  "title": "Host (operating system)",
+  "tags": [
+    "obenhub",
+    "host"
+  ],
+  "schemaVersion": 41,
+  "version": 1,
+  "editable": false,
+  "refresh": "15s",
+  "time": {
+    "from": "now-30m",
+    "to": "now"
+  },
+  "timezone": "utc",
+  "templating": {
+    "list": []
+  },
+  "panels": [
+    {
+      "id": 1,
+      "title": "Hosts reporting",
+      "type": "stat",
+      "datasource": {
+        "type": "victoriametrics-metrics-datasource",
+        "uid": "vm"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 6,
+        "h": 4
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "vm"
+          },
+          "expr": "count(system.uptime)",
+          "refId": "A",
+          "range": true,
+          "instant": false
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "background",
+        "graphMode": "none",
+        "textMode": "value"
+      },
+      "description": "Hosts with a system.uptime series (hostmetrics receiver)."
+    },
+    {
+      "id": 2,
+      "title": "Lowest uptime",
+      "type": "stat",
+      "datasource": {
+        "type": "victoriametrics-metrics-datasource",
+        "uid": "vm"
+      },
+      "gridPos": {
+        "x": 6,
+        "y": 0,
+        "w": 6,
+        "h": 4
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "vm"
+          },
+          "expr": "min(system.uptime)",
+          "refId": "A",
+          "range": true,
+          "instant": false
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 300
+              }
+            ]
+          },
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "background",
+        "graphMode": "none",
+        "textMode": "value"
+      },
+      "description": "Shortest system.uptime. HostRebooted fires while it is under 300 s."
+    },
+    {
+      "id": 3,
+      "title": "Lowest memory available",
+      "type": "stat",
+      "datasource": {
+        "type": "victoriametrics-metrics-datasource",
+        "uid": "vm"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 0,
+        "w": 6,
+        "h": 4
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "vm"
+          },
+          "expr": "min(sum by (host.name) (system.linux.memory.available) / sum by (host.name) (system.memory.limit))",
+          "refId": "A",
+          "range": true,
+          "instant": false
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 0.1
+              },
+              {
+                "color": "green",
+                "value": 0.2
+              }
+            ]
+          },
+          "unit": "percentunit"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "background",
+        "graphMode": "none",
+        "textMode": "value"
+      },
+      "description": "Smallest share of MemAvailable over MemTotal. HostMemoryAvailableLow fires below 10 % for 2 m."
+    },
+    {
+      "id": 4,
+      "title": "Lowest filesystem free",
+      "type": "stat",
+      "datasource": {
+        "type": "victoriametrics-metrics-datasource",
+        "uid": "vm"
+      },
+      "gridPos": {
+        "x": 18,
+        "y": 0,
+        "w": 6,
+        "h": 4
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "vm"
+          },
+          "expr": "min(sum by (host.name, mountpoint) (system.filesystem.usage{state=\"free\", type=~\"ext4|xfs|btrfs\"}) / sum by (host.name, mountpoint) (system.filesystem.usage{state=~\"free|used\", type=~\"ext4|xfs|btrfs\"}))",
+          "refId": "A",
+          "range": true,
+          "instant": false
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 0.1
+              },
+              {
+                "color": "green",
+                "value": 0.2
+              }
+            ]
+          },
+          "unit": "percentunit"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "background",
+        "graphMode": "none",
+        "textMode": "value"
+      },
+      "description": "Smallest free share of any real filesystem. HostFilesystemSpaceLow fires below 10 % for 2 m."
+    },
+    {
+      "id": 5,
+      "title": "Filesystem free share",
+      "type": "timeseries",
+      "datasource": {
+        "type": "victoriametrics-metrics-datasource",
+        "uid": "vm"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 4,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "vm"
+          },
+          "expr": "sum by (host.name, service.instance.id, mountpoint) (system.filesystem.usage{state=\"free\", type=~\"ext4|xfs|btrfs\"}) / sum by (host.name, service.instance.id, mountpoint) (system.filesystem.usage{state=~\"free|used\", type=~\"ext4|xfs|btrfs\"})",
+          "refId": "A",
+          "range": true,
+          "instant": false,
+          "legendFormat": "{{host.name}} {{mountpoint}}"
+        },
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "vm"
+          },
+          "expr": "0.10",
+          "refId": "B",
+          "range": true,
+          "instant": false,
+          "legendFormat": "HostFilesystemSpaceLow threshold"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 10,
+            "showPoints": "never"
+          },
+          "unit": "percentunit",
+          "max": 1,
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "description": "Same expression as HostFilesystemSpaceLow in lab/packs/host/rules.yml (free / (free + used), ext4, xfs, btrfs only). The filesystem-filling scenario drives it down."
+    },
+    {
+      "id": 6,
+      "title": "Memory available share",
+      "type": "timeseries",
+      "datasource": {
+        "type": "victoriametrics-metrics-datasource",
+        "uid": "vm"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 4,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "vm"
+          },
+          "expr": "sum by (host.name, service.instance.id) (system.linux.memory.available) / sum by (host.name, service.instance.id) (system.memory.limit)",
+          "refId": "A",
+          "range": true,
+          "instant": false,
+          "legendFormat": "{{host.name}}"
+        },
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "vm"
+          },
+          "expr": "0.10",
+          "refId": "B",
+          "range": true,
+          "instant": false,
+          "legendFormat": "HostMemoryAvailableLow threshold"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 10,
+            "showPoints": "never"
+          },
+          "unit": "percentunit",
+          "max": 1,
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "description": "Same expression as HostMemoryAvailableLow (system.linux.memory.available over system.memory.limit). The memory-pressure scenario drives it down."
+    },
+    {
+      "id": 7,
+      "title": "Uptime",
+      "type": "timeseries",
+      "datasource": {
+        "type": "victoriametrics-metrics-datasource",
+        "uid": "vm"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 12,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "vm"
+          },
+          "expr": "system.uptime",
+          "refId": "A",
+          "range": true,
+          "instant": false,
+          "legendFormat": "{{host.name}}"
+        },
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "vm"
+          },
+          "expr": "300",
+          "refId": "B",
+          "range": true,
+          "instant": false,
+          "legendFormat": "HostRebooted window"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 10,
+            "showPoints": "never"
+          },
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "description": "system.uptime in seconds. A reset to under 300 s fires HostRebooted."
+    },
+    {
+      "id": 8,
+      "title": "CPU utilisation",
+      "type": "timeseries",
+      "datasource": {
+        "type": "victoriametrics-metrics-datasource",
+        "uid": "vm"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 12,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "vm"
+          },
+          "expr": "sum by (host.name) (rate(system.cpu.time{state!=\"idle\"}[$__rate_interval])) / sum by (host.name) (rate(system.cpu.time[$__rate_interval]))",
+          "refId": "A",
+          "range": true,
+          "instant": false,
+          "legendFormat": "{{host.name}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 10,
+            "showPoints": "never"
+          },
+          "unit": "percentunit",
+          "max": 1,
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "description": "Non-idle share of the rate of system.cpu.time."
+    },
+    {
+      "id": 9,
+      "title": "Load average (1 m)",
+      "type": "timeseries",
+      "datasource": {
+        "type": "victoriametrics-metrics-datasource",
+        "uid": "vm"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 20,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "vm"
+          },
+          "expr": "system.cpu.load_average.1m",
+          "refId": "A",
+          "range": true,
+          "instant": false,
+          "legendFormat": "{{host.name}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 10,
+            "showPoints": "never"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "description": "system.cpu.load_average.1m."
+    },
+    {
+      "id": 10,
+      "title": "Network throughput",
+      "type": "timeseries",
+      "datasource": {
+        "type": "victoriametrics-metrics-datasource",
+        "uid": "vm"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 20,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "vm"
+          },
+          "expr": "sum by (host.name, direction) (rate(system.network.io{device!=\"lo\"}[$__rate_interval]))",
+          "refId": "A",
+          "range": true,
+          "instant": false,
+          "legendFormat": "{{host.name}} {{direction}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 10,
+            "showPoints": "never"
+          },
+          "unit": "Bps"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "description": "Rate of system.network.io, loopback excluded."
+    },
+    {
+      "id": 11,
+      "title": "Disk throughput",
+      "type": "timeseries",
+      "datasource": {
+        "type": "victoriametrics-metrics-datasource",
+        "uid": "vm"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 28,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "vm"
+          },
+          "expr": "sum by (host.name, direction) (rate(system.disk.io[$__rate_interval]))",
+          "refId": "A",
+          "range": true,
+          "instant": false,
+          "legendFormat": "{{host.name}} {{direction}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 10,
+            "showPoints": "never"
+          },
+          "unit": "Bps"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "description": "Rate of system.disk.io."
+    },
+    {
+      "id": 12,
+      "title": "Alerts firing",
+      "type": "timeseries",
+      "datasource": {
+        "type": "victoriametrics-metrics-datasource",
+        "uid": "vm"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 36,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "vm"
+          },
+          "expr": "count by (alertname) (ALERTS{alertstate=\"firing\", alertname=~\"Host.*\"})",
+          "refId": "A",
+          "range": true,
+          "instant": false,
+          "legendFormat": "{{alertname}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 10,
+            "showPoints": "never"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "description": "Data only during a scenario. ALERTS series written by vmalert, HostFilesystemSpaceLow, HostMemoryAvailableLow, HostRebooted. Empty while the lab is healthy."
+    },
+    {
+      "id": 13,
+      "title": "Delivered alert notifications",
+      "type": "logs",
+      "datasource": {
+        "type": "victoriametrics-logs-datasource",
+        "uid": "vl"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 36,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "victoriametrics-logs-datasource",
+            "uid": "vl"
+          },
+          "expr": "status:in(firing,resolved) | fields _time, status, commonLabels.alertname, commonLabels.service_instance_id, commonAnnotations.summary",
+          "refId": "A",
+          "queryType": "range"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {
+        "showTime": true,
+        "wrapLogMessage": true,
+        "sortOrder": "Descending",
+        "enableLogDetails": true
+      },
+      "description": "Everything Alertmanager delivered to the sink, including the Watchdog."
+    }
+  ]
+}

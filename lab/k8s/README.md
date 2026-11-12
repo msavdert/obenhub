@@ -56,7 +56,13 @@ kind cluster                                   box (Compose project obenhub-k8s)
   of the `kind` Docker network (`172.16.9.1` on the last run), port 44317,
   which `up.sh` reads with `docker network inspect` into `mon/.env`
   (gitignored). The traffic stays on this box's bridge, so it is plain OTLP/HTTP
-  where pgha uses mutual TLS across VMs.
+  where pgha uses mutual TLS across VMs. Grafana provisions
+  `grafana/dashboards/cnpg.json` (CloudNativePG and Kubernetes: one panel per
+  scenario alert, plus pod and node resources) and the shared PostgreSQL
+  dashboard of slice 1 (its PgBouncer and logical-replication rows are empty
+  here). `mise run lab:k8s:panels` runs both dashboards' queries against the
+  live Grafana; panels marked "Data only during a scenario" are empty while the
+  cluster is healthy.
 - Collectors (`otel/`): the official `opentelemetry-collector` Helm chart,
   two releases in namespace `obenhub-otel`, image
   `otel/opentelemetry-collector-contrib` pinned by tag and digest in

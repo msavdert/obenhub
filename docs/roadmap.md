@@ -19,9 +19,10 @@ A stage is done by the definition in
 - [ ] WAL archiving in slice1, `pg_stat_archiver` alerts and an
       archiver-failing scenario
 - [ ] One `synchronous_mode` scenario in pgha
-- [ ] Dashboards: CloudNativePG/Kubernetes for `lab/k8s` (it mounts stage3's
-      dashboard directory, which has no `cnpg_` or `k8s.` panels) and host
-      (operating system) for `lab/pgha`
+- [ ] Dashboards: CloudNativePG/Kubernetes for `lab/k8s` and host (operating
+      system) for `lab/pgha` are written and their queries checked against the
+      live backends (in review); the scenario-only panels (alerts firing, slot
+      WAL) still have to be seen with data in the full suites
 - [ ] Dedupe shared lab code: common monitoring Compose base, one
       `gen-env.sh`, shared Patroni scenarios, stage3 Collector template
 - [ ] Low-severity fixes: image digests, passwords on command lines, fixed

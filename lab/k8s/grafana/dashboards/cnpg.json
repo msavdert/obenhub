@@ -1,0 +1,1191 @@
+{
+  "uid": "obenhub-cnpg",
+  "title": "CloudNativePG and Kubernetes",
+  "tags": [
+    "obenhub",
+    "k8s"
+  ],
+  "schemaVersion": 41,
+  "version": 1,
+  "editable": false,
+  "refresh": "15s",
+  "time": {
+    "from": "now-30m",
+    "to": "now"
+  },
+  "timezone": "utc",
+  "templating": {
+    "list": []
+  },
+  "panels": [
+    {
+      "id": 1,
+      "title": "Primary",
+      "type": "stat",
+      "datasource": {
+        "type": "victoriametrics-metrics-datasource",
+        "uid": "vm"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 6,
+        "h": 4
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "vm"
+          },
+          "expr": "last_over_time(postgresql.recovery.active[1m]) == 0",
+          "refId": "A",
+          "range": false,
+          "instant": true,
+          "legendFormat": "{{service.instance.id}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "blue",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "background",
+        "graphMode": "none",
+        "textMode": "name"
+      },
+      "description": "The instance whose postgresql.recovery.active was last 0 within the last minute (instant query, pack series). A promotion moves the name; a deleted pod's old series ages out of the window."
+    },
+    {
+      "id": 2,
+      "title": "Instances fenced",
+      "type": "stat",
+      "datasource": {
+        "type": "victoriametrics-metrics-datasource",
+        "uid": "vm"
+      },
+      "gridPos": {
+        "x": 6,
+        "y": 0,
+        "w": 6,
+        "h": 4
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "vm"
+          },
+          "expr": "sum(cnpg_collector_fencing_on)",
+          "refId": "A",
+          "range": true,
+          "instant": false
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 1
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "background",
+        "graphMode": "none",
+        "textMode": "value"
+      },
+      "description": "Sum of cnpg_collector_fencing_on (CloudNativePG exporter, kept by the Collector). CNPGInstanceFenced fires after 1 m at 1."
+    },
+    {
+      "id": 3,
+      "title": "Nodes not Ready",
+      "type": "stat",
+      "datasource": {
+        "type": "victoriametrics-metrics-datasource",
+        "uid": "vm"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 0,
+        "w": 6,
+        "h": 4
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "vm"
+          },
+          "expr": "count(k8s.node.condition_ready != 1) or vector(0)",
+          "refId": "A",
+          "range": true,
+          "instant": false
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 1
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "background",
+        "graphMode": "none",
+        "textMode": "value"
+      },
+      "description": "Nodes whose k8s.node.condition_ready is not 1. KubernetesNodeNotReady fires after 1 m."
+    },
+    {
+      "id": 4,
+      "title": "Largest slot WAL retention",
+      "type": "stat",
+      "datasource": {
+        "type": "victoriametrics-metrics-datasource",
+        "uid": "vm"
+      },
+      "gridPos": {
+        "x": 18,
+        "y": 0,
+        "w": 6,
+        "h": 4
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "vm"
+          },
+          "expr": "max((postgresql.replication_slot.retained_wal unless on(service.instance.id, postgresql.replication_slot.name) postgresql.replication_slot.invalidated == 1) and on(service.instance.id) postgresql.recovery.active == 0) or vector(0)",
+          "refId": "A",
+          "range": true,
+          "instant": false
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 536870912
+              }
+            ]
+          },
+          "unit": "bytes"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "background",
+        "graphMode": "none",
+        "textMode": "value"
+      },
+      "description": "Largest postgresql.replication_slot.retained_wal on a primary, invalidated slots excluded: the selection of PostgresReplicationSlotRetainingWAL, which fires above 512 MiB for 2 m. Replicas hold copies of the slots and are left out."
+    },
+    {
+      "id": 5,
+      "title": "Role per instance (primary changed)",
+      "type": "state-timeline",
+      "datasource": {
+        "type": "victoriametrics-metrics-datasource",
+        "uid": "vm"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 4,
+        "w": 12,
+        "h": 6
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "vm"
+          },
+          "expr": "postgresql.recovery.active",
+          "refId": "A",
+          "range": true,
+          "instant": false,
+          "legendFormat": "{{service.instance.id}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "0": {
+                  "text": "primary",
+                  "color": "green",
+                  "index": 0
+                },
+                "1": {
+                  "text": "replica",
+                  "color": "blue",
+                  "index": 1
+                }
+              }
+            }
+          ],
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              }
+            ]
+          },
+          "custom": {
+            "fillOpacity": 80
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "showValue": "auto",
+        "mergeValues": true,
+        "legend": {
+          "showLegend": true,
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      },
+      "description": "postgresql.recovery.active from the pack: 0 primary, 1 in recovery. CNPGPrimaryChanged fires when an instance goes from 1 to 0 (switchover and primary-deleted scenarios)."
+    },
+    {
+      "id": 6,
+      "title": "Fencing per instance",
+      "type": "state-timeline",
+      "datasource": {
+        "type": "victoriametrics-metrics-datasource",
+        "uid": "vm"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 4,
+        "w": 12,
+        "h": 6
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "vm"
+          },
+          "expr": "cnpg_collector_fencing_on",
+          "refId": "A",
+          "range": true,
+          "instant": false,
+          "legendFormat": "{{service.instance.id}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "0": {
+                  "text": "not fenced",
+                  "color": "green",
+                  "index": 0
+                },
+                "1": {
+                  "text": "fenced",
+                  "color": "red",
+                  "index": 1
+                }
+              }
+            }
+          ],
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              }
+            ]
+          },
+          "custom": {
+            "fillOpacity": 80
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "showValue": "auto",
+        "mergeValues": true,
+        "legend": {
+          "showLegend": true,
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      },
+      "description": "cnpg_collector_fencing_on from CloudNativePG's exporter. CNPGInstanceFenced fires after 1 m at 1 (fenced scenario)."
+    },
+    {
+      "id": 7,
+      "title": "Node Ready",
+      "type": "state-timeline",
+      "datasource": {
+        "type": "victoriametrics-metrics-datasource",
+        "uid": "vm"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 10,
+        "w": 12,
+        "h": 6
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "vm"
+          },
+          "expr": "k8s.node.condition_ready",
+          "refId": "A",
+          "range": true,
+          "instant": false,
+          "legendFormat": "{{k8s.node.name}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "1": {
+                  "text": "Ready",
+                  "color": "green",
+                  "index": 0
+                },
+                "0": {
+                  "text": "NotReady",
+                  "color": "red",
+                  "index": 1
+                },
+                "-1": {
+                  "text": "Unknown",
+                  "color": "orange",
+                  "index": 2
+                }
+              }
+            }
+          ],
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              }
+            ]
+          },
+          "custom": {
+            "fillOpacity": 80
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "showValue": "auto",
+        "mergeValues": true,
+        "legend": {
+          "showLegend": true,
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      },
+      "description": "k8s.node.condition_ready from the k8s_cluster receiver: 1 Ready, 0 not Ready, -1 unknown. KubernetesNodeNotReady fires after 1 m not 1 (worker-stopped scenario)."
+    },
+    {
+      "id": 8,
+      "title": "Replication slots: WAL retained",
+      "type": "timeseries",
+      "datasource": {
+        "type": "victoriametrics-metrics-datasource",
+        "uid": "vm"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 10,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "vm"
+          },
+          "expr": "postgresql.replication_slot.retained_wal",
+          "refId": "A",
+          "range": true,
+          "instant": false,
+          "legendFormat": "{{service.instance.id}} {{postgresql.replication_slot.name}}"
+        },
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "vm"
+          },
+          "expr": "512 * 1024 * 1024",
+          "refId": "B",
+          "range": true,
+          "instant": false,
+          "legendFormat": "PostgresReplicationSlotRetainingWAL threshold"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 10,
+            "showPoints": "never"
+          },
+          "unit": "bytes"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "description": "retained_wal is current LSN minus restart_lsn, on every instance (assumption: the slots are CloudNativePG HA slots, which replicas also carry; the alert looks at the primary only). The slot-retaining-wal scenario adds the slot that grows past the threshold. An empty result is a failure: the cluster always has HA slots."
+    },
+    {
+      "id": 9,
+      "title": "Exporter health",
+      "type": "timeseries",
+      "datasource": {
+        "type": "victoriametrics-metrics-datasource",
+        "uid": "vm"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 18,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "vm"
+          },
+          "expr": "cnpg_collector_up",
+          "refId": "A",
+          "range": true,
+          "instant": false,
+          "legendFormat": "{{service.instance.id}} up"
+        },
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "vm"
+          },
+          "expr": "cnpg_last_error",
+          "refId": "B",
+          "range": true,
+          "instant": false,
+          "legendFormat": "{{service.instance.id}} last error"
+        },
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "vm"
+          },
+          "expr": "cnpg_collector_last_collection_error",
+          "refId": "C",
+          "range": true,
+          "instant": false,
+          "legendFormat": "{{service.instance.id}} last collection error"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 10,
+            "showPoints": "never"
+          },
+          "max": 1,
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "description": "CloudNativePG exporter self-state per instance (1 = up; the error series are 1 when the last collection failed). A fenced instance reports a collection error."
+    },
+    {
+      "id": 10,
+      "title": "WAL files by state",
+      "type": "timeseries",
+      "datasource": {
+        "type": "victoriametrics-metrics-datasource",
+        "uid": "vm"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 18,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "vm"
+          },
+          "expr": "cnpg_collector_pg_wal",
+          "refId": "A",
+          "range": true,
+          "instant": false,
+          "legendFormat": "{{service.instance.id}} {{value}}"
+        },
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "vm"
+          },
+          "expr": "cnpg_collector_pg_wal_archive_status{value=\"ready\"}",
+          "refId": "B",
+          "range": true,
+          "instant": false,
+          "legendFormat": "{{service.instance.id}} archive ready"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 10,
+            "showPoints": "never"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "description": "cnpg_collector_pg_wal (files in pg_wal, by state) and archive-ready files, from CloudNativePG's exporter."
+    },
+    {
+      "id": 11,
+      "title": "Synchronous replicas and switchover flag",
+      "type": "timeseries",
+      "datasource": {
+        "type": "victoriametrics-metrics-datasource",
+        "uid": "vm"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 26,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "vm"
+          },
+          "expr": "cnpg_collector_sync_replicas",
+          "refId": "A",
+          "range": true,
+          "instant": false,
+          "legendFormat": "{{service.instance.id}} {{value}}"
+        },
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "vm"
+          },
+          "expr": "cnpg_collector_manual_switchover_required",
+          "refId": "B",
+          "range": true,
+          "instant": false,
+          "legendFormat": "{{service.instance.id}} manual switchover required"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 10,
+            "showPoints": "never"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "description": "cnpg_collector_sync_replicas (min, max, expected, observed) and cnpg_collector_manual_switchover_required. All 0 while the lab does not configure synchronous replication (assumption: read from the series, not from the Cluster manifest)."
+    },
+    {
+      "id": 12,
+      "title": "WAL bytes per second",
+      "type": "timeseries",
+      "datasource": {
+        "type": "victoriametrics-metrics-datasource",
+        "uid": "vm"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 26,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "vm"
+          },
+          "expr": "rate(cnpg_collector_wal_bytes[$__rate_interval])",
+          "refId": "A",
+          "range": true,
+          "instant": false,
+          "legendFormat": "{{service.instance.id}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 10,
+            "showPoints": "never"
+          },
+          "unit": "Bps"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "description": "Rate of cnpg_collector_wal_bytes (pg_stat_wal.wal_bytes through CloudNativePG's exporter)."
+    },
+    {
+      "id": 13,
+      "title": "Container restarts",
+      "type": "timeseries",
+      "datasource": {
+        "type": "victoriametrics-metrics-datasource",
+        "uid": "vm"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 34,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "vm"
+          },
+          "expr": "k8s.container.restarts{k8s.namespace.name=\"obenhub\"}",
+          "refId": "A",
+          "range": true,
+          "instant": false,
+          "legendFormat": "{{k8s.pod.name}} {{k8s.container.name}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 10,
+            "showPoints": "never"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "description": "k8s.container.restarts from the k8s_cluster receiver, namespace obenhub. A pod deleted by a scenario shows as a new series, not a restart."
+    },
+    {
+      "id": 14,
+      "title": "Container ready",
+      "type": "timeseries",
+      "datasource": {
+        "type": "victoriametrics-metrics-datasource",
+        "uid": "vm"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 34,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "vm"
+          },
+          "expr": "k8s.container.ready{k8s.namespace.name=\"obenhub\"}",
+          "refId": "A",
+          "range": true,
+          "instant": false,
+          "legendFormat": "{{k8s.pod.name}} {{k8s.container.name}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 10,
+            "showPoints": "never"
+          },
+          "max": 1,
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "description": "k8s.container.ready, namespace obenhub. A fenced pod stays Running and drops to 0 here (assumption: the fenced pod is not ready per the CNPGInstanceFenced rule comment; this panel was not observed during the scenario)."
+    },
+    {
+      "id": 15,
+      "title": "Pod CPU",
+      "type": "timeseries",
+      "datasource": {
+        "type": "victoriametrics-metrics-datasource",
+        "uid": "vm"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 42,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "vm"
+          },
+          "expr": "k8s.pod.cpu.usage{k8s.namespace.name=\"obenhub\"}",
+          "refId": "A",
+          "range": true,
+          "instant": false,
+          "legendFormat": "{{k8s.pod.name}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 10,
+            "showPoints": "never"
+          },
+          "unit": "none"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "description": "k8s.pod.cpu.usage (cores), namespace obenhub (kubeletstats receiver)."
+    },
+    {
+      "id": 16,
+      "title": "Pod memory (working set)",
+      "type": "timeseries",
+      "datasource": {
+        "type": "victoriametrics-metrics-datasource",
+        "uid": "vm"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 42,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "vm"
+          },
+          "expr": "k8s.pod.memory.working_set{k8s.namespace.name=\"obenhub\"}",
+          "refId": "A",
+          "range": true,
+          "instant": false,
+          "legendFormat": "{{k8s.pod.name}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 10,
+            "showPoints": "never"
+          },
+          "unit": "bytes"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "description": "k8s.pod.memory.working_set, namespace obenhub."
+    },
+    {
+      "id": 17,
+      "title": "Pod network",
+      "type": "timeseries",
+      "datasource": {
+        "type": "victoriametrics-metrics-datasource",
+        "uid": "vm"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 50,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "vm"
+          },
+          "expr": "sum by (k8s.pod.name, direction) (rate(k8s.pod.network.io{k8s.namespace.name=\"obenhub\"}[$__rate_interval]))",
+          "refId": "A",
+          "range": true,
+          "instant": false,
+          "legendFormat": "{{k8s.pod.name}} {{direction}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 10,
+            "showPoints": "never"
+          },
+          "unit": "Bps"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "description": "Rate of k8s.pod.network.io, namespace obenhub."
+    },
+    {
+      "id": 18,
+      "title": "Node CPU and memory",
+      "type": "timeseries",
+      "datasource": {
+        "type": "victoriametrics-metrics-datasource",
+        "uid": "vm"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 50,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "vm"
+          },
+          "expr": "k8s.node.cpu.usage",
+          "refId": "A",
+          "range": true,
+          "instant": false,
+          "legendFormat": "{{k8s.node.name}} cpu cores"
+        },
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "vm"
+          },
+          "expr": "k8s.node.memory.working_set / 1024 / 1024 / 1024",
+          "refId": "B",
+          "range": true,
+          "instant": false,
+          "legendFormat": "{{k8s.node.name}} memory GiB"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 10,
+            "showPoints": "never"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "description": "k8s.node.cpu.usage (cores) and k8s.node.memory.working_set (GiB) per node."
+    },
+    {
+      "id": 19,
+      "title": "Alerts firing",
+      "type": "timeseries",
+      "datasource": {
+        "type": "victoriametrics-metrics-datasource",
+        "uid": "vm"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 58,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "vm"
+          },
+          "expr": "count by (alertname) (ALERTS{alertstate=\"firing\", alertname!=\"Watchdog\"})",
+          "refId": "A",
+          "range": true,
+          "instant": false,
+          "legendFormat": "{{alertname}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 10,
+            "showPoints": "never"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "description": "Data only during a scenario. ALERTS series written by vmalert, every firing alert except the Watchdog, so each alert a k8s scenario expects shows. Empty while the lab is healthy."
+    },
+    {
+      "id": 20,
+      "title": "Delivered alert notifications",
+      "type": "logs",
+      "datasource": {
+        "type": "victoriametrics-logs-datasource",
+        "uid": "vl"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 58,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "victoriametrics-logs-datasource",
+            "uid": "vl"
+          },
+          "expr": "status:in(firing,resolved) | fields _time, status, commonLabels.alertname, commonLabels.service_instance_id, commonAnnotations.summary",
+          "refId": "A",
+          "queryType": "range"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {
+        "showTime": true,
+        "wrapLogMessage": true,
+        "sortOrder": "Descending",
+        "enableLogDetails": true
+      },
+      "description": "Everything Alertmanager delivered to the sink, including the Watchdog."
+    }
+  ]
+}

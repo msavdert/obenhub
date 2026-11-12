@@ -601,28 +601,6 @@
           "range": true,
           "instant": false,
           "legendFormat": "{{service.instance.id}} {{postgresql.replication_slot.name}} retained"
-        },
-        {
-          "datasource": {
-            "type": "victoriametrics-metrics-datasource",
-            "uid": "vm"
-          },
-          "expr": "postgresql.replication_slot.unconfirmed_wal{postgresql.replication_slot.type=\"logical\"}",
-          "refId": "B",
-          "range": true,
-          "instant": false,
-          "legendFormat": "{{service.instance.id}} {{postgresql.replication_slot.name}} unconfirmed"
-        },
-        {
-          "datasource": {
-            "type": "victoriametrics-metrics-datasource",
-            "uid": "vm"
-          },
-          "expr": "128 * 1024 * 1024",
-          "refId": "C",
-          "range": true,
-          "instant": false,
-          "legendFormat": "PostgresLogicalSlotStalled bytes threshold"
         }
       ],
       "fieldConfig": {
@@ -645,7 +623,7 @@
           "mode": "multi"
         }
       },
-      "description": "retained_wal is current LSN minus restart_lsn; unconfirmed_wal (logical slots) is current LSN minus confirmed_flush_lsn. All nodes, not filtered by the instance variable."
+      "description": "retained_wal is current LSN minus restart_lsn, all slots on all nodes, not filtered by the instance variable. PostgresReplicationSlotRetainingWAL uses 512 MiB on a primary; the logical slots have their own panel in the Logical replication row."
     },
     {
       "id": 12,
@@ -719,517 +697,605 @@
       "description": "active is 1 while a process streams from the slot; postgresql.replication_slot.inactive_age counts from pg_replication_slots.inactive_since. The standby slot standby1 is physical and not covered by the alert."
     },
     {
-      "id": 13,
-      "title": "Subscription: enabled and apply worker",
-      "type": "timeseries",
-      "datasource": {
-        "type": "victoriametrics-metrics-datasource",
-        "uid": "vm"
-      },
+      "id": 101,
+      "type": "row",
+      "title": "Logical replication (labs with a subscriber: slice1)",
+      "collapsed": true,
       "gridPos": {
         "x": 0,
         "y": 28,
-        "w": 12,
-        "h": 8
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "victoriametrics-metrics-datasource",
-            "uid": "vm"
-          },
-          "expr": "postgresql.subscription.enabled",
-          "refId": "A",
-          "range": true,
-          "instant": false,
-          "legendFormat": "{{postgresql.subscription.name}} enabled"
-        },
-        {
-          "datasource": {
-            "type": "victoriametrics-metrics-datasource",
-            "uid": "vm"
-          },
-          "expr": "postgresql.subscription.apply_worker_running",
-          "refId": "B",
-          "range": true,
-          "instant": false,
-          "legendFormat": "{{postgresql.subscription.name}} apply worker running"
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "short",
-          "custom": {
-            "lineWidth": 1,
-            "fillOpacity": 10,
-            "showPoints": "never"
-          }
-        },
-        "overrides": []
-      },
-      "options": {
-        "legend": {
-          "displayMode": "list",
-          "placement": "bottom"
-        },
-        "tooltip": {
-          "mode": "multi"
-        }
-      },
-      "description": "From pg_subscription and pg_stat_subscription on the subscriber. A disabled subscription is expected to have no worker."
-    },
-    {
-      "id": 14,
-      "title": "Subscription: age of last message",
-      "type": "timeseries",
-      "datasource": {
-        "type": "victoriametrics-metrics-datasource",
-        "uid": "vm"
-      },
-      "gridPos": {
-        "x": 12,
-        "y": 28,
-        "w": 12,
-        "h": 8
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "victoriametrics-metrics-datasource",
-            "uid": "vm"
-          },
-          "expr": "postgresql.subscription.last_msg_age",
-          "refId": "A",
-          "range": true,
-          "instant": false,
-          "legendFormat": "{{postgresql.subscription.name}} seconds since last message"
-        },
-        {
-          "datasource": {
-            "type": "victoriametrics-metrics-datasource",
-            "uid": "vm"
-          },
-          "expr": "60",
-          "refId": "B",
-          "range": true,
-          "instant": false,
-          "legendFormat": "PostgresLogicalSubscriptionNotStreaming threshold (s)"
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "s",
-          "custom": {
-            "lineWidth": 1,
-            "fillOpacity": 10,
-            "showPoints": "never"
-          }
-        },
-        "overrides": []
-      },
-      "options": {
-        "legend": {
-          "displayMode": "list",
-          "placement": "bottom"
-        },
-        "tooltip": {
-          "mode": "multi"
-        }
-      },
-      "description": "pg_stat_subscription.last_msg_receipt_time of the apply worker; 0 while there is no worker. A healthy idle subscription peaks near 30 s."
-    },
-    {
-      "id": 15,
-      "title": "Subscription: apply errors, sync errors, conflicts",
-      "type": "timeseries",
-      "datasource": {
-        "type": "victoriametrics-metrics-datasource",
-        "uid": "vm"
-      },
-      "gridPos": {
-        "x": 0,
-        "y": 36,
         "w": 24,
-        "h": 8
+        "h": 1
       },
-      "targets": [
+      "panels": [
         {
+          "id": 13,
+          "title": "Subscription: enabled and apply worker",
+          "type": "timeseries",
           "datasource": {
             "type": "victoriametrics-metrics-datasource",
             "uid": "vm"
           },
-          "expr": "postgresql.subscription.apply_error",
-          "refId": "A",
-          "range": true,
-          "instant": false,
-          "legendFormat": "{{postgresql.subscription.name}} apply errors"
+          "gridPos": {
+            "x": 0,
+            "y": 29,
+            "w": 12,
+            "h": 8
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "victoriametrics-metrics-datasource",
+                "uid": "vm"
+              },
+              "expr": "postgresql.subscription.enabled",
+              "refId": "A",
+              "range": true,
+              "instant": false,
+              "legendFormat": "{{postgresql.subscription.name}} enabled"
+            },
+            {
+              "datasource": {
+                "type": "victoriametrics-metrics-datasource",
+                "uid": "vm"
+              },
+              "expr": "postgresql.subscription.apply_worker_running",
+              "refId": "B",
+              "range": true,
+              "instant": false,
+              "legendFormat": "{{postgresql.subscription.name}} apply worker running"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "custom": {
+                "lineWidth": 1,
+                "fillOpacity": 10,
+                "showPoints": "never"
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            },
+            "tooltip": {
+              "mode": "multi"
+            }
+          },
+          "description": "From pg_subscription and pg_stat_subscription on the subscriber. A disabled subscription is expected to have no worker."
         },
         {
+          "id": 14,
+          "title": "Subscription: age of last message",
+          "type": "timeseries",
           "datasource": {
             "type": "victoriametrics-metrics-datasource",
             "uid": "vm"
           },
-          "expr": "postgresql.subscription.sync_error",
-          "refId": "B",
-          "range": true,
-          "instant": false,
-          "legendFormat": "{{postgresql.subscription.name}} sync errors"
+          "gridPos": {
+            "x": 12,
+            "y": 29,
+            "w": 12,
+            "h": 8
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "victoriametrics-metrics-datasource",
+                "uid": "vm"
+              },
+              "expr": "postgresql.subscription.last_msg_age",
+              "refId": "A",
+              "range": true,
+              "instant": false,
+              "legendFormat": "{{postgresql.subscription.name}} seconds since last message"
+            },
+            {
+              "datasource": {
+                "type": "victoriametrics-metrics-datasource",
+                "uid": "vm"
+              },
+              "expr": "60",
+              "refId": "B",
+              "range": true,
+              "instant": false,
+              "legendFormat": "PostgresLogicalSubscriptionNotStreaming threshold (s)"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "s",
+              "custom": {
+                "lineWidth": 1,
+                "fillOpacity": 10,
+                "showPoints": "never"
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            },
+            "tooltip": {
+              "mode": "multi"
+            }
+          },
+          "description": "pg_stat_subscription.last_msg_receipt_time of the apply worker; 0 while there is no worker. A healthy idle subscription peaks near 30 s."
         },
         {
+          "id": 15,
+          "title": "Subscription: apply errors, sync errors, conflicts",
+          "type": "timeseries",
           "datasource": {
             "type": "victoriametrics-metrics-datasource",
             "uid": "vm"
           },
-          "expr": "sum by (postgresql.subscription.name, postgresql.conflict.type) (postgresql.subscription.conflict) > 0",
-          "refId": "C",
-          "range": true,
-          "instant": false,
-          "legendFormat": "{{postgresql.subscription.name}} conflicts {{postgresql.conflict.type}}"
+          "gridPos": {
+            "x": 0,
+            "y": 37,
+            "w": 24,
+            "h": 8
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "victoriametrics-metrics-datasource",
+                "uid": "vm"
+              },
+              "expr": "postgresql.subscription.apply_error",
+              "refId": "A",
+              "range": true,
+              "instant": false,
+              "legendFormat": "{{postgresql.subscription.name}} apply errors"
+            },
+            {
+              "datasource": {
+                "type": "victoriametrics-metrics-datasource",
+                "uid": "vm"
+              },
+              "expr": "postgresql.subscription.sync_error",
+              "refId": "B",
+              "range": true,
+              "instant": false,
+              "legendFormat": "{{postgresql.subscription.name}} sync errors"
+            },
+            {
+              "datasource": {
+                "type": "victoriametrics-metrics-datasource",
+                "uid": "vm"
+              },
+              "expr": "sum by (postgresql.subscription.name, postgresql.conflict.type) (postgresql.subscription.conflict) > 0",
+              "refId": "C",
+              "range": true,
+              "instant": false,
+              "legendFormat": "{{postgresql.subscription.name}} conflicts {{postgresql.conflict.type}}"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "custom": {
+                "lineWidth": 1,
+                "fillOpacity": 10,
+                "showPoints": "never"
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            },
+            "tooltip": {
+              "mode": "multi"
+            }
+          },
+          "description": "Cumulative counters from pg_stat_subscription_stats. An insert_exists conflict raises apply errors about every 5 s until it is resolved; conflict types at zero are hidden."
+        },
+        {
+          "id": 103,
+          "title": "Logical slots: unconfirmed WAL",
+          "type": "timeseries",
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "vm"
+          },
+          "gridPos": {
+            "x": 0,
+            "y": 45,
+            "w": 12,
+            "h": 8
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "victoriametrics-metrics-datasource",
+                "uid": "vm"
+              },
+              "expr": "postgresql.replication_slot.unconfirmed_wal{postgresql.replication_slot.type=\"logical\"}",
+              "refId": "A",
+              "range": true,
+              "instant": false,
+              "legendFormat": "{{service.instance.id}} {{postgresql.replication_slot.name}} unconfirmed"
+            },
+            {
+              "datasource": {
+                "type": "victoriametrics-metrics-datasource",
+                "uid": "vm"
+              },
+              "expr": "128 * 1024 * 1024",
+              "refId": "B",
+              "range": true,
+              "instant": false,
+              "legendFormat": "PostgresLogicalSlotStalled threshold, 128 MiB (logical slots only)"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "bytes",
+              "custom": {
+                "lineWidth": 1,
+                "fillOpacity": 10,
+                "showPoints": "never"
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            },
+            "tooltip": {
+              "mode": "multi"
+            }
+          },
+          "description": "unconfirmed_wal (logical slots) is current LSN minus confirmed_flush_lsn. The 128 MiB line is the PostgresLogicalSlotStalled threshold (slice1 rules)."
         }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "short",
-          "custom": {
-            "lineWidth": 1,
-            "fillOpacity": 10,
-            "showPoints": "never"
-          }
-        },
-        "overrides": []
-      },
-      "options": {
-        "legend": {
-          "displayMode": "list",
-          "placement": "bottom"
-        },
-        "tooltip": {
-          "mode": "multi"
-        }
-      },
-      "description": "Cumulative counters from pg_stat_subscription_stats. An insert_exists conflict raises apply errors about every 5 s until it is resolved; conflict types at zero are hidden."
+      ]
     },
     {
-      "id": 16,
-      "title": "PgBouncer: clients active and waiting",
-      "type": "timeseries",
-      "datasource": {
-        "type": "victoriametrics-metrics-datasource",
-        "uid": "vm"
-      },
+      "id": 102,
+      "type": "row",
+      "title": "PgBouncer (labs with PgBouncer: slice1)",
+      "collapsed": true,
       "gridPos": {
         "x": 0,
-        "y": 44,
-        "w": 8,
-        "h": 8
+        "y": 29,
+        "w": 24,
+        "h": 1
       },
-      "targets": [
+      "panels": [
         {
+          "id": 16,
+          "title": "PgBouncer: clients active and waiting",
+          "type": "timeseries",
           "datasource": {
             "type": "victoriametrics-metrics-datasource",
             "uid": "vm"
           },
-          "expr": "pgbouncer.pool.active_client.count",
-          "refId": "A",
-          "range": true,
-          "instant": false,
-          "legendFormat": "{{pgbouncer.database.name}}/{{user.name}} active"
+          "gridPos": {
+            "x": 0,
+            "y": 30,
+            "w": 8,
+            "h": 8
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "victoriametrics-metrics-datasource",
+                "uid": "vm"
+              },
+              "expr": "pgbouncer.pool.active_client.count",
+              "refId": "A",
+              "range": true,
+              "instant": false,
+              "legendFormat": "{{pgbouncer.database.name}}/{{user.name}} active"
+            },
+            {
+              "datasource": {
+                "type": "victoriametrics-metrics-datasource",
+                "uid": "vm"
+              },
+              "expr": "pgbouncer.pool.waiting_client.count",
+              "refId": "B",
+              "range": true,
+              "instant": false,
+              "legendFormat": "{{pgbouncer.database.name}}/{{user.name}} waiting"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "custom": {
+                "lineWidth": 1,
+                "fillOpacity": 10,
+                "showPoints": "never"
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            },
+            "tooltip": {
+              "mode": "multi"
+            }
+          },
+          "description": "SHOW POOLS cl_active and cl_waiting through the Collector. The console pool (database pgbouncer) is always listed; pools of other databases appear with their first client. Not filtered by the instance variable: PgBouncer is its own target."
         },
         {
+          "id": 17,
+          "title": "PgBouncer: server connections vs pool size",
+          "type": "timeseries",
           "datasource": {
             "type": "victoriametrics-metrics-datasource",
             "uid": "vm"
           },
-          "expr": "pgbouncer.pool.waiting_client.count",
-          "refId": "B",
-          "range": true,
-          "instant": false,
-          "legendFormat": "{{pgbouncer.database.name}}/{{user.name}} waiting"
+          "gridPos": {
+            "x": 8,
+            "y": 30,
+            "w": 8,
+            "h": 8
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "victoriametrics-metrics-datasource",
+                "uid": "vm"
+              },
+              "expr": "pgbouncer.pool.active_server.count",
+              "refId": "A",
+              "range": true,
+              "instant": false,
+              "legendFormat": "{{pgbouncer.database.name}}/{{user.name}} active"
+            },
+            {
+              "datasource": {
+                "type": "victoriametrics-metrics-datasource",
+                "uid": "vm"
+              },
+              "expr": "pgbouncer.pool.idle_server.count",
+              "refId": "B",
+              "range": true,
+              "instant": false,
+              "legendFormat": "{{pgbouncer.database.name}}/{{user.name}} idle"
+            },
+            {
+              "datasource": {
+                "type": "victoriametrics-metrics-datasource",
+                "uid": "vm"
+              },
+              "expr": "pgbouncer.pool.used_server.count",
+              "refId": "C",
+              "range": true,
+              "instant": false,
+              "legendFormat": "{{pgbouncer.database.name}}/{{user.name}} used"
+            },
+            {
+              "datasource": {
+                "type": "victoriametrics-metrics-datasource",
+                "uid": "vm"
+              },
+              "expr": "pgbouncer.database.server_connection.limit",
+              "refId": "D",
+              "range": true,
+              "instant": false,
+              "legendFormat": "pool_size {{pgbouncer.database.name}}"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "custom": {
+                "lineWidth": 1,
+                "fillOpacity": 10,
+                "showPoints": "never"
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            },
+            "tooltip": {
+              "mode": "multi"
+            }
+          },
+          "description": "SHOW POOLS sv_active, sv_idle and sv_used against SHOW DATABASES pool_size. Active at pool_size means the next client queues."
+        },
+        {
+          "id": 18,
+          "title": "PgBouncer: oldest waiting client",
+          "type": "timeseries",
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "vm"
+          },
+          "gridPos": {
+            "x": 16,
+            "y": 30,
+            "w": 8,
+            "h": 8
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "victoriametrics-metrics-datasource",
+                "uid": "vm"
+              },
+              "expr": "pgbouncer.pool.oldest_wait_age + pgbouncer.pool.oldest_wait_subsecond_age",
+              "refId": "A",
+              "range": true,
+              "instant": false,
+              "legendFormat": "{{pgbouncer.database.name}}/{{user.name}} oldest wait"
+            },
+            {
+              "datasource": {
+                "type": "victoriametrics-metrics-datasource",
+                "uid": "vm"
+              },
+              "expr": "vector(5)",
+              "refId": "B",
+              "range": true,
+              "instant": false,
+              "legendFormat": "alert threshold (5 s)"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "s",
+              "custom": {
+                "lineWidth": 1,
+                "fillOpacity": 10,
+                "showPoints": "never"
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            },
+            "tooltip": {
+              "mode": "multi"
+            }
+          },
+          "description": "SHOW POOLS maxwait plus maxwait_us (pgbouncer.pool.oldest_wait_age plus pgbouncer.pool.oldest_wait_subsecond_age, both in seconds). PgbouncerClientsWaiting fires above 5 s for 1 m."
+        },
+        {
+          "id": 19,
+          "title": "PgBouncer: client connections vs max_client_conn",
+          "type": "timeseries",
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "vm"
+          },
+          "gridPos": {
+            "x": 0,
+            "y": 38,
+            "w": 12,
+            "h": 8
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "victoriametrics-metrics-datasource",
+                "uid": "vm"
+              },
+              "expr": "pgbouncer.list.item.count{pgbouncer.list.name=\"used_clients\"}",
+              "refId": "A",
+              "range": true,
+              "instant": false,
+              "legendFormat": "used_clients"
+            },
+            {
+              "datasource": {
+                "type": "victoriametrics-metrics-datasource",
+                "uid": "vm"
+              },
+              "expr": "pgbouncer.client_connection.limit",
+              "refId": "B",
+              "range": true,
+              "instant": false,
+              "legendFormat": "max_client_conn"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "custom": {
+                "lineWidth": 1,
+                "fillOpacity": 10,
+                "showPoints": "never"
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            },
+            "tooltip": {
+              "mode": "multi"
+            }
+          },
+          "description": "SHOW LISTS used_clients against the max_client_conn setting (SHOW CONFIG). used_clients includes the console connections, which count towards the limit but are never refused; a client beyond the limit is refused and counted nowhere. Not filtered by the instance variable: PgBouncer is its own target."
+        },
+        {
+          "id": 20,
+          "title": "PgBouncer: average wait and query time",
+          "type": "timeseries",
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "vm"
+          },
+          "gridPos": {
+            "x": 12,
+            "y": 38,
+            "w": 12,
+            "h": 8
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "victoriametrics-metrics-datasource",
+                "uid": "vm"
+              },
+              "expr": "rate(pgbouncer.stats.wait_time{pgbouncer.database.name!=\"pgbouncer\"}[$__rate_interval]) / rate(pgbouncer.stats.server_assignment{pgbouncer.database.name!=\"pgbouncer\"}[$__rate_interval])",
+              "refId": "A",
+              "range": true,
+              "instant": false,
+              "legendFormat": "{{pgbouncer.database.name}} wait per server assignment"
+            },
+            {
+              "datasource": {
+                "type": "victoriametrics-metrics-datasource",
+                "uid": "vm"
+              },
+              "expr": "rate(pgbouncer.stats.query_time{pgbouncer.database.name!=\"pgbouncer\"}[$__rate_interval]) / rate(pgbouncer.stats.query{pgbouncer.database.name!=\"pgbouncer\"}[$__rate_interval])",
+              "refId": "B",
+              "range": true,
+              "instant": false,
+              "legendFormat": "{{pgbouncer.database.name}} query time"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "s",
+              "custom": {
+                "lineWidth": 1,
+                "fillOpacity": 10,
+                "showPoints": "never"
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            },
+            "tooltip": {
+              "mode": "multi"
+            }
+          },
+          "description": "Data only during a scenario or other PgBouncer traffic. SHOW STATS totals as rate ratios, in seconds: wait per server assignment and server time per query. Wait time is counted only when a wait ends in an assignment. Query time includes the wait (PgBouncer starts timing when the query arrives, not when a server is assigned). A database with no traffic in the window has no point. Not filtered by the instance variable: PgBouncer is its own target."
         }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "short",
-          "custom": {
-            "lineWidth": 1,
-            "fillOpacity": 10,
-            "showPoints": "never"
-          }
-        },
-        "overrides": []
-      },
-      "options": {
-        "legend": {
-          "displayMode": "list",
-          "placement": "bottom"
-        },
-        "tooltip": {
-          "mode": "multi"
-        }
-      },
-      "description": "SHOW POOLS cl_active and cl_waiting through the Collector. The console pool (database pgbouncer) is always listed; pools of other databases appear with their first client. Not filtered by the instance variable: PgBouncer is its own target."
-    },
-    {
-      "id": 17,
-      "title": "PgBouncer: server connections vs pool size",
-      "type": "timeseries",
-      "datasource": {
-        "type": "victoriametrics-metrics-datasource",
-        "uid": "vm"
-      },
-      "gridPos": {
-        "x": 8,
-        "y": 44,
-        "w": 8,
-        "h": 8
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "victoriametrics-metrics-datasource",
-            "uid": "vm"
-          },
-          "expr": "pgbouncer.pool.active_server.count",
-          "refId": "A",
-          "range": true,
-          "instant": false,
-          "legendFormat": "{{pgbouncer.database.name}}/{{user.name}} active"
-        },
-        {
-          "datasource": {
-            "type": "victoriametrics-metrics-datasource",
-            "uid": "vm"
-          },
-          "expr": "pgbouncer.pool.idle_server.count",
-          "refId": "B",
-          "range": true,
-          "instant": false,
-          "legendFormat": "{{pgbouncer.database.name}}/{{user.name}} idle"
-        },
-        {
-          "datasource": {
-            "type": "victoriametrics-metrics-datasource",
-            "uid": "vm"
-          },
-          "expr": "pgbouncer.pool.used_server.count",
-          "refId": "C",
-          "range": true,
-          "instant": false,
-          "legendFormat": "{{pgbouncer.database.name}}/{{user.name}} used"
-        },
-        {
-          "datasource": {
-            "type": "victoriametrics-metrics-datasource",
-            "uid": "vm"
-          },
-          "expr": "pgbouncer.database.server_connection.limit",
-          "refId": "D",
-          "range": true,
-          "instant": false,
-          "legendFormat": "pool_size {{pgbouncer.database.name}}"
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "short",
-          "custom": {
-            "lineWidth": 1,
-            "fillOpacity": 10,
-            "showPoints": "never"
-          }
-        },
-        "overrides": []
-      },
-      "options": {
-        "legend": {
-          "displayMode": "list",
-          "placement": "bottom"
-        },
-        "tooltip": {
-          "mode": "multi"
-        }
-      },
-      "description": "SHOW POOLS sv_active, sv_idle and sv_used against SHOW DATABASES pool_size. Active at pool_size means the next client queues."
-    },
-    {
-      "id": 18,
-      "title": "PgBouncer: oldest waiting client",
-      "type": "timeseries",
-      "datasource": {
-        "type": "victoriametrics-metrics-datasource",
-        "uid": "vm"
-      },
-      "gridPos": {
-        "x": 16,
-        "y": 44,
-        "w": 8,
-        "h": 8
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "victoriametrics-metrics-datasource",
-            "uid": "vm"
-          },
-          "expr": "pgbouncer.pool.oldest_wait_age + pgbouncer.pool.oldest_wait_subsecond_age",
-          "refId": "A",
-          "range": true,
-          "instant": false,
-          "legendFormat": "{{pgbouncer.database.name}}/{{user.name}} oldest wait"
-        },
-        {
-          "datasource": {
-            "type": "victoriametrics-metrics-datasource",
-            "uid": "vm"
-          },
-          "expr": "vector(5)",
-          "refId": "B",
-          "range": true,
-          "instant": false,
-          "legendFormat": "alert threshold (5 s)"
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "s",
-          "custom": {
-            "lineWidth": 1,
-            "fillOpacity": 10,
-            "showPoints": "never"
-          }
-        },
-        "overrides": []
-      },
-      "options": {
-        "legend": {
-          "displayMode": "list",
-          "placement": "bottom"
-        },
-        "tooltip": {
-          "mode": "multi"
-        }
-      },
-      "description": "SHOW POOLS maxwait plus maxwait_us (pgbouncer.pool.oldest_wait_age plus pgbouncer.pool.oldest_wait_subsecond_age, both in seconds). PgbouncerClientsWaiting fires above 5 s for 1 m."
-    },
-    {
-      "id": 19,
-      "title": "PgBouncer: client connections vs max_client_conn",
-      "type": "timeseries",
-      "datasource": {
-        "type": "victoriametrics-metrics-datasource",
-        "uid": "vm"
-      },
-      "gridPos": {
-        "x": 0,
-        "y": 52,
-        "w": 12,
-        "h": 8
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "victoriametrics-metrics-datasource",
-            "uid": "vm"
-          },
-          "expr": "pgbouncer.list.item.count{pgbouncer.list.name=\"used_clients\"}",
-          "refId": "A",
-          "range": true,
-          "instant": false,
-          "legendFormat": "used_clients"
-        },
-        {
-          "datasource": {
-            "type": "victoriametrics-metrics-datasource",
-            "uid": "vm"
-          },
-          "expr": "pgbouncer.client_connection.limit",
-          "refId": "B",
-          "range": true,
-          "instant": false,
-          "legendFormat": "max_client_conn"
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "short",
-          "custom": {
-            "lineWidth": 1,
-            "fillOpacity": 10,
-            "showPoints": "never"
-          }
-        },
-        "overrides": []
-      },
-      "options": {
-        "legend": {
-          "displayMode": "list",
-          "placement": "bottom"
-        },
-        "tooltip": {
-          "mode": "multi"
-        }
-      },
-      "description": "SHOW LISTS used_clients against the max_client_conn setting (SHOW CONFIG). used_clients includes the console connections, which count towards the limit but are never refused; a client beyond the limit is refused and counted nowhere. Not filtered by the instance variable: PgBouncer is its own target."
-    },
-    {
-      "id": 20,
-      "title": "PgBouncer: average wait and query time",
-      "type": "timeseries",
-      "datasource": {
-        "type": "victoriametrics-metrics-datasource",
-        "uid": "vm"
-      },
-      "gridPos": {
-        "x": 12,
-        "y": 52,
-        "w": 12,
-        "h": 8
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "victoriametrics-metrics-datasource",
-            "uid": "vm"
-          },
-          "expr": "rate(pgbouncer.stats.wait_time{pgbouncer.database.name!=\"pgbouncer\"}[$__rate_interval]) / rate(pgbouncer.stats.server_assignment{pgbouncer.database.name!=\"pgbouncer\"}[$__rate_interval])",
-          "refId": "A",
-          "range": true,
-          "instant": false,
-          "legendFormat": "{{pgbouncer.database.name}} wait per server assignment"
-        },
-        {
-          "datasource": {
-            "type": "victoriametrics-metrics-datasource",
-            "uid": "vm"
-          },
-          "expr": "rate(pgbouncer.stats.query_time{pgbouncer.database.name!=\"pgbouncer\"}[$__rate_interval]) / rate(pgbouncer.stats.query{pgbouncer.database.name!=\"pgbouncer\"}[$__rate_interval])",
-          "refId": "B",
-          "range": true,
-          "instant": false,
-          "legendFormat": "{{pgbouncer.database.name}} query time"
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "s",
-          "custom": {
-            "lineWidth": 1,
-            "fillOpacity": 10,
-            "showPoints": "never"
-          }
-        },
-        "overrides": []
-      },
-      "options": {
-        "legend": {
-          "displayMode": "list",
-          "placement": "bottom"
-        },
-        "tooltip": {
-          "mode": "multi"
-        }
-      },
-      "description": "SHOW STATS totals as rate ratios, in seconds: wait per server assignment and server time per query. Wait time is counted only when a wait ends in an assignment. Query time includes the wait (PgBouncer starts timing when the query arrives, not when a server is assigned). A database with no traffic in the window has no point. Not filtered by the instance variable: PgBouncer is its own target."
+      ]
     },
     {
       "id": 9,
@@ -1241,7 +1307,7 @@
       },
       "gridPos": {
         "x": 0,
-        "y": 60,
+        "y": 30,
         "w": 24,
         "h": 9
       },
@@ -1278,7 +1344,7 @@
       },
       "gridPos": {
         "x": 0,
-        "y": 69,
+        "y": 39,
         "w": 24,
         "h": 9
       },

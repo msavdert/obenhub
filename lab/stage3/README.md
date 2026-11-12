@@ -23,6 +23,8 @@ stops it. Do not run it together with a slice1 suite: both use the host lock.
 - One Collector: the shared PostgreSQL pack on every node, named by node and
   never by role, `prometheusreceiver` on each node's Patroni `/metrics`
   (contrib has no Patroni receiver) and on each etcd member.
+- `mise run lab:stage3:panels` runs the Patroni dashboard's panel queries
+  against the live Grafana.
 - Each scenario reloads vmalert and Alertmanager first, checks the reload
   counters and records the hash of the rule and Alertmanager files as the
   containers read them; a mismatch with the repository fails the run.
