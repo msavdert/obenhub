@@ -2,8 +2,9 @@
 # the gateway over mutual TLS; everything else listens on 127.0.0.1 only.
 # Images, versions and flags are those of lab/stage3/compose.yaml. The
 # Alertmanager config (webhook into VictoriaLogs) and the Grafana
-# provisioning and dashboards are the stage 3 ones, mounted from there: the
-# service names are the same.
+# provisioning are the stage 3 ones, mounted from there: the service names are
+# the same. Dashboards: the stage 3 Patroni one and the shared host dashboard
+# (lab/packs/host/dashboards).
 # Start with: mise run lab:pgha:mon:up (generates .env).
 name: obenhub-pgha
 
@@ -129,7 +130,8 @@ services:
     volumes:
       - grafana-data:/var/lib/grafana
       - ../../stage3/grafana/provisioning:/etc/grafana/provisioning:ro
-      - ../../stage3/grafana/dashboards:/var/lib/obenhub/dashboards:ro
+      - ../../stage3/grafana/dashboards:/var/lib/obenhub/dashboards/patroni:ro
+      - ../../packs/host/dashboards:/var/lib/obenhub/dashboards/host:ro
     healthcheck:
       test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:3000/api/health"]
       interval: 5s

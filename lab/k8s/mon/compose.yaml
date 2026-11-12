@@ -3,7 +3,8 @@
 # the kind Docker network's IPv4 gateway address; everything else listens on
 # 127.0.0.1 only. Images, versions and flags are those of lab/pgha/mon/compose.yaml
 # (same services, so the stage 3 Alertmanager config and Grafana provisioning
-# are mounted from there unchanged).
+# are mounted from there unchanged). Dashboards: lab/k8s/grafana/dashboards
+# (CloudNativePG and Kubernetes) and the shared PostgreSQL dashboard of slice 1.
 # Start with: lab/k8s/scripts/up.sh (it writes .env from the running kind network).
 
 name: obenhub-k8s
@@ -125,7 +126,8 @@ services:
     volumes:
       - grafana-data:/var/lib/grafana
       - ../../stage3/grafana/provisioning:/etc/grafana/provisioning:ro
-      - ../../stage3/grafana/dashboards:/var/lib/obenhub/dashboards:ro
+      - ../grafana/dashboards:/var/lib/obenhub/dashboards/k8s:ro
+      - ../../slice1/grafana/dashboards:/var/lib/obenhub/dashboards/postgresql:ro
     healthcheck:
       test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:3000/api/health"]
       interval: 5s
