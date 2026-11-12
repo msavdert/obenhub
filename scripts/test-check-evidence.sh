@@ -10,7 +10,8 @@ cd "$tmp"
 git init -q -b main .
 git config user.email t@example.invalid
 git config user.name t
-mkdir -p lab/x/results lab/packs lab/scenarios
+mkdir -p lab/x/results lab/x/scenarios lab/packs lab/scenarios
+printf 'a\nb\n' >lab/x/scenarios/suite.txt
 echo 1 >lab/x/code
 echo 1 >lab/packs/p
 echo 1 >lab/scenarios/s
@@ -27,12 +28,19 @@ git commit -q -m side
 off=$(git rev-parse --short HEAD)
 git checkout -q main
 
-# row SUITE SIZE SHA DIRTY PASS [START]; size "null" makes a legacy row
+t1=2026-01-01T00:00:00Z
+t2=2026-02-01T00:00:00Z
+
+# row SUITE SIZE SHA DIRTY PASS START SCENARIO: SIZE is JSON ("null" makes a
+# legacy row, SUITE "-" a suite-less row); the suite list is a, b
 row() {
   jq -n -c --arg s "$1" --argjson z "$2" --arg sha "$3" --argjson d "$4" \
-    --argjson p "$5" --arg t "${6:-2026-01-01T00:00:00Z}" \
-    '{scenario: "a", suite: $s, suite_size: $z, git_sha: $sha, git_dirty: $d, pass: $p, start: $t}'
+    --argjson p "$5" --arg t "$6" --arg n "$7" \
+    '{scenario: $n, suite: (if $s == "-" then null else $s end), suite_size: $z,
+      git_sha: $sha, git_dirty: $d, pass: $p, start: $t}'
 }
+# pair SUITE SHA START: the two records of a complete clean passing suite
+pair() { row "$1" 2 "$2" false true "$3" a; row "$1" 2 "$2" false true "$3" b; }
 
 fail=0
 # expect NAME EXIT PATTERN ARGS...: run the script on the fixture
@@ -50,38 +58,64 @@ expect() {
 }
 fixture() { cat >lab/x/results/runs.jsonl; }
 
-{ row s1 2 "$head" false true; row s1 2 "$head" false true; } | fixture
+pair s1 "$head" $t1 | fixture
 expect "complete passing suite" 0 "suite s1 ($head) is current" --strict x
 
-{ row s1 2 "$head" false true; } | fixture
+row s1 2 "$head" false true $t1 a | fixture
 expect "partial suite" 1 "s1: not counted, partial (1 of 2" --strict x
 
-{ row s1 2 "$head" false true; row s1 2 "$head" true true; } | fixture
+{ row s1 2 "$head" false true $t1 a; row s1 2 "$head" false true $t1 a; } | fixture
+expect "duplicate rows fill no gap" 1 "not counted, duplicate scenario records" --strict x
+
+{ row s1 2 "$head" false true $t1 a; row s1 2 "$head" true true $t1 b; } | fixture
 expect "dirty row" 1 "not counted, ran on a dirty tree" --strict x
 
-{ row s1 2 "$head" false true; row s1 2 "$base" false true; } | fixture
+{ row s1 2 "$head" false true $t1 a; row s1 2 "$base" false true $t1 b; } | fixture
 expect "mixed sha" 1 "not counted, mixed git_sha" --strict x
 
-{ row s1 2 "$head" false true; row s1 2 "$head" false false; } | fixture
+{ row s1 2 "$head" false true $t1 a; row s1 3 "$head" false true $t1 b; } | fixture
+expect "mixed suite_size" 1 "not counted, mixed suite_size" --strict x
+
+{ row s1 2 "$head" false true $t1 a; row s1 2 "$head" false false $t1 b; } | fixture
 expect "failing record" 1 "not counted, has a failing record" --strict x
 
-{ row s1 null "$head" false true; row s1 null "$head" false true; } | fixture
+{ row s1 null "$head" false true $t1 a; row s1 null "$head" false true $t1 b; } | fixture
 expect "legacy rows" 1 "not counted, legacy" --strict x
 expect "legacy rows warn only" 0 "no complete passing suite" x
 
-{ row s1 2 "$base" false true; row s1 2 "$base" false true; } | fixture
+{ row s1 0 "$head" false true $t1 a; row s1 0 "$head" false true $t1 b; } | fixture
+expect "suite_size 0" 1 "suite_size not a positive integer" --strict x
+
+{ row s1 '"2"' "$head" false true $t1 a; row s1 '"2"' "$head" false true $t1 b; } | fixture
+expect "suite_size string" 1 "suite_size not a positive integer" --strict x
+
+row s1 1 "$head" false true $t1 a | fixture
+expect "subset suite vs full list" 1 "scenario set differs from suite.txt" --strict x
+
+{ row - null "$head" false true $t1 a; row - null "$head" false true $t1 b; } | fixture
+expect "suite-less rows are ignored" 1 "no complete passing suite recorded" --strict x
+
+pair s1 "$base" $t1 | fixture
 expect "stale config" 1 "predates changes in 1 files" --strict x
 
-{ row s1 2 "$off" false true; row s1 2 "$off" false true; } | fixture
+pair s1 "$off" $t1 | fixture
 expect "sha not on main" 1 "is not on main" --strict x
 
-{
-  row s1 2 "$base" false true "2026-01-01T00:00:00Z"
-  row s1 2 "$base" false true "2026-01-01T00:00:00Z"
-  row s2 2 "$head" false true "2026-02-01T00:00:00Z"
-  row s2 2 "$head" false true "2026-02-01T00:00:00Z"
-} | fixture
+{ pair s1 "$base" $t1; pair s2 "$head" $t2; } | fixture
 expect "latest complete suite wins" 0 "suite s2 ($head) is current" --strict x
+
+# the chronologically later suite has the alphabetically smaller id
+{ pair zz "$base" $t1; pair aa "$head" $t2; } | fixture
+expect "chronological, not alphabetical" 0 "suite aa ($head) is current" --strict x
+
+# interleaved records of two suites; the newer one (s2) is partial
+{ row s1 2 "$head" false true $t1 a; row s2 2 "$head" false true $t2 a; row s1 2 "$head" false true $t1 b; } | fixture
+expect "interleaved suites, partial one reported" 0 "s2: not counted, partial" x
+expect "interleaved suites, complete one counts" 0 "suite s1 ($head) is current" --strict x
+
+{ pair s1 "$head" $t1; echo '{not json'; } | fixture
+expect "malformed line warns" 0 "unreadable" x
+expect "malformed line fails strict" 1 "unreadable" --strict x
 
 expect "missing lab" 1 "no lab/y/results/runs.jsonl" --strict y
 

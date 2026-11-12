@@ -197,15 +197,15 @@ exec "$f"
 '''
 
 [tasks."lab:scenarios"]
-description = "run all lab fault scenarios, control last, as one suite (lab/scenarios/run-suite.sh: clean tree, host-wide lock, SUITE_ID); stops at the first failure"
+description = "run all lab fault scenarios, control last, as one suite (lab/scenarios/run-suite.sh: clean tree, host-wide lock, SUITE_ID; the list is lab/<lab>/scenarios/suite.txt); stops at the first failure"
 run = '''
-exec lab/scenarios/run-suite.sh slice1 standby-stopped collector-stopped repl-cut replay-paused snapshot-held connections-exhausted permission-revoked logical-conflict subscription-disabled logical-cut pgbouncer-pool-saturated pgbouncer-stopped pgbouncer-queueing pgbouncer-client-limit idle-in-transaction lock-blocked deadlock checkpoint-pressure physical-slot-inactive slot-invalidated control
+exec lab/scenarios/run-suite.sh slice1 $(cat lab/slice1/scenarios/suite.txt)
 '''
 
 [tasks."lab:k8s:scenarios"]
-description = "run all k8s fault scenarios, control last, as one suite (lab/scenarios/run-suite.sh: clean tree, host-wide lock, SUITE_ID); stops at the first failure"
+description = "run all k8s fault scenarios, control last, as one suite (lab/scenarios/run-suite.sh: clean tree, host-wide lock, SUITE_ID; the list is lab/<lab>/scenarios/suite.txt); stops at the first failure"
 run = '''
-MISE_ENV=k8s exec mise exec -- lab/scenarios/run-suite.sh k8s switchover primary-deleted fenced replica-cut slot-retaining-wal worker-stopped control
+MISE_ENV=k8s exec mise exec -- lab/scenarios/run-suite.sh k8s $(cat lab/k8s/scenarios/suite.txt)
 '''
 
 [tasks."lab:stage3:up"]
@@ -262,9 +262,9 @@ exec "$f"
 '''
 
 [tasks."lab:pgha:scenarios"]
-description = "run all pgha fault scenarios, control last, as one suite (lab/scenarios/run-suite.sh: clean tree, host-wide lock, SUITE_ID); stops at the first failure"
+description = "run all pgha fault scenarios, control last, as one suite (lab/scenarios/run-suite.sh: clean tree, host-wide lock, SUITE_ID; the list is lab/<lab>/scenarios/suite.txt); stops at the first failure"
 run = '''
-exec lab/scenarios/run-suite.sh pgha quorum-lost etcd-member-down etcd-leader-changes patroni-down filesystem-filling memory-pressure replica-not-eligible replay-paused cluster-paused pending-restart network-partition network-partition-replica leader-killed switchover control
+exec lab/scenarios/run-suite.sh pgha $(cat lab/pgha/scenarios/suite.txt)
 '''
 
 [tasks."lab:stage3:scenario"]
@@ -278,7 +278,7 @@ exec "$f"
 '''
 
 [tasks."lab:stage3:scenarios"]
-description = "run all stage 3 fault scenarios, control last, as one suite (lab/scenarios/run-suite.sh: clean tree, host-wide lock, SUITE_ID); stops at the first failure"
+description = "run all stage 3 fault scenarios, control last, as one suite (lab/scenarios/run-suite.sh: clean tree, host-wide lock, SUITE_ID; the list is lab/<lab>/scenarios/suite.txt); stops at the first failure"
 run = '''
-exec lab/scenarios/run-suite.sh stage3 quorum-lost etcd-member-down etcd-leader-changes patroni-down leader-killed replica-not-eligible replay-paused cluster-paused pending-restart switchover control
+exec lab/scenarios/run-suite.sh stage3 $(cat lab/stage3/scenarios/suite.txt)
 '''

@@ -11,7 +11,7 @@ and `detected_at`, the time each expected alert first fired); a scenario run on
 its own is a smoke run and records `suite: null`. Suites run on a commit of
 `main`, and their results come back through a pull request, so that the
 recorded `git_sha` stays in the history; `mise run lab:evidence` lists the
-labs whose latest passing suite predates their code.
+labs whose latest complete passing suite predates their code.
 
 | Lab | Topology | Where it runs | Scenarios | Evidence |
 | --- | --- | --- | --- | --- |

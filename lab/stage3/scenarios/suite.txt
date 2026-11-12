@@ -1,0 +1,11 @@
+quorum-lost
+etcd-member-down
+etcd-leader-changes
+patroni-down
+leader-killed
+replica-not-eligible
+replay-paused
+cluster-paused
+pending-restart
+switchover
+control

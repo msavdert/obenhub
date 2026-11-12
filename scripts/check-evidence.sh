@@ -3,11 +3,15 @@
 # describes the code: lists the files under the lab, lab/packs and
 # lab/scenarios that changed between the suite's commit and HEAD.
 #   check-evidence.sh [--strict] [LAB...]     (default: every lab with results)
-# A suite counts only if it has suite_size records, all passed, none ran on a
-# dirty tree, all carry one git_sha, and that commit is on main (origin/main,
-# else main; EVIDENCE_MAIN overrides). Suites without suite_size are legacy
-# and never count. Warns by default; with --strict it exits 1 when a checked
-# lab's evidence is missing or stale. Needs git and jq; no network.
+# A suite counts only if its records have a positive-integer suite_size, one
+# record per scenario of lab/<lab>/scenarios/suite.txt (the full list, one name
+# per line, also read by the lab's mise scenarios task), all passed, none ran
+# on a dirty tree, all carry one git_sha, and that commit is on main
+# (origin/main, else main; EVIDENCE_MAIN overrides). Records with suite null
+# (smoke runs, and rows written before suites existed) are ignored; a suite
+# without suite_size is reported as legacy and never counts. Warns by default
+# (an unreadable runs.jsonl too); with --strict it exits 1 when a checked
+# lab's evidence is missing, unreadable or stale. Needs git and jq; no network.
 set -euo pipefail
 cd "$(git rev-parse --show-toplevel)"
 
@@ -39,18 +43,25 @@ fi
 # rejected. Fields are named, so the record layout does not matter.
 # shellcheck disable=SC2016  # jq program, not shell
 summarize='
+  def posint: type == "number" and . > 0 and . == floor;
   def why:
-    if .size == null then "legacy (no suite_size)"
-    elif .n != .size then "partial (\(.n) of \(.size) records)"
+    if .nulls > 0 then "legacy (no suite_size)"
+    elif .badsize then "suite_size not a positive integer"
     elif .sizes > 1 then "mixed suite_size"
+    elif .n != .size then "partial (\(.n) of \(.size) records)"
+    elif .distinct != .n then "duplicate scenario records"
+    elif .set != $full then "scenario set differs from suite.txt"
     elif (.pass | not) then "has a failing record"
     elif .dirty then "ran on a dirty tree"
     elif .shas != 1 then "mixed git_sha"
     else null end;
-  map(select(.suite != null)) | group_by(.suite)
+  map(select(type == "object" and .suite != null)) | group_by(.suite)
   | map({suite: .[0].suite, sha: .[0].git_sha, start: (map(.start // "") | min),
          n: length, size: (map(.suite_size) | first),
+         nulls: (map(select(.suite_size == null)) | length),
+         badsize: any(.[]; .suite_size != null and (.suite_size | posint | not)),
          sizes: (map(.suite_size) | unique | length),
+         set: (map(.scenario) | unique), distinct: (map(.scenario) | unique | length),
          pass: all(.pass == true), dirty: any(.git_dirty != false),
          shas: (map(.git_sha) | unique | length)})
   | map(. + {why: why}) | sort_by(.start)
@@ -66,7 +77,18 @@ for lab in "${labs[@]}"; do
     stale=1
     continue
   fi
-  res=$(jq -s "$summarize" "$runs")
+  list=lab/$lab/scenarios/suite.txt
+  if [ ! -f "$list" ]; then
+    echo "$lab: no $list"
+    stale=1
+    continue
+  fi
+  full=$(jq -R -s -c 'split("\n") | map(select(length > 0)) | unique' "$list")
+  if ! res=$(jq -s --argjson full "$full" "$summarize" "$runs" 2>/dev/null); then
+    echo "$lab: $runs is unreadable (malformed JSON line?)"
+    stale=1
+    continue
+  fi
   jq -r '.rejected[] | "\(.suite): not counted, \(.why)"' <<<"$res" | sed "s/^/$lab: /"
   suite=$(jq -r '.good.suite // empty' <<<"$res")
   sha=$(jq -r '.good.sha // empty' <<<"$res")
