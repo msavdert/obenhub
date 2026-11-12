@@ -6,12 +6,18 @@
 # A suite counts only if its records have a positive-integer suite_size, one
 # record per scenario of lab/<lab>/scenarios/suite.txt (the full list, one name
 # per line, also read by the lab's mise scenarios task), all passed, none ran
-# on a dirty tree, all carry one git_sha, and that commit is on main
+# on a dirty tree, all carry one git_sha and one config_sha256, and that commit
+# is on main
 # (origin/main, else main; EVIDENCE_MAIN overrides). Records with suite null
 # (smoke runs, and rows written before suites existed) are ignored; a suite
 # without suite_size is reported as legacy and never counts. Warns by default
 # (an unreadable runs.jsonl too); with --strict it exits 1 when a checked
 # lab's evidence is missing, unreadable or stale. Needs git and jq; no network.
+# Staleness ignores Markdown files and results/ (prose about a suite can only
+# be written after it); it also watches the directories a lab's monitoring
+# stack mounts from other labs (extra_paths below). A scenario script missing
+# from suite.txt, or a suite.txt name without a script, is a repository
+# inconsistency: exit 1 in both modes.
 set -euo pipefail
 cd "$(git rev-parse --show-toplevel)"
 
@@ -54,6 +60,7 @@ summarize='
     elif (.pass | not) then "has a failing record"
     elif .dirty then "ran on a dirty tree"
     elif .shas != 1 then "mixed git_sha"
+    elif .hashes != 1 then "mixed config_sha256"
     else null end;
   map(select(type == "object" and .suite != null)) | group_by(.suite)
   | map({suite: .[0].suite, sha: .[0].git_sha, start: (map(.start // "") | min),
@@ -63,15 +70,37 @@ summarize='
          sizes: (map(.suite_size) | unique | length),
          set: (map(.scenario) | unique), distinct: (map(.scenario) | unique | length),
          pass: all(.pass == true), dirty: any(.git_dirty != false),
-         shas: (map(.git_sha) | unique | length)})
+         shas: (map(.git_sha) | unique | length),
+         hashes: (map(.config_sha256) | unique | length)})
   | map(. + {why: why}) | sort_by(.start)
   | (map(select(.why == null)) | last) as $good
   | {good: $good,
      rejected: [.[] | select(.why != null and ($good == null or .start > $good.start))]}'
 
+# Directories a lab's monitoring stack mounts from another lab (read from
+# lab/pgha/mon/compose.yaml and lab/k8s/mon/compose.yaml; keep in step).
+extra_paths() {
+  case "$1" in
+    pgha) echo lab/stage3/grafana/dashboards lab/slice1/grafana/dashboards ;;
+    k8s) echo lab/slice1/grafana/dashboards ;;
+  esac
+}
+
 stale=0
+broken=0
 for lab in "${labs[@]}"; do
   runs=lab/$lab/results/runs.jsonl
+  # scenario scripts vs suite.txt (run-suite.sh resolves NAME to NAME.sh; lib.sh is the helper)
+  if [ -f "lab/$lab/scenarios/suite.txt" ]; then
+    d=lab/$lab/scenarios
+    mism=$(diff <(for f in "$d"/*.sh; do b=${f##*/}; [ "$b" = lib.sh ] || echo "${b%.sh}"; done | sort -u) \
+                <(grep -v '^$' "$d/suite.txt" | sort -u) || true)
+    if [ -n "$mism" ]; then
+      echo "$lab: $d differs from suite.txt (< script only, > suite.txt only):"
+      printf '  %s\n' "${mism//$'\n'/$'\n'  }"
+      broken=1
+    fi
+  fi
   if [ ! -f "$runs" ]; then
     echo "$lab: no $runs"
     stale=1
@@ -111,8 +140,10 @@ for lab in "${labs[@]}"; do
     stale=1
     continue
   fi
+  read -r -a extra <<<"$(extra_paths "$lab")"
   mapfile -t changed < <(git diff --name-only "$sha" HEAD -- "lab/$lab" lab/packs lab/scenarios lab/mon lab/scripts \
-    ':(exclude,glob)lab/*/results/**')
+    "${extra[@]}" \
+    ':(exclude,glob)lab/*/results/**' ':(exclude,glob)**/*.md')
   if [ "${#changed[@]}" -gt 0 ]; then
     echo "$lab: suite $suite ($sha) predates changes in ${#changed[@]} files:"
     printf '  %s\n' "${changed[@]}"
@@ -122,5 +153,6 @@ for lab in "${labs[@]}"; do
   fi
 done
 
+[ "$broken" = 1 ] && exit 1
 [ "$strict" = 1 ] && [ "$stale" = 1 ] && exit 1
 exit 0
