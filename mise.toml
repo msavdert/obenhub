@@ -125,7 +125,8 @@ diff -u lab/pgha/mon/vmalert/tests/collectors.yml "$t" || { echo "collectors.yml
 
 [tasks."lab:pack:rules-test"]
 description = "unit-test the shared PostgreSQL pack rules (lab/packs/postgresql, vmalert-tool); needs docker"
-run = """docker run --rm -v "$PWD/lab:/lab:ro" victoriametrics/vmalert-tool:v1.155.0 unittest --files=/lab/packs/postgresql/tests/collector.yml,/lab/packs/postgresql/tests/replication.yml,/lab/packs/postgresql/tests/resources.yml,/lab/packs/postgresql/tests/signals.yml,/lab/packs/postgresql/tests/series-vanished.yml"""
+# Every test file of the pack runs; a new file cannot be left out.
+run = """files=$(printf '/%s,' lab/packs/postgresql/tests/*.yml); docker run --rm -v "$PWD/lab:/lab:ro" victoriametrics/vmalert-tool:v1.155.0 unittest --files="${files%,}""""
 
 [tasks."lab:slice1:panels"]
 description = "run the panel queries of the slice 1 PostgreSQL dashboard against the running slice 1 Grafana (scripts/check-panels.sh); needs the lab, not part of check"

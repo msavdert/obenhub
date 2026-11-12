@@ -46,7 +46,7 @@ tests:
       - series: 'postgresql.archiver.ready_file.count{service.instance.id="pg-nine"}'
         values: '9x60'
     alert_rule_test:
-      - eval_time: 2m   # 1 min above the threshold: pending
+      - eval_time: 1m   # above the threshold since 0: pending until 2m
         groupname: postgresql
         alertname: PostgresArchiveBacklog
         exp_alerts: []
