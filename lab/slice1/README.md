@@ -4,6 +4,12 @@ Docker Compose project `obenhub-slice1`, versions pinned in `compose.yaml`.
 Run it with `mise run lab:up` and `mise run lab:scenarios`; results are in
 `results/runs.jsonl`.
 
+## Prerequisites
+
+Docker with Compose, and `mise install` for the tools. `mise run lab:up` starts
+the lab and generates its `.env` with random passwords; `mise run lab:down`
+stops it. Scenarios run on a clean tree, one suite at a time on the host.
+
 ## What runs
 
 - PostgreSQL 18 primary and physical standby. Replication has its own network,

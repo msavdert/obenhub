@@ -8,6 +8,12 @@ Versions read 2026-11-07: Patroni 4.1.5 (MIT; PostgreSQL 18 support since
 4.0.7) from the PGDG package in `postgres:18.6-trixie`, etcd 3.6.16
 (Apache-2.0).
 
+## Prerequisites
+
+Docker with Compose, and `mise install` for the tools. `mise run lab:stage3:up` starts
+the lab and generates its `.env` with random passwords; `mise run lab:stage3:down`
+stops it. Do not run it together with a slice1 suite: both use the host lock.
+
 ## What runs
 
 - Three etcd members and three PostgreSQL 18 nodes under Patroni, `etcd3` DCS,

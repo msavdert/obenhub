@@ -13,9 +13,24 @@ A stage is done when its fault scenarios fire the expected alerts and show on
 the dashboards, with a no-fault control run (ADR 0001), so the open items
 below are what keeps stage 4 and pgha from meeting that bar.
 
-- [ ] A CloudNativePG/Kubernetes dashboard for `lab/k8s` and a host
-      (operating-system) dashboard for `lab/pgha`; k8s mounts stage3's
-      dashboard directory, which has no `cnpg_` or `k8s.` panels
+- [ ] Naming contract per ADR 0006 (in review as a pull request)
+- [ ] Query fixes: snapshot oldest-age scope, slot query on standbys, slice1
+      monitors the `app` database
+- [ ] WAL archiving in slice1, `pg_stat_archiver` alerts and an
+      archiver-failing scenario
+- [ ] One `synchronous_mode` scenario in pgha
+- [ ] Dashboards: CloudNativePG/Kubernetes for `lab/k8s` (it mounts stage3's
+      dashboard directory, which has no `cnpg_` or `k8s.` panels) and host
+      (operating system) for `lab/pgha`
+- [ ] Dedupe shared lab code: common monitoring Compose base, one
+      `gen-env.sh`, shared Patroni scenarios, stage3 Collector template
+- [ ] Low-severity fixes: image digests, passwords on command lines, fixed
+      sleeps, resource limits
+- [ ] k8s tool pinning (in review)
+- [ ] Redo the overhead measurement with the current pack and a
+      CPU-saturated arm
+- [ ] Full suites of all four labs on one `main` commit; record the
+      `leader-killed` outcome or adjust its text
 
 ## Backups
 
