@@ -11,7 +11,7 @@ and `detected_at`, the time each expected alert first fired); a scenario run on
 its own is a smoke run and records `suite: null`. Suites run on a commit of
 `main`, and their results come back through a pull request, so that the
 recorded `git_sha` stays in the history; `mise run lab:evidence` lists the
-labs whose latest passing suite predates their code.
+labs whose latest complete passing suite predates their code.
 
 | Lab | Topology | Where it runs | Scenarios | Evidence |
 | --- | --- | --- | --- | --- |
@@ -25,7 +25,7 @@ Shared parts:
 - [packs](packs): queries and alert rules with unit tests, one directory per
   component (postgresql, patroni, etcd, cnpg, host, k8s).
 - [scenarios/lib-core.sh](scenarios/lib-core.sh): the scenario harness used by
-  stage3, pgha and k8s.
+  slice1, stage3, pgha and k8s.
 
 One-off measurements on the `pg-lab` VM, not scenario labs:
 

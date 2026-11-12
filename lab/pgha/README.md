@@ -44,6 +44,9 @@ mise run lab:pgha:mon:ps
 mise run lab:pgha:mon:down      # also deletes the backend volumes
 ```
 
+The backend's Alertmanager and Grafana files are the ones in `lab/stage3/`
+(`alertmanager`, `grafana`).
+
 Backend ports, all on 127.0.0.1 except the gateway: VictoriaMetrics 38428,
 VictoriaLogs 39428, vmalert 38880, Alertmanager 39093, Grafana 33000.
 

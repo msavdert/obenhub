@@ -72,5 +72,7 @@ scenario_lock() {
     return 3
   fi
   SUITE_ID=""
+  # shellcheck disable=SC2034  # read by lib-core.sh write_result
+  SUITE_SIZE=""
   lock_acquire smoke || return 3
 }

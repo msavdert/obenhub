@@ -30,6 +30,8 @@ Compose project on the box (`obenhub-k8s`).
 - Free ports on 127.0.0.1 (VictoriaMetrics 48428, VictoriaLogs 49428, vmalert
   48880, Alertmanager 49093, Grafana 43000) and 44317 on the `kind` network's
   gateway address (see Monitoring).
+- The backend's Alertmanager and Grafana files are the ones in `lab/stage3/`
+  (`alertmanager`, `grafana`).
 
 ```sh
 lab/k8s/scripts/up.sh     # idempotent; about 7 minutes from nothing

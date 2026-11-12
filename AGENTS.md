@@ -25,14 +25,14 @@ lists them.
 - Every change is a short-lived branch and a pull request, squash-merged; no
   direct pushes to `main` (the ruleset enforces it). An agent may merge an
   ordinary PR once `check` and `semantic-title` are green and the audit
-  passed.
+  (the tier chosen by the `audit` skill: light, standard or risky) passed.
 - A release is a closed milestone (a stage's closing criterion met), not a
   session. release-please keeps its PR open and accumulates the changelog;
   only the owner merges it. An agent never merges a release PR; it says when
   one is ready.
 - A stage or roadmap item is done only when: its full suite passed on a clean
   tree at a commit on `main` and the results are committed
-  (`scripts/check-evidence.sh --strict` passes for its lab), the control run
+  (`scripts/check-evidence.sh --strict <lab>` passes), the control run
   used the same rules, its dashboard shows the scenarios, and its README states
   the prerequisites.
 - Documents describe what runs. Plans go only in `docs/roadmap.md`.

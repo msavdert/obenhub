@@ -1,0 +1,7 @@
+switchover
+primary-deleted
+fenced
+replica-cut
+slot-retaining-wal
+worker-stopped
+control

@@ -244,7 +244,7 @@ write_result() {
     --argjson expected "$exp" --argjson unexpected "$UNEXPECTED" \
     --argjson pass "$pass" --argjson reasons "$reasons" \
     --argjson components "$(component_versions)" --arg extra "${EXTRA_JSON:-null}" \
-    --arg suite "$SUITE_ID" --argjson det "$DETECTED_AT" --arg crash "$CRASH_RESTARTS" '
+    --arg suite "$SUITE_ID" --arg ssize "${SUITE_SIZE:-}" --argjson det "$DETECTED_AT" --arg crash "$CRASH_RESTARTS" '
     def nz: if . == "" then null else . end;
     {scenario: $scenario, start: ($start|nz), inject: ($inject|nz), detected: ($detected|nz),
      resolved: ($resolved|nz), end: ($end|nz),
@@ -254,7 +254,7 @@ write_result() {
      git_sha: $gsha, git_dirty: $gdirty, config_sha256: ($chash|nz),
      expected_alert: $expected, unexpected_alerts: $unexpected,
      pass: $pass, failure_reasons: $reasons, extra: ($extra|fromjson), images: $components,
-     suite: ($suite|nz), detected_at: (reduce $expected[] as $e ({}; .[$e] = ($det[$e] // null)))}
+     suite: ($suite|nz), suite_size: ($ssize|nz|if . then tonumber else . end), detected_at: (reduce $expected[] as $e ({}; .[$e] = ($det[$e] // null)))}
     + (if $crash == "" then {} else {crash_restarts: ($crash|fromjson)} end)' \
     >>"$RESULTS"
   log "result appended to $RESULTS (pass=$pass)"
