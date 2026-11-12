@@ -99,7 +99,12 @@ log_min_duration_statement = 1000
 track_io_timing = on
 CONF
 systemctl restart postgresql@18-main.service </dev/null
-for _ in $(seq 30); do sudo -u postgres pg_isready -q </dev/null && break; sleep 1; done
+ready=""
+for _ in $(seq 30); do
+  if sudo -u postgres pg_isready -q </dev/null; then ready=1; break; fi
+  sleep 1
+done
+[ -n "$ready" ] || { echo "setup: PostgreSQL did not accept connections within 30 s" >&2; exit 1; }
 
 # the password goes through stdin as a psql variable, not through argv
 # shellcheck disable=SC1091

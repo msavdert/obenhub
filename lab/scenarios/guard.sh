@@ -18,8 +18,24 @@
 # they exit.
 
 GUARD_TOP="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-# one fixed path for all labs; the override exists for test-guard.sh only
-SUITE_LOCK_FILE=${SUITE_LOCK_FILE:-/tmp/obenhub-lab-suite.lock}
+# one fixed path per user for all labs: /run/user/<uid> (private to the user;
+# /tmp is world-writable, a planted symlink would be followed) when that
+# directory exists and is writable, else /tmp. XDG_RUNTIME_DIR is deliberately
+# not read: cron, sudo -u, env -i and system units run without it, and two runs
+# would then lock different files. Residual: if /run/user/<uid> appears or
+# disappears between two runs (session ends, linger off) they disagree; linger
+# is on on the box. The override exists for test-guard.sh only.
+if [ -z "${SUITE_LOCK_FILE:-}" ]; then
+  # a failing id must not abort a caller running under set -e: fall back to /tmp
+  _guard_uid=$(id -u 2>/dev/null) || _guard_uid=
+  _guard_rt="/run/user/$_guard_uid"
+  if [ -n "$_guard_uid" ] && [ -d "$_guard_rt" ] && [ -w "$_guard_rt" ]; then
+    SUITE_LOCK_FILE="$_guard_rt/obenhub-lab-suite.lock"
+  else
+    SUITE_LOCK_FILE=/tmp/obenhub-lab-suite.lock
+  fi
+  unset _guard_uid _guard_rt
+fi
 
 # dirty_paths: porcelain lines of changed or untracked paths outside
 # lab/<lab>/results/. Fails (status 2, message on stderr) when git fails, so a
@@ -38,13 +54,22 @@ git_dirty() {
 }
 git_sha() { git -C "$GUARD_TOP" rev-parse --short HEAD 2>/dev/null || echo unknown; }
 
-# lock_taken: succeeds when some process holds the suite lock
+# lock_path_safe: fails (message on stderr) when the lock path is a symlink;
+# opening it would write through the link
+lock_path_safe() {
+  [ ! -L "$SUITE_LOCK_FILE" ] || { echo "refusing to use $SUITE_LOCK_FILE: it is a symlink" >&2; return 1; }
+}
+# lock_taken: succeeds when some process holds the suite lock (and, failing
+# closed, when the lock path is unusable)
 lock_taken() {
-  ( exec 8>>"$SUITE_LOCK_FILE" && ! flock -n 8 )
+  lock_path_safe || return 0
+  ( exec 8>>"$SUITE_LOCK_FILE" || { echo "cannot open lock file $SUITE_LOCK_FILE; treating the lock as taken" >&2; exit 0; }
+    ! flock -n 8 )
 }
 # lock_acquire LABEL: take the lock on fd 9 for the rest of this process and
 # record "LABEL pid" in the lock file; fails when it is held
 lock_acquire() {
+  lock_path_safe || return 1
   exec 9>>"$SUITE_LOCK_FILE" && flock -n 9 || return 1
   printf '%s %s\n' "$1" "$$" >"$SUITE_LOCK_FILE"
 }
@@ -54,6 +79,7 @@ ppid_of() { sed 's/.*) //' "/proc/$1/stat" 2>/dev/null | awk '{print $2}'; }
 # and an ancestor of this process
 suite_trusted() {
   local id pid p
+  lock_path_safe 2>/dev/null || return 1
   read -r id pid <"$SUITE_LOCK_FILE" 2>/dev/null || return 1
   [ -n "$id" ] && [ "$id" = "$1" ] && [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null || return 1
   p=$$

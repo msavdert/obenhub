@@ -142,7 +142,7 @@ phase_base() {
     keyfp() { gpg --show-keys --with-colons "$1" 2>/dev/null | awk -F: "/^pub/{p++} /^fpr/&&!f{f=\$10} END{if(p==1)print f}"; }
     [ "$(keyfp "$k")" = "$1" ] && exit 0
     command -v gpg >/dev/null || DEBIAN_FRONTEND=noninteractive sh -c "apt-get update -qq && apt-get install -y -qq gpg"
-    d=$(mktemp -d); trap "rm -rf $d" EXIT
+    d=$(mktemp -d); trap "rm -rf \"\${d:?}\"" EXIT
     curl -fsSL -o "$d/key.asc" https://www.postgresql.org/media/keys/ACCC4CF8.asc
     [ "$(keyfp "$d/key.asc")" = "$1" ] || { echo "PGDG key fingerprint mismatch" >&2; exit 1; }
     mkdir -p "$(dirname "$k")"
@@ -205,7 +205,7 @@ SRC
   if [ "$(rn "$n" sh -c "/usr/local/bin/etcd --version 2>/dev/null | sed -n 's/^etcd Version: //p'")" != "$ETCD_VERSION" ]; then
     rn "$n" sh -euc '
       v=$1; t=etcd-v$v-linux-amd64.tar.gz; b=https://github.com/etcd-io/etcd/releases/download/v$v
-      d=$(mktemp -d); trap "rm -rf $d" EXIT; cd "$d"
+      d=$(mktemp -d); trap "rm -rf \"\${d:?}\"" EXIT; cd "$d"
       curl -fsSL -O "$b/$t"; curl -fsSL -O "$b/SHA256SUMS"
       grep " $t\$" SHA256SUMS | sha256sum -c - >/dev/null
       tar -xzf "$t" --strip-components=1 "etcd-v$v-linux-amd64/etcd" "etcd-v$v-linux-amd64/etcdctl" "etcd-v$v-linux-amd64/etcdutl"
@@ -221,7 +221,7 @@ SRC
     rn "$n" sh -euc '
       v=$1; f=otelcol-contrib_${v}_linux_amd64.deb
       b=https://github.com/open-telemetry/opentelemetry-collector-releases/releases/download/v$v
-      d=$(mktemp -d); trap "rm -rf $d" EXIT; cd "$d"
+      d=$(mktemp -d); trap "rm -rf \"\${d:?}\"" EXIT; cd "$d"
       curl -fsSL -O "$b/$f"; curl -fsSL -O "$b/$f.sha256"
       echo "$(cut -d" " -f1 "$f.sha256")  $f" | sha256sum -c - >/dev/null
       DEBIAN_FRONTEND=noninteractive dpkg -i --force-confdef --force-confold "$f" >/dev/null' sh "$OTELCOL_VERSION"
@@ -280,7 +280,11 @@ SRC
 # failing assignment stops the script here (set -e, inherit_errexit); the
 # here-string in put adds back the newline that $(...) strips.
 for key in POSTGRES_PASSWORD REPLICATOR_PASSWORD OTEL_MONITOR_PASSWORD APP_PASSWORD PATRONI_API_PASSWORD; do
-  [ -n "${!key:-}" ] || { echo "$key missing or empty in lab/pgha/.env" >&2; exit 1; }
+  [ -n "${!key:-}" ] || {
+    echo "$key missing or empty in lab/pgha/.env; add the missing keys (existing values are kept) with:" >&2
+    echo "  lab/scripts/gen-env.sh lab/pgha/.env POSTGRES_PASSWORD REPLICATOR_PASSWORD OTEL_MONITOR_PASSWORD APP_PASSWORD PATRONI_API_PASSWORD" >&2
+    exit 1
+  }
 done
 PATRONI_ENV="$(printf 'OTEL_MONITOR_PASSWORD=%s\nAPP_PASSWORD=%s' "$OTEL_MONITOR_PASSWORD" "$APP_PASSWORD")"
 for n in $want; do
