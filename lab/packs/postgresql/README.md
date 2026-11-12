@@ -30,3 +30,8 @@ So the pack as a whole would need 18; the other queries alone would need 17.
 `scripts/check-pack-names.py` (part of `mise run check`) fails when a pack
 metric has no unit, ends in a unit word, has an undotted attribute, or has the
 name of a postgresqlreceiver metric (`upstream-receiver-metrics.txt`).
+
+`scripts/check-series-vanished.py` (`mise run lint:series-vanished`) fails when
+the metric list of `PostgresSeriesVanished` in `rules.yml` differs from
+`queries.yaml`; the one metric left out on purpose (the heartbeat) is listed,
+with the reason, in the script.

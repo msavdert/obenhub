@@ -184,7 +184,7 @@ tests:
               summary: pg-1 is in recovery and not streaming
 
   # --- multiple primaries ----------------------------------------------------
-  - name: two fresh writable instances of one cluster fire only after the 45 s hold
+  - name: two fresh writable instances of one cluster fire only after the 60 s hold
     interval: 15s
     input_series:
       - series: 'postgresql.recovery.active{obenhub.cluster.name="c1",service.instance.id="pg-1"}'
@@ -226,15 +226,16 @@ tests:
   - name: a dead primary's stale 0 next to the promoted one does not fire (failover)
     interval: 15s
     input_series:
-      # Worst case: pg-2 reports its first 0 at 1m45, one collection before
+      # Worst case: pg-2 reports its first 0 at 1m30, two collections before
       # pg-1 reports its last 0 (2m) and stops. The stale 0 stays in a 30 s
-      # window until 2m15 only, so the overlap (1m45 to 2m15) is shorter than
-      # the 45 s hold. With a 45 s window the overlap lasts to 2m30 and the
-      # alert fires; without last_over_time (the 5 m lookback) it fires too.
+      # window until 2m15 only, so the overlap (1m30 to 2m15) is 45 s, one
+      # collection below the 60 s hold. With a 45 s window the overlap lasts to
+      # 2m30 (60 s) and the alert fires; without last_over_time (the 5 m
+      # lookback) it fires too.
       - series: 'postgresql.recovery.active{obenhub.cluster.name="c1",service.instance.id="pg-1"}'
         values: '0x8 _x52'
       - series: 'postgresql.recovery.active{obenhub.cluster.name="c1",service.instance.id="pg-2"}'
-        values: '1x6 0x54'
+        values: '1x5 0x55'
     alert_rule_test:
       - eval_time: 2m30s
         groupname: postgresql

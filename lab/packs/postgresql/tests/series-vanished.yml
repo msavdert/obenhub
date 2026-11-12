@@ -184,3 +184,30 @@ tests:
               metric: postgresql.lock.oldest_wait_age
             exp_annotations:
               summary: 'postgresql.lock.oldest_wait_age vanished on pg-primary'
+
+  - name: a vanished synchronous_standby metric is named by PostgresSeriesVanished
+    interval: 15s
+    input_series:
+      - series: 'postgresql.collection.heartbeat{service.instance.id="pg-primary"}'
+        values: '1x120'
+      - series: 'postgresql.replication.synchronous_standby.count{service.instance.id="pg-primary"}'
+        values: '1x8 _x112'
+      - series: 'postgresql.replication.synchronous_standby.required{service.instance.id="pg-primary"}'
+        values: '1x8 _x112'
+    alert_rule_test:
+      - eval_time: 6m
+        groupname: postgresql
+        alertname: PostgresSeriesVanished
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              service.instance.id: pg-primary
+              metric: postgresql.replication.synchronous_standby.count
+            exp_annotations:
+              summary: 'postgresql.replication.synchronous_standby.count vanished on pg-primary'
+          - exp_labels:
+              severity: warning
+              service.instance.id: pg-primary
+              metric: postgresql.replication.synchronous_standby.required
+            exp_annotations:
+              summary: 'postgresql.replication.synchronous_standby.required vanished on pg-primary'

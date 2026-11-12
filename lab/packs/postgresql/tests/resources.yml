@@ -1,5 +1,5 @@
 # Tests for the shared PostgreSQL pack rules (lab/slice1 and lab/stage3 use them).
-# PostgresSnapshotHeldTooLong and PostgresConnectionSaturation.
+# PostgresSnapshotHeldTooLong, PostgresXminHorizonHeld and PostgresConnectionSaturation.
 rule_files:
   - ../rules.yml
 evaluation_interval: 15s
@@ -783,3 +783,36 @@ tests:
               service.instance.id: a
             exp_annotations:
               summary: 'a client connections at or above 95% of capacity'
+
+  - name: a held xmin horizon fires after 5m unless a client snapshot over 120s explains it
+    interval: 15s
+    input_series:
+      # a slot holds the horizon, no client snapshot: fires
+      - series: 'postgresql.xmin_horizon.age{service.instance.id="pg-primary"}'
+        values: '5000000x4 20000000x56'
+      - series: 'postgresql.snapshot.oldest_age{service.instance.id="pg-primary"}'
+        values: '0x60'
+      # the horizon is old, and so is a client snapshot: PostgresSnapshotHeldTooLong covers it
+      - series: 'postgresql.xmin_horizon.age{service.instance.id="pg-standby"}'
+        values: '20000000x60'
+      - series: 'postgresql.snapshot.oldest_age{service.instance.id="pg-standby"}'
+        values: '130x60'
+      # below the threshold: quiet
+      - series: 'postgresql.xmin_horizon.age{service.instance.id="pg-other"}'
+        values: '9000000x60'
+      - series: 'postgresql.snapshot.oldest_age{service.instance.id="pg-other"}'
+        values: '0x60'
+    alert_rule_test:
+      - eval_time: 4m
+        groupname: postgresql
+        alertname: PostgresXminHorizonHeld
+        exp_alerts: []
+      - eval_time: 14m
+        groupname: postgresql
+        alertname: PostgresXminHorizonHeld
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              service.instance.id: pg-primary
+            exp_annotations:
+              summary: 'The xmin horizon on pg-primary is 20M transactions old with no client snapshot over 120 s: check replication slots, standby feedback and prepared transactions (assumed threshold)'
