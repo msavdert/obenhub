@@ -16,7 +16,7 @@ set -euo pipefail
 
 strict=false
 if [ "${1:-}" = "--strict-rows" ]; then strict=true; shift; fi
-[ $# -ge 3 ] && [ $# -le 4 ] || { sed -n 14,15p "$0" >&2; exit 2; }
+[ $# -ge 3 ] && [ $# -le 4 ] || { sed -n 13,14p "$0" >&2; exit 2; }
 dashboard="$1"; grafana="$2"; envfile="$3"; instance="${4:-}"
 pw="$(sed -n 's/^GRAFANA_ADMIN_PASSWORD=//p' "$envfile")"
 [ -n "$pw" ] || { echo "GRAFANA_ADMIN_PASSWORD missing from $envfile" >&2; exit 1; }

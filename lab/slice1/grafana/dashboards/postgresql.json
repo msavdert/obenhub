@@ -1293,7 +1293,7 @@
               "mode": "multi"
             }
           },
-          "description": "SHOW STATS totals as rate ratios, in seconds: wait per server assignment and server time per query. Wait time is counted only when a wait ends in an assignment. Query time includes the wait (PgBouncer starts timing when the query arrives, not when a server is assigned). A database with no traffic in the window has no point. Not filtered by the instance variable: PgBouncer is its own target."
+          "description": "Data only during a scenario or other PgBouncer traffic. SHOW STATS totals as rate ratios, in seconds: wait per server assignment and server time per query. Wait time is counted only when a wait ends in an assignment. Query time includes the wait (PgBouncer starts timing when the query arrives, not when a server is assigned). A database with no traffic in the window has no point. Not filtered by the instance variable: PgBouncer is its own target."
         }
       ]
     },
