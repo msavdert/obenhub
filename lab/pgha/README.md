@@ -78,7 +78,8 @@ vmalert loads the shared packs `lab/packs/{postgresql,patroni,etcd,host}/rules.y
 and `mon/vmalert/inventory.yml` (the Collectors and nodes this lab expects).
 The Grafana instance provisions the stage 3 Patroni dashboard unchanged and the
 shared host dashboard, `lab/packs/host/dashboards/host.json` (filesystem,
-memory, uptime, CPU, load, network, disk; the host alerts' expressions).
+memory, uptime, CPU, load, network, disk; the host alerts' expressions) and the
+shared PostgreSQL dashboard of slice 1.
 `scripts/check-panels.sh` runs its queries against the live backend.
 
 `CollectorAbsent` fires per Collector. Each node's targets are tagged with its

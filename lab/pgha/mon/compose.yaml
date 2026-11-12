@@ -4,7 +4,7 @@
 # Alertmanager config (webhook into VictoriaLogs) and the Grafana
 # provisioning are the stage 3 ones, mounted from there: the service names are
 # the same. Dashboards: the stage 3 Patroni one and the shared host dashboard
-# (lab/packs/host/dashboards).
+# (lab/packs/host/dashboards) and the shared PostgreSQL dashboard of slice 1.
 # Start with: mise run lab:pgha:mon:up (generates .env).
 name: obenhub-pgha
 
@@ -132,6 +132,7 @@ services:
       - ../../stage3/grafana/provisioning:/etc/grafana/provisioning:ro
       - ../../stage3/grafana/dashboards:/var/lib/obenhub/dashboards/patroni:ro
       - ../../packs/host/dashboards:/var/lib/obenhub/dashboards/host:ro
+      - ../../slice1/grafana/dashboards:/var/lib/obenhub/dashboards/postgresql:ro
     healthcheck:
       test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:3000/api/health"]
       interval: 5s

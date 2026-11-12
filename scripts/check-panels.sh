@@ -6,12 +6,14 @@
 # A panel may be empty only if it reads a log datasource or its description
 # starts with "Data only during a scenario" (the alert and fault panels).
 # Needs the lab running.
-# Usage: check-panels.sh <dashboard.json> <grafana-url> <env-file-with-GRAFANA_ADMIN_PASSWORD>
+# An optional fourth argument replaces $instance (the slice 1 PostgreSQL
+# dashboard's variable) in the queries.
+# Usage: check-panels.sh <dashboard.json> <grafana-url> <env-file-with-GRAFANA_ADMIN_PASSWORD> [instance]
 # Example: scripts/check-panels.sh lab/k8s/grafana/dashboards/cnpg.json http://127.0.0.1:43000 lab/k8s/mon/.env
 set -euo pipefail
 
-[ $# -eq 3 ] || { sed -n 9,10p "$0" >&2; exit 2; }
-dashboard="$1"; grafana="$2"; envfile="$3"
+[ $# -ge 3 ] && [ $# -le 4 ] || { sed -n 11,12p "$0" >&2; exit 2; }
+dashboard="$1"; grafana="$2"; envfile="$3"; instance="${4:-}"
 pw="$(sed -n 's/^GRAFANA_ADMIN_PASSWORD=//p' "$envfile")"
 [ -n "$pw" ] || { echo "GRAFANA_ADMIN_PASSWORD missing from $envfile" >&2; exit 1; }
 
@@ -20,9 +22,9 @@ n=$(jq '.panels | length' "$dashboard")
 for i in $(seq 0 $((n - 1))); do
   [ "$(jq -r ".panels[$i].type" "$dashboard")" = row ] && continue
   title=$(jq -r ".panels[$i].title" "$dashboard")
-  body=$(jq -c --argjson i "$i" '
+  body=$(jq -c --argjson i "$i" --arg inst "$instance" '
     {queries: [.panels[$i].targets[] | . + {maxDataPoints: 500, intervalMs: 15000}
-        | walk(if type == "string" then gsub("\\$__rate_interval"; "1m") else . end)],
+        | walk(if type == "string" then gsub("\\$__rate_interval"; "1m") | (if $inst != "" then gsub("\\$instance"; $inst) else . end) else . end)],
      from: "now-1h", to: "now"}' "$dashboard")
   resp=$(curl -sS -u "admin:$pw" -H 'Content-Type: application/json' -d "$body" "$grafana/api/ds/query") || resp=""
   lines=$(printf '%s' "$resp" | jq -r --argjson i "$i" --slurpfile d "$dashboard" '
