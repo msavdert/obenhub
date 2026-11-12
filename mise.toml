@@ -204,7 +204,7 @@ run = "python3 scripts/check-eol.py"
 [tasks."lab:up"]
 description = "start the slice 1 lab (PostgreSQL primary, standby, logical subscriber and PgBouncer, collector, VictoriaMetrics/Logs)"
 run = """
-lab/slice1/scripts/gen-env.sh
+lab/scripts/gen-env.sh lab/slice1/.env POSTGRES_PASSWORD REPLICATOR_PASSWORD LOGICAL_PASSWORD OTEL_MONITOR_PASSWORD APP_PASSWORD GRAFANA_ADMIN_PASSWORD
 docker compose -p obenhub-slice1 -f lab/slice1/compose.yaml up -d --wait
 """
 
@@ -241,7 +241,7 @@ MISE_ENV=k8s exec mise exec -- lab/scenarios/run-suite.sh k8s $(cat lab/k8s/scen
 [tasks."lab:stage3:up"]
 description = "start the stage 3 lab (three etcd members, three Patroni nodes, load client, collector, VictoriaMetrics/Logs)"
 run = """
-lab/stage3/scripts/gen-env.sh
+lab/scripts/gen-env.sh lab/stage3/.env POSTGRES_PASSWORD REPLICATOR_PASSWORD OTEL_MONITOR_PASSWORD APP_PASSWORD GRAFANA_ADMIN_PASSWORD
 docker compose -p obenhub-stage3 -f lab/stage3/compose.yaml up -d --build --wait
 """
 

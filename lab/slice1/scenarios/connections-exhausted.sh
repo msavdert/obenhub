@@ -14,7 +14,7 @@ CLIENTS=0
 slots_full() { docker exec "$PRIMARY" grep -q 'remaining connection slots are reserved' /tmp/app-clients.log; }
 app_sessions_gone() { [ "$(psql_p -c "SELECT count(*) FROM pg_stat_activity WHERE usename = 'app'")" = 0 ]; }
 inject() {
-  [ -n "${APP_PASSWORD:-}" ] && [ -n "${OTEL_MONITOR_PASSWORD:-}" ] || { echo "passwords missing: run lab/slice1/scripts/gen-env.sh" >&2; return 1; }
+  [ -n "${APP_PASSWORD:-}" ] && [ -n "${OTEL_MONITOR_PASSWORD:-}" ] || { echo "passwords missing: run mise run lab:up" >&2; return 1; }
   local maxc sres res
   maxc=$(psql_p -c "SHOW max_connections") && sres=$(psql_p -c "SHOW superuser_reserved_connections") \
     && res=$(psql_p -c "SHOW reserved_connections") || return 1

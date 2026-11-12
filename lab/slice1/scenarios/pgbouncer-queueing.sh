@@ -19,7 +19,7 @@ pgbench_connected() {
   [ $((a + w)) -ge 1 ]
 }
 inject() {
-  [ -n "${APP_PASSWORD:-}" ] && [ -n "${OTEL_MONITOR_PASSWORD:-}" ] || { echo "passwords missing: run lab/slice1/scripts/gen-env.sh" >&2; return 1; }
+  [ -n "${APP_PASSWORD:-}" ] && [ -n "${OTEL_MONITOR_PASSWORD:-}" ] || { echo "passwords missing: run mise run lab:up" >&2; return 1; }
   docker exec "$PRIMARY" sh -c "printf 'SELECT pg_sleep(0.1);\n' >/tmp/queue.sql" || return 1
   docker exec "$PRIMARY" pkill -x pgbench 2>/dev/null
   PGB_LOG=$(mktemp)
