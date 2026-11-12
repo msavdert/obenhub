@@ -50,7 +50,7 @@ fill_to_limit() {
 }
 
 inject() {
-  [ -n "${APP_PASSWORD:-}" ] && [ -n "${OTEL_MONITOR_PASSWORD:-}" ] || { echo "passwords missing: run lab/slice1/scripts/gen-env.sh" >&2; return 1; }
+  [ -n "${APP_PASSWORD:-}" ] && [ -n "${OTEL_MONITOR_PASSWORD:-}" ] || { echo "passwords missing: run mise run lab:up" >&2; return 1; }
   MAXC=$(cfg_value max_client_conn)
   case "$MAXC" in ''|*[!0-9]*) echo "cannot read max_client_conn: '$MAXC'" >&2; return 1 ;; esac
   docker exec "$PGBOUNCER" pkill -x psql 2>/dev/null

@@ -203,48 +203,26 @@ services:
     restart: "no"
 
   victoriametrics:
-    image: victoriametrics/victoria-metrics:v1.155.0@sha256:f60dc268b54ecf87f6e09d740c2b732838aa9193090cc741417c9f6386a130df
+    extends:
+      file: ../mon/compose.base.yaml
+      service: victoriametrics
     container_name: obenhub-stage3-victoriametrics
-    restart: unless-stopped
-    mem_limit: 512m
-    command: ["-retentionPeriod=7d", "-opentelemetry.promoteScopeMetadata=false"]
     ports:
       - "127.0.0.1:28428:8428"
-    volumes:
-      - vm-data:/victoria-metrics-data
-    healthcheck:
-      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:8428/health"]
-      interval: 5s
-      timeout: 3s
-      retries: 20
-    networks:
-      - mon
 
   victorialogs:
-    image: victoriametrics/victoria-logs:v1.53.0@sha256:251121fa882af99b95ba0c230a4a2f412ea602d2698c64a96c58dc9842bb755d
+    extends:
+      file: ../mon/compose.base.yaml
+      service: victorialogs
     container_name: obenhub-stage3-victorialogs
-    restart: unless-stopped
-    mem_limit: 256m
     ports:
       - "127.0.0.1:29428:9428"
-    volumes:
-      - vl-data:/victoria-logs-data
-    # no healthcheck: the image has no shell or wget
-    networks:
-      - mon
 
   vmalert:
-    image: victoriametrics/vmalert:v1.155.0@sha256:3256cba5ddaca5974eae6141105cec4ce37871f1c213f0a5c267ec0111bc68e1
+    extends:
+      file: ../mon/compose.base.yaml
+      service: vmalert
     container_name: obenhub-stage3-vmalert
-    restart: unless-stopped
-    mem_limit: 128m
-    command:
-      - -datasource.url=http://victoriametrics:8428
-      - -remoteWrite.url=http://victoriametrics:8428
-      - -notifier.url=http://alertmanager:9093
-      - -rule=/etc/vmalert/inventory.yml
-      - -rule=/etc/vmalert/pack/*.yml
-      - -evaluationInterval=15s
     ports:
       - "127.0.0.1:28880:8880"
     volumes:
@@ -252,64 +230,26 @@ services:
       - ../packs/postgresql/rules.yml:/etc/vmalert/pack/postgresql.yml:ro
       - ../packs/patroni/rules.yml:/etc/vmalert/pack/patroni.yml:ro
       - ../packs/etcd/rules.yml:/etc/vmalert/pack/etcd.yml:ro
-    depends_on:
-      victoriametrics:
-        condition: service_healthy
-      alertmanager:
-        condition: service_started
-    networks:
-      - mon
 
   alertmanager:
-    image: prom/alertmanager:v0.34.2@sha256:39d8bb3966c694a124428a3a88fbcffd40bd069129ecd47c059f8a3f17c55f3b
+    extends:
+      file: ../mon/compose.base.yaml
+      service: alertmanager
     container_name: obenhub-stage3-alertmanager
-    restart: unless-stopped
-    mem_limit: 128m
-    command:
-      - --config.file=/etc/alertmanager/alertmanager.yml
-      - --storage.path=/alertmanager
     ports:
       - "127.0.0.1:29093:9093"
-    volumes:
-      - ./alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
-      - am-data:/alertmanager
-    depends_on:
-      - victorialogs
-    networks:
-      - mon
 
-  # AGPL-3.0, run unmodified as a separate service (ADR 0004); nothing of it
-  # is copied into this repository. Plugins are downloaded at start.
   grafana:
-    image: grafana/grafana:13.3.0@sha256:488984b716c0862639f91a698adbe2862677a5a07bad42da5f03f3030883b205
+    extends:
+      file: ../mon/compose.base.yaml
+      service: grafana
     container_name: obenhub-stage3-grafana
-    restart: unless-stopped
-    mem_limit: 512m
     environment:
       GF_SECURITY_ADMIN_PASSWORD: "${GRAFANA_ADMIN_PASSWORD:?run: mise run lab:stage3:up (it generates lab/stage3/.env)}"
-      GF_AUTH_ANONYMOUS_ENABLED: "true"
-      GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
-      GF_PLUGINS_PREINSTALL_SYNC: victoriametrics-metrics-datasource@1.0.1,victoriametrics-logs-datasource@0.33.1
-      GF_ANALYTICS_REPORTING_ENABLED: "false"
-      GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
-      GF_ANALYTICS_CHECK_FOR_PLUGIN_UPDATES: "false"
     ports:
       - "127.0.0.1:23000:3000"
     volumes:
-      - grafana-data:/var/lib/grafana
-      - ./grafana/provisioning:/etc/grafana/provisioning:ro
       - ./grafana/dashboards:/var/lib/obenhub/dashboards:ro
-    healthcheck:
-      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:3000/api/health"]
-      interval: 5s
-      timeout: 3s
-      retries: 40
-      start_period: 30s
-    depends_on:
-      - victoriametrics
-      - victorialogs
-    networks:
-      - mon
 
 networks:
   # etcd and the Patroni REST API: a scenario that cuts a node here cuts it

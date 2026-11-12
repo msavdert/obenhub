@@ -30,8 +30,8 @@ Compose project on the box (`obenhub-k8s`).
 - Free ports on 127.0.0.1 (VictoriaMetrics 48428, VictoriaLogs 49428, vmalert
   48880, Alertmanager 49093, Grafana 43000) and 44317 on the `kind` network's
   gateway address (see Monitoring).
-- The backend's Alertmanager and Grafana files are the ones in `lab/stage3/`
-  (`alertmanager`, `grafana`).
+- The backend services extend `lab/mon/compose.base.yaml`; the Alertmanager
+  config and Grafana provisioning are the shared ones in `lab/mon/`.
 
 ```sh
 lab/k8s/scripts/up.sh     # idempotent; about 7 minutes from nothing
@@ -115,8 +115,8 @@ kind cluster                                   box (Compose project obenhub-k8s)
   collects a pod depends on scheduling). `otelcol-cluster` is pinned to the
   control-plane node (`otel/cluster-values.yaml`), so stopping a worker does not
   take the node-condition signal with it.
-  Notifications go to VictoriaLogs through the stage 3 Alertmanager config, as
-  in pgha.
+  Notifications go to VictoriaLogs through the shared Alertmanager config
+  (`lab/mon/alertmanager.yml`), as in pgha.
 
 ## Fault scenarios
 

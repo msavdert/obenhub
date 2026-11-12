@@ -26,7 +26,7 @@ dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 . "$dir/versions.sh"
 # shellcheck source=/dev/null
 . "$dir/nodes.sh"
-[ -s "$dir/.env" ] || "$dir/scripts/gen-env.sh"
+[ -s "$dir/.env" ] || "$dir/../scripts/gen-env.sh" "$dir/.env" POSTGRES_PASSWORD REPLICATOR_PASSWORD OTEL_MONITOR_PASSWORD APP_PASSWORD PATRONI_API_PASSWORD
 # pki.sh keeps existing files and adds missing ones (for example the Collector
 # certificates of a checkout provisioned before they existed)
 "$dir/scripts/pki.sh"

@@ -14,7 +14,7 @@ CLIENTS=0
 
 clients_waiting() { [ "$(pool_field cl_waiting)" -ge 1 ]; }
 inject() {
-  [ -n "${APP_PASSWORD:-}" ] && [ -n "${OTEL_MONITOR_PASSWORD:-}" ] || { echo "passwords missing: run lab/slice1/scripts/gen-env.sh" >&2; return 1; }
+  [ -n "${APP_PASSWORD:-}" ] && [ -n "${OTEL_MONITOR_PASSWORD:-}" ] || { echo "passwords missing: run mise run lab:up" >&2; return 1; }
   POOL_SIZE=$(pgb_console "SHOW DATABASES" | awk -F'|' 'NR == 1 { for (i = 1; i <= NF; i++) if ($i == "pool_size") c = i } $1 == "app" { print $c }')
   case "$POOL_SIZE" in ''|*[!0-9]*) echo "cannot read pool_size from the console: '$POOL_SIZE'" >&2; return 1 ;; esac
   CLIENTS=$((POOL_SIZE + CLIENTS_EXTRA))

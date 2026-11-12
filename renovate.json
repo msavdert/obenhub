@@ -154,7 +154,7 @@
       "customType": "regex",
       "description": "Grafana plugins preinstalled by the lab compose files",
       "managerFilePatterns": [
-        "/^lab/.+/compose\\.ya?ml$/"
+        "/^lab/.+/compose(\\.base)?\\.ya?ml$/"
       ],
       "matchStrings": [
         "victoriametrics-metrics-datasource@(?<currentValue>[0-9.]+)"
@@ -167,7 +167,7 @@
       "customType": "regex",
       "description": "Grafana plugins preinstalled by the lab compose files",
       "managerFilePatterns": [
-        "/^lab/.+/compose\\.ya?ml$/"
+        "/^lab/.+/compose(\\.base)?\\.ya?ml$/"
       ],
       "matchStrings": [
         "victoriametrics-logs-datasource@(?<currentValue>[0-9.]+)"

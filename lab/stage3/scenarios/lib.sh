@@ -24,7 +24,7 @@ NODES=(pg-1 pg-2 pg-3)
 ETCD_MEMBERS=(etcd-1 etcd-2 etcd-3)
 REPL_NET=obenhub-stage3_repl
 LOAD=obenhub-stage3-load
-CONFIG_FILES=("$LAB_DIR/vmalert/inventory.yml" "$LAB_DIR/../packs/etcd/rules.yml" "$LAB_DIR/../packs/patroni/rules.yml" "$LAB_DIR/../packs/postgresql/rules.yml" "$LAB_DIR/alertmanager/alertmanager.yml")
+CONFIG_FILES=("$LAB_DIR/vmalert/inventory.yml" "$LAB_DIR/../packs/etcd/rules.yml" "$LAB_DIR/../packs/patroni/rules.yml" "$LAB_DIR/../packs/postgresql/rules.yml" "$LAB_DIR/../mon/alertmanager.yml")
 
 # shellcheck disable=SC1091
 [ -r "$LAB_DIR/.env" ] && set -a && . "$LAB_DIR/.env" && set +a
@@ -68,11 +68,16 @@ etcd_move_leader() {
   docker exec "$(cname "$l")" etcdctl --endpoints="http://$l:2379" move-leader "$id" >/dev/null
 }
 
+# etcd_stop / etcd_start MEMBER...: stop or start etcd members (shared
+# scenarios etcd-member-down and quorum-lost); here the member's container
+etcd_stop() { dc stop "$@" >/dev/null; }
+etcd_start() { dc start "$@" >/dev/null; }
+
 load_running() { [ "$(docker inspect -f '{{.State.Running}}' "$LOAD" 2>/dev/null)" = true ]; }
 
 # component versions recorded under "images" in runs.jsonl
 component_versions() {
-  { grep -E '^[[:space:]]+image:' "$LAB_DIR/compose.yaml" | sed 's/.*image: *//'; grep -E '^FROM ' "$LAB_DIR/postgres/Dockerfile" | sed 's/^FROM //'; } | sort -u \
+  { dc config --images 2>/dev/null | grep -v "^obenhub-"; grep -E '^FROM ' "$LAB_DIR/postgres/Dockerfile" | sed 's/^FROM //'; } | sort -u \
     | jq -R . | jq -s -c .
 }
 

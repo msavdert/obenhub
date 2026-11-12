@@ -1,0 +1,108 @@
+# Monitoring backend shared by the labs: VictoriaMetrics, VictoriaLogs, vmalert,
+# Alertmanager, Grafana. Not a project of its own: a lab's compose file takes
+# each service with `extends` (Compose Specification, services, "extends",
+# https://github.com/compose-spec/compose-spec/blob/main/05-services.md; the
+# page was not re-read here, the merge was checked by diffing `docker compose
+# config` of every lab before and after) and adds what is its own: container_name, published ports,
+# rule and dashboard mounts, the Grafana admin-password hint. Relative paths
+# below resolve against this file, so ./alertmanager.yml and ./grafana/provisioning
+# are the ones in lab/mon/. Images, versions, memory limits and flags live only
+# here. A lab declares the networks (mon) and volumes (vm-data, vl-data, am-data,
+# grafana-data) the services use; lab/slice1 overrides the vmalert rule flags
+# and its Alertmanager config.
+services:
+  victoriametrics:
+    image: victoriametrics/victoria-metrics:v1.155.0@sha256:f60dc268b54ecf87f6e09d740c2b732838aa9193090cc741417c9f6386a130df
+    restart: unless-stopped
+    mem_limit: 512m
+    command: ["-retentionPeriod=7d", "-opentelemetry.promoteScopeMetadata=false"]
+    volumes:
+      - vm-data:/victoria-metrics-data
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:8428/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    networks:
+      - mon
+
+  victorialogs:
+    image: victoriametrics/victoria-logs:v1.53.0@sha256:251121fa882af99b95ba0c230a4a2f412ea602d2698c64a96c58dc9842bb755d
+    restart: unless-stopped
+    mem_limit: 256m
+    volumes:
+      - vl-data:/victoria-logs-data
+    # no healthcheck: the image has no shell or wget
+    networks:
+      - mon
+
+  vmalert:
+    image: victoriametrics/vmalert:v1.155.0@sha256:3256cba5ddaca5974eae6141105cec4ce37871f1c213f0a5c267ec0111bc68e1
+    restart: unless-stopped
+    mem_limit: 128m
+    command:
+      - -datasource.url=http://victoriametrics:8428
+      - -remoteWrite.url=http://victoriametrics:8428
+      - -notifier.url=http://alertmanager:9093
+      - -rule=/etc/vmalert/inventory.yml
+      - -rule=/etc/vmalert/pack/*.yml
+      - -evaluationInterval=15s
+    depends_on:
+      victoriametrics:
+        condition: service_healthy
+      alertmanager:
+        condition: service_started
+    networks:
+      - mon
+
+  alertmanager:
+    image: prom/alertmanager:v0.34.2@sha256:39d8bb3966c694a124428a3a88fbcffd40bd069129ecd47c059f8a3f17c55f3b
+    restart: unless-stopped
+    mem_limit: 128m
+    command:
+      - --config.file=/etc/alertmanager/alertmanager.yml
+      - --storage.path=/alertmanager
+    volumes:
+      - ./alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+      - am-data:/alertmanager
+    depends_on:
+      - victorialogs
+    networks:
+      - mon
+
+  # AGPL-3.0, run unmodified as a separate service (ADR 0004); nothing of it
+  # is copied into this repository. Plugins are downloaded at start.
+  grafana:
+    image: grafana/grafana:13.3.0@sha256:488984b716c0862639f91a698adbe2862677a5a07bad42da5f03f3030883b205
+    restart: unless-stopped
+    mem_limit: 512m
+    environment:
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
+      GF_PLUGINS_PREINSTALL_SYNC: victoriametrics-metrics-datasource@1.0.1,victoriametrics-logs-datasource@0.33.1
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+      GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
+      GF_ANALYTICS_CHECK_FOR_PLUGIN_UPDATES: "false"
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:3000/api/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 40
+      start_period: 30s
+    depends_on:
+      - victoriametrics
+      - victorialogs
+    networks:
+      - mon
+
+networks:
+  mon: {}
+
+volumes:
+  vm-data: {}
+  vl-data: {}
+  am-data: {}
+  grafana-data: {}

@@ -55,7 +55,7 @@ NODES=(pg-1 pg-2 pg-3)
 ETCD_MEMBERS=()
 # Same files, same order as the containers read them (inventory, then
 # pack/*.yml sorted by name: cnpg.yml, k8s.yml, postgresql.yml; lab/k8s/mon/compose.yaml).
-CONFIG_FILES=("$LAB_DIR/mon/vmalert/inventory.yml" "$LAB_DIR/../packs/cnpg/rules.yml" "$LAB_DIR/../packs/k8s/rules.yml" "$LAB_DIR/../packs/postgresql/rules.yml" "$LAB_DIR/../stage3/alertmanager/alertmanager.yml")
+CONFIG_FILES=("$LAB_DIR/mon/vmalert/inventory.yml" "$LAB_DIR/../packs/cnpg/rules.yml" "$LAB_DIR/../packs/k8s/rules.yml" "$LAB_DIR/../packs/postgresql/rules.yml" "$LAB_DIR/../mon/alertmanager.yml")
 
 # shellcheck source=lab/scenarios/lib-core.sh
 . "$SC_DIR/../../scenarios/lib-core.sh"
