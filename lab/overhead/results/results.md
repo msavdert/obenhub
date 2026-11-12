@@ -1,14 +1,18 @@
 # Collector overhead on pg-lab: results
 
-Measured 2026-11-12 with `lab/overhead/setup.sh` and `lab/overhead/run.sh`, with
-the shared PostgreSQL pack as of commit 5266555 (`lab/packs/postgresql/
-queries.yaml`, sha256 `c5b2401f4ff59415b143d64221ba9fd5dd0537a70f58f064027485f6817526ee`,
-nine queries, ADR 0006 names), kept as `pack-measured/queries.yaml` next to
-these results. That is not main's pack: main's (sha256 starting `7e28cc96`,
-as reported by the coordinator; not re-checked here) is heavier, with an xmin
-horizon subquery and sync-standby and archiver queries, so every pack cost
-below understates what main's pack would cost. The first measurement (2026-11-07, three-query pack) is kept in
-`2026-11-07-old-pack/` for comparison and is not the current result.
+Measured 2026-11-12 with `lab/overhead/setup.sh` and `lab/overhead/run.sh`.
+The pack measured is kept as `pack-measured/queries.yaml` next to these
+results: nine queries, sha256
+`c5b2401f4ff59415b143d64221ba9fd5dd0537a70f58f064027485f6817526ee`. It is not
+the pack on main (`lab/packs/postgresql/queries.yaml`, eleven queries, sha256
+`7e28cc96aa960bc1f82875b9680f52e621225d7aef50bd7f50f706ec7b7ec29a` at the time
+of writing). Main's adds the archiver query (`pg_stat_archiver`,
+`pg_ls_archive_statusdir()`) and the synchronous standby query, and changes two
+existing ones: the snapshot query gained a prepared-transaction term and an
+xmin horizon subquery, and the slot query uses `greatest(receive, replay)` LSN.
+None of this is in the measurement, so every pack cost below understates what
+main's pack would cost. The first measurement (2026-11-07, three-query pack) is
+kept in `2026-11-07-old-pack/` for comparison and is not the current result.
 
 Tables: `./summarize.sh --from-block 2 results/runs.csv` (TPC-B arm) and
 `./summarize.sh --from-block 2 results/runs-cpu.csv` (CPU-saturated arm); raw
