@@ -26,6 +26,9 @@ Shared parts:
   component (postgresql, patroni, etcd, cnpg, host, k8s).
 - [scenarios/lib-core.sh](scenarios/lib-core.sh): the scenario harness used by
   slice1, stage3, pgha and k8s.
+- [scenarios/patroni](scenarios/patroni): the Patroni scenarios stage3 and pgha
+  share; each lab links them from its `scenarios/` and supplies the adapter
+  functions in its `lib.sh` (`etcd_stop`, `etcd_start`, `ptl`, ...).
 
 One-off measurements on the `pg-lab` VM, not scenario labs:
 

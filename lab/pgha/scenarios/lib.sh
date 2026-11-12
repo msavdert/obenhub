@@ -80,6 +80,12 @@ etcd_move_leader() {
   rn "$l" etcdctl --endpoints="https://$(node_ip "$l"):2379" "${ETCD_TLS[@]}" move-leader "$id" >/dev/null
 }
 
+# etcd_stop / etcd_start MEMBER...: stop or start etcd (systemctl) on the node
+# of that name (shared scenarios etcd-member-down and quorum-lost). Stop quits
+# at the first failure; start tries every member and fails if one failed.
+etcd_stop() { local m; for m in "$@"; do rn "$m" systemctl stop etcd || return 1; done; }
+etcd_start() { local m rc=0; for m in "$@"; do rn "$m" systemctl start --no-block etcd || rc=1; done; return $rc; }
+
 # nftables fault table "inet obenhub_fault" on a node. fault_table_add reads
 # the table definition from stdin; fault_table_del removes it and succeeds
 # when it is already gone.
