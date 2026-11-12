@@ -38,10 +38,10 @@
             "type": "victoriametrics-metrics-datasource",
             "uid": "vm"
           },
-          "expr": "postgresql.recovery.active == 0",
+          "expr": "last_over_time(postgresql.recovery.active[1m]) == 0",
           "refId": "A",
-          "range": true,
-          "instant": false,
+          "range": false,
+          "instant": true,
           "legendFormat": "{{service.instance.id}}"
         }
       ],
@@ -74,7 +74,7 @@
         "graphMode": "none",
         "textMode": "name"
       },
-      "description": "The instance whose postgresql.recovery.active is 0 (pack series). A promotion moves the name."
+      "description": "The instance whose postgresql.recovery.active was last 0 within the last minute (instant query, pack series). A promotion moves the name; a deleted pod's old series ages out of the window."
     },
     {
       "id": 2,
@@ -218,7 +218,7 @@
             "type": "victoriametrics-metrics-datasource",
             "uid": "vm"
           },
-          "expr": "max(postgresql.replication_slot.retained_wal) or vector(0)",
+          "expr": "max((postgresql.replication_slot.retained_wal unless on(service.instance.id, postgresql.replication_slot.name) postgresql.replication_slot.invalidated == 1) and on(service.instance.id) postgresql.recovery.active == 0) or vector(0)",
           "refId": "A",
           "range": true,
           "instant": false
@@ -258,7 +258,7 @@
         "graphMode": "none",
         "textMode": "value"
       },
-      "description": "Largest postgresql.replication_slot.retained_wal on any instance. PostgresReplicationSlotRetainingWAL fires above 512 MiB for 2 m."
+      "description": "Largest postgresql.replication_slot.retained_wal on a primary, invalidated slots excluded: the selection of PostgresReplicationSlotRetainingWAL, which fires above 512 MiB for 2 m. Replicas hold copies of the slots and are left out."
     },
     {
       "id": 5,
@@ -557,7 +557,7 @@
           "mode": "multi"
         }
       },
-      "description": "Data only during a scenario. retained_wal is current LSN minus restart_lsn. The pack returns no slot row while the cluster has no slot; the slot-retaining-wal scenario creates one. The threshold line is always drawn."
+      "description": "retained_wal is current LSN minus restart_lsn, on every instance (assumption: the slots are CloudNativePG HA slots, which replicas also carry; the alert looks at the primary only). The slot-retaining-wal scenario adds the slot that grows past the threshold. An empty result is a failure: the cluster always has HA slots."
     },
     {
       "id": 9,
@@ -1122,7 +1122,7 @@
             "type": "victoriametrics-metrics-datasource",
             "uid": "vm"
           },
-          "expr": "count by (alertname) (ALERTS{alertstate=\"firing\", alertname=~\"CNPG.*|Kubernetes.*|PostgresReplicationSlot.*\"})",
+          "expr": "count by (alertname) (ALERTS{alertstate=\"firing\", alertname!=\"Watchdog\"})",
           "refId": "A",
           "range": true,
           "instant": false,
@@ -1148,7 +1148,7 @@
           "mode": "multi"
         }
       },
-      "description": "Data only during a scenario. ALERTS series written by vmalert for the alerts of this dashboard (CNPGPrimaryChanged, CNPGInstanceFenced, KubernetesNodeNotReady, PostgresReplicationSlotRetainingWAL). Empty while the lab is healthy."
+      "description": "Data only during a scenario. ALERTS series written by vmalert, every firing alert except the Watchdog, so each alert a k8s scenario expects shows. Empty while the lab is healthy."
     },
     {
       "id": 20,

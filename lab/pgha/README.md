@@ -80,7 +80,7 @@ The Grafana instance provisions the stage 3 Patroni dashboard unchanged and the
 shared host dashboard, `lab/packs/host/dashboards/host.json` (filesystem,
 memory, uptime, CPU, load, network, disk; the host alerts' expressions) and the
 shared PostgreSQL dashboard of slice 1.
-`scripts/check-panels.sh` runs its queries against the live backend.
+`mise run lab:pgha:panels` runs the queries of all three dashboards against the live Grafana.
 
 `CollectorAbsent` fires per Collector. Each node's targets are tagged with its
 own Collector, so a stopped node Collector raises only its alert, and a stopped
