@@ -29,6 +29,9 @@ Shared parts:
 - [scenarios/patroni](scenarios/patroni): the Patroni scenarios stage3 and pgha
   share; each lab links them from its `scenarios/` and supplies the adapter
   functions in its `lib.sh` (`etcd_stop`, `etcd_start`, `ptl`, ...).
+- [mon](mon): `compose.base.yaml`, the VictoriaMetrics, VictoriaLogs, vmalert,
+  Alertmanager and Grafana services every lab extends, with the shared
+  Alertmanager config and Grafana provisioning.
 
 One-off measurements on the `pg-lab` VM, not scenario labs:
 
