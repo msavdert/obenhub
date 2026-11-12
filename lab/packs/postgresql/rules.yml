@@ -151,7 +151,7 @@ groups:
       # transactions only) shows nothing for the first two. The metric is an
       # age in transactions (queries.yaml), so the threshold depends on the
       # workload: 10 million is an assumption (5 % of autovacuum_freeze_max_age,
-      # default 200 million, PostgreSQL docs runtime-config-autovacuum), about
+      # default 200 million; PostgreSQL 18 docs, runtime-config-autovacuum, not read: unverified), about
       # three hours at 1000 transactions/s. Suppressed while PostgresSnapshotHeldTooLong's
       # condition holds on the instance (a client snapshot older than 120 s
       # explains the horizon and has its own alert). Not reachable in a lab run
@@ -507,16 +507,16 @@ groups:
       # name is a new series (k8s.pod.uid) and the deleted pod's last 0 must
       # not count twice; max prefers "in recovery" (1), so this can only hide
       # an alert, never invent one.
-      # "for" is 60 s (four evaluations). On CloudNativePG the deleted
-      # primary's last 0 overlaps the promoted replica's 0 for roughly 10 to
-      # 40 s (lab/k8s primary-deleted run: replica writable about 6 s after
-      # the kill, the new pod starts at +6 s, then recovery and up to one 15 s
-      # scrape before it reports 1). The stale 0 lives 30 s after its last
-      # sample (the window; two 15 s scrapes), so the overlap is at most 30 s
-      # by that count; the unit test (failover) assumes 45 s and the measured
-      # run above 40 s. "for" is 45 s plus one scrape interval (15 s) of
-      # margin. Patroni: the leader key expires 20 to 30 s after
-      # the last sample, so the overlap is shorter still.
+      # "for" is 60 s (four evaluations). The stale 0 of a deleted primary
+      # lives 30 s after its last sample (the window; two 15 s scrapes), so a
+      # failover overlap is at most that 30 s plus the 15 s between the
+      # promoted instance's first sample and the stale one's last: a 45 s
+      # worst case, which the unit test (failover) uses. That is a derived
+      # bound, not a measurement. What the recorded suites of 2026-11-12 show
+      # is overlaps of a single 15 s sample (k8s switchover at 05:19:00 UTC);
+      # no recorded overlap is longer. "for" is the 45 s bound plus one scrape
+      # interval (15 s) of margin. Patroni: the leader key expires 20 to 30 s
+      # after the last sample, so the overlap is shorter still.
       # Trade-off, accepted: a real split brain shorter than about 75 s (the
       # hold plus one 15 s sample) is not alerted; dropping a
       # series after two missed collections can only hide an alert.

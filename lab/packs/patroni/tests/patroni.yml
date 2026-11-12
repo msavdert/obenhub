@@ -87,6 +87,17 @@ tests:
         groupname: patroni
         alertname: PatroniMultiplePrimaries
         exp_alerts: []
+      - eval_time: 3m   # two primaries since 2m15: 45 s, a 45 s hold would fire at 3m
+        groupname: patroni
+        alertname: PatroniMultiplePrimaries
+        exp_alerts: []
+      - eval_time: 3m15s   # 60 s: the hold completes (a 75 s hold would not fire yet)
+        groupname: patroni
+        alertname: PatroniMultiplePrimaries
+        exp_alerts:
+          - exp_labels: {severity: critical, scope: stage3}
+            exp_annotations:
+              summary: Cluster stage3 has 2 members reporting primary (split brain)
       - eval_time: 4m
         groupname: patroni
         alertname: PatroniMultiplePrimaries
@@ -128,7 +139,7 @@ tests:
       - series: 'patroni_primary{scope="stage3",service.instance.id="pg-3"}'
         values: '0x60'
     alert_rule_test:
-      - eval_time: 2m15s
+      - eval_time: 2m15s   # overlap 1m30 to 2m15 = 45 s: a 45 s hold would fire here
         groupname: patroni
         alertname: PatroniMultiplePrimaries
         exp_alerts: []

@@ -141,17 +141,6 @@
     },
     {
       "customType": "regex",
-      "description": "vmalert-tool image in the lab:rules-test task; moves with vmalert",
-      "managerFilePatterns": [
-        "/(^|/)mise\\.toml$/"
-      ],
-      "matchStrings": [
-        "(?<depName>victoriametrics/vmalert-tool):(?<currentValue>v[0-9.]+)"
-      ],
-      "datasourceTemplate": "docker"
-    },
-    {
-      "customType": "regex",
       "description": "Grafana plugins preinstalled by the lab compose files",
       "managerFilePatterns": [
         "/^lab/.+/compose(\\.base)?\\.ya?ml$/"

@@ -202,6 +202,17 @@ tests:
         groupname: postgresql
         alertname: PostgresMultiplePrimaries
         exp_alerts: []
+      - eval_time: 3m   # two writable since 2m15: 45 s, a 45 s hold would fire at 3m
+        groupname: postgresql
+        alertname: PostgresMultiplePrimaries
+        exp_alerts: []
+      - eval_time: 3m15s   # 60 s: the hold completes (a 75 s hold would not fire yet)
+        groupname: postgresql
+        alertname: PostgresMultiplePrimaries
+        exp_alerts:
+          - exp_labels: {severity: critical, obenhub.cluster.name: c1}
+            exp_annotations:
+              summary: Cluster c1 has 2 writable instances (split brain)
       - eval_time: 4m
         groupname: postgresql
         alertname: PostgresMultiplePrimaries
@@ -237,6 +248,10 @@ tests:
       - series: 'postgresql.recovery.active{obenhub.cluster.name="c1",service.instance.id="pg-2"}'
         values: '1x5 0x55'
     alert_rule_test:
+      - eval_time: 2m15s   # overlap 1m30 to 2m15 = 45 s: a 45 s hold would fire here
+        groupname: postgresql
+        alertname: PostgresMultiplePrimaries
+        exp_alerts: []
       - eval_time: 2m30s
         groupname: postgresql
         alertname: PostgresMultiplePrimaries

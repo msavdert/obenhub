@@ -80,8 +80,11 @@ groups:
       # ttl and loop_wait are not changed), and then reports 1 at its next
       # scrape, so the real overlap of the stale 1 with the new 1 is well
       # under 30 s. The unit test (failover) assumes a pessimistic 45 s overlap
-      # (the new 1 two scrapes before the stale one's last sample), which is
-      # more than the derivation allows; "for" adds one scrape interval (15 s)
+      # (the new 1 two scrapes before the stale one's last sample), a derived
+      # bound (30 s window plus one 15 s scrape), not a measurement; the
+      # recorded suites of 2026-11-12 show single-sample (15 s) overlaps at
+      # most (pgha network-partition, 11:47:45 UTC). It is more than the
+      # derivation allows; "for" adds one scrape interval (15 s)
       # to that, so a normal failover cannot fire even with that overlap, and
       # the stale 1 is gone before the hold can complete. A planned switchover
       # demotes the old leader first; the overlap there is at most one scrape,

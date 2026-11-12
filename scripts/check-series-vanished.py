@@ -87,10 +87,14 @@ def main():
     }
     missing = pack - EXCLUDED - first
     if missing:
-        errors.append(f"pack metrics missing from PostgresSeriesVanished (add them or list them in EXCLUDED): {sorted(missing)}")
+        errors.append(
+            f"pack metrics missing from PostgresSeriesVanished (add them or list them in EXCLUDED): {sorted(missing)}"
+        )
     extra = first - pack - upstream
     if extra:
-        errors.append(f"PostgresSeriesVanished names metrics that are neither pack nor receiver metrics: {sorted(extra)}")
+        errors.append(
+            f"PostgresSeriesVanished names metrics that are neither pack nor receiver metrics: {sorted(extra)}"
+        )
     stale = EXCLUDED - pack
     if stale:
         errors.append(f"EXCLUDED names metrics the pack does not define: {sorted(stale)}")

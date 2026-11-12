@@ -1,3 +1,4 @@
+# shellcheck shell=bash disable=SC2034
 # Image used by every rule-test task of mise.toml (scripts/vmalert-unittest.sh
 # sources this file). Renovate reads the '# renovate:' comment and moves tag
 # and digest together (renovate.json, customManagers: tag@digest in lab shell
