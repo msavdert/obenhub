@@ -6,15 +6,24 @@ decided in [ADR 0001](adr/0001-goal-and-scope.md).
 
 ## Next
 
-The hardening pass of the 2026-11-11 project review is done: every lab passed
-its full suite on `main` (`scripts/check-evidence.sh --strict <lab>` passes for
-slice1, stage3, pgha and k8s). What follows is the owner's decision; Stage 5
-is not next (owner decision 2026-11-08).
+Every lab has a full suite recorded on `main`; the evidence is in each lab's
+`results/runs.jsonl` and `scripts/check-evidence.sh --strict <lab>` verifies
+it. Order decided by the owner on 2026-11-12 (ADR 0001, depth before
+breadth); Stage 5 is not next (owner decision 2026-11-08):
+
+- [ ] Backup tool with a restore scenario in slice1, building on its WAL
+      archive (see Backups)
+- [ ] Monitoring gaps in slice1: dashboard panels for transaction-id age,
+      idle-in-transaction, locks, deadlocks and checkpoints; a scenario for
+      `PostgresTransactionIdWraparound` and one for
+      `PostgresReplicationSlotRetainingWAL` outside k8s
+- [ ] First Learn and Guides pages on the docs site, only for things that run
+- [ ] Oracle, after the items above
 
 ## Backups
 
-Not covered yet: backups and point-in-time recovery (PITR). WAL archiving and
-`synchronous_mode` are being added to the labs separately; a backup tool is a
+Not covered yet: backups and point-in-time recovery (PITR). WAL archiving is
+in slice1 (scenario `archiver-failing`) with no restore. A backup tool is a
 stage of its own, because it brings a component, storage and a restore
 scenario.
 
@@ -22,6 +31,30 @@ scenario.
       per [ADR 0004](adr/0004-licence-policy.md) before choosing. Then:
       the tool in one lab, backup age and verification monitored, an alert
       for a stale or failed backup, and a restore scenario with evidence
+
+## Known gaps, accepted for now
+
+- `leader-killed` on pgha never asserts a leadership change; both recorded
+  runs took the no-change branch, while `PatroniFailoverHappened` fires on a
+  timeline rise (`lab/pgha/scenarios/leader-killed.sh`)
+- The PostgreSQL pack has no version branching and is tested on 18 only
+  (`lab/packs/postgresql/README.md`)
+- PgBouncer rules live in `lab/slice1/vmalert/rules/postgresql.yml`, not in a
+  pack
+- `pg_stat_statements` is preloaded in slice1 but nothing reads it
+  (`lab/slice1/compose.yaml`)
+- Thresholds are hand-copied between pack rules, Patroni config and
+  dashboards, for example 16 MiB in `lab/packs/patroni/rules.yml`,
+  `lab/pgha/files/patroni.yml.tmpl` and
+  `lab/stage3/grafana/dashboards/patroni.json`
+- k8s Collectors and the CloudNativePG Cluster have no resource requests or
+  limits (`lab/k8s/otel`, `lab/k8s/cnpg/cluster.yaml`)
+- The overhead measurement predates two pack queries and two changed ones
+  (`lab/overhead/results/results.md`)
+- Split-brain alerts (`PatroniMultiplePrimaries`,
+  `PostgresMultiplePrimaries`) are unit-tested only, never induced in a lab
+- Dashboard metric names are checked only against a running lab
+  (`mise run lab:<lab>:panels`)
 
 ## Stage 5: cloud-managed PostgreSQL
 

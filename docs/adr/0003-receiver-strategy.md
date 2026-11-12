@@ -108,7 +108,7 @@ each contributes instead:
 
 | Project | Licence | Takeaway |
 |---|---|---|
-| pgsty/pg_exporter v1.5.0 | Apache-2.0 | The design for the deferred pack generator: version-ranged query branches, tag and predicate planning, re-plan on fact change, per-query TTL, timeout and self-metrics. 96 collector branches covering PG 10 to 19, the main source of SQL for our packs. Weak points: one target per process, self-counts exposed as gauges that reset on re-plan, 100 ms client-only default timeout, `sslmode=disable` when unset. Maintained by essentially one person. |
+| pgsty/pg_exporter v1.5.0 | Apache-2.0 | The design for the deferred pack generator: version-ranged query branches, tag and predicate planning, re-plan on fact change, per-query TTL, timeout and self-metrics. 96 collector branches covering PG 10 to 19 (count unverified, no source recorded), the main source of SQL for our packs. Weak points: one target per process, self-counts exposed as gauges that reset on re-plan, 100 ms client-only default timeout, `sslmode=disable` when unset. Maintained by essentially one person. |
 | burningalchemist/sql_exporter 0.24.13 | MIT | Per-collector `min_interval`, per-query error, duration and row metrics, a scrape deadline passed to the driver, `value_label`. No version mechanism. |
 | CrunchyData/pgmonitor | Apache-2.0 | Its PG version handling lives in `pgmonitor-extension` (needs `CREATE EXTENSION`, possibly a preload), which we cannot assume on managed PG; PG 18 support not found. Its 40 PostgreSQL alert rules (plus Patroni, node, etcd) are the checklist for our rules. |
 | oracle/oracle-db-appdev-monitoring 2.5.1 | MIT + UPL-1.0 | Only 12 default queries, no CDB or version awareness, OTLP push without a start time. Worth taking: per-metric interval and timeout, failure metric with a `result` attribute, alert log export, a few queries (tablespace, ASM guard, resource limits). Defaults avoid Diagnostics Pack views. |
@@ -120,6 +120,6 @@ names the upstream file and commit (ADR 0004).
 
 - obenhub shrinks as upstream grows; that is the intended direction.
 - Metric names for pack output follow the names we would propose upstream,
-  recorded in the naming contract (ADR 0002), so a later upstream merge does
+  recorded in the naming contract (ADR 0006), so a later upstream merge does
   not rename series. OTel Weaver is a candidate tool for that registry (not
   yet evaluated).

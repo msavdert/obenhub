@@ -102,7 +102,7 @@ memory metrics it needs are off by default and enabled in
 `results/runs.jsonl`, with the same fields as
 `lab/stage3/results/runs.jsonl` (component versions, read from the nodes, sit
 under `images`). The machinery is `lab/scenarios/lib-core.sh`, shared with
-stage 3; `scenarios/lib.sh` is the adapter that reaches the nodes over ssh.
+slice 1, stage 3 and k8s; `scenarios/lib.sh` is the adapter that reaches the nodes over ssh.
 
 | Scenario | Fault |
 | --- | --- |
@@ -132,108 +132,69 @@ and `APP_PASSWORD` in `lab/pgha/.env`). Client load is `obenhub-load.service` on
 same pgbench pattern as stage 3, as role `app` over TLS to the node IP
 (`sslmode=require`, no CA verification), and only while the node is the primary.
 
-The full suite of twelve scenarios (before the two partition scenarios) passed on 2026-11-10 (`results/runs.jsonl`,
-`suite-2`) with no unexpected alert. `filesystem-filling` was detected after
-179 s and `memory-pressure` after 183 s; in `memory-pressure` the replica did
-not reboot and `oom_kill` stayed 0, so the OOM settings of the hog unit were
-not exercised. In the earlier ten-scenario run, `quorum-lost` demoted the
-leader without a watchdog reset (boot IDs of the three VMs unchanged).
+Suites are recorded in `results/runs.jsonl` (the latest,
+`pgha-20261112T105036Z-2d9245b`, has all sixteen scenarios, `pass` true, no
+unexpected alert). Rows before 2026-11-12 have `suite` null and are told apart
+by date and scenario. What the rows cannot show is below.
 
-### Network partition (runs 2026-11-10, `results/runs.jsonl`)
+- `memory-pressure`: the replica did not reboot and `oom_kill` stayed 0, so the
+  OOM settings of the hog unit were not exercised.
+- `quorum-lost` demoted the leader without a watchdog reset (boot ids of the
+  three VMs unchanged).
 
-Baselines: "from the partition" is `extra.partition_start`; `seconds_to_detect`
-and the alert times are from the start of inject (a few seconds earlier).
+### Network partition
 
 The table `inet obenhub_fault` is installed on all three nodes: on the
 isolated node it drops packets from and to the two peers, on each peer it
 drops packets from and to the isolated node. The first version had it on the
-isolated node only. nftables rules do not survive a reset, and in the
-suite-3 `network-partition` row (21:25, `pass=false`, kept in `runs.jsonl`) the
-reset of the old leader pgha-1 ended the partition: it came back, won the
-leader race again (timeline 10 to 11, last writable sample after the reboot, no
-other node writable, no `pg_rewind`) and the run failed with "poller never
-saw a new writable leader". The two earlier smoke runs had the majority
-promote first, so that outcome is a race. The proof reads the counters of all
-three tables and requires drops on every output chain; input chains are
-recorded only, since once all three tables are in place each side drops what
-it sends. The counters are read again in revert (`nft_drops_at_revert`).
-The `extra` fields of these rows changed between script versions (the 21:25
-row has `nft_drops_in`/`nft_drops_out`, later rows `nft_drops` per node).
+isolated node only, and nftables rules do not survive a reset: in the
+`network-partition` row of 2026-11-10T21:25 (`pass` false) the reset of the old
+leader ended the partition, it won the leader race again and the run failed
+with "poller never saw a new writable leader". The proof reads the counters of
+all three tables and requires drops on every output chain; input chains are
+recorded only. The counters are read again in revert (`nft_drops_at_revert`).
+The `extra` fields changed between script versions.
 
-Suite-3 (2026-11-10, 14 scenarios) passed the first ten scenarios and
-failed at `network-partition` (the 21:25 row above). After the table moved to
-the peers as well, the remaining four ran on their own (rows from 21:37); after
-the last audit fixes `network-partition`, `network-partition-replica` and
-`control` ran again (rows from 22:24). The numbers below are from those last
-rows.
+When the isolated node is the leader its VM is reset (row of 2026-11-10T22:24;
+Patroni logs "Demoting self" about 12 s after the partition and the new
+boot's first kernel line follows about 12 s later). The most likely cause is the
+hardware watchdog (assumption, not read from Patroni source). Hypothesis for
+why the demotion does not finish: dropped packets make every etcd call wait for
+its timeout, so the HA loop overruns the watchdog timeout. The lab values are
+ttl 30, loop_wait 10, retry_timeout 10, which meet the documented constraint
+`loop_wait + 2 * retry_timeout <= ttl` with equality
+([dynamic configuration](https://patroni.readthedocs.io/en/latest/dynamic_configuration.html),
+`latest` docs, read 2026-11-12). `quorum-lost`, where connections are refused
+at once, demotes without a reset. `pg_rewind` ran on the old leader. At
+revert the surviving peers' tables still dropped what the rebooted node sent
+(counters 280 in on both), so the partition outlived the reset. The branch
+without a reset has never run.
 
-`network-partition` (row of 22:24): pgha-1 was the leader (timeline 13);
-pgha-2 became leader (timeline 14). The old leader's VM was reset: Patroni's
-"Demoting self" line is 12.4 s after the partition in VictoriaLogs and the new
-boot's first kernel line 12.3 s after that. The most likely cause is the
-hardware watchdog (assumption, not read from Patroni source); hypothesis for
-why the demotion did not finish: dropped packets make every etcd call wait for
-its timeout, so the HA loop overruns the watchdog timeout (ttl 30 = loop_wait
-10 + 2 * retry_timeout 10), whereas `quorum-lost`, where connections are
-refused at once, demoted without a reset. A first attempt outside
-`runs.jsonl` (VictoriaLogs, 18:47:50 to 18:48:23) had the same sequence. The
-poller (383 samples over three nodes, about one per second per node) saw the
-old leader last writable at 22:24:55.6 and pgha-2 first writable at 22:25:07.2,
-11.7 s apart, and no sample with two writable nodes; `primary_gap_seconds`
-from `patroni_primary` read 0 (15 s steps hide gaps of this size). pgha-1 had
-7 error samples and a longest blind window of 14.2 s; the others none.
-`pg_rewind` ran on the old leader (3 journal lines). Drops (in/out) at the
-proof: pgha-1 16/861, pgha-2 0/71, pgha-3 0/25; at revert, when pgha-1's own
-table was gone with its reset, pgha-2 280/804 and pgha-3 280/215: the peers
-dropped what the rebooted node sent, so the partition outlived the reset.
-`seconds_to_detect` 91.3 s (`PatroniFailoverHappened`, `HostRebooted` for
-pgha-1), `seconds_to_resolve` 297.1 s, no unexpected alert. The branch without
-a reset has never run.
+`network-partition-replica`: the leader and timeline do not change and no VM
+reboots (the watchdog is armed on the leader only: an assumption the boot ids
+are consistent with, not proof). The slot alert on the leader sets
+`seconds_to_detect` (about 300 s).
 
-`network-partition-replica` (row of 22:31): pgha-1 isolated, leader pgha-2
-and timeline 14 unchanged, no VM rebooted (the watchdog is armed on the leader
-only: an assumption these runs' boot ids are consistent with, not proof).
-`EtcdNoLeader`, `PostgresStandbyNotStreaming`, `PatroniReplicaNotEligible` (the leader
-keeps writing while the replica receives nothing) and `PostgresPhysicalSlotInactive`
-for the replica's slot on the leader all fired; the last one sets
-`seconds_to_detect`, 304.1 s. In the 21:44 row they came 115, 194, 222 and
-300 s after the start of inject (VictoriaLogs). All resolved within 101.3 s of
-the revert, no unexpected alert. Drops at revert: pgha-1 35/2402, pgha-2
-0/3044, pgha-3 0/873. Attempts outside `runs.jsonl` (VictoriaLogs and
-VictoriaMetrics, 2026-11-10 19:11 to 19:23) were reverted at about 3 minutes
-or lacked the last two alerts in EXPECT; the script comments name them.
+### Leader killed
 
-### Leader killed (runs 2026-11-10 and 2026-11-11)
+Patroni's main process on the leader is frozen; its last journal line is the
+loop before the freeze, PostgreSQL stays writable until the watchdog fires
+(25 s timeout of the i6300ESB device, `timeout_seconds` read from sysfs before
+the fault), and the new boot's first kernel line is about 33 s after the freeze.
+The writer, through `target_session_attrs=read-write` from this box, lost none
+of its acknowledged rows. `primary_gap_seconds` from `patroni_primary` is an
+upper bound from 15 s steps.
 
-Suite-4 (`results/runs.jsonl` rows from 2026-11-10 23:58, all fifteen scenarios) passed with
-no unexpected alert; it is the first suite on the poller shared through
-`scenarios/lib.sh`.
+Both recorded rows (2026-11-11T01:09 and the suite of 2026-11-12) are outcome
+A: the old leader came back and kept the leader key, and no replica took over.
+The timeline still rose by one, which is what `PatroniFailoverHappened` fires
+on; why is not confirmed from a log. Outcome B (a replica takes over, the old
+leader rejoins with `pg_rewind`) is known only from a smoke run on
+2026-11-10 that is not in `runs.jsonl` (8.8 s without a writable node, 465 of
+465 rows kept). Which outcome a run gets is a race, so the scenario does not
+assert a leadership change.
 
-`leader-killed` (row of 01:09): Patroni's main process on the leader pgha-2
-was frozen at 01:09:21.6; its last line was the 01:09:19.8 loop ("no action.
-I am (pgha-2), the leader with the lock"). PostgreSQL stayed writable until
-01:09:44.76, the last loop plus the 25 s timeout of the i6300ESB watchdog
-(`timeout_seconds` read from sysfs before the fault), and the new boot's first
-kernel line is 33.0 s after the freeze. pgha-2 came back and kept the leader
-key (outcome A, timeline 18 to 19, no `pg_rewind`). The poller saw 18.4 s
-without a writable node and no sample with two; the writer, through
-`target_session_attrs=read-write` from this box, saw 18.8 s between two
-acknowledged inserts and lost none of its 503 acknowledged rows.
-`seconds_to_detect` 118.7 s (`PatroniFailoverHappened`, `HostRebooted` for
-pgha-2), `seconds_to_resolve` 280.7 s. `primary_gap_seconds` read 45, an
-upper bound from 15 s steps. Why the timeline rises when the same node keeps
-the key (a promotion after crash recovery) is not confirmed from a log.
-
-Two smoke runs on the script before its audit fixes (not in `runs.jsonl`;
-2026-11-10 23:12 and 23:21, `HostRebooted` for pgha-2 in VictoriaLogs at both)
-had one outcome each: 23:12 outcome A (18.4 s, 531 of 531 rows), 23:21
-outcome B, where pgha-1 took over (timeline 15 to 16, 8.8 s without a
-writable node, 465 of 465 rows, `pg_rewind` on pgha-2). Which outcome a run
-gets is a race; the asynchronous replication did not lose a row in either. The
-suites of 2026-11-11 and 2026-11-12 (`pgha-20261112T105036Z-2d9245b`) both
-recorded outcome A; outcome B is known only from that smoke run.
-
-### Synchronous standby cut (smoke runs and suite `pgha-20261112T105036Z-2d9245b`, 2026-11-12)
+### Synchronous standby cut
 
 The lab runs asynchronously. `synchronous-standby-cut` sets `synchronous_mode`
 and `synchronous_mode_strict` through `patronictl edit-config`, removes both
@@ -252,35 +213,32 @@ of every WAL sender and the duration of a transactional
 the client's limit (`statement_timeout` does not cut it); the probe stops after
 20 waiting samples so that a long hold cannot exhaust connections.
 
-Three smoke runs (01:03, 01:38 and 02:08 UTC) showed the same sequence. The raw
-sampler data was not kept; what follows is "observed in smoke runs" unless it
-names the Patroni journal of the 01:38 run, which is in VictoriaLogs
-(cut at 01:38:58):
+Three smoke runs (2026-11-12 01:03, 01:38 and 02:08 UTC) showed the same
+sequence. The raw sampler data was not kept, so what follows is "observed in
+smoke runs" unless it names the Patroni journal of the 01:38 run (VictoriaLogs):
 
-- Commits waited from the cut until Patroni changed the setting, 37.8 s after
-  the cut in the journal of the 01:38 run: `Updating synchronous privilege
-  temporarily from ['pgha-3'] to []` at 01:39:36.46, then `Assigning
-  synchronous standby status to ['pgha-2']`. Smoke runs: the other replica was
-  listed `sync` 39.8 to 42.8 s after the cut and commits resumed then. The
-  delay is consistent with ttl 30 s and loop_wait 10 s of the lab (the cut
-  member's key expiring plus one loop); that is inferred, not proven.
+- Commits waited from the cut until Patroni changed the setting (37.8 s after
+  the cut: `Updating synchronous privilege temporarily from ['pgha-3'] to []`,
+  then `Assigning synchronous standby status to ['pgha-2']`). The other
+  replica was listed `sync` 39.8 to 42.8 s after the cut and commits resumed.
+  The delay is consistent with ttl 30 s and loop_wait 10 s (inferred, not
+  proven).
 - Step 2: the other replica's `sync` row disappeared about 65 s after its
-  table was in place, consistent with `wal_sender_timeout` = 60 s (`1min`,
-  read with `SHOW` on pgha-2 on 2026-11-12). In the journal, Patroni logged
-  `Updating synchronous privilege temporarily from ['pgha-2'] to []` at
-  01:40:46.30 and `Assigning synchronous standby status to ['*']` from
-  01:40:46.37, repeated every 10 s until revert: strict mode leaves the
-  setting at `*` and does not fall back. In the smoke runs no commit succeeded
-  from then until revert (0 unblocked samples in step 2).
+  table was in place, consistent with `wal_sender_timeout` = 60 s (read with
+  `SHOW` on pgha-2 on 2026-11-12). Patroni then logged `Updating synchronous
+  privilege temporarily from ['pgha-2'] to []` and `Assigning synchronous
+  standby status to ['*']`, repeated every 10 s until revert: strict mode
+  leaves the setting at `*` and does not fall back. No commit succeeded from
+  then until revert.
 - Leader, timeline and boot ids did not change in any run.
 - Alerts: `EtcdNoLeader`, `PostgresStandbyNotStreaming` for both standbys,
   `PostgresPhysicalSlotInactive` for the leader, and
-  `PostgresSynchronousStandbyMissing` for the leader, about 3 minutes after
-  step 2 (the row has to vanish, then `for: 1m`). In the first two runs one
-  further alert each fired on the leader (`PostgresSnapshotHeldTooLong`,
-  `PostgresBlockedSessions`); waiting commits keep snapshots and row locks,
-  which is the likely cause (not checked). The scenario allows both.
-  `PatroniReplicaNotEligible` never fired.
+  `PostgresSynchronousStandbyMissing` for the leader about 3 minutes after
+  step 2 (the row has to vanish, then `for: 1m`). In the first two runs
+  `PostgresSnapshotHeldTooLong` and `PostgresBlockedSessions` also fired on
+  the leader; waiting commits keep snapshots and row locks, the likely cause
+  (not checked). The scenario allows both. `PatroniReplicaNotEligible` never
+  fired.
 - Patroni's `/metrics` has `patroni_sync_standby` per node (Patroni 4.1.5
   `api.py` on the nodes) but no flag for whether synchronous mode is on, so an
   alert on "no synchronous standby" from Patroni alone cannot tell the

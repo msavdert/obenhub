@@ -34,12 +34,21 @@ stops it. Do not run it together with a slice1 suite: both use the host lock.
 
 ## Scenario notes
 
-- `replica-not-eligible`: paused replay does not work here; Patroni 4.1.5
-  measures lag from the received position and resumes paused replay unless
-  the cluster is paused. The scenario cuts a replica from the replication
-  network while the leader writes past `maximum_lag_on_failover`.
+- `replica-not-eligible`: paused replay does not make a replica ineligible
+  here (`replay-paused` expects no `PatroniReplicaNotEligible`, and passed:
+  `results/runs.jsonl`). Why is unverified: the scenario's comment says Patroni
+  compares max(received, replayed) with the leader's position, and that it
+  resumes paused replay unless the cluster is paused; no Patroni source or doc
+  page was read for either claim. The scenario cuts a replica from the
+  replication network while the leader writes past `maximum_lag_on_failover`
+  (the setting is documented: "the maximum bytes a follower may lag to be able
+  to participate in leader election",
+  [dynamic configuration](https://patroni.readthedocs.io/en/latest/dynamic_configuration.html),
+  `latest` docs, read 2026-11-12).
 - Planned switchover raises no alert except the failover rule, which cannot
-  tell planned from unplanned: both raise the timeline by one.
+  tell planned from unplanned: both raise the timeline by one (switchover rows in `results/runs.jsonl`:
+  `timeline_before` 44, `timeline_after` 45 in the latest suite; that an
+  unplanned failover does the same is unverified here).
 - Patroni is the container's main process, so stopping it stops PostgreSQL
   too. The scrape-absent scenario blocks the Collector's scrape of one
   node's REST API instead.
