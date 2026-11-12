@@ -6,9 +6,11 @@
 name: obenhub-slice1
 
 x-postgres: &postgres
-  image: postgres:18.6-trixie
+  image: postgres:18.6-trixie@sha256:e3d24f6906d0760bf4da0dae872415391ededefad23fd471c47dc53b0ddf3c42
   entrypoint: ["/entrypoint.sh"]
   shm_size: 256mb
+  # same as stage 3; observed use of the slice 1 containers is far below it (docker stats, 2026-11-11)
+  mem_limit: 768m
   restart: unless-stopped
   # tini as PID 1 reaps orphans. Without it the postmaster is PID 1 and adopts
   # the processes left by `docker exec -d` in the scenarios; killing one of
@@ -153,8 +155,9 @@ services:
   # its argument. The image is multi-arch (amd64, arm64). It has no metrics
   # endpoint: the Collector queries the admin console (database pgbouncer).
   pgbouncer:
-    image: ghcr.io/cloudnative-pg/pgbouncer:1.26.1
+    image: ghcr.io/cloudnative-pg/pgbouncer:1.26.1@sha256:3164c7e929c05deef00175c0bb81f3446a59f7254715b43a865ec8cdb83f869e
     container_name: obenhub-slice1-pgbouncer
+    mem_limit: 64m
     restart: unless-stopped
     volumes:
       - ./pgbouncer/pgbouncer.ini:/etc/pgbouncer/pgbouncer.ini:ro
@@ -174,8 +177,9 @@ services:
       - mon
 
   otelcol:
-    image: otel/opentelemetry-collector-contrib:0.164.0
+    image: otel/opentelemetry-collector-contrib:0.164.0@sha256:340c9ca6a36617084c6661bdc4f0fe92b7cda5a805d61673ec8db375fddc522b
     container_name: obenhub-slice1-otelcol
+    mem_limit: 384m
     restart: unless-stopped
     command: ["--config=/etc/otelcol/config.yaml"]
     environment:
@@ -207,7 +211,7 @@ services:
 
   # one-shot: the Collector (uid 10001) must own its file_storage volume
   otelcol-init:
-    image: postgres:18.6-trixie
+    image: postgres:18.6-trixie@sha256:e3d24f6906d0760bf4da0dae872415391ededefad23fd471c47dc53b0ddf3c42
     container_name: obenhub-slice1-otelcol-init
     user: root
     network_mode: none
@@ -217,8 +221,9 @@ services:
     restart: "no"
 
   victoriametrics:
-    image: victoriametrics/victoria-metrics:v1.155.0
+    image: victoriametrics/victoria-metrics:v1.155.0@sha256:f60dc268b54ecf87f6e09d740c2b732838aa9193090cc741417c9f6386a130df
     container_name: obenhub-slice1-victoriametrics
+    mem_limit: 512m
     restart: unless-stopped
     command: ["-retentionPeriod=7d", "-opentelemetry.promoteScopeMetadata=false"]
     ports:
@@ -234,8 +239,9 @@ services:
       - mon
 
   victorialogs:
-    image: victoriametrics/victoria-logs:v1.53.0
+    image: victoriametrics/victoria-logs:v1.53.0@sha256:251121fa882af99b95ba0c230a4a2f412ea602d2698c64a96c58dc9842bb755d
     container_name: obenhub-slice1-victorialogs
+    mem_limit: 256m
     restart: unless-stopped
     ports:
       - "127.0.0.1:19428:9428"
@@ -246,8 +252,9 @@ services:
       - mon
 
   vmalert:
-    image: victoriametrics/vmalert:v1.155.0
+    image: victoriametrics/vmalert:v1.155.0@sha256:3256cba5ddaca5974eae6141105cec4ce37871f1c213f0a5c267ec0111bc68e1
     container_name: obenhub-slice1-vmalert
+    mem_limit: 128m
     restart: unless-stopped
     command:
       - -datasource.url=http://victoriametrics:8428
@@ -270,8 +277,9 @@ services:
       - mon
 
   alertmanager:
-    image: prom/alertmanager:v0.34.2
+    image: prom/alertmanager:v0.34.2@sha256:39d8bb3966c694a124428a3a88fbcffd40bd069129ecd47c059f8a3f17c55f3b
     container_name: obenhub-slice1-alertmanager
+    mem_limit: 128m
     restart: unless-stopped
     command:
       - --config.file=/etc/alertmanager/alertmanager.yml
@@ -289,8 +297,9 @@ services:
   # AGPL-3.0, run unmodified as a separate service (ADR 0004); nothing of it
   # is copied into this repository. Plugins are downloaded at start.
   grafana:
-    image: grafana/grafana:13.3.0
+    image: grafana/grafana:13.3.0@sha256:488984b716c0862639f91a698adbe2862677a5a07bad42da5f03f3030883b205
     container_name: obenhub-slice1-grafana
+    mem_limit: 512m
     restart: unless-stopped
     environment:
       GF_SECURITY_ADMIN_PASSWORD: "${GRAFANA_ADMIN_PASSWORD:?run: mise run lab:up (it generates lab/slice1/.env)}"

@@ -11,7 +11,7 @@ name: obenhub-k8s
 
 services:
   gateway:
-    image: otel/opentelemetry-collector-contrib:0.164.0
+    image: otel/opentelemetry-collector-contrib:0.164.0@sha256:340c9ca6a36617084c6661bdc4f0fe92b7cda5a805d61673ec8db375fddc522b
     container_name: obenhub-k8s-gateway
     restart: unless-stopped
     mem_limit: 256m
@@ -31,7 +31,7 @@ services:
       - mon
 
   victoriametrics:
-    image: victoriametrics/victoria-metrics:v1.155.0
+    image: victoriametrics/victoria-metrics:v1.155.0@sha256:f60dc268b54ecf87f6e09d740c2b732838aa9193090cc741417c9f6386a130df
     container_name: obenhub-k8s-victoriametrics
     restart: unless-stopped
     mem_limit: 512m
@@ -49,7 +49,7 @@ services:
       - mon
 
   victorialogs:
-    image: victoriametrics/victoria-logs:v1.53.0
+    image: victoriametrics/victoria-logs:v1.53.0@sha256:251121fa882af99b95ba0c230a4a2f412ea602d2698c64a96c58dc9842bb755d
     container_name: obenhub-k8s-victorialogs
     restart: unless-stopped
     mem_limit: 256m
@@ -62,7 +62,7 @@ services:
       - mon
 
   vmalert:
-    image: victoriametrics/vmalert:v1.155.0
+    image: victoriametrics/vmalert:v1.155.0@sha256:3256cba5ddaca5974eae6141105cec4ce37871f1c213f0a5c267ec0111bc68e1
     container_name: obenhub-k8s-vmalert
     restart: unless-stopped
     mem_limit: 128m
@@ -89,7 +89,7 @@ services:
       - mon
 
   alertmanager:
-    image: prom/alertmanager:v0.34.2
+    image: prom/alertmanager:v0.34.2@sha256:39d8bb3966c694a124428a3a88fbcffd40bd069129ecd47c059f8a3f17c55f3b
     container_name: obenhub-k8s-alertmanager
     restart: unless-stopped
     mem_limit: 128m
@@ -109,7 +109,7 @@ services:
   # AGPL-3.0, run unmodified as a separate service (ADR 0004); nothing of it
   # is copied into this repository. Plugins are downloaded at start.
   grafana:
-    image: grafana/grafana:13.3.0
+    image: grafana/grafana:13.3.0@sha256:488984b716c0862639f91a698adbe2862677a5a07bad42da5f03f3030883b205
     container_name: obenhub-k8s-grafana
     restart: unless-stopped
     mem_limit: 512m
