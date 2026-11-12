@@ -333,20 +333,23 @@ for n in $want; do
 done
 for n in $want; do wait_etcd "$n"; done
 
-# Patroni
+# Patroni. A marker is removed only after the cluster check at the end of this
+# script passed (PATRONI_DONE lists the nodes whose start or reload was issued),
+# so a provision that fails there is finished by the next run.
+PATRONI_DONE=""
 for n in $want; do
   if [ "$(rn "$n" systemctl is-enabled patroni 2>/dev/null || true)" != enabled ]; then
     rn "$n" systemctl enable patroni >/dev/null 2>&1
   fi
   if [ "$(rn "$n" systemctl is-active patroni || true)" != active ]; then
     rn "$n" systemctl start --no-block patroni
-    rn "$n" rm -f "$PATRONI_MARK"
+    PATRONI_DONE="$PATRONI_DONE $n"
     log "$n" "patroni started"
   elif [ "${PATRONI_CHANGED[$n]}" = 1 ]; then
     # SIGHUP reload; settings that need a PostgreSQL restart show up as
     # "pending restart" in patronictl list and are not restarted here
     rn "$n" systemctl reload patroni
-    rn "$n" rm -f "$PATRONI_MARK"
+    PATRONI_DONE="$PATRONI_DONE $n"
     log "$n" "patroni reloaded (config changed)"
   fi
 done
@@ -383,9 +386,16 @@ phase_collector() {
     rn "$n" systemctl daemon-reload
     rn "$n" systemctl enable otelcol-contrib >/dev/null 2>&1
     rn "$n" systemctl restart otelcol-contrib
-    sleep 5
-    if [ "$(rn "$n" systemctl is-active otelcol-contrib || true)" != active ]; then
-      echo "[$n] otelcol-contrib not active after restart" >&2
+    # active for 5 consecutive seconds (a crash loop shows as activating/failed);
+    # deadline 30 s
+    ok=0
+    for _ in $(seq 1 15); do
+      if [ "$(rn "$n" systemctl is-active otelcol-contrib || true)" = active ]; then ok=$((ok + 1)); else ok=0; fi
+      if [ "$ok" -ge 3 ]; then break; fi
+      sleep 2
+    done
+    if [ "$ok" -lt 3 ]; then
+      echo "[$n] otelcol-contrib not stably active within 30 s of the restart" >&2
       rn "$n" journalctl -u otelcol-contrib -n 20 --no-pager >&2 || true
       exit 1
     fi
@@ -411,6 +421,11 @@ phase_scenarios() {
   fi
   CHANGED=0
   putf "$n" /usr/local/bin/obenhub-load.sh 755 root:root "$files/load.sh"
+  # root-only; systemd reads it (EnvironmentFile), so the password is on no
+  # command line. The load connects to the node address over TLS (hostssl rule
+  # for the subnet in pg_hba), as the non-superuser role app.
+  put "$n" /etc/obenhub-load.env 600 root:root <<<"PGHOST=$(ip_of "$n")
+PGPASSWORD=$APP_PASSWORD"
   putf "$n" /etc/systemd/system/obenhub-load.service 644 root:root "$files/obenhub-load.service"
   changed=$CHANGED
   if [ "$changed" = 1 ]; then rn "$n" systemctl daemon-reload; fi
@@ -427,11 +442,40 @@ phase_scenarios() {
 }
 for n in $want; do phase_scenarios "$n"; done
 
+# Success: all NODES are members, one is the running Leader and every other one
+# is a Replica in state streaming (patronictl list -f json, Patroni 4). Deadline
+# 240 s; on failure the last listing is printed.
 first="${want%% *}"
-for _ in $(seq 1 90); do
-  out=$(rn "$first" sudo -u postgres patronictl -c /etc/patroni/config.yml list 2>/dev/null || true)
-  if grep -q Leader <<<"$out"; then printf '%s\n' "$out"; exit 0; fi
-  sleep 2
+n_nodes=$(wc -w <<<"$NODES")
+check_cluster='
+import json, sys
+n = int(sys.argv[1])
+m = json.load(sys.stdin)
+leaders = [x["Member"] for x in m if x["Role"] == "Leader" and x["State"] == "running"]
+streaming = [x["Member"] for x in m if x["Role"] == "Replica" and x["State"] == "streaming"]
+if len(m) == n and len(leaders) == 1 and len(streaming) == n - 1:
+    print(leaders[0])
+    sys.exit(0)
+sys.exit(1)'
+leader=""
+out=""
+deadline=$((SECONDS + 240))
+while [ "$SECONDS" -lt "$deadline" ]; do
+  out=$(rn "$first" sudo -u postgres patronictl -c /etc/patroni/config.yml list -f json 2>/dev/null || true)
+  if leader=$(python3 -I -c "$check_cluster" "$n_nodes" <<<"$out" 2>/dev/null); then break; fi
+  leader=""
+  sleep 3
 done
-echo "no Patroni leader after 180 s" >&2
-exit 1
+if [ -z "$leader" ]; then
+  echo "cluster not healthy after 240 s: want $n_nodes members, one running Leader and $((n_nodes - 1)) streaming Replicas; last patronictl list:" >&2
+  rn "$first" sudo -u postgres patronictl -c /etc/patroni/config.yml list >&2 || printf '%s\n' "$out" >&2
+  exit 1
+fi
+for n in $PATRONI_DONE; do rn "$n" rm -f "$PATRONI_MARK"; done
+rn "$first" sudo -u postgres patronictl -c /etc/patroni/config.yml list
+
+# The client load runs as the non-superuser role app, which post-bootstrap.sh
+# creates. A cluster loaded before that change has pgbench tables owned by
+# postgres: hand them to app on the leader (idempotent; replicates).
+rn "$leader" sudo -u postgres /usr/lib/postgresql/"$PG_MAJOR"/bin/psql -X -d app -v ON_ERROR_STOP=1 -qAt -c \
+  "DO \$\$ DECLARE t text; BEGIN FOR t IN SELECT tablename FROM pg_tables WHERE schemaname='public' AND tablename LIKE 'pgbench\\_%' AND tableowner <> 'app' LOOP EXECUTE format('ALTER TABLE public.%I OWNER TO app', t); END LOOP; END \$\$"
