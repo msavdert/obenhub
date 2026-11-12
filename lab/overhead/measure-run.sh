@@ -37,7 +37,10 @@ psql_q() { sudo -u postgres psql -Atq -d "$DB" -c "$1" </dev/null; }
 
 # host-noise indicators readable from inside the VM: CPU steal from
 # /proc/stat and mean I/O latency of the data disk from /proc/diskstats
-DATADEV=$(basename "$(findmnt -no SOURCE /var/lib/postgresql)")
+# -T: the path need not be a mount point itself (plain -no SOURCE prints nothing and exits 1)
+DATASRC=$(findmnt -no SOURCE -T /var/lib/postgresql) || DATASRC=""
+[ -n "$DATASRC" ] || { echo "measure-run: cannot find the device under /var/lib/postgresql" >&2; exit 1; }
+DATADEV=$(basename "$DATASRC")
 # prints: steal, total, busy (total minus idle and iowait), all in jiffies
 cpu_stat() { awk '/^cpu / {t = 0; for (i = 2; i <= 9; i++) t += $i; print $9, t, t - $5 - $6}' /proc/stat; }
 disk_stat() { awk -v d="$DATADEV" '$3 == d {print $4 + $8, $7 + $11}' /proc/diskstats; }

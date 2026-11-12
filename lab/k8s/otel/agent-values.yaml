@@ -28,6 +28,8 @@ presets:
     storeCheckpoints: true
 
 # The container logs under /var/log/pods are root-readable on the kind nodes.
+# Lab shortcut: running the agent as root is what lets it read them; a
+# production chart would grant a log-reading group instead.
 securityContext:
   runAsUser: 0
   runAsGroup: 0
@@ -86,6 +88,7 @@ config:
     prometheus: null
     zipkin: null
     # kind's kubelet serves a self-signed certificate
+    # (lab shortcut: skipping verification is only acceptable on a local kind cluster)
     kubeletstats:
       insecure_skip_verify: true
     # The container logs of the pods; the Collectors' own are excluded (the
@@ -128,6 +131,8 @@ config:
                 enabled: true
             tls:
               insecure: false
+              # lab shortcut: CloudNativePG's server certificate names only the
+              # Services, so the pod address cannot be verified (lab/k8s/README.md)
               insecure_skip_verify: true
         sql_query:
           rule: type == "pod" && labels["cnpg.io/cluster"] == "pg" && labels["cnpg.io/podRole"] == "instance"

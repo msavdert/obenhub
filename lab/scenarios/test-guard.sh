@@ -118,5 +118,13 @@ BGPID=$(cat "$BG_PID")
 check "background child of a scenario is still running" kill -0 "$BGPID"
 check "background child of a scenario does not keep the suite lock" in_repo '! lock_taken'
 
+# a symlink at the lock path is refused and its target is not written
+echo keep >"$work/target"
+ln -s "$work/target" "$work/linklock"
+check_not "lock_acquire refuses a symlinked lock path" env SUITE_LOCK_FILE="$work/linklock" bash -c '. "$1/lab/scenarios/guard.sh"; lock_acquire smoke' _ "$repo"
+check_not "scenario_lock refuses a symlinked lock path" env SUITE_LOCK_FILE="$work/linklock" bash -c '. "$1/lab/scenarios/guard.sh"; scenario_lock' _ "$repo"
+check "a symlinked lock path reads as taken" env SUITE_LOCK_FILE="$work/linklock" bash -c '. "$1/lab/scenarios/guard.sh"; lock_taken' _ "$repo"
+check "the symlink target is untouched" test "$(cat "$work/target")" = keep
+
 [ "$FAILED" = 0 ] && echo "guard tests passed" || echo "guard tests FAILED"
 exit "$FAILED"

@@ -18,8 +18,12 @@
 # they exit.
 
 GUARD_TOP="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-# one fixed path for all labs; the override exists for test-guard.sh only
-SUITE_LOCK_FILE=${SUITE_LOCK_FILE:-/tmp/obenhub-lab-suite.lock}
+# one fixed path per user for all labs, in the user's private runtime dir when
+# there is one (/tmp is world-writable: a planted symlink would be followed);
+# the override exists for test-guard.sh only. Assumption: a suite started with
+# `systemd-run --user` sees the same XDG_RUNTIME_DIR as a login shell (checked
+# on the box: both print /run/user/1000).
+SUITE_LOCK_FILE=${SUITE_LOCK_FILE:-${XDG_RUNTIME_DIR:-/tmp}/obenhub-lab-suite.lock}
 
 # dirty_paths: porcelain lines of changed or untracked paths outside
 # lab/<lab>/results/. Fails (status 2, message on stderr) when git fails, so a
@@ -38,13 +42,21 @@ git_dirty() {
 }
 git_sha() { git -C "$GUARD_TOP" rev-parse --short HEAD 2>/dev/null || echo unknown; }
 
-# lock_taken: succeeds when some process holds the suite lock
+# lock_path_safe: fails (message on stderr) when the lock path is a symlink;
+# opening it would write through the link
+lock_path_safe() {
+  [ ! -L "$SUITE_LOCK_FILE" ] || { echo "refusing to use $SUITE_LOCK_FILE: it is a symlink" >&2; return 1; }
+}
+# lock_taken: succeeds when some process holds the suite lock (and, failing
+# closed, when the lock path is unusable)
 lock_taken() {
+  lock_path_safe || return 0
   ( exec 8>>"$SUITE_LOCK_FILE" && ! flock -n 8 )
 }
 # lock_acquire LABEL: take the lock on fd 9 for the rest of this process and
 # record "LABEL pid" in the lock file; fails when it is held
 lock_acquire() {
+  lock_path_safe || return 1
   exec 9>>"$SUITE_LOCK_FILE" && flock -n 9 || return 1
   printf '%s %s\n' "$1" "$$" >"$SUITE_LOCK_FILE"
 }

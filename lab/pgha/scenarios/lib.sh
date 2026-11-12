@@ -193,7 +193,7 @@ run_probes() {
       closed:0) FAILS+=("probe $s: reachable, expected dropped"); bad=1 ;;
     esac
   done
-  rm -rf "$d"
+  rm -rf "${d:?}"
   return "$bad"
 }
 # fault_counters NODE: prints "in=N out=N", the packet counters of the two chains
