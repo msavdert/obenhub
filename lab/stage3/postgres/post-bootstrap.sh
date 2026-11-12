@@ -6,8 +6,8 @@ set -euo pipefail
 # \getenv (psql 15+) reads the passwords from the environment, so they never
 # appear on a command line (ps); fail closed, as \getenv leaves a missing
 # variable unset
-: "${OTEL_MONITOR_PASSWORD:?OTEL_MONITOR_PASSWORD not set}"
-: "${APP_PASSWORD:?APP_PASSWORD not set}"
+: "${OTEL_MONITOR_PASSWORD:?OTEL_MONITOR_PASSWORD not set or empty}"
+: "${APP_PASSWORD:?APP_PASSWORD not set or empty}"
 
 psql -X -v ON_ERROR_STOP=1 "$1" <<'SQL'
 \getenv mon_pw OTEL_MONITOR_PASSWORD

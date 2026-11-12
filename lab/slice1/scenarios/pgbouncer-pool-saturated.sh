@@ -12,6 +12,7 @@ CLIENT_PID=""
 POOL_SIZE=0
 CLIENTS=0
 
+clients_waiting() { [ "$(pool_field cl_waiting)" -ge 1 ]; }
 inject() {
   [ -n "${APP_PASSWORD:-}" ] && [ -n "${OTEL_MONITOR_PASSWORD:-}" ] || { echo "passwords missing: run lab/slice1/scripts/gen-env.sh" >&2; return 1; }
   POOL_SIZE=$(pgb_console "SHOW DATABASES" | awk -F'|' 'NR == 1 { for (i = 1; i <= NF; i++) if ($i == "pool_size") c = i } $1 == "app" { print $c }')
@@ -31,11 +32,8 @@ inject() {
     done
     wait' >/dev/null 2>&1 &
   CLIENT_PID=$!
-  sleep 10
-  local w
-  w=$(pool_field cl_waiting) || return 1
-  log "clients waiting: $w"
-  [ "${w:-0}" -ge 1 ]
+  wait_until 60 "clients waiting at the pool" clients_waiting || return 1
+  log "clients waiting: $(pool_field cl_waiting)"
 }
 
 after_detect() {

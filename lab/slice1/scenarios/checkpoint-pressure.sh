@@ -17,7 +17,7 @@ inject() {
   before=$(requested) || return 1
   psql_p -c "ALTER SYSTEM SET max_wal_size = '$WAL_SIZE'" -c "SELECT pg_reload_conf()" >/dev/null || return 1
   docker exec -d "$PRIMARY" timeout 1200 pgbench -U postgres -c 4 -j 2 -R "$RATE" -T 1200 "$DB" || return 1
-  sleep 20
+  sleep 20   # a load duration, not a wait for a condition
   log "num_requested: $before -> $(requested) after 20 s of load"
 }
 after_detect() {

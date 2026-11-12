@@ -2,6 +2,10 @@
 # Runs once on the subscriber, from /docker-entrypoint-initdb.d (initdb phase).
 set -euo pipefail
 
+# \getenv leaves a missing variable unset; fail closed (an empty value too)
+: "${OTEL_MONITOR_PASSWORD:?OTEL_MONITOR_PASSWORD not set or empty}"
+: "${LOGICAL_PASSWORD:?LOGICAL_PASSWORD not set or empty}"
+
 psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname postgres <<'SQL'
 \getenv mon_pw OTEL_MONITOR_PASSWORD
 SET pg_stat_statements.track = 'none';
@@ -20,6 +24,10 @@ psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname app \
 
 # The primary's own initdb server listens on its socket only, so a TCP
 # answer means the primary is up and has finished its init scripts.
+# Bounded wait. On timeout the container exits and restarts, but the image skips
+# init once PGDATA exists: the subscriber would then be healthy without
+# app_sub (lab_precondition in scenarios/lib.sh fails on that). Recovery is
+# `mise run lab:down` (drops the volumes) and `mise run lab:up`.
 deadline=$((SECONDS + 300))
 until pg_isready -h pg-primary-logical -q; do
   if [ "$SECONDS" -ge "$deadline" ]; then

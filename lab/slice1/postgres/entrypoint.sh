@@ -17,6 +17,9 @@ chmod 755 /archive
 # beside PGDATA, in the volume, because pg_basebackup needs an empty directory.
 clone_marker=/var/lib/postgresql/.basebackup-incomplete
 if [ -n "${STANDBY_OF:-}" ] && { [ ! -s "$PGDATA/PG_VERSION" ] || [ -e "$clone_marker" ]; }; then
+  case "${STANDBY_OF_WAIT:-300}" in
+    ''|*[!0-9]*|0) echo "entrypoint: STANDBY_OF_WAIT must be a positive integer (seconds), got '${STANDBY_OF_WAIT:-}'" >&2; exit 1 ;;
+  esac
   touch "$clone_marker"
   mkdir -p "$PGDATA"
   find "$PGDATA" -mindepth 1 -delete

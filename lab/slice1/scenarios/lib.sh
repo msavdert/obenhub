@@ -106,7 +106,14 @@ component_versions() {
     | jq -R . | jq -s -c .
 }
 
+# the init script of pg-subscriber gives up after a deadline and the image then
+# skips init on restart: a healthy subscriber may have no subscription at all
+subscription_enabled() {
+  [ "$(psql_sa -c "SELECT count(*) FROM pg_subscription WHERE subname = '$SUBSCRIPTION' AND subenabled")" = 1 ]
+}
+
 lab_precondition() {
+  subscription_enabled || { PRE_ERR="pg-subscriber has no enabled subscription $SUBSCRIPTION (its init gave up waiting for the primary); recover with: mise run lab:down, then lab:up"; return 1; }
   wait_until 120 "replication streaming" is_streaming || { PRE_ERR="replication not streaming"; return 1; }
   wait_until 120 "logical replication streaming" logical_streaming || { PRE_ERR="logical replication not streaming"; return 1; }
   wait_until 120 "app tables in sync" app_in_sync || { PRE_ERR="app tables differ between publisher and subscriber"; return 1; }

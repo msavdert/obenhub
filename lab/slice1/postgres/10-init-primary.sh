@@ -2,6 +2,12 @@
 # Runs once on the primary, from /docker-entrypoint-initdb.d (initdb phase).
 set -euo pipefail
 
+# \getenv leaves a missing variable unset; fail closed (an empty value too)
+: "${REPLICATOR_PASSWORD:?REPLICATOR_PASSWORD not set or empty}"
+: "${OTEL_MONITOR_PASSWORD:?OTEL_MONITOR_PASSWORD not set or empty}"
+: "${LOGICAL_PASSWORD:?LOGICAL_PASSWORD not set or empty}"
+: "${APP_PASSWORD:?APP_PASSWORD not set or empty}"
+
 psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname postgres <<'SQL'
 \getenv repl_pw REPLICATOR_PASSWORD
 \getenv mon_pw OTEL_MONITOR_PASSWORD
