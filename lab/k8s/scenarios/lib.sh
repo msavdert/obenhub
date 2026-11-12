@@ -20,8 +20,22 @@
 # /work/acked in its pod ("epoch id"). role_change_evidence compares that file
 # with the table on the new primary.
 #
-# Needs: kubectl, curl, jq, docker (the alerting config hash is read inside
+# Needs: kubectl (with the kubectl-cnpg plugin), curl, jq, docker (the alerting config hash is read inside
 # the backend containers), the lab running (lab/k8s/scripts/up.sh).
+
+# The pinned tools live in mise.k8s.toml (MISE_ENV=k8s). A scenario started
+# without them on PATH re-runs itself once under `MISE_ENV=k8s mise exec`,
+# from the repository root so mise finds mise.k8s.toml; it stops if the tools
+# are still wrong after that.
+_k8s_check_tools="$(cd "$(dirname "${BASH_SOURCE[0]}")/../scripts" && pwd)/check-tools.sh"
+if ! "$_k8s_check_tools" >/dev/null 2>&1 &&
+  [ -z "${OBENHUB_MISE_REEXEC:-}" ] && command -v mise >/dev/null; then
+  export OBENHUB_MISE_REEXEC=1
+  _k8s_self="$(cd "$(dirname "$0")" && pwd)/$(basename "$0")"
+  cd "$(dirname "$_k8s_check_tools")/../../.." || exit 1
+  MISE_ENV=k8s exec mise exec -- "$_k8s_self" "$@"
+fi
+"$_k8s_check_tools" >/dev/null || exit 1
 
 SC_DIR="$(cd "$(dirname "${BASH_SOURCE[1]:-${BASH_SOURCE[0]}}")" && pwd)"
 LAB_DIR="$(cd "$SC_DIR/.." && pwd)"
@@ -117,19 +131,17 @@ lab_precondition() {
 }
 
 # --- role change evidence (switchover.sh, primary-deleted.sh) -----------------
-# promote_to POD: make POD the primary by the method CloudNativePG documents:
-# `kubectl cnpg promote CLUSTER POD` (kubectl-plugin.md, "Promote"). Without the
-# plugin the same change is made directly: the plugin (internal/cmd/plugin/promote
-# at v1.30.1) sets status.targetPrimary, status.targetPrimaryTimestamp and
-# status.phase "Switchover in progress" on the Cluster, which is what is patched
-# here through the status subresource.
+# promote_to POD: make POD the primary with `kubectl cnpg promote CLUSTER POD`,
+# the method CloudNativePG documents (kubectl-plugin.md, "Promote"). The plugin
+# is pinned in mise.k8s.toml at CNPG_VERSION. Read at v1.30.1,
+# internal/cmd/plugin/promote/promote.go: it returns early when POD is already
+# status.targetPrimary, refuses a fenced POD, requires the Pod to exist, then
+# sets status.targetPrimary, targetPrimaryTimestamp, phase "Switchover in
+# progress" and phaseReason on the Cluster status (optimistic lock); the
+# operator does the rest. It does not wait; callers wait for the Cluster.
 promote_to() {
-  if kcg cnpg version >/dev/null 2>&1; then
-    kcg cnpg promote -n "$NS" "$CLUSTER" "$1"
-  else
-    kc patch cluster "$CLUSTER" --subresource=status --type=merge -p \
-      "{\"status\":{\"targetPrimary\":\"$1\",\"targetPrimaryTimestamp\":\"$(date -u +%Y-%m-%dT%H:%M:%S.%6NZ)\",\"phase\":\"Switchover in progress\",\"phaseReason\":\"Switching over to $1\"}}" >/dev/null
-  fi
+  # --context after the plugin name: kubectl does not hand flags before it to a plugin
+  kubectl cnpg promote --context "$KCTX" -n "$NS" "$CLUSTER" "$1"
 }
 
 # event_reasons SINCE UNTIL: Kubernetes events in the namespace in the window,

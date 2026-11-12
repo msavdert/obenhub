@@ -1,0 +1,16 @@
+# Tools of the kind lab (lab/k8s), about 235 MB. They live in their own file so
+# that `mise run check` and CI do not download them: mise reads this file only
+# with MISE_ENV=k8s (`MISE_ENV=k8s mise install`; up.sh, check-tools.sh and the
+# scenarios set it themselves). Renovate reads it through the mise
+# managerFilePatterns in renovate.json.
+[tools]
+# kind 0.33.0 is the release whose node image lab/k8s/versions.sh
+# pins (Kubernetes v1.36.4); kubectl stays within one minor of the cluster
+# (1.36.6 is the newest 1.36 patch in `mise ls-remote kubectl`, 2026-11-11).
+kind = "0.33.0"
+kubectl = "1.36.6"
+helm = "4.3.1"
+# kubectl-cnpg, the CloudNativePG plugin (Apache-2.0), at CNPG_VERSION in
+# lab/k8s/versions.sh. lab/k8s/scripts/check-tools.sh fails when the two differ.
+"github:cloudnative-pg/cloudnative-pg" = { version = "1.30.1", asset_pattern = "kubectl-cnpg_*_linux_x86_64.tar.gz", bin = "kubectl-cnpg" }
+

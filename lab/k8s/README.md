@@ -7,10 +7,29 @@ anti-affinity on `kubernetes.io/hostname`), 1Gi each on kind's default
 StorageClass, database `app`. Collectors in the cluster push to a backend
 Compose project on the box (`obenhub-k8s`).
 
-Needs Docker, `kind` 0.33.0 (the release whose node image `versions.sh`
-pins), `kubectl`, `helm`, `openssl`, and `fs.inotify.max_user_watches` >= 524288
-and `max_user_instances` >= 512 ([kind known issues][kind-ki]); `up.sh` stops
-without changing sysctls if they are lower.
+## Prerequisites
+
+- Docker, with access to the internet (images, the CloudNativePG manifest, the
+  Helm chart repository).
+- `curl`, `jq`, `sha256sum`, `openssl`.
+- Linux x86_64 only (the `kubectl-cnpg` asset pattern in `mise.k8s.toml`).
+- The tools pinned in [`mise.k8s.toml`](../../mise.k8s.toml), read only with
+  `MISE_ENV=k8s` so that CI and `mise run check` do not download them (about
+  235 MB): `kind` 0.33.0 (the release whose node image `versions.sh` pins),
+  `kubectl` 1.36.6 (within one minor of the node image's Kubernetes 1.36),
+  `helm` 4.3.1 and the `kubectl-cnpg` plugin 1.30.1 (the scenarios call
+  `kubectl cnpg promote`). `MISE_ENV=k8s mise install` fetches them.
+  `scripts/check-tools.sh` compares each exactly with its pin, checks the
+  kubectl skew and that the plugin pin equals `CNPG_VERSION`; `up.sh` runs it
+  first and, when the tools are not on PATH, re-runs itself once under
+  `MISE_ENV=k8s mise exec --`, as do the scenarios. `mise run
+  lab:k8s:scenarios` sets the environment itself.
+- `fs.inotify.max_user_watches` >= 524288 and `max_user_instances` >= 512
+  ([kind known issues][kind-ki]); `up.sh` stops without changing sysctls if
+  they are lower.
+- Free ports on 127.0.0.1 (VictoriaMetrics 48428, VictoriaLogs 49428, vmalert
+  48880, Alertmanager 49093, Grafana 43000) and 44317 on the `kind` network's
+  gateway address (see Monitoring).
 
 ```sh
 lab/k8s/scripts/up.sh     # idempotent; about 7 minutes from nothing
@@ -117,11 +136,11 @@ client acknowledges rows.
   Secret `pg-app`. It logs each acknowledged id to `/work/acked` in its pod;
   the role-changing scenarios fail when one of those rows is not on the new
   primary.
-- `switchover`: `kubectl cnpg promote` when the plugin is installed (it is not
-  on this box), otherwise the same change made directly (`status.targetPrimary`
-  on the Cluster, which the plugin sets, per its source at v1.30.1).
-- `fenced`: the annotation `cnpg.io/fencedInstances` on the Cluster (the plugin
-  is not installed). The fenced pod's exporter keeps serving
+- `switchover`: `kubectl cnpg promote` (the plugin pinned in `mise.k8s.toml`; it
+  sets `status.targetPrimary` on the Cluster, per its source at v1.30.1, see
+  `promote_to` in `scenarios/lib.sh`).
+- `fenced`: the annotation `cnpg.io/fencedInstances` set directly on the
+  Cluster. The fenced pod's exporter keeps serving
   `cnpg_collector_fencing_on`, which `CNPGInstanceFenced` reads; its pack
   series stop.
 - `replica-cut`, `slot-retaining-wal`: a NetworkPolicy on the primary admits

@@ -75,6 +75,10 @@ run = "scripts/check-evidence.sh"
 description = "test the scenario run guards (dirty pathspec, suite lock) in a throwaway git repository; no docker"
 run = "lab/scenarios/test-guard.sh"
 
+[tasks."lab:k8s:tools-test"]
+description = "test lab/k8s/scripts/check-tools.sh and the manifest check of up.sh with fake binaries on a temporary PATH; no docker, no cluster, no network"
+run = "scripts/test-k8s-check-tools.sh"
+
 [tasks."lab:rules-test"]
 description = "unit-test the lab alert rules (vmalert-tool) and Alertmanager routing (throwaway container); needs docker"
 run = [
@@ -142,6 +146,7 @@ depends = [
   "lint:compose",
   "lint:otelcol",
   "lab:guard-test",
+  "lab:k8s:tools-test",
   "lab:evidence",
   "lint:pack-names",
   "docs:reference-check",
@@ -195,7 +200,7 @@ exec lab/scenarios/run-suite.sh slice1 standby-stopped collector-stopped repl-cu
 [tasks."lab:k8s:scenarios"]
 description = "run all k8s fault scenarios, control last, as one suite (lab/scenarios/run-suite.sh: clean tree, host-wide lock, SUITE_ID); stops at the first failure"
 run = '''
-exec lab/scenarios/run-suite.sh k8s switchover primary-deleted fenced replica-cut slot-retaining-wal worker-stopped control
+MISE_ENV=k8s exec mise exec -- lab/scenarios/run-suite.sh k8s switchover primary-deleted fenced replica-cut slot-retaining-wal worker-stopped control
 '''
 
 [tasks."lab:stage3:up"]

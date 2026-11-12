@@ -17,7 +17,7 @@
   ],
   "mise": {
     "managerFilePatterns": [
-      "/(^|/)mise\\.toml$/"
+      "/(^|/)mise(\\.[a-z0-9-]+)?\\.toml$/"
     ]
   },
   "packageRules": [
@@ -50,6 +50,19 @@
       "matchUpdateTypes": [
         "minor",
         "major"
+      ],
+      "enabled": false
+    },
+    {
+      "description": "The kind lab: the Kubernetes minor (node image, kubectl) and the kind release move together and deliberately; patch releases only",
+      "matchPackageNames": [
+        "kindest/node",
+        "kind",
+        "kubectl"
+      ],
+      "matchUpdateTypes": [
+        "major",
+        "minor"
       ],
       "enabled": false
     },
