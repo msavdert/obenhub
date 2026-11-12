@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
-# Client load for a pgha node, run by obenhub-load.service as the postgres
-# user over the local socket (peer authentication, so no password anywhere).
+# Client load for a pgha node, run by obenhub-load.service. It connects as the
+# non-superuser role app (owner of the app database, created by
+# post-bootstrap.sh) to the node address over TLS; PGHOST and PGPASSWORD come
+# from /etc/obenhub-load.env (EnvironmentFile, root-only), so no password is on
+# a command line. The OS user stays postgres only for its home and PATH.
 # Same write pattern and rate as lab/stage3/scripts/load.sh: pgbench scale 5,
 # 4 clients, 100 transactions/s, in 60 s rounds. It writes only while this
 # node is the primary (pg_is_in_recovery() false); on a replica it waits, so
@@ -9,7 +12,8 @@
 # lost, so it runs in a loop.
 set -uo pipefail
 
-export PGHOST=/var/run/postgresql PGDATABASE=app PGUSER=postgres
+export PGDATABASE=app PGUSER=app PGSSLMODE=require
+: "${PGHOST:?PGHOST not set}" "${PGPASSWORD:?PGPASSWORD not set}"
 BIN=/usr/lib/postgresql/18/bin
 
 while true; do

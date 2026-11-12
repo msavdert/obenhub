@@ -33,6 +33,12 @@ pki="$dir/pki"
 umask 077
 mkdir -p "$pki"
 
+# temp files of issue(), and the key/certificate being written when openssl
+# fails; openssl errors go to the terminal
+TMP_FILES=() PARTIAL=()
+cleanup() { rm -f "${TMP_FILES[@]}" "${PARTIAL[@]}" "$pki/ca.srl"; }
+trap cleanup EXIT
+
 # a new CA is made only when neither file exists: half a CA means a damaged
 # directory, and a new CA would not match the certificates already issued
 if { [ -s "$pki/ca.key" ] && [ ! -s "$pki/ca.crt" ]; } || { [ ! -s "$pki/ca.key" ] && [ -s "$pki/ca.crt" ]; }; then
@@ -40,12 +46,14 @@ if { [ -s "$pki/ca.key" ] && [ ! -s "$pki/ca.crt" ]; } || { [ ! -s "$pki/ca.key"
   exit 1
 fi
 if [ ! -s "$pki/ca.key" ]; then
+  PARTIAL+=("$pki/ca.key" "$pki/ca.crt")
   openssl ecparam -name prime256v1 -genkey -noout -out "$pki/ca.key"
   openssl req -x509 -new -key "$pki/ca.key" -sha256 -days 3650 \
     -subj "/CN=obenhub pgha lab CA" \
     -addext "basicConstraints=critical,CA:TRUE,pathlen:0" \
     -addext "keyUsage=critical,keyCertSign,cRLSign" \
     -out "$pki/ca.crt"
+  PARTIAL=()
   echo "pki: created CA"
 fi
 
@@ -55,6 +63,10 @@ issue() {
   if [ -s "$prefix.crt" ] && [ -s "$prefix.key" ]; then return 0; fi
   ext="$(mktemp)"
   csr="$(mktemp)"
+  TMP_FILES+=("$ext" "$csr")
+  # a failed run leaves no half pair: the next run issues both again
+  rm -f "$prefix.key" "$prefix.crt"
+  PARTIAL+=("$prefix.key" "$prefix.crt")
   {
     echo "basicConstraints=CA:FALSE"
     echo "keyUsage=critical,digitalSignature,keyEncipherment"
@@ -64,8 +76,9 @@ issue() {
   openssl ecparam -name prime256v1 -genkey -noout -out "$prefix.key"
   openssl req -new -key "$prefix.key" -subj "/CN=$cn" -out "$csr"
   openssl x509 -req -in "$csr" -CA "$pki/ca.crt" -CAkey "$pki/ca.key" -CAcreateserial \
-    -days 730 -sha256 -extfile "$ext" -out "$prefix.crt" 2>/dev/null
+    -days 730 -sha256 -extfile "$ext" -out "$prefix.crt"
   rm -f "$ext" "$csr"
+  PARTIAL=()
   echo "pki: issued $prefix.crt"
 }
 

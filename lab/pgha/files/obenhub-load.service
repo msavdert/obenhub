@@ -6,6 +6,7 @@ After=patroni.service
 
 [Service]
 User=postgres
+EnvironmentFile=/etc/obenhub-load.env
 ExecStart=/usr/local/bin/obenhub-load.sh
 Restart=always
 RestartSec=5
