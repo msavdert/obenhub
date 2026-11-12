@@ -43,9 +43,9 @@ def main():
             errors.append(
                 f"{rel}: {mentions} metric_name lines, {len(metrics)} parsed (one metric per line, flow mapping)"
             )
-        if not is_pack:
-            # the slice1 config also holds receiver blocks; look at the PgBouncer source only
-            metrics = [m for m in metrics if m["metric_name"].startswith(prefix)]
+        # No filtering by prefix: the slice1 config defines metric names only
+        # for PgBouncer (the PostgreSQL queries come from the pack), so every
+        # metric_name there must start with the prefix. A mistyped name fails.
         if not metrics:
             errors.append(f"{rel}: no {prefix}* metrics found")
         seen = set()

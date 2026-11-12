@@ -260,8 +260,9 @@ processors:
   # SHOW output cannot be aliased in SQL, so the console's column names are
   # renamed here: database (SHOW POOLS, SHOW STATS) and name (SHOW DATABASES)
   # are the same thing. `insert` keeps an existing value and does nothing when
-  # the source attribute is absent. Verified on 2026-11-12 with contrib 0.164.0
-  # against the slice1 lab.
+  # the source attribute is absent. Checked with synthetic OTLP input in the
+  # contrib 0.164.0 image; the check against the live PgBouncer is pending the
+  # next slice1 suite.
   attributes/pgbouncer:
     actions:
       - {key: pgbouncer.database.name, from_attribute: database, action: insert}
@@ -276,15 +277,16 @@ processors:
   # unit us so that this condition finds them, and the values leave the
   # Collector in seconds. Order matters: the datapoint statement runs first,
   # while metric.unit is still us, then the metric statement changes the unit.
-  # Verified at contrib 0.164.0 against the live PgBouncer (audit, 2026-11-12).
+  # Checked with synthetic OTLP input in the contrib 0.164.0 image; the check
+  # against the live PgBouncer is pending the next slice1 suite.
   transform/pgbouncer-seconds:
     metric_statements:
       - context: datapoint
         statements:
-          - set(value_double, Double(value_int) / 1000000.0) where metric.unit == "us"
+          - set(datapoint.value_double, Double(datapoint.value_int) / 1000000.0) where metric.unit == "us"
       - context: metric
         statements:
-          - set(unit, "s") where unit == "us"
+          - set(metric.unit, "s") where metric.unit == "us"
   batch: {}
 
 exporters:
