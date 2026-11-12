@@ -99,12 +99,13 @@
 # "*" (a one-entry plain list; inferred, the page does not say) means 1; empty
 # means 0 (asynchronous). count is the number of connected standbys that
 # pg_stat_replication lists as sync or quorum. Both are reported on every node;
-# only a primary has senders and a non-empty setting that matters.
+# only a primary has senders and a non-empty setting that matters. A num_sync
+# beyond the int range is capped (PostgreSQL accepts it in the setting).
 - sql: |
     SELECT
       CASE
         WHEN btrim(s.names) = '' THEN 0
-        ELSE coalesce((regexp_match(s.names, '^\s*(?:FIRST|ANY)?\s*([0-9]+)\s*\(', 'i'))[1]::int, 1)
+        ELSE least(coalesce((regexp_match(s.names, '^\s*(?:FIRST|ANY)?\s*([0-9]+)\s*\(', 'i'))[1]::numeric, 1), 2147483647)::int
       END AS synchronous_standby_required,
       (SELECT count(*) FROM pg_stat_replication WHERE sync_state IN ('sync', 'quorum'))::int AS synchronous_standby_count
     FROM (SELECT current_setting('synchronous_standby_names') AS names) s
