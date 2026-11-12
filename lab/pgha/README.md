@@ -129,8 +129,8 @@ Patroni is stopped by no scenario except `leader-killed`, which freezes it on
 purpose: its hardware watchdog (mode `required`) resets the VM.
 `leader-killed` also writes from this box as role `app` (it needs `psql` here
 and `APP_PASSWORD` in `lab/pgha/.env`). Client load is `obenhub-load.service` on every node (`files/load.sh`): the
-same pgbench pattern as stage 3, through the local socket, and only while the
-node is the primary.
+same pgbench pattern as stage 3, as role `app` over TLS to the node IP
+(`sslmode=require`, no CA verification), and only while the node is the primary.
 
 The full suite of twelve scenarios (before the two partition scenarios) passed on 2026-11-10 (`results/runs.jsonl`,
 `suite-2`) with no unexpected alert. `filesystem-filling` was detected after

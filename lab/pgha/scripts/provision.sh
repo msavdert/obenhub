@@ -386,16 +386,24 @@ phase_collector() {
     rn "$n" systemctl daemon-reload
     rn "$n" systemctl enable otelcol-contrib >/dev/null 2>&1
     rn "$n" systemctl restart otelcol-contrib
-    # active for 5 consecutive seconds (a crash loop shows as activating/failed);
-    # deadline 30 s
-    ok=0
+    # Three active samples 2 s apart (a window of about 4 s), within 30 s, and
+    # NRestarts and ActiveEnterTimestamp unchanged between the first and the
+    # last sample: a slow crash loop can look active on every sample, but it
+    # raises NRestarts or moves the timestamp.
+    ok=0 first_props="" last_props=""
     for _ in $(seq 1 15); do
-      if [ "$(rn "$n" systemctl is-active otelcol-contrib || true)" = active ]; then ok=$((ok + 1)); else ok=0; fi
+      last_props=$(rn "$n" systemctl show -p NRestarts -p ActiveEnterTimestamp -p ActiveState otelcol-contrib || true)
+      if grep -qx 'ActiveState=active' <<<"$last_props"; then
+        ok=$((ok + 1))
+        if [ "$ok" = 1 ]; then first_props="$last_props"; fi
+      else
+        ok=0
+      fi
       if [ "$ok" -ge 3 ]; then break; fi
       sleep 2
     done
-    if [ "$ok" -lt 3 ]; then
-      echo "[$n] otelcol-contrib not stably active within 30 s of the restart" >&2
+    if [ "$ok" -lt 3 ] || [ "$first_props" != "$last_props" ]; then
+      echo "[$n] otelcol-contrib not stably active within 30 s of the restart (restarted or flapping)" >&2
       rn "$n" journalctl -u otelcol-contrib -n 20 --no-pager >&2 || true
       exit 1
     fi
@@ -409,8 +417,8 @@ for n in $want; do phase_collector "$n"; done
 
 # Fault-scenario support: nftables (the scenarios add and delete the table
 # "inet obenhub_fault" themselves; Debian's default /etc/nftables.conf is
-# left alone) and the client load unit (files/load.sh), which writes through
-# the local socket only while the node is the primary. The unit is restarted
+# left alone) and the client load unit (files/load.sh), which writes as role
+# app over TLS (sslmode=require, no CA verification) to the node IP only while the node is the primary. The unit is restarted
 # only when the script or the unit file changed.
 phase_scenarios() {
   local n="$1" changed=0
@@ -442,18 +450,20 @@ PGPASSWORD=$APP_PASSWORD"
 }
 for n in $want; do phase_scenarios "$n"; done
 
-# Success: all NODES are members, one is the running Leader and every other one
-# is a Replica in state streaming (patronictl list -f json, Patroni 4). Deadline
+# Success: the members are exactly NODES, one is the running Leader and every
+# other one is a Replica, Sync Standby or Quorum Standby in state streaming (patronictl list -f json, Patroni 4). Deadline
 # 240 s; on failure the last listing is printed.
 first="${want%% *}"
 n_nodes=$(wc -w <<<"$NODES")
+node_names=()
+for e in $NODES; do node_names+=("${e%%=*}"); done
 check_cluster='
 import json, sys
 n = int(sys.argv[1])
 m = json.load(sys.stdin)
 leaders = [x["Member"] for x in m if x["Role"] == "Leader" and x["State"] == "running"]
-streaming = [x["Member"] for x in m if x["Role"] == "Replica" and x["State"] == "streaming"]
-if len(m) == n and len(leaders) == 1 and len(streaming) == n - 1:
+streaming = [x["Member"] for x in m if x["Role"] in ("Replica", "Sync Standby", "Quorum Standby") and x["State"] == "streaming"]
+if sorted(x["Member"] for x in m) == sorted(sys.argv[2:]) and len(leaders) == 1 and len(streaming) == n - 1:
     print(leaders[0])
     sys.exit(0)
 sys.exit(1)'
@@ -462,12 +472,12 @@ out=""
 deadline=$((SECONDS + 240))
 while [ "$SECONDS" -lt "$deadline" ]; do
   out=$(rn "$first" sudo -u postgres patronictl -c /etc/patroni/config.yml list -f json 2>/dev/null || true)
-  if leader=$(python3 -I -c "$check_cluster" "$n_nodes" <<<"$out" 2>/dev/null); then break; fi
+  if leader=$(python3 -I -c "$check_cluster" "$n_nodes" "${node_names[@]}" <<<"$out" 2>/dev/null); then break; fi
   leader=""
   sleep 3
 done
 if [ -z "$leader" ]; then
-  echo "cluster not healthy after 240 s: want $n_nodes members, one running Leader and $((n_nodes - 1)) streaming Replicas; last patronictl list:" >&2
+  echo "cluster not healthy after 240 s: want $n_nodes members, one running Leader and $((n_nodes - 1)) streaming Replicas/Sync Standbys; last patronictl list:" >&2
   rn "$first" sudo -u postgres patronictl -c /etc/patroni/config.yml list >&2 || printf '%s\n' "$out" >&2
   exit 1
 fi

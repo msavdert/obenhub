@@ -36,7 +36,7 @@ mkdir -p "$pki"
 # temp files of issue(), and the key/certificate being written when openssl
 # fails; openssl errors go to the terminal
 TMP_FILES=() PARTIAL=()
-cleanup() { rm -f "${TMP_FILES[@]}" "${PARTIAL[@]}"; }
+cleanup() { rm -f "${TMP_FILES[@]}" "${PARTIAL[@]}" "$pki/ca.srl"; }
 trap cleanup EXIT
 
 # a new CA is made only when neither file exists: half a CA means a damaged
