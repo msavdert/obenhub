@@ -11,15 +11,6 @@ editorconfig-checker = "4.0.2"
 node = "26.13.0"
 python = "3.13.18"
 "pipx:zensical" = "0.1.0"
-# lab/k8s: kind 0.33.0 is the release whose node image lab/k8s/versions.sh
-# pins (Kubernetes v1.36.4); kubectl stays within one minor of the cluster
-# (1.36.6 is the newest 1.36 patch in `mise ls-remote kubectl`, 2026-11-11).
-kind = "0.33.0"
-kubectl = "1.36.6"
-helm = "4.3.1"
-# kubectl-cnpg, the CloudNativePG plugin (Apache-2.0), at CNPG_VERSION in
-# lab/k8s/versions.sh. scripts/check-k8s-tools.sh fails when the two differ.
-"github:cloudnative-pg/cloudnative-pg" = { version = "1.30.1", asset_pattern = "kubectl-cnpg_*_linux_x86_64.tar.gz", bin = "kubectl-cnpg" }
 
 [tasks."docs:build"]
 description = "build the documentation site into site/ (fails on warnings)"
@@ -83,6 +74,10 @@ run = "scripts/check-evidence.sh"
 [tasks."lab:guard-test"]
 description = "test the scenario run guards (dirty pathspec, suite lock) in a throwaway git repository; no docker"
 run = "lab/scenarios/test-guard.sh"
+
+[tasks."lab:k8s:tools-test"]
+description = "test lab/k8s/scripts/check-tools.sh and the manifest check of up.sh with fake binaries on a temporary PATH; no docker, no cluster, no network"
+run = "scripts/test-k8s-check-tools.sh"
 
 [tasks."lab:rules-test"]
 description = "unit-test the lab alert rules (vmalert-tool) and Alertmanager routing (throwaway container); needs docker"
@@ -151,6 +146,7 @@ depends = [
   "lint:compose",
   "lint:otelcol",
   "lab:guard-test",
+  "lab:k8s:tools-test",
   "lab:evidence",
   "lint:pack-names",
   "docs:reference-check",
@@ -204,7 +200,7 @@ exec lab/scenarios/run-suite.sh slice1 standby-stopped collector-stopped repl-cu
 [tasks."lab:k8s:scenarios"]
 description = "run all k8s fault scenarios, control last, as one suite (lab/scenarios/run-suite.sh: clean tree, host-wide lock, SUITE_ID); stops at the first failure"
 run = '''
-exec lab/scenarios/run-suite.sh k8s switchover primary-deleted fenced replica-cut slot-retaining-wal worker-stopped control
+MISE_ENV=k8s exec mise exec -- lab/scenarios/run-suite.sh k8s switchover primary-deleted fenced replica-cut slot-retaining-wal worker-stopped control
 '''
 
 [tasks."lab:stage3:up"]

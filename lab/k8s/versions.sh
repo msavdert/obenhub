@@ -7,7 +7,7 @@ KIND_CLUSTER=obenhub
 
 # kind node image: kind v0.33.0 release notes
 # https://github.com/kubernetes-sigs/kind/releases/tag/v0.33.0 (tag and digest
-# verified there). It should move together with kind (mise.toml): Renovate may
+# verified there). It should move together with kind (mise.k8s.toml): Renovate may
 # propose a newer node image, and renovate.json holds back minor and major
 # bumps. A node image not listed in the kind release notes is untested with
 # that kind (assumption: patch releases of the same minor work).
@@ -20,7 +20,7 @@ KIND_NODE_IMAGE=kindest/node:v1.36.4@sha256:099e049362a1526b2db71494e1947aae99bd
 # from CNPG_MANIFEST_URL on 2026-11-11 (the same bytes as the release asset
 # cnpg-1.30.1.yaml). A new CNPG_VERSION needs a new sha256: up.sh fails until
 # it is updated (`curl -fsSL "$CNPG_MANIFEST_URL" | sha256sum`, after reading
-# the diff). The kubectl-cnpg plugin is pinned in mise.toml at the same
+# the diff). The kubectl-cnpg plugin is pinned in mise.k8s.toml at the same
 # version; scripts/check-tools.sh fails when they differ.
 # renovate: datasource=github-releases depName=cloudnative-pg/cloudnative-pg extractVersion=^v(?<version>.+)$
 CNPG_VERSION=1.30.1

@@ -12,14 +12,18 @@ Compose project on the box (`obenhub-k8s`).
 - Docker, with access to the internet (images, the CloudNativePG manifest, the
   Helm chart repository).
 - `curl`, `jq`, `sha256sum`, `openssl`.
-- The tools pinned in [`mise.toml`](../../mise.toml): `kind` 0.33.0 (the
-  release whose node image `versions.sh` pins), `kubectl` 1.36.6 (within one
-  minor of the node image's Kubernetes 1.36), `helm` 4.3.1 and the
-  `kubectl-cnpg` plugin 1.30.1 (the scenarios call `kubectl cnpg promote`).
-  `mise install` fetches them. `scripts/check-tools.sh` compares them with the
-  pins; `up.sh` runs it first and, outside a mise-activated shell, re-runs
-  itself once under `mise exec --`. The scenarios do not re-run themselves:
-  start them with `mise run lab:k8s:scenarios` or `mise exec -- lab/k8s/scenarios/<name>.sh`.
+- Linux x86_64 only (the `kubectl-cnpg` asset pattern in `mise.k8s.toml`).
+- The tools pinned in [`mise.k8s.toml`](../../mise.k8s.toml), read only with
+  `MISE_ENV=k8s` so that CI and `mise run check` do not download them (about
+  235 MB): `kind` 0.33.0 (the release whose node image `versions.sh` pins),
+  `kubectl` 1.36.6 (within one minor of the node image's Kubernetes 1.36),
+  `helm` 4.3.1 and the `kubectl-cnpg` plugin 1.30.1 (the scenarios call
+  `kubectl cnpg promote`). `MISE_ENV=k8s mise install` fetches them.
+  `scripts/check-tools.sh` compares each exactly with its pin, checks the
+  kubectl skew and that the plugin pin equals `CNPG_VERSION`; `up.sh` runs it
+  first and, when the tools are not on PATH, re-runs itself once under
+  `MISE_ENV=k8s mise exec --`, as do the scenarios. `mise run
+  lab:k8s:scenarios` sets the environment itself.
 - `fs.inotify.max_user_watches` >= 524288 and `max_user_instances` >= 512
   ([kind known issues][kind-ki]); `up.sh` stops without changing sysctls if
   they are lower.
@@ -132,7 +136,7 @@ client acknowledges rows.
   Secret `pg-app`. It logs each acknowledged id to `/work/acked` in its pod;
   the role-changing scenarios fail when one of those rows is not on the new
   primary.
-- `switchover`: `kubectl cnpg promote` (the plugin pinned in `mise.toml`; it
+- `switchover`: `kubectl cnpg promote` (the plugin pinned in `mise.k8s.toml`; it
   sets `status.targetPrimary` on the Cluster, per its source at v1.30.1, see
   `promote_to` in `scenarios/lib.sh`).
 - `fenced`: the annotation `cnpg.io/fencedInstances` set directly on the

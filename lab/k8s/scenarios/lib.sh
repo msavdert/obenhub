@@ -23,6 +23,14 @@
 # Needs: kubectl (with the kubectl-cnpg plugin), curl, jq, docker (the alerting config hash is read inside
 # the backend containers), the lab running (lab/k8s/scripts/up.sh).
 
+# The pinned tools live in mise.k8s.toml (MISE_ENV=k8s). A scenario started
+# without them on PATH re-runs itself once under `MISE_ENV=k8s mise exec`.
+if ! "$(dirname "${BASH_SOURCE[0]}")/../scripts/check-tools.sh" >/dev/null 2>&1 &&
+  [ -z "${OBENHUB_MISE_REEXEC:-}" ] && command -v mise >/dev/null; then
+  export OBENHUB_MISE_REEXEC=1
+  MISE_ENV=k8s exec mise exec -- "$0" "$@"
+fi
+
 SC_DIR="$(cd "$(dirname "${BASH_SOURCE[1]:-${BASH_SOURCE[0]}}")" && pwd)"
 LAB_DIR="$(cd "$SC_DIR/.." && pwd)"
 # shellcheck source=lab/k8s/versions.sh
@@ -119,7 +127,7 @@ lab_precondition() {
 # --- role change evidence (switchover.sh, primary-deleted.sh) -----------------
 # promote_to POD: make POD the primary with `kubectl cnpg promote CLUSTER POD`,
 # the method CloudNativePG documents (kubectl-plugin.md, "Promote"). The plugin
-# is pinned in mise.toml at CNPG_VERSION. Read at v1.30.1,
+# is pinned in mise.k8s.toml at CNPG_VERSION. Read at v1.30.1,
 # internal/cmd/plugin/promote/promote.go: it returns early when POD is already
 # status.targetPrimary, refuses a fenced POD, requires the Pod to exist, then
 # sets status.targetPrimary, targetPrimaryTimestamp, phase "Switchover in
