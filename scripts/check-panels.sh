@@ -34,7 +34,7 @@ for i in $(seq 0 $((n - 1))); do
     {queries: [.[$i].targets[] | . + {maxDataPoints: 500, intervalMs: 15000}
         | walk(if type == "string" then gsub("\\$__rate_interval"; "1m") | (if $inst != "" then gsub("\\$instance"; $inst) else . end) else . end)],
      from: "now-1h", to: "now"}' "$flat")
-  resp=$(curl -sS --connect-timeout 5 --max-time 60 -u "admin:$pw" -H 'Content-Type: application/json' -d "$body" "$grafana/api/ds/query") || resp=""
+  resp=$(curl -sS --connect-timeout 5 --max-time 60 -K <(printf 'user = "admin:%s"\n' "$pw") -H 'Content-Type: application/json' -d "$body" "$grafana/api/ds/query") || resp=""
   lines=$(printf '%s' "$resp" | jq -r --argjson i "$i" --argjson strict "$strict" --slurpfile d "$flat" '
     ($d[0][$i]) as $p
     | ($p.description // "" | startswith("Data only during a scenario")) as $scen
