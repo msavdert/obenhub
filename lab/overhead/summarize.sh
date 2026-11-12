@@ -7,6 +7,8 @@
 #   3. paired ABBA difference: each ON run minus the mean of the two OFF runs
 #      in its block of four, per pair and as min / median / max over all
 #      blocks and, with --from-block N, over blocks N and later.
+#      The last column is tps / (1 - steal), a post hoc correction for CPU
+#      stolen by the hypervisor in that run (column steal_pct).
 # Usage: lab/overhead/summarize.sh [--from-block N] [runs.csv]
 set -euo pipefail
 
@@ -35,7 +37,7 @@ awk -F, -v from="$FROM" '
     for (k = 1; k <= np; k++) if (pblock[k] >= pairs_from) cnt++
     if (cnt == 0) return ""
     line = sprintf("| blocks %d-%d | %d |", pairs_from, mb + 1, cnt)
-    for (c = 1; c <= 4; c++) {
+    for (c = 1; c <= 5; c++) {
       t = 0
       for (k = 1; k <= np; k++) if (pblock[k] >= pairs_from) { t++; tmp[t] = pd[k, c] }
       sortarr(tmp, t)
@@ -56,15 +58,18 @@ awk -F, -v from="$FROM" '
     b = int(($1 - 1) / 4) + 1
     if (b > mb + 1) mb = b - 1
     split("6 8 9 10", col, " ")
-    if (m == "OFF") { no[b]++; for (c = 1; c <= 4; c++) off[b, c] += $(col[c]) }
-    else { non[b]++; ons[b, non[b]] = $1; for (c = 1; c <= 4; c++) onv[b, non[b], c] = $(col[c]) }
+    for (c = 1; c <= 4; c++) cv[c] = $(col[c])
+    cv[5] = $6 / (1 - $21 / 100)   # tps scaled by the CPU steal of the run (post hoc)
+    if (m == "OFF") { no[b]++; for (c = 1; c <= 5; c++) off[b, c] += cv[c] }
+    else { non[b]++; ons[b, non[b]] = $1; for (c = 1; c <= 5; c++) onv[b, non[b], c] = cv[c] }
   }
   END {
     printf "runs: OFF %d, ON %d\n\n", cnt["OFF"], cnt["ON"]
     print "| metric | OFF median (min-max) | ON median (min-max) | ON - OFF |"
     print "|---|---|---|---|"
-    split("6 7 8 9 10 12 13 21 22", both, " ")
-    for (x = 1; x <= 9; x++) {
+    nboth = split("6 7 8 9 10 12 13 21 22", both, " ")
+    if (nf >= 23) both[++nboth] = 23
+    for (x = 1; x <= nboth; x++) {
       i = both[x]
       if (name[i] == "col_cpu_s") continue
       for (k = 1; k <= cnt["OFF"]; k++) a[k] = v["OFF", i, k]
@@ -83,19 +88,19 @@ awk -F, -v from="$FROM" '
     printf "\nCollector CPU, median over ON runs: %.2f%% of one core, %.2f%% of PostgreSQL CPU\n", med(cpu_core, cnt["ON"]), med(cpu_pg, cnt["ON"])
 
     print "\nPaired ABBA difference (ON minus mean of the two OFF runs in its block)\n"
-    print "| ON run | block | d tps | d p50 ms | d p95 ms | d p99 ms |"
-    print "|---|---|---|---|---|---|"
+    print "| ON run | block | d tps | d p50 ms | d p95 ms | d p99 ms | d tps/(1-steal) |"
+    print "|---|---|---|---|---|---|---|"
     for (bl = 1; bl <= mb + 1; bl++) {
-      if (no[bl] == 0 || non[bl] == 0) { printf "| - | %d | block lacks OFF or ON runs, skipped | | | |\n", bl; continue }
+      if (no[bl] == 0 || non[bl] == 0) { printf "| - | %d | block lacks OFF or ON runs, skipped | | | | |\n", bl; continue }
       for (k = 1; k <= non[bl]; k++) {
         np++; pblock[np] = bl
         line = sprintf("| %d | %d |", ons[bl, k], bl)
-        for (c = 1; c <= 4; c++) { d = onv[bl, k, c] - off[bl, c] / no[bl]; pd[np, c] = d; line = line sprintf(" %+.2f |", d) }
+        for (c = 1; c <= 5; c++) { d = onv[bl, k, c] - off[bl, c] / no[bl]; pd[np, c] = d; line = line sprintf(" %+.2f |", d) }
         print line
       }
     }
-    print "\n| pairs | n | d tps min / median / max | d p50 ms | d p95 ms | d p99 ms |"
-    print "|---|---|---|---|---|---|"
+    print "\n| pairs | n | d tps min / median / max | d p50 ms | d p95 ms | d p99 ms | d tps/(1-steal) |"
+    print "|---|---|---|---|---|---|---|"
     print summ(1)
     if (from != "") print summ(from + 0)
   }' "$CSV"
