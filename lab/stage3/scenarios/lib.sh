@@ -77,7 +77,7 @@ load_running() { [ "$(docker inspect -f '{{.State.Running}}' "$LOAD" 2>/dev/null
 
 # component versions recorded under "images" in runs.jsonl
 component_versions() {
-  { grep -E '^[[:space:]]+image:' "$LAB_DIR/compose.yaml" | sed 's/.*image: *//'; grep -E '^FROM ' "$LAB_DIR/postgres/Dockerfile" | sed 's/^FROM //'; } | sort -u \
+  { dc config --images 2>/dev/null | grep -v "^obenhub-"; grep -E '^FROM ' "$LAB_DIR/postgres/Dockerfile" | sed 's/^FROM //'; } | sort -u \
     | jq -R . | jq -s -c .
 }
 

@@ -111,7 +111,7 @@ for lab in "${labs[@]}"; do
     stale=1
     continue
   fi
-  mapfile -t changed < <(git diff --name-only "$sha" HEAD -- "lab/$lab" lab/packs lab/scenarios \
+  mapfile -t changed < <(git diff --name-only "$sha" HEAD -- "lab/$lab" lab/packs lab/scenarios lab/mon lab/scripts \
     ':(exclude,glob)lab/*/results/**')
   if [ "${#changed[@]}" -gt 0 ]; then
     echo "$lab: suite $suite ($sha) predates changes in ${#changed[@]} files:"

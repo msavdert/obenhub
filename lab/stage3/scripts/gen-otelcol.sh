@@ -28,7 +28,7 @@ render() {
 out="$(render)"
 if grep -q '@[A-Z_]*@' <<<"$out"; then echo "gen-otelcol: unrendered placeholder" >&2; exit 1; fi
 if [ "${1:-}" = "--check" ]; then
-  if [ "$out" = "$(cat "$dir/config.yaml")" ]; then echo "gen-otelcol: config.yaml is current"; else
+  if printf '%s\n' "$out" | cmp -s - "$dir/config.yaml"; then echo "gen-otelcol: config.yaml is current"; else
     echo "gen-otelcol: config.yaml differs from its template; run lab/stage3/scripts/gen-otelcol.sh" >&2; exit 1
   fi
 else

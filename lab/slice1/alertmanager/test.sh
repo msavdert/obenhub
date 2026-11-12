@@ -6,9 +6,9 @@ set -euo pipefail
 
 dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 name="obenhub-slice1-amtest-$$"
-# Same image as the lab, read from compose.yaml so the pin lives in one place.
-image="$(sed -n 's/^ *image: *\(prom\/alertmanager:[^ ]*\).*/\1/p' "$dir/../compose.yaml" | head -n1)"
-[ -n "$image" ] || { echo "alertmanager image not found in compose.yaml" >&2; exit 1; }
+# Same image as the lab, read from the shared base so the pin lives in one place.
+image="$(sed -n 's/^ *image: *\(prom\/alertmanager:[^ ]*\).*/\1/p' "$dir/../../mon/compose.base.yaml" | head -n1)"
+[ -n "$image" ] || { echo "alertmanager image not found in lab/mon/compose.base.yaml" >&2; exit 1; }
 trap 'docker rm -f "$name" >/dev/null 2>&1 || true' EXIT
 
 docker run -d --name "$name" -p 127.0.0.1::9093 \
