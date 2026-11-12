@@ -12,6 +12,7 @@ git config user.email t@example.invalid
 git config user.name t
 mkdir -p lab/x/results lab/x/scenarios lab/packs lab/scenarios
 printf 'a\nb\n' >lab/x/scenarios/suite.txt
+touch lab/x/scenarios/a.sh lab/x/scenarios/b.sh lab/x/scenarios/lib.sh
 echo 1 >lab/x/code
 echo 1 >lab/packs/p
 echo 1 >lab/scenarios/s
@@ -37,7 +38,7 @@ row() {
   jq -n -c --arg s "$1" --argjson z "$2" --arg sha "$3" --argjson d "$4" \
     --argjson p "$5" --arg t "$6" --arg n "$7" \
     '{scenario: $n, suite: (if $s == "-" then null else $s end), suite_size: $z,
-      git_sha: $sha, git_dirty: $d, pass: $p, start: $t}'
+      git_sha: $sha, git_dirty: $d, pass: $p, start: $t, config_sha256: "c1"}'
 }
 # pair SUITE SHA START: the two records of a complete clean passing suite
 pair() { row "$1" 2 "$2" false true "$3" a; row "$1" 2 "$2" false true "$3" b; }
@@ -116,6 +117,64 @@ expect "interleaved suites, complete one counts" 0 "suite s1 ($head) is current"
 { pair s1 "$head" $t1; echo '{not json'; } | fixture
 expect "malformed line warns" 0 "unreadable" x
 expect "malformed line fails strict" 1 "unreadable" --strict x
+
+# mixed config_sha256 within one suite
+{ row s1 2 "$head" false true $t1 a | jq -c '. + {config_sha256: "aaa"}'
+  row s1 2 "$head" false true $t1 b | jq -c '. + {config_sha256: "bbb"}'; } | fixture
+expect "mixed config hash" 1 "not counted, mixed config_sha256" --strict x
+pair s1 "$head" $t1 | jq -c '. + {config_sha256: "aaa"}' | fixture
+expect "one config hash" 0 "suite s1 ($head) is current" --strict x
+
+# config_sha256 absent, null or empty in every row
+pair s1 "$head" $t1 | jq -c 'del(.config_sha256)' | fixture
+expect "no config hash field" 1 "not counted, missing config_sha256" --strict x
+pair s1 "$head" $t1 | jq -c '.config_sha256 = null' | fixture
+expect "null config hash" 1 "not counted, missing config_sha256" --strict x
+pair s1 "$head" $t1 | jq -c '.config_sha256 = ""' | fixture
+expect "empty config hash" 1 "not counted, missing config_sha256" --strict x
+
+# scenario scripts vs suite.txt (lab x has a.sh, b.sh and the helper lib.sh)
+pair s1 "$head" $t1 | fixture
+expect "scripts match suite.txt" 0 "suite s1 ($head) is current" --strict x
+touch lab/x/scenarios/c.sh
+expect "script missing from suite.txt" 1 "< c" x
+rm lab/x/scenarios/c.sh
+printf 'a\nb\nd\n' >lab/x/scenarios/suite.txt
+expect "suite.txt name without script" 1 "> d" x
+git checkout -q lab/x/scenarios/suite.txt
+
+# prose and cross-lab mounts, on a lab named pgha
+mkdir -p lab/pgha/results lab/pgha/scenarios lab/stage3/grafana/dashboards lab/slice1/grafana/dashboards
+printf 'a\nb\n' >lab/pgha/scenarios/suite.txt
+touch lab/pgha/scenarios/a.sh lab/pgha/scenarios/b.sh lab/pgha/scenarios/lib.sh
+echo 1 >lab/pgha/README.md
+echo 1 >lab/stage3/grafana/dashboards/d.json
+echo 1 >lab/slice1/grafana/dashboards/d.json
+git add -A
+git commit -q -m pgha
+p0=$(git rev-parse --short HEAD)
+pair s1 "$p0" $t1 >lab/pgha/results/runs.jsonl
+echo 2 >lab/pgha/README.md
+git commit -q -am readme
+expect "README-only change passes strict" 0 "suite s1 ($p0) is current" --strict pgha
+git reset -q --hard "$p0"
+echo 2 >lab/pgha/results/notes.txt
+git add lab/pgha/results/notes.txt
+git commit -q -m results
+expect "change under results/ is ignored" 0 "suite s1 ($p0) is current" --strict pgha
+git reset -q --hard "$p0"
+echo 2 >lab/pgha/scenarios/a.sh
+git commit -q -am script
+expect "script change fails strict" 1 "lab/pgha/scenarios/a.sh" --strict pgha
+git reset -q --hard "$p0"
+echo 2 >lab/stage3/grafana/dashboards/d.json
+git commit -q -am dash
+expect "cross-mounted dashboard marks pgha stale" 1 "lab/stage3/grafana/dashboards/d.json" --strict pgha
+git reset -q --hard "$p0"
+echo 2 >lab/slice1/grafana/dashboards/d.json
+git commit -q -am dash
+expect "second cross-mounted dashboard marks pgha stale" 1 "lab/slice1/grafana/dashboards/d.json" --strict pgha
+git reset -q --hard "$p0"
 
 expect "missing lab" 1 "no lab/y/results/runs.jsonl" --strict y
 
