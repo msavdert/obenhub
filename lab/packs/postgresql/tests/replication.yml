@@ -313,3 +313,77 @@ tests:
         groupname: postgresql
         alertname: PostgresMultiplePrimaries
         exp_alerts: []
+
+  # --- PostgresSynchronousStandbyMissing ---------------------------------------
+  - name: synchronous standby required and none connected fires on the primary after the hold
+    interval: 15s
+    input_series:
+      - series: 'postgresql.replication.synchronous_standby.required{service.instance.id="pg-1"}'
+        values: '1x60'
+      - series: 'postgresql.replication.synchronous_standby.count{service.instance.id="pg-1"}'
+        values: '1x8 0x52'
+      - series: 'postgresql.recovery.active{service.instance.id="pg-1"}'
+        values: '0x60'
+    alert_rule_test:
+      - eval_time: 1m   # one standby is sync
+        groupname: postgresql
+        alertname: PostgresSynchronousStandbyMissing
+        exp_alerts: []
+      - eval_time: 2m30s   # none for 30s, below the 1m hold
+        groupname: postgresql
+        alertname: PostgresSynchronousStandbyMissing
+        exp_alerts: []
+      - eval_time: 5m
+        groupname: postgresql
+        alertname: PostgresSynchronousStandbyMissing
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              service.instance.id: pg-1
+            exp_annotations:
+              summary: 'pg-1 requires a synchronous standby and has none: commits wait'
+
+  - name: not required (asynchronous, or Patroni emptied the setting) does not fire
+    interval: 15s
+    input_series:
+      - series: 'postgresql.replication.synchronous_standby.required{service.instance.id="pg-1"}'
+        values: '0x60'
+      - series: 'postgresql.replication.synchronous_standby.count{service.instance.id="pg-1"}'
+        values: '0x60'
+      - series: 'postgresql.recovery.active{service.instance.id="pg-1"}'
+        values: '0x60'
+    alert_rule_test:
+      - eval_time: 5m
+        groupname: postgresql
+        alertname: PostgresSynchronousStandbyMissing
+        exp_alerts: []
+
+  - name: a standby (in recovery) never fires, whatever its own sync count
+    interval: 15s
+    input_series:
+      - series: 'postgresql.replication.synchronous_standby.required{service.instance.id="pg-2"}'
+        values: '1x60'
+      - series: 'postgresql.replication.synchronous_standby.count{service.instance.id="pg-2"}'
+        values: '0x60'
+      - series: 'postgresql.recovery.active{service.instance.id="pg-2"}'
+        values: '1x60'
+    alert_rule_test:
+      - eval_time: 5m
+        groupname: postgresql
+        alertname: PostgresSynchronousStandbyMissing
+        exp_alerts: []
+
+  - name: a failed collection (no samples) does not fire
+    interval: 15s
+    input_series:
+      - series: 'postgresql.replication.synchronous_standby.required{service.instance.id="pg-1"}'
+        values: '1x8 _x52'
+      - series: 'postgresql.replication.synchronous_standby.count{service.instance.id="pg-1"}'
+        values: '1x8 _x52'
+      - series: 'postgresql.recovery.active{service.instance.id="pg-1"}'
+        values: '0x8 _x52'
+    alert_rule_test:
+      - eval_time: 8m
+        groupname: postgresql
+        alertname: PostgresSynchronousStandbyMissing
+        exp_alerts: []

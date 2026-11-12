@@ -102,6 +102,13 @@
 # -1 none (no restart_lsn). inactive_age is 0 while the slot is active.
 - sql: |
     SELECT
+      (btrim(current_setting('synchronous_standby_names')) <> '')::int AS synchronous_standby_required,
+      (SELECT count(*) FROM pg_stat_replication WHERE sync_state IN ('sync', 'quorum'))::int AS synchronous_standby_count
+  metrics:
+    - {metric_name: postgresql.replication.synchronous_standby.required, value_column: synchronous_standby_required, value_type: int, data_type: gauge, unit: "1", description: "1 when synchronous_standby_names is not empty (commits wait for a standby)"}
+    - {metric_name: postgresql.replication.synchronous_standby.count, value_column: synchronous_standby_count, value_type: int, data_type: gauge, unit: '{standby}', description: "Standbys that pg_stat_replication reports as sync or quorum (0 where there are no WAL senders)"}
+- sql: |
+    SELECT
       slot_name AS "postgresql.replication_slot.name",
       slot_type AS "postgresql.replication_slot.type",
       active::int AS active,

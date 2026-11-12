@@ -118,6 +118,7 @@ stage 3; `scenarios/lib.sh` is the adapter that reaches the nodes over ssh.
 | `pending-restart` | `patronictl edit-config` of `shared_buffers` |
 | `network-partition` | nftables on the leader and on the other two nodes drops all traffic between the leader and them (ssh and OTLP stay open) |
 | `network-partition-replica` | the same on the first replica |
+| `synchronous-standby-cut` | `synchronous_mode` and strict on, then the synchronous standby is isolated, then the leader loses the other replica on tcp 5432 (see below) |
 | `leader-killed` | `kill -STOP` on the leader's Patroni main process (PostgreSQL keeps running); the hardware watchdog resets the VM |
 | `switchover` | `patronictl switchover` |
 | `control` | no fault, 10 minutes of load |
@@ -229,3 +230,53 @@ had one outcome each: 23:12 outcome A (18.4 s, 531 of 531 rows), 23:21
 outcome B, where pgha-1 took over (timeline 15 to 16, 8.8 s without a
 writable node, 465 of 465 rows, `pg_rewind` on pgha-2). Which outcome a run
 gets is a race; the asynchronous replication did not lose a row in either.
+
+### Synchronous standby cut (smoke runs 2026-11-12, not in `runs.jsonl`)
+
+The lab runs asynchronously. `synchronous-standby-cut` sets `synchronous_mode`
+and `synchronous_mode_strict` through `patronictl edit-config`, removes both
+keys again in revert (a following `switchover` and `control` passed), and cuts
+the synchronous standby in two steps. Strict mode is part of it: the
+[Patroni replication modes page](https://patroni.readthedocs.io/en/latest/replication_modes.html)
+(the `latest` docs, read 2026-11-11; no version stated, the pinned Patroni is
+4.1.5) says that without strict the primary falls back to asynchronous
+replication after the HA loop; that case was not run.
+Step 1 isolates the standby (`isolate_node`, as `network-partition-replica`);
+step 2 then drops tcp 5432 between the leader and the other replica
+(`inet obenhub_fault2`, etcd stays reachable, no failover). A sampler on the
+leader records `synchronous_standby_names`, the `sync_state` of every WAL
+sender and the duration of a transactional `pg_logical_emit_message` commit
+once per second (a commit wait shows as 8.0 s, the client's limit;
+`statement_timeout` does not cut it).
+
+Three runs (01:03, 01:38 and 02:08 UTC) gave the same sequence,
+seconds from the cut:
+
+- Commits wait from the cut. Patroni named the other replica as
+  synchronous standby after 39.8 to 42.8 s, and commits resumed at that moment
+  (`synchronous_standby_names` changed from the first standby to the other).
+  The cut standby was still listed as `sync` by `pg_stat_replication` until
+  36 to 38 s. Why 40 s (the Patroni HA loop and its timeouts) was not
+  traced to a log line.
+- Step 2: the other replica's `sync` row disappeared 65 s after its table was
+  in place (consistent with the default `wal_sender_timeout` of 60 s;
+  assumption, the setting was not read). Patroni then set
+  `synchronous_standby_names` to `*` (74 s) and left it there; no commit
+  succeeded from then until revert (0 unblocked samples in step 2, 34 to 36
+  waiting samples in all). Leader, timeline and boot ids did not change.
+- Alerts: `EtcdNoLeader`, `PostgresStandbyNotStreaming` for both standbys,
+  `PostgresPhysicalSlotInactive` for the leader, and
+  `PostgresSynchronousStandbyMissing` for the leader (about 3 minutes after
+  step 2: the row has to vanish, then `for: 1m`). In the first two runs one
+  further alert each fired on the leader (`PostgresSnapshotHeldTooLong`,
+  `PostgresBlockedSessions`: waiting commits keep snapshots and row locks, so
+  the load queues); the scenario allows both.
+  `PatroniReplicaNotEligible` never fired.
+- Patroni's `/metrics` has `patroni_sync_standby` per node (Patroni 4.1.5
+  `api.py` on the nodes) but no flag for whether synchronous mode is on, so an
+  alert on "no synchronous standby" from Patroni alone cannot tell the
+  asynchronous lab from a failure. The alert therefore reads PostgreSQL: the
+  pack metrics `postgresql.replication.synchronous_standby.required`
+  (`synchronous_standby_names` not empty) and `.count` (`sync` or `quorum`
+  rows of `pg_stat_replication`). Without strict mode Patroni empties the
+  setting and this alert is silent (not run; from the Patroni page).

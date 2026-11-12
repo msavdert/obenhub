@@ -103,6 +103,25 @@ groups:
         annotations:
           summary: '{{ (index $labels "service.instance.id") }} is in recovery and not streaming'
 
+      # Commits wait for a synchronous standby (synchronous_standby_names is not
+      # empty) but pg_stat_replication lists none as sync or quorum. Primary
+      # only. With Patroni synchronous_mode_strict on, Patroni leaves the
+      # setting in place and every commit blocks; without strict it empties the
+      # setting after a loop and this alert cannot see the loss (lab scenario
+      # synchronous-standby-cut, lab/pgha/README.md). 1m is a lab value.
+      - alert: PostgresSynchronousStandbyMissing
+        expr: |
+          postgresql.replication.synchronous_standby.required == 1
+            and on(service.instance.id)
+          postgresql.replication.synchronous_standby.count == 0
+            and on(service.instance.id)
+          postgresql.recovery.active == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: '{{ (index $labels "service.instance.id") }} requires a synchronous standby and has none: commits wait'
+
       - alert: PostgresReplayBacklog
         expr: |
           postgresql.replay.backlog > 16 * 1024 * 1024
