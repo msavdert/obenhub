@@ -9,9 +9,9 @@ decided in [ADR 0001](adr/0001-goal-and-scope.md).
 Stages 1 to 4 have run (slice1, stage3, pgha, k8s). Decided 2026-11-11: the
 work items of the project review of that date come first, and no new stage
 starts before they are done. Stage 5 is not next (owner decision 2026-11-08).
-A stage is done when its fault scenarios fire the expected alerts and show on
-the dashboards, with a no-fault control run (ADR 0001), so the open items
-below are what keeps stage 4 and pgha from meeting that bar.
+A stage is done by the definition in
+[AGENTS.md](https://github.com/msavdert/obenhub/blob/main/AGENTS.md) (ADR
+0001); the open items below keep stage 4 and pgha from meeting it.
 
 - [ ] Naming contract per ADR 0006 (in review as a pull request)
 - [ ] Query fixes: snapshot oldest-age scope, slot query on standbys, slice1

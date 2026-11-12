@@ -68,8 +68,12 @@ description = "otelcol-contrib validate on every tracked Collector config (pgha 
 run = "scripts/lint-otelcol.sh"
 
 [tasks."lab:evidence"]
-description = "per lab: is the latest passing suite newer than the lab's code? warns; --strict fails (before a release)"
+description = "per lab: is the latest complete passing suite newer than the lab's code? warns; pass --strict [LAB...] to fail (before a release)"
 run = "scripts/check-evidence.sh"
+
+[tasks."lab:evidence-test"]
+description = "test check-evidence.sh on fixture runs.jsonl files in a throwaway git repository; no docker"
+run = "scripts/test-check-evidence.sh"
 
 [tasks."lab:guard-test"]
 description = "test the scenario run guards (dirty pathspec, suite lock) in a throwaway git repository; no docker"
@@ -147,6 +151,7 @@ depends = [
   "lint:otelcol",
   "lab:guard-test",
   "lab:k8s:tools-test",
+  "lab:evidence-test",
   "lab:evidence",
   "lint:pack-names",
   "docs:reference-check",

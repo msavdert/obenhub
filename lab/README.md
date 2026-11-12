@@ -25,7 +25,7 @@ Shared parts:
 - [packs](packs): queries and alert rules with unit tests, one directory per
   component (postgresql, patroni, etcd, cnpg, host, k8s).
 - [scenarios/lib-core.sh](scenarios/lib-core.sh): the scenario harness used by
-  stage3, pgha and k8s.
+  slice1, stage3, pgha and k8s.
 
 One-off measurements on the `pg-lab` VM, not scenario labs:
 

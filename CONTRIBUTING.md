@@ -13,7 +13,8 @@ mise run check
 relative links, editorconfig, shell, Python with ruff), validates every
 Compose file and Collector config, and runs the alert-rule unit tests of every
 pack and lab. Those and the Compose and Collector checks use Docker and pull
-images on first use. `mise run eol` checks product end-of-life dates and needs network.
+images on first use. `mise run eol` checks product end-of-life dates and
+needs network.
 
 ## Commits and pull requests
 
@@ -30,9 +31,10 @@ images on first use. `mise run eol` checks product end-of-life dates and needs n
 - Releases are cut by release-please from the commit history (SemVer, 0.x
   until the first installable artefact, tags `vX.Y.Z`). A release marks a
   closed milestone: the release PR stays open and collects the changelog
-  until a stage's closing criterion is met, and only the owner merges it. Release PRs only touch `CHANGELOG.md`, `version.txt`
-  and the manifest; their CI runs start after a maintainer approves them in
-  the Actions tab.
+  until a stage's closing criterion is met, and only the owner merges it.
+  Release PRs only touch `CHANGELOG.md`, `version.txt` and the manifest; their
+  CI runs start after a maintainer approves them in the Actions tab, and each
+  update of the PR needs a new approval. Renovate PRs are ordinary PRs.
 
 ## Repository settings
 
