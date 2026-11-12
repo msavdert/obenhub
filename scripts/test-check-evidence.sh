@@ -38,7 +38,7 @@ row() {
   jq -n -c --arg s "$1" --argjson z "$2" --arg sha "$3" --argjson d "$4" \
     --argjson p "$5" --arg t "$6" --arg n "$7" \
     '{scenario: $n, suite: (if $s == "-" then null else $s end), suite_size: $z,
-      git_sha: $sha, git_dirty: $d, pass: $p, start: $t}'
+      git_sha: $sha, git_dirty: $d, pass: $p, start: $t, config_sha256: "c1"}'
 }
 # pair SUITE SHA START: the two records of a complete clean passing suite
 pair() { row "$1" 2 "$2" false true "$3" a; row "$1" 2 "$2" false true "$3" b; }
@@ -125,6 +125,14 @@ expect "mixed config hash" 1 "not counted, mixed config_sha256" --strict x
 pair s1 "$head" $t1 | jq -c '. + {config_sha256: "aaa"}' | fixture
 expect "one config hash" 0 "suite s1 ($head) is current" --strict x
 
+# config_sha256 absent, null or empty in every row
+pair s1 "$head" $t1 | jq -c 'del(.config_sha256)' | fixture
+expect "no config hash field" 1 "not counted, missing config_sha256" --strict x
+pair s1 "$head" $t1 | jq -c '.config_sha256 = null' | fixture
+expect "null config hash" 1 "not counted, missing config_sha256" --strict x
+pair s1 "$head" $t1 | jq -c '.config_sha256 = ""' | fixture
+expect "empty config hash" 1 "not counted, missing config_sha256" --strict x
+
 # scenario scripts vs suite.txt (lab x has a.sh, b.sh and the helper lib.sh)
 pair s1 "$head" $t1 | fixture
 expect "scripts match suite.txt" 0 "suite s1 ($head) is current" --strict x
@@ -149,6 +157,11 @@ pair s1 "$p0" $t1 >lab/pgha/results/runs.jsonl
 echo 2 >lab/pgha/README.md
 git commit -q -am readme
 expect "README-only change passes strict" 0 "suite s1 ($p0) is current" --strict pgha
+git reset -q --hard "$p0"
+echo 2 >lab/pgha/results/notes.txt
+git add lab/pgha/results/notes.txt
+git commit -q -m results
+expect "change under results/ is ignored" 0 "suite s1 ($p0) is current" --strict pgha
 git reset -q --hard "$p0"
 echo 2 >lab/pgha/scenarios/a.sh
 git commit -q -am script

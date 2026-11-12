@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Report, per scenario lab, whether its latest complete passing suite still
-# describes the code: lists the files under the lab, lab/packs and
-# lab/scenarios that changed between the suite's commit and HEAD.
+# describes the code: lists the files that changed between the suite's commit
+# and HEAD under the lab, lab/packs, lab/scenarios, lab/mon, lab/scripts and
+# the lab's extra_paths (directories it mounts from other labs).
 #   check-evidence.sh [--strict] [LAB...]     (default: every lab with results)
 # A suite counts only if its records have a positive-integer suite_size, one
 # record per scenario of lab/<lab>/scenarios/suite.txt (the full list, one name
@@ -60,6 +61,7 @@ summarize='
     elif (.pass | not) then "has a failing record"
     elif .dirty then "ran on a dirty tree"
     elif .shas != 1 then "mixed git_sha"
+    elif .nohash > 0 then "missing config_sha256"
     elif .hashes != 1 then "mixed config_sha256"
     else null end;
   map(select(type == "object" and .suite != null)) | group_by(.suite)
@@ -71,6 +73,7 @@ summarize='
          set: (map(.scenario) | unique), distinct: (map(.scenario) | unique | length),
          pass: all(.pass == true), dirty: any(.git_dirty != false),
          shas: (map(.git_sha) | unique | length),
+         nohash: (map(select((.config_sha256 // "") == "")) | length),
          hashes: (map(.config_sha256) | unique | length)})
   | map(. + {why: why}) | sort_by(.start)
   | (map(select(.why == null)) | last) as $good
