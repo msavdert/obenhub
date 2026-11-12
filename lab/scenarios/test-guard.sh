@@ -142,8 +142,15 @@ env SUITE_LOCK_FILE="$nolock" bash -c '. "$1/lab/scenarios/guard.sh"; scenario_l
 # the default path must not depend on XDG_RUNTIME_DIR
 default_path() { env -u SUITE_LOCK_FILE "$@" bash -c '. "$1/lab/scenarios/guard.sh"; echo "$SUITE_LOCK_FILE"' _ "$repo"; }
 p1=$(default_path -u XDG_RUNTIME_DIR)
-p2=$(default_path XDG_RUNTIME_DIR=/nonexistent-bogus)
+p2=$(default_path XDG_RUNTIME_DIR="$work")  # an existing writable dir: any variant that honours the variable differs
 [ -n "$p1" ] && [ "$p1" = "$p2" ] && ok "default lock path ignores XDG_RUNTIME_DIR ($p1)" || bad "default lock path differs: '$p1' vs '$p2'"
+
+# a failing id must not abort a caller under set -e; the /tmp path is used
+mkdir -p "$work/stubbin"
+printf '#!/bin/sh\nexit 1\n' >"$work/stubbin/id"
+chmod +x "$work/stubbin/id"
+p3=$(env -u SUITE_LOCK_FILE PATH="$work/stubbin:$PATH" bash -c 'set -e; . "$1/lab/scenarios/guard.sh"; echo "$SUITE_LOCK_FILE"' _ "$repo" 2>/dev/null)
+[ "$p3" = /tmp/obenhub-lab-suite.lock ] && ok "failing id under set -e resolves the /tmp path" || bad "failing id under set -e: got '$p3'"
 
 [ "$FAILED" = 0 ] && echo "guard tests passed" || echo "guard tests FAILED"
 exit "$FAILED"

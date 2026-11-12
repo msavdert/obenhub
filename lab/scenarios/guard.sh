@@ -26,13 +26,15 @@ GUARD_TOP="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 # disappears between two runs (session ends, linger off) they disagree; linger
 # is on on the box. The override exists for test-guard.sh only.
 if [ -z "${SUITE_LOCK_FILE:-}" ]; then
-  _guard_rt="/run/user/$(id -u)"
-  if [ -d "$_guard_rt" ] && [ -w "$_guard_rt" ]; then
+  # a failing id must not abort a caller running under set -e: fall back to /tmp
+  _guard_uid=$(id -u 2>/dev/null) || _guard_uid=
+  _guard_rt="/run/user/$_guard_uid"
+  if [ -n "$_guard_uid" ] && [ -d "$_guard_rt" ] && [ -w "$_guard_rt" ]; then
     SUITE_LOCK_FILE="$_guard_rt/obenhub-lab-suite.lock"
   else
     SUITE_LOCK_FILE=/tmp/obenhub-lab-suite.lock
   fi
-  unset _guard_rt
+  unset _guard_uid _guard_rt
 fi
 
 # dirty_paths: porcelain lines of changed or untracked paths outside
