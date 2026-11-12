@@ -18,12 +18,22 @@
 # they exit.
 
 GUARD_TOP="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-# one fixed path per user for all labs, in the user's private runtime dir when
-# there is one (/tmp is world-writable: a planted symlink would be followed);
-# the override exists for test-guard.sh only. Assumption: a suite started with
-# `systemd-run --user` sees the same XDG_RUNTIME_DIR as a login shell (checked
-# on the box: both print /run/user/1000).
-SUITE_LOCK_FILE=${SUITE_LOCK_FILE:-${XDG_RUNTIME_DIR:-/tmp}/obenhub-lab-suite.lock}
+# one fixed path per user for all labs: /run/user/<uid> (private to the user;
+# /tmp is world-writable, a planted symlink would be followed) when that
+# directory exists and is writable, else /tmp. XDG_RUNTIME_DIR is deliberately
+# not read: cron, sudo -u, env -i and system units run without it, and two runs
+# would then lock different files. Residual: if /run/user/<uid> appears or
+# disappears between two runs (session ends, linger off) they disagree; linger
+# is on on the box. The override exists for test-guard.sh only.
+if [ -z "${SUITE_LOCK_FILE:-}" ]; then
+  _guard_rt="/run/user/$(id -u)"
+  if [ -d "$_guard_rt" ] && [ -w "$_guard_rt" ]; then
+    SUITE_LOCK_FILE="$_guard_rt/obenhub-lab-suite.lock"
+  else
+    SUITE_LOCK_FILE=/tmp/obenhub-lab-suite.lock
+  fi
+  unset _guard_rt
+fi
 
 # dirty_paths: porcelain lines of changed or untracked paths outside
 # lab/<lab>/results/. Fails (status 2, message on stderr) when git fails, so a
@@ -51,7 +61,8 @@ lock_path_safe() {
 # closed, when the lock path is unusable)
 lock_taken() {
   lock_path_safe || return 0
-  ( exec 8>>"$SUITE_LOCK_FILE" && ! flock -n 8 )
+  ( exec 8>>"$SUITE_LOCK_FILE" || { echo "cannot open lock file $SUITE_LOCK_FILE; treating the lock as taken" >&2; exit 0; }
+    ! flock -n 8 )
 }
 # lock_acquire LABEL: take the lock on fd 9 for the rest of this process and
 # record "LABEL pid" in the lock file; fails when it is held
@@ -66,6 +77,7 @@ ppid_of() { sed 's/.*) //' "/proc/$1/stat" 2>/dev/null | awk '{print $2}'; }
 # and an ancestor of this process
 suite_trusted() {
   local id pid p
+  lock_path_safe 2>/dev/null || return 1
   read -r id pid <"$SUITE_LOCK_FILE" 2>/dev/null || return 1
   [ -n "$id" ] && [ "$id" = "$1" ] && [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null || return 1
   p=$$

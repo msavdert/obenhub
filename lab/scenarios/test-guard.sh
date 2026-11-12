@@ -126,5 +126,24 @@ check_not "scenario_lock refuses a symlinked lock path" env SUITE_LOCK_FILE="$wo
 check "a symlinked lock path reads as taken" env SUITE_LOCK_FILE="$work/linklock" bash -c '. "$1/lab/scenarios/guard.sh"; lock_taken' _ "$repo"
 check "the symlink target is untouched" test "$(cat "$work/target")" = keep
 
+# a symlinked lock path whose target names the suite id and a live ancestor pid must not be trusted
+echo "t-fake $$" >"$work/target"
+check_not "suite_trusted refuses a symlinked lock path" env SUITE_LOCK_FILE="$work/linklock" bash -c '. "$1/lab/scenarios/guard.sh"; suite_trusted t-fake' _ "$repo"
+check_not "scenario_lock does not return 0 through a symlinked lock path" env SUITE_ID=t-fake SUITE_LOCK_FILE="$work/linklock" bash -c '. "$1/lab/scenarios/guard.sh"; scenario_lock' _ "$repo"
+
+# an unusable (not symlink) lock path fails closed
+nolock=$work/nodir/lock
+check "lock_taken reads an unopenable lock file as taken" env SUITE_LOCK_FILE="$nolock" bash -c '. "$1/lab/scenarios/guard.sh"; lock_taken' _ "$repo"
+check_not "scenario_lock refuses an unopenable lock file" env SUITE_LOCK_FILE="$nolock" bash -c '. "$1/lab/scenarios/guard.sh"; scenario_lock' _ "$repo"
+check_not "lock_acquire fails on an unopenable lock file" env SUITE_LOCK_FILE="$nolock" bash -c '. "$1/lab/scenarios/guard.sh"; lock_acquire smoke' _ "$repo"
+env SUITE_LOCK_FILE="$nolock" bash -c '. "$1/lab/scenarios/guard.sh"; scenario_lock' _ "$repo" >/dev/null 2>&1; rc=$?
+[ "$rc" = 3 ] && ok "scenario_lock returns 3 on an unopenable lock file" || bad "scenario_lock returns 3 on an unopenable lock file (got $rc)"
+
+# the default path must not depend on XDG_RUNTIME_DIR
+default_path() { env -u SUITE_LOCK_FILE "$@" bash -c '. "$1/lab/scenarios/guard.sh"; echo "$SUITE_LOCK_FILE"' _ "$repo"; }
+p1=$(default_path -u XDG_RUNTIME_DIR)
+p2=$(default_path XDG_RUNTIME_DIR=/nonexistent-bogus)
+[ -n "$p1" ] && [ "$p1" = "$p2" ] && ok "default lock path ignores XDG_RUNTIME_DIR ($p1)" || bad "default lock path differs: '$p1' vs '$p2'"
+
 [ "$FAILED" = 0 ] && echo "guard tests passed" || echo "guard tests FAILED"
 exit "$FAILED"
