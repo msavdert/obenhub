@@ -11,6 +11,8 @@ CLIENT_PID=""
 CAPACITY=0
 CLIENTS=0
 
+slots_full() { docker exec "$PRIMARY" grep -q 'remaining connection slots are reserved' /tmp/app-clients.log; }
+app_sessions_gone() { [ "$(psql_p -c "SELECT count(*) FROM pg_stat_activity WHERE usename = 'app'")" = 0 ]; }
 inject() {
   [ -n "${APP_PASSWORD:-}" ] && [ -n "${OTEL_MONITOR_PASSWORD:-}" ] || { echo "passwords missing: run lab/slice1/scripts/gen-env.sh" >&2; return 1; }
   local maxc sres res
@@ -36,7 +38,7 @@ inject() {
     done
     wait' >/dev/null 2>&1 &
   CLIENT_PID=$!
-  sleep 15
+  wait_until 60 "ordinary slots full (an attempt was rejected)" slots_full || return 1
   local n
   n=$(psql_p -c "SELECT count(*) FROM pg_stat_activity WHERE usename = 'app'") || return 1
   log "app sessions open: $n"
@@ -45,7 +47,7 @@ inject() {
 
 # while the ordinary slots are full: (a) attempts were rejected, (b) otel_monitor still gets in
 after_detect() {
-  local rc=0 rejected n probe
+  local rc=0 rejected n probe monitor_probe=failed
   rejected=$(docker exec "$PRIMARY" sh -c 'grep -c "remaining connection slots are reserved" /tmp/app-clients.log') || rejected=0
   n=$(psql_p -c "SELECT count(*) FROM pg_stat_activity WHERE usename = 'app'") || n="?"
   log "app attempts rejected for full ordinary slots: $rejected; app sessions open: $n (capacity $CAPACITY)"
@@ -54,9 +56,10 @@ after_detect() {
     IFS= read -r PGPASSWORD; export PGPASSWORD
     psql -h pg-primary -U otel_monitor -X -At -d postgres -c "SELECT 1"' 2>&1)
   log "new otel_monitor TCP connection while full: ${probe:-no output}"
+  [ "$probe" = 1 ] && monitor_probe=ok
   if [ "$probe" != 1 ]; then FAILS+=("otel_monitor could not open a new connection while full: $probe"); rc=1; fi
   wait_until 120 "PostgresConnectionSaturation critical delivered" severity_seen PostgresConnectionSaturation pg-primary "$T_INJECT" critical || { FAILS+=("PostgresConnectionSaturation was not delivered as critical"); rc=1; }
-  EXTRA_JSON=$(jq -n -c --argjson c "$CAPACITY" --argjson a "$CLIENTS" --argjson r "${rejected:-0}" '{capacity: $c, attempts: $a, rejected: $r, monitor_probe: "ok"}')
+  EXTRA_JSON=$(jq -n -c --argjson c "$CAPACITY" --argjson a "$CLIENTS" --argjson r "${rejected:-0}" --arg mp "$monitor_probe" '{capacity: $c, attempts: $a, rejected: $r, monitor_probe: $mp}')
   return "$rc"
 }
 
@@ -73,7 +76,6 @@ revert() {
   psql_p -c "SELECT count(pg_terminate_backend(pid)) FROM pg_stat_activity WHERE usename = 'app'" >/dev/null || return 1
   [ -n "$CLIENT_PID" ] && kill "$CLIENT_PID" 2>/dev/null
   docker exec "$PRIMARY" pkill -x psql 2>/dev/null
-  sleep 2
-  [ "$(psql_p -c "SELECT count(*) FROM pg_stat_activity WHERE usename = 'app'")" = 0 ]
+  wait_until 30 "app sessions gone" app_sessions_gone
 }
 run_scenario connections-exhausted

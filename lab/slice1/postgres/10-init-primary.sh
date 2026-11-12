@@ -2,8 +2,15 @@
 # Runs once on the primary, from /docker-entrypoint-initdb.d (initdb phase).
 set -euo pipefail
 
-psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname postgres \
-  -v repl_pw="$REPLICATOR_PASSWORD" -v mon_pw="$OTEL_MONITOR_PASSWORD" <<'SQL'
+# \getenv leaves a missing variable unset; fail closed (an empty value too)
+: "${REPLICATOR_PASSWORD:?REPLICATOR_PASSWORD not set or empty}"
+: "${OTEL_MONITOR_PASSWORD:?OTEL_MONITOR_PASSWORD not set or empty}"
+: "${LOGICAL_PASSWORD:?LOGICAL_PASSWORD not set or empty}"
+: "${APP_PASSWORD:?APP_PASSWORD not set or empty}"
+
+psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname postgres <<'SQL'
+\getenv repl_pw REPLICATOR_PASSWORD
+\getenv mon_pw OTEL_MONITOR_PASSWORD
 -- the temporary init server runs with the compose command, so
 -- pg_stat_statements is loaded: keep the password statements out of it
 SET pg_stat_statements.track = 'none';
@@ -30,8 +37,9 @@ echo "host replication replicator 10.213.0.0/24 scram-sha-256" >>"$PGDATA/pg_hba
 # not a superuser and owns nothing. The subscriber connects to database `app`,
 # so pg_hba matches the database name (the "replication" keyword is only for
 # physical connections).
-psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname postgres \
-  -v logical_pw="$LOGICAL_PASSWORD" -v app_pw="$APP_PASSWORD" <<'SQL'
+psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname postgres <<'SQL'
+\getenv logical_pw LOGICAL_PASSWORD
+\getenv app_pw APP_PASSWORD
 SET pg_stat_statements.track = 'none';
 -- statements carrying a password must not reach the log or pg_stat_statements
 SET log_min_duration_statement = -1;

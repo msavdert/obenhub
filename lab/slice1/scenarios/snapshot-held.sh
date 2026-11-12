@@ -6,11 +6,11 @@ set -uo pipefail
 
 EXPECT=("PostgresSnapshotHeldTooLong:pg-primary")
 APPNAME=slice1-snapshot-held
+session_up() { [ "$(psql_p -c "SELECT count(*) FROM pg_stat_activity WHERE application_name = '$APPNAME'")" = 1 ]; }
 inject() {
   docker exec -d -e PGAPPNAME="$APPNAME" "$PRIMARY" timeout 1200 psql -U postgres -X \
     -c "BEGIN ISOLATION LEVEL REPEATABLE READ; SELECT 1 FROM pg_class LIMIT 1; SELECT pg_sleep(1200);" || return 1
-  sleep 3
-  [ "$(psql_p -c "SELECT count(*) FROM pg_stat_activity WHERE application_name = '$APPNAME'")" = 1 ]
+  wait_until 30 "the snapshot session is up" session_up
 }
 revert() {
   psql_p -c "SELECT count(pg_terminate_backend(pid)) FROM pg_stat_activity WHERE application_name = '$APPNAME'" >/dev/null

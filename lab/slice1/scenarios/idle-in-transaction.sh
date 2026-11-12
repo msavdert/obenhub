@@ -6,11 +6,11 @@ set -uo pipefail
 
 EXPECT=("PostgresIdleInTransaction:pg-primary")
 APPNAME=slice1-idle-in-transaction
+idle_session() { [ "$(psql_p -c "SELECT count(*) FROM pg_stat_activity WHERE application_name = '$APPNAME' AND state = 'idle in transaction' AND backend_xmin IS NULL AND backend_xid IS NULL")" = 1 ]; }
 inject() {
   docker exec -d -e PGAPPNAME="$APPNAME" "$PRIMARY" sh -c \
     "{ echo 'BEGIN; SELECT 1;'; sleep 1203; } | psql -U postgres -X -q -o /dev/null" || return 1
-  sleep 3
-  [ "$(psql_p -c "SELECT count(*) FROM pg_stat_activity WHERE application_name = '$APPNAME' AND state = 'idle in transaction' AND backend_xmin IS NULL AND backend_xid IS NULL")" = 1 ]
+  wait_until 30 "the session is idle in transaction" idle_session
 }
 after_detect() {
   # the warning was delivered (EXPECT saw a firing record); now wait for the critical tier
