@@ -42,7 +42,7 @@ stops it. Do not run it together with a slice1 suite: both use the host lock.
   transaction ID wraparound (the lab cannot reach those ages), and the two
   etcd disk-latency rules (no latency injection was attempted).
 - The shared PostgreSQL rules for snapshot age, connection saturation and
-  SeriesVanished are fired by slice1 scenarios, not here.
+  PostgresSeriesVanished are fired by slice1 scenarios, not here.
 
 Sources for the rule coverage review of 2026-11-07: pigsty v4.5.0, the etcd
 mixin at v3.7.3 and pgMonitor (Apache-2.0, copied with provenance);
