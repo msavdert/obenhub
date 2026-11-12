@@ -62,6 +62,16 @@ x-postgres-command: &postgres-command
   - reserved_connections=8
   - -c
   - max_slot_wal_keep_size=1GB
+  # WAL archiving to a local directory, /archive, a named volume of each node
+  # (the subscriber is a different cluster; a standby archives only after a
+  # promotion, archive_mode=on). postgres/archive-wal.sh follows the rules of
+  # the PostgreSQL 18 docs, 25.3.1 (https://www.postgresql.org/docs/18/
+  # continuous-archiving.html): no overwrite, identical re-archive after a
+  # crash succeeds. Nothing prunes the archive; `docker compose down -v` does.
+  - -c
+  - archive_mode=on
+  - -c
+  - archive_command=sh /opt/obenhub/archive-wal.sh %p %f
 
 services:
   pg-primary:
@@ -77,10 +87,12 @@ services:
     volumes:
       - primary-data:/var/lib/postgresql
       - primary-log:/var/log/postgresql
+      - primary-archive:/archive
       - ./postgres/entrypoint.sh:/entrypoint.sh:ro
       - ./postgres/10-init-primary.sh:/docker-entrypoint-initdb.d/10-init-primary.sh:ro
       # outside /docker-entrypoint-initdb.d: the image would also run it in `postgres`
       - ./postgres/app-schema.sql:/opt/obenhub/app-schema.sql:ro
+      - ./postgres/archive-wal.sh:/opt/obenhub/archive-wal.sh:ro
     networks:
       repl:
         aliases: [pg-primary-repl]
@@ -102,7 +114,9 @@ services:
     volumes:
       - standby-data:/var/lib/postgresql
       - standby-log:/var/log/postgresql
+      - standby-archive:/archive
       - ./postgres/entrypoint.sh:/entrypoint.sh:ro
+      - ./postgres/archive-wal.sh:/opt/obenhub/archive-wal.sh:ro
     networks:
       - repl
       - mon
@@ -123,9 +137,11 @@ services:
     volumes:
       - subscriber-data:/var/lib/postgresql
       - subscriber-log:/var/log/postgresql
+      - subscriber-archive:/archive
       - ./postgres/entrypoint.sh:/entrypoint.sh:ro
       - ./postgres/10-init-subscriber.sh:/docker-entrypoint-initdb.d/10-init-subscriber.sh:ro
       - ./postgres/app-schema.sql:/opt/obenhub/app-schema.sql:ro
+      - ./postgres/archive-wal.sh:/opt/obenhub/archive-wal.sh:ro
     networks:
       - logical
       - mon
@@ -330,9 +346,12 @@ volumes:
   primary-data: {}
   standby-data: {}
   primary-log: {}
+  primary-archive: {}
   standby-log: {}
+  standby-archive: {}
   subscriber-data: {}
   subscriber-log: {}
+  subscriber-archive: {}
   vm-data: {}
   vl-data: {}
   otelcol-data: {}

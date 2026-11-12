@@ -1,0 +1,66 @@
+# Tests for PostgresArchivingFailing and PostgresArchiveBacklog (shared PostgreSQL pack).
+rule_files:
+  - ../rules.yml
+evaluation_interval: 15s
+
+tests:
+  - name: archiving failing fires after 1m of failing, only on the node that fails, and clears on success
+    interval: 15s
+    input_series:
+      - series: 'postgresql.archiver.failing{service.instance.id="pg-primary"}'
+        values: '0x4 1x20 0x35'
+      - series: 'postgresql.archiver.failing{service.instance.id="pg-standby"}'
+        values: '0x60'
+    alert_rule_test:
+      - eval_time: 1m   # still healthy
+        groupname: postgresql
+        alertname: PostgresArchivingFailing
+        exp_alerts: []
+      - eval_time: 1m30s   # failing for 30 s: pending
+        groupname: postgresql
+        alertname: PostgresArchivingFailing
+        exp_alerts: []
+      - eval_time: 3m
+        groupname: postgresql
+        alertname: PostgresArchivingFailing
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              service.instance.id: pg-primary
+            exp_annotations:
+              summary: 'WAL archiving on pg-primary is failing: the last attempt failed and no attempt has succeeded since'
+      - eval_time: 10m   # the last attempt succeeded again
+        groupname: postgresql
+        alertname: PostgresArchivingFailing
+        exp_alerts: []
+
+  - name: archive backlog above 8 files fires after 2m (9 is enough, 12 too); 8 files and no data do not
+    interval: 15s
+    input_series:
+      - series: 'postgresql.archiver.ready_file.count{service.instance.id="pg-primary"}'
+        values: '0x4 12x56'
+      - series: 'postgresql.archiver.ready_file.count{service.instance.id="pg-standby"}'
+        values: '8x60'
+      - series: 'postgresql.archiver.ready_file.count{service.instance.id="pg-subscriber"}'
+        values: '_x60'
+      - series: 'postgresql.archiver.ready_file.count{service.instance.id="pg-nine"}'
+        values: '9x60'
+    alert_rule_test:
+      - eval_time: 2m   # 1 min above the threshold: pending
+        groupname: postgresql
+        alertname: PostgresArchiveBacklog
+        exp_alerts: []
+      - eval_time: 5m
+        groupname: postgresql
+        alertname: PostgresArchiveBacklog
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              service.instance.id: pg-primary
+            exp_annotations:
+              summary: '12 WAL files on pg-primary are waiting for the archiver (lab threshold)'
+          - exp_labels:
+              severity: warning
+              service.instance.id: pg-nine
+            exp_annotations:
+              summary: '9 WAL files on pg-nine are waiting for the archiver (lab threshold)'

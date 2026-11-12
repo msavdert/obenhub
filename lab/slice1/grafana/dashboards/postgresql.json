@@ -746,13 +746,84 @@
       "description": "active is 1 while a process streams from the slot; postgresql.replication_slot.inactive_age counts from pg_replication_slots.inactive_since. The standby slot standby1 is physical and not covered by the alert."
     },
     {
+      "id": 105,
+      "title": "WAL archiving: files waiting, failing, failures",
+      "type": "timeseries",
+      "datasource": {
+        "type": "victoriametrics-metrics-datasource",
+        "uid": "vm"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 28,
+        "w": 24,
+        "h": 8
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "vm"
+          },
+          "expr": "postgresql.archiver.ready_file.count{service.instance.id=\"$instance\"}",
+          "refId": "A",
+          "range": true,
+          "instant": false,
+          "legendFormat": "files waiting for the archiver"
+        },
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "vm"
+          },
+          "expr": "postgresql.archiver.failing{service.instance.id=\"$instance\"}",
+          "refId": "B",
+          "range": true,
+          "instant": false,
+          "legendFormat": "failing (1 = last attempt failed)"
+        },
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "vm"
+          },
+          "expr": "postgresql.archiver.failure{service.instance.id=\"$instance\"}",
+          "refId": "C",
+          "range": true,
+          "instant": false,
+          "legendFormat": "failed attempts (cumulative)"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 10,
+            "showPoints": "never"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "description": "pg_stat_archiver and the .ready files in pg_wal/archive_status. Alerts: PostgresArchivingFailing (failing = 1 for 1 minute) and PostgresArchiveBacklog (more than 8 files waiting for 2 minutes)."
+    },
+    {
       "id": 101,
       "type": "row",
       "title": "Logical replication (labs with a subscriber: slice1)",
       "collapsed": true,
       "gridPos": {
         "x": 0,
-        "y": 28,
+        "y": 36,
         "w": 24,
         "h": 1
       },
@@ -767,7 +838,7 @@
           },
           "gridPos": {
             "x": 0,
-            "y": 29,
+            "y": 37,
             "w": 12,
             "h": 8
           },
@@ -827,7 +898,7 @@
           },
           "gridPos": {
             "x": 12,
-            "y": 29,
+            "y": 37,
             "w": 12,
             "h": 8
           },
@@ -887,7 +958,7 @@
           },
           "gridPos": {
             "x": 0,
-            "y": 37,
+            "y": 45,
             "w": 24,
             "h": 8
           },
@@ -958,7 +1029,7 @@
           },
           "gridPos": {
             "x": 0,
-            "y": 45,
+            "y": 53,
             "w": 12,
             "h": 8
           },
@@ -1017,7 +1088,7 @@
       "collapsed": true,
       "gridPos": {
         "x": 0,
-        "y": 29,
+        "y": 37,
         "w": 24,
         "h": 1
       },
@@ -1032,7 +1103,7 @@
           },
           "gridPos": {
             "x": 0,
-            "y": 30,
+            "y": 38,
             "w": 8,
             "h": 8
           },
@@ -1092,7 +1163,7 @@
           },
           "gridPos": {
             "x": 8,
-            "y": 30,
+            "y": 38,
             "w": 8,
             "h": 8
           },
@@ -1174,7 +1245,7 @@
           },
           "gridPos": {
             "x": 16,
-            "y": 30,
+            "y": 38,
             "w": 8,
             "h": 8
           },
@@ -1234,7 +1305,7 @@
           },
           "gridPos": {
             "x": 0,
-            "y": 38,
+            "y": 46,
             "w": 12,
             "h": 8
           },
@@ -1294,7 +1365,7 @@
           },
           "gridPos": {
             "x": 12,
-            "y": 38,
+            "y": 46,
             "w": 12,
             "h": 8
           },
@@ -1356,7 +1427,7 @@
       },
       "gridPos": {
         "x": 0,
-        "y": 30,
+        "y": 38,
         "w": 24,
         "h": 9
       },
@@ -1393,7 +1464,7 @@
       },
       "gridPos": {
         "x": 0,
-        "y": 39,
+        "y": 47,
         "w": 24,
         "h": 9
       },

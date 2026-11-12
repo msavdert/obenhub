@@ -18,4 +18,5 @@ deadlock
 checkpoint-pressure
 physical-slot-inactive
 slot-invalidated
+archiver-failing
 control

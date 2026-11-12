@@ -34,5 +34,6 @@ One-off measurements on the `pg-lab` VM, not scenario labs:
 - [obi](obi): OpenTelemetry eBPF Instrumentation against PostgreSQL and
   PgBouncer; not adopted ([results](obi/results/results.md)).
 
-Not covered yet: WAL archiving, backups and PITR, synchronous replication. A
-backup tool is an open item in the [roadmap](../docs/roadmap.md).
+Not covered yet: backups and PITR (WAL archiving to a local directory is in
+slice1, with no restore), synchronous replication. A backup tool is an open
+item in the [roadmap](../docs/roadmap.md).
