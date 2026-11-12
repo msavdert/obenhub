@@ -17,7 +17,7 @@ A stage is done by the definition in
 - [ ] Query fixes: snapshot oldest-age scope, slot query on standbys, slice1
       monitors the `app` database (awaiting the full suite)
 - [ ] WAL archiving in slice1, `pg_stat_archiver` alerts and an
-      archiver-failing scenario
+      archiver-failing scenario (awaiting the full suite)
 - [ ] One `synchronous_mode` scenario in pgha
 - [ ] Dashboards: CloudNativePG/Kubernetes for `lab/k8s` and host (operating
       system) for `lab/pgha` are written and their queries checked against the

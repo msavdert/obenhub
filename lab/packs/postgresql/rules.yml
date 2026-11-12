@@ -381,6 +381,37 @@ groups:
         annotations:
           summary: 'Slot {{ (index $labels "postgresql.replication_slot.name") }} on {{ (index $labels "service.instance.id") }} retains {{ $value | humanize1024 }}B of WAL (lab threshold)'
 
+      # WAL archiving, two alerts that fail differently (PostgreSQL 18 docs,
+      # 25.3.1 Setting Up WAL Archiving). PostgresArchivingFailing reads
+      # pg_stat_archiver: the archive_command ran and returned non-zero, and
+      # the last failure is newer than the last success. It clears by itself
+      # once an attempt succeeds. It cannot see a failure that aborts the
+      # archiver process (signal, exit status above 125; the docs say those are
+      # not recorded in pg_stat_archiver) and not an archive_command that hangs
+      # or is merely slower than the WAL rate. PostgresArchiveBacklog reads what
+      # the archiver has not done: segments with a .ready file in
+      # pg_wal/archive_status, which stay in pg_wal until archived and can fill
+      # the disk. It fires for any cause. The lab threshold, 8 files (128 MB at
+      # the default 16 MB segment size), is an assumption: the control run
+      # shows what the lab's workload leaves waiting. Both are silent where
+      # archive_mode is off (no failures, no .ready files).
+      # Lab scenario: lab/slice1/scenarios/archiver-failing.sh.
+      - alert: PostgresArchivingFailing
+        expr: postgresql.archiver.failing == 1
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'WAL archiving on {{ (index $labels "service.instance.id") }} is failing: the last attempt failed and no attempt has succeeded since'
+
+      - alert: PostgresArchiveBacklog
+        expr: postgresql.archiver.ready_file.count > 8
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: '{{ $value | printf "%.0f" }} WAL files on {{ (index $labels "service.instance.id") }} are waiting for the archiver (lab threshold)'
+
       # Covers the pack and postgresqlreceiver's database.count (a canary for the
       # receiver). Every pack query returns at least one row on every node, or
       # (slots, subscriptions) none by design, so the list holds both kinds. `on(__name__)` is not honoured by binary
@@ -394,9 +425,9 @@ groups:
       # alerts for up to an hour; that is accepted, not filtered.
       - alert: PostgresSeriesVanished
         expr: |
-          label_copy(last_over_time({__name__=~"postgresql[.](recovery[.]active|wal_receiver[.]streaming|replay[.](backlog|paused)|snapshot[.]oldest_age|xmin_horizon[.]age|client_connection[.](count|limit)|database[.](count|xid_age|mxid_age)|transaction[.]idle_age|lock[.](waiting_session[.]count|oldest_wait_age)|replication_slot[.](active|retained_wal|unconfirmed_wal|wal_status|invalidated|inactive_age)|subscription[.](enabled|apply_worker_running|last_msg_age|apply_error|sync_error|conflict))"}[1h]) keep_metric_names, "__name__", "metric")
+          label_copy(last_over_time({__name__=~"postgresql[.](recovery[.]active|wal_receiver[.]streaming|replay[.](backlog|paused)|snapshot[.]oldest_age|xmin_horizon[.]age|client_connection[.](count|limit)|database[.](count|xid_age|mxid_age)|transaction[.]idle_age|lock[.](waiting_session[.]count|oldest_wait_age)|replication_slot[.](active|retained_wal|unconfirmed_wal|wal_status|invalidated|inactive_age)|subscription[.](enabled|apply_worker_running|last_msg_age|apply_error|sync_error|conflict)|archiver[.](archived_file|failure|failing|ready_file[.]count))"}[1h]) keep_metric_names, "__name__", "metric")
             unless on(metric, service.instance.id)
-          label_copy(present_over_time({__name__=~"postgresql[.](recovery[.]active|wal_receiver[.]streaming|replay[.](backlog|paused)|snapshot[.]oldest_age|xmin_horizon[.]age|client_connection[.](count|limit)|database[.](count|xid_age|mxid_age)|transaction[.]idle_age|lock[.](waiting_session[.]count|oldest_wait_age)|replication_slot[.](active|retained_wal|unconfirmed_wal|wal_status|invalidated|inactive_age)|subscription[.](enabled|apply_worker_running|last_msg_age|apply_error|sync_error|conflict))"}[2m]) keep_metric_names, "__name__", "metric")
+          label_copy(present_over_time({__name__=~"postgresql[.](recovery[.]active|wal_receiver[.]streaming|replay[.](backlog|paused)|snapshot[.]oldest_age|xmin_horizon[.]age|client_connection[.](count|limit)|database[.](count|xid_age|mxid_age)|transaction[.]idle_age|lock[.](waiting_session[.]count|oldest_wait_age)|replication_slot[.](active|retained_wal|unconfirmed_wal|wal_status|invalidated|inactive_age)|subscription[.](enabled|apply_worker_running|last_msg_age|apply_error|sync_error|conflict)|archiver[.](archived_file|failure|failing|ready_file[.]count))"}[2m]) keep_metric_names, "__name__", "metric")
             and on(service.instance.id)
           present_over_time(postgresql.collection.heartbeat[2m])
         # Only while the target's heartbeat lives: a dead target or Collector

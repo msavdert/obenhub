@@ -6,6 +6,11 @@ set -euo pipefail
 mkdir -p /var/log/postgresql
 chown postgres:postgres /var/log/postgresql
 
+# local WAL archive (archive_command in compose.yaml); a volume mounts it as root; chmod undoes a SIGKILLed archiver-failing scenario
+mkdir -p /archive
+chown postgres:postgres /archive
+chmod 755 /archive
+
 if [ -n "${STANDBY_OF:-}" ] && [ ! -s "$PGDATA/PG_VERSION" ]; then
   mkdir -p "$PGDATA"
   chown postgres:postgres "$PGDATA"

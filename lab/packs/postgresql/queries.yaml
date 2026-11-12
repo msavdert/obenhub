@@ -154,3 +154,26 @@
     ) AS c(conflict_type, n)
   metrics:
     - {metric_name: postgresql.subscription.conflict, value_column: conflicts, attribute_columns: ["postgresql.subscription.name", "postgresql.conflict.type"], value_type: int, data_type: sum, monotonic: true, aggregation: cumulative, unit: '{conflict}', description: "pg_stat_subscription_stats confl_* counters, by conflict type"}
+# WAL archiver (pg_stat_archiver, PostgreSQL 18 docs, monitoring-stats). Not in
+# postgresqlreceiver at v0.164.0 (metadata.yaml has no archiver metric).
+# `failing` is the state the view's columns define: the last attempt that
+# failed is newer than the last that succeeded (or none ever succeeded), so a
+# transient failure clears itself and a restart of the Collector changes
+# nothing. A failure that aborts the archiver process (killed by a signal, exit
+# status above 125) is not counted in pg_stat_archiver (PostgreSQL 18 docs,
+# 25.3.1), so the number of segments still waiting is read as well:
+# pg_ls_archive_statusdir() (pg_monitor may run it) lists pg_wal/archive_status,
+# where a segment waiting for the archiver is a .ready file. With archive_mode
+# off there are no .ready files and the counters stay 0.
+- sql: |
+    SELECT
+      archived_count::bigint AS archived_files,
+      failed_count::bigint AS failures,
+      (last_failed_time IS NOT NULL AND (last_archived_time IS NULL OR last_failed_time > last_archived_time))::int AS failing,
+      (SELECT count(*) FROM pg_ls_archive_statusdir() WHERE name LIKE '%.ready')::int AS ready_files
+    FROM pg_stat_archiver
+  metrics:
+    - {metric_name: postgresql.archiver.archived_file, value_column: archived_files, value_type: int, data_type: sum, monotonic: true, aggregation: cumulative, unit: '{file}', description: "pg_stat_archiver.archived_count: WAL files archived successfully"}
+    - {metric_name: postgresql.archiver.failure, value_column: failures, value_type: int, data_type: sum, monotonic: true, aggregation: cumulative, unit: '{failure}', description: "pg_stat_archiver.failed_count: failed archive attempts"}
+    - {metric_name: postgresql.archiver.failing, value_column: failing, value_type: int, data_type: gauge, unit: "1", description: "1 when the last failed archive attempt is newer than the last success"}
+    - {metric_name: postgresql.archiver.ready_file.count, value_column: ready_files, value_type: int, data_type: gauge, unit: '{file}', description: "WAL files waiting for the archiver (.ready files in pg_wal/archive_status)"}
