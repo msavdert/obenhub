@@ -156,7 +156,7 @@ processors:
       - {key: server.address, value: @NODE@, action: upsert}
       - {key: server.port, value: '5432', action: upsert}
       - {key: db.system.name, value: postgresql, action: upsert}
-      - {key: db.cluster.name, value: pgha, action: upsert}
+      - {key: obenhub.cluster.name, value: pgha, action: upsert}
   resource/patroni:
     attributes:
       - {key: service.namespace, value: obenhub-lab, action: upsert}
@@ -165,7 +165,7 @@ processors:
       - {key: server.address, value: @NODE@, action: upsert}
       - {key: server.port, value: '8008', action: upsert}
       - {key: db.system.name, value: postgresql, action: upsert}
-      - {key: db.cluster.name, value: pgha, action: upsert}
+      - {key: obenhub.cluster.name, value: pgha, action: upsert}
   # server.port is the member's client port (2379), as in stage 3; the scrape
   # itself goes to the loopback metrics listener.
   resource/etcd:
@@ -181,7 +181,7 @@ processors:
       - {key: service.namespace, value: obenhub-lab, action: upsert}
       - {key: service.name, value: host, action: upsert}
       - {key: service.instance.id, value: @NODE@, action: upsert}
-      - {key: db.cluster.name, value: pgha, action: upsert}
+      - {key: obenhub.cluster.name, value: pgha, action: upsert}
   # host.name from the OS; override false keeps the journal's own host.name
   resource_detection/system:
     detectors: [system]

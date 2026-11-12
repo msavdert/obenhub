@@ -181,7 +181,7 @@ config:
         - {key: server.address, from_attribute: k8s.pod.name, action: upsert}
         - {key: server.port, value: '5432', action: upsert}
         - {key: db.system.name, value: postgresql, action: upsert}
-        - {key: db.cluster.name, value: pg, action: upsert}
+        - {key: obenhub.cluster.name, value: pg, action: upsert}
     # As resource/postgresql, with the instance manager (which serves the
     # exporter) as the service. Not "cloudnative-pg": k8s_attributes already
     # gives the operator pod that name from its app.kubernetes.io/name label.
@@ -193,7 +193,7 @@ config:
         - {key: server.address, from_attribute: k8s.pod.name, action: upsert}
         - {key: server.port, value: '9187', action: upsert}
         - {key: db.system.name, value: postgresql, action: upsert}
-        - {key: db.cluster.name, value: pg, action: upsert}
+        - {key: obenhub.cluster.name, value: pg, action: upsert}
     # CloudNativePG logs {"logger":"postgres","msg":"record","record":{...}}.
     # Body: the server message; the attributes keep the names of the jsonlog
     # fields pgha collects.
@@ -212,7 +212,7 @@ config:
             - set(attributes["server.address"], attributes["k8s.pod.name"])
             - set(attributes["server.port"], "5432")
             - set(attributes["db.system.name"], "postgresql")
-            - set(attributes["db.cluster.name"], "pg")
+            - set(attributes["obenhub.cluster.name"], "pg")
         - context: log
           statements:
             - set(body, attributes["msg"]) where attributes["msg"] != nil

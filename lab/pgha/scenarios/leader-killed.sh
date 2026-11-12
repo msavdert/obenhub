@@ -14,8 +14,8 @@ set -uo pipefail
 # - HostRebooted:<old leader>: system.uptime < 300 on the old leader's host (lab/packs/host/rules.yml), whatever happens to leadership afterwards.
 # Not expected: PatroniNoWritablePrimary (for 90s; the write outage seen was about 16 s), the target-absent alerts and CollectorAbsent (windows of 1 to 2 m outlast a reset; same reasoning as network-partition.sh), the etcd alerts (etcd on the old leader's node stops with the VM; two of three members keep quorum, EtcdMemberAbsent has the same window).
 # Allowed, not expected (decided from the rule files, to be confirmed or removed by the first runs):
-# - PhysicalSlotInactive:<new leader>, outcome B only: the new leader keeps a slot for the old leader that is inactive until the old leader has rejoined (added in finalize).
-# - StandbyNotStreaming:<node> for the two other nodes, only outcome A: while the old leader is down both replicas stand without a WAL sender; the rule needs for 1m and another writable node in the lab (postgresql pack), which a long enough boot and crash recovery may satisfy. NOT allowed yet: added in finalize only when a smoke run shows it.
+# - PostgresPhysicalSlotInactive:<new leader>, outcome B only: the new leader keeps a slot for the old leader that is inactive until the old leader has rejoined (added in finalize).
+# - PostgresStandbyNotStreaming:<node> for the two other nodes, only outcome A: while the old leader is down both replicas stand without a WAL sender; the rule needs for 1m and another writable node in the lab (postgresql pack), which a long enough boot and crash recovery may satisfy. NOT allowed yet: added in finalize only when a smoke run shows it.
 EXPECT=()
 ALLOW=()
 OLD="" TL0="" FREEZE_PID="" FREEZE_EPOCH="" FREEZE_T=""
@@ -153,7 +153,7 @@ finalize() {
     if [ "$REB_SEEN" != 1 ]; then OUTCOME=""
     elif [ -z "$nl" ]; then OUTCOME=unknown
     elif [ "$nl" = "$OLD" ]; then OUTCOME=A
-    else OUTCOME=B; ALLOW+=("PhysicalSlotInactive:$nl"); fi
+    else OUTCOME=B; ALLOW+=("PostgresPhysicalSlotInactive:$nl"); fi
   fi
   # poller checks
   dual=$(jq -r '.dual_samples // empty' <<<"$summary" 2>/dev/null)

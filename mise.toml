@@ -119,6 +119,14 @@ diff -u lab/pgha/mon/vmalert/tests/collectors.yml "$t" || { echo "collectors.yml
 description = "unit-test the shared PostgreSQL pack rules (lab/packs/postgresql, vmalert-tool); needs docker"
 run = """docker run --rm -v "$PWD/lab:/lab:ro" victoriametrics/vmalert-tool:v1.155.0 unittest --files=/lab/packs/postgresql/tests/collector.yml,/lab/packs/postgresql/tests/replication.yml,/lab/packs/postgresql/tests/resources.yml,/lab/packs/postgresql/tests/signals.yml,/lab/packs/postgresql/tests/series-vanished.yml"""
 
+[tasks."lint:pack-names"]
+description = "pack metric names against ADR 0006: units, unit words, dotted attributes, no clash with postgresqlreceiver (no network)"
+run = "python3 scripts/check-pack-names.py"
+
+[tasks."docs:reference-check"]
+description = "fail when docs/reference/postgresql-pack-metrics.md differs from what gen-pack-metrics.py generates"
+run = "python3 scripts/gen-pack-metrics.py --check"
+
 [tasks.check]
 description = "all checks as CI runs them (needs docker for the compose, otelcol and rules tests, which pull images on first use)"
 depends = [
@@ -135,6 +143,8 @@ depends = [
   "lint:otelcol",
   "lab:guard-test",
   "lab:evidence",
+  "lint:pack-names",
+  "docs:reference-check",
   "lab:pack:rules-test",
   "lab:host:rules-test",
   "lab:rules-test",

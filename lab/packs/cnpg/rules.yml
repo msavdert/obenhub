@@ -4,9 +4,9 @@
 # postgresql.recovery.active (1 = in recovery), whatever manages the cluster.
 # Labels, read from VictoriaMetrics on the k8s lab on 2026-11-11: every
 # postgresql.recovery.active series carries service.instance.id (the pod name,
-# pg-1...), k8s.namespace.name, db.cluster.name (the Cluster's name, pg) and
-# k8s.pod.*, so a cluster is identified by (k8s.namespace.name, db.cluster.name).
-# Pack metric names are provisional until the naming contract (ADR 0002).
+# pg-1...), k8s.namespace.name, obenhub.cluster.name (the Cluster's name, pg) and
+# k8s.pod.*, so a cluster is identified by (k8s.namespace.name, obenhub.cluster.name).
+# Names follow the naming contract (ADR 0006).
 groups:
   - name: cnpg
     interval: 15s
@@ -31,15 +31,15 @@ groups:
       # Lab scenario: lab/k8s/scenarios/switchover.sh, primary-deleted.sh.
       - alert: CNPGPrimaryChanged
         expr: |
-          max by (k8s.namespace.name, db.cluster.name) (
+          max by (k8s.namespace.name, obenhub.cluster.name) (
             (last_over_time(postgresql.recovery.active[1m]) == 0)
-              and on(service.instance.id, k8s.namespace.name, db.cluster.name)
+              and on(service.instance.id, k8s.namespace.name, obenhub.cluster.name)
             (max_over_time(postgresql.recovery.active[3m]) == 1)
           )
         labels:
           severity: warning
         annotations:
-          summary: 'A replica of cluster {{ (index $labels "db.cluster.name") }} ({{ (index $labels "k8s.namespace.name") }}) was promoted'
+          summary: 'A replica of cluster {{ (index $labels "obenhub.cluster.name") }} ({{ (index $labels "k8s.namespace.name") }}) was promoted'
 
       # An instance whose exporter reports cnpg_collector_fencing_on == 1 for a
       # minute: the instance is fenced (annotation cnpg.io/fencedInstances on
@@ -53,10 +53,10 @@ groups:
       # by PostgreSQL), cnpg_collector_fencing_on goes 0 -> 1 about 20 s after
       # the annotation, with cnpg_last_error 1 (the collection fails) and
       # cnpg_collector_up 1. The series carries service.instance.id (pod name),
-      # k8s.namespace.name and db.cluster.name, and is 0 on every healthy
+      # k8s.namespace.name and obenhub.cluster.name, and is 0 on every healthy
       # instance. All the pack's postgresql.* series of the fenced pod stop,
       # postgresql.collection.heartbeat included (it is a SELECT 1): so
-      # SeriesVanished, which needs the heartbeat, stays quiet, and
+      # PostgresSeriesVanished, which needs the heartbeat, stays quiet, and
       # PostgresTargetAbsent is inert on this lab (lab/k8s sets no
       # obenhub.expected_target). This alert is what reports the fence.
       # Quiet when the pod is gone (no sample) and for a fence shorter than
@@ -70,4 +70,4 @@ groups:
         labels:
           severity: warning
         annotations:
-          summary: 'Instance {{ (index $labels "service.instance.id") }} of cluster {{ (index $labels "db.cluster.name") }} ({{ (index $labels "k8s.namespace.name") }}) is fenced'
+          summary: 'Instance {{ (index $labels "service.instance.id") }} of cluster {{ (index $labels "obenhub.cluster.name") }} ({{ (index $labels "k8s.namespace.name") }}) is fenced'

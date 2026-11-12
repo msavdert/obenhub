@@ -17,6 +17,10 @@ nav = [
     "adr/0003-receiver-strategy.md",
     "adr/0004-licence-policy.md",
     "adr/0005-lab-collection-topology-and-packs.md",
+    "adr/0006-naming-contract.md",
+  ] },
+  { "Reference" = [
+    "reference/postgresql-pack-metrics.md",
   ] },
   { "Roadmap" = "roadmap.md" },
   { "Changelog" = "changelog.md" },

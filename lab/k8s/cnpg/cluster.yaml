@@ -29,7 +29,7 @@ spec:
   # consume WAL would keep growing the volume. local-path does not enforce the
   # 1Gi claim (df in the pod shows the host disk), so nothing else stops it.
   # With 1GB the slot is invalidated instead. sighup: a reload, no restart.
-  # The alert threshold (ReplicationSlotRetainingWAL in lab/packs/postgresql)
+  # The alert threshold (PostgresReplicationSlotRetainingWAL in lab/packs/postgresql)
   # sits well below it.
   postgresql:
     parameters:

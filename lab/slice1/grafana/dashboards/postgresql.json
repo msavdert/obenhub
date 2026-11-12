@@ -465,7 +465,7 @@
             "type": "victoriametrics-metrics-datasource",
             "uid": "vm"
           },
-          "expr": "postgresql.connection.client{service.instance.id=\"$instance\"}",
+          "expr": "postgresql.client_connection.count{service.instance.id=\"$instance\"}",
           "refId": "A",
           "range": true,
           "instant": false,
@@ -476,7 +476,7 @@
             "type": "victoriametrics-metrics-datasource",
             "uid": "vm"
           },
-          "expr": "postgresql.connection.client_capacity{service.instance.id=\"$instance\"}",
+          "expr": "postgresql.client_connection.limit{service.instance.id=\"$instance\"}",
           "refId": "B",
           "range": true,
           "instant": false,
@@ -487,7 +487,7 @@
             "type": "victoriametrics-metrics-datasource",
             "uid": "vm"
           },
-          "expr": "0.85 * postgresql.connection.client_capacity{service.instance.id=\"$instance\"}",
+          "expr": "0.85 * postgresql.client_connection.limit{service.instance.id=\"$instance\"}",
           "refId": "C",
           "range": true,
           "instant": false,
@@ -596,22 +596,22 @@
             "type": "victoriametrics-metrics-datasource",
             "uid": "vm"
           },
-          "expr": "postgresql.replication_slot.retained_bytes",
+          "expr": "postgresql.replication_slot.retained_wal",
           "refId": "A",
           "range": true,
           "instant": false,
-          "legendFormat": "{{service.instance.id}} {{slot_name}} retained"
+          "legendFormat": "{{service.instance.id}} {{postgresql.replication_slot.name}} retained"
         },
         {
           "datasource": {
             "type": "victoriametrics-metrics-datasource",
             "uid": "vm"
           },
-          "expr": "postgresql.replication_slot.unconfirmed_bytes{slot_type=\"logical\"}",
+          "expr": "postgresql.replication_slot.unconfirmed_wal{postgresql.replication_slot.type=\"logical\"}",
           "refId": "B",
           "range": true,
           "instant": false,
-          "legendFormat": "{{service.instance.id}} {{slot_name}} unconfirmed"
+          "legendFormat": "{{service.instance.id}} {{postgresql.replication_slot.name}} unconfirmed"
         },
         {
           "datasource": {
@@ -622,7 +622,7 @@
           "refId": "C",
           "range": true,
           "instant": false,
-          "legendFormat": "LogicalSlotRetainingWal bytes threshold"
+          "legendFormat": "PostgresLogicalSlotStalled bytes threshold"
         }
       ],
       "fieldConfig": {
@@ -645,7 +645,7 @@
           "mode": "multi"
         }
       },
-      "description": "retained_bytes is current LSN minus restart_lsn; unconfirmed_bytes (logical slots) is current LSN minus confirmed_flush_lsn. All nodes, not filtered by the instance variable."
+      "description": "retained_wal is current LSN minus restart_lsn; unconfirmed_wal (logical slots) is current LSN minus confirmed_flush_lsn. All nodes, not filtered by the instance variable."
     },
     {
       "id": 12,
@@ -671,18 +671,18 @@
           "refId": "A",
           "range": true,
           "instant": false,
-          "legendFormat": "{{service.instance.id}} {{slot_name}} active"
+          "legendFormat": "{{service.instance.id}} {{postgresql.replication_slot.name}} active"
         },
         {
           "datasource": {
             "type": "victoriametrics-metrics-datasource",
             "uid": "vm"
           },
-          "expr": "postgresql.replication_slot.inactive_seconds",
+          "expr": "postgresql.replication_slot.inactive_age",
           "refId": "B",
           "range": true,
           "instant": false,
-          "legendFormat": "{{service.instance.id}} {{slot_name}} inactive seconds"
+          "legendFormat": "{{service.instance.id}} {{postgresql.replication_slot.name}} inactive seconds"
         },
         {
           "datasource": {
@@ -693,7 +693,7 @@
           "refId": "C",
           "range": true,
           "instant": false,
-          "legendFormat": "LogicalSlotRetainingWal inactive threshold (s)"
+          "legendFormat": "PostgresLogicalSlotStalled inactive threshold (s)"
         }
       ],
       "fieldConfig": {
@@ -716,7 +716,7 @@
           "mode": "multi"
         }
       },
-      "description": "active is 1 while a process streams from the slot; inactive_seconds counts from pg_replication_slots.inactive_since. The standby slot standby1 is physical and not covered by the alert."
+      "description": "active is 1 while a process streams from the slot; postgresql.replication_slot.inactive_age counts from pg_replication_slots.inactive_since. The standby slot standby1 is physical and not covered by the alert."
     },
     {
       "id": 13,
@@ -742,7 +742,7 @@
           "refId": "A",
           "range": true,
           "instant": false,
-          "legendFormat": "{{subscription_name}} enabled"
+          "legendFormat": "{{postgresql.subscription.name}} enabled"
         },
         {
           "datasource": {
@@ -753,7 +753,7 @@
           "refId": "B",
           "range": true,
           "instant": false,
-          "legendFormat": "{{subscription_name}} apply worker running"
+          "legendFormat": "{{postgresql.subscription.name}} apply worker running"
         }
       ],
       "fieldConfig": {
@@ -802,7 +802,7 @@
           "refId": "A",
           "range": true,
           "instant": false,
-          "legendFormat": "{{subscription_name}} seconds since last message"
+          "legendFormat": "{{postgresql.subscription.name}} seconds since last message"
         },
         {
           "datasource": {
@@ -813,7 +813,7 @@
           "refId": "B",
           "range": true,
           "instant": false,
-          "legendFormat": "LogicalSubscriptionNotStreaming threshold (s)"
+          "legendFormat": "PostgresLogicalSubscriptionNotStreaming threshold (s)"
         }
       ],
       "fieldConfig": {
@@ -858,33 +858,33 @@
             "type": "victoriametrics-metrics-datasource",
             "uid": "vm"
           },
-          "expr": "postgresql.subscription.apply_errors",
+          "expr": "postgresql.subscription.apply_error",
           "refId": "A",
           "range": true,
           "instant": false,
-          "legendFormat": "{{subscription_name}} apply errors"
+          "legendFormat": "{{postgresql.subscription.name}} apply errors"
         },
         {
           "datasource": {
             "type": "victoriametrics-metrics-datasource",
             "uid": "vm"
           },
-          "expr": "postgresql.subscription.sync_errors",
+          "expr": "postgresql.subscription.sync_error",
           "refId": "B",
           "range": true,
           "instant": false,
-          "legendFormat": "{{subscription_name}} sync errors"
+          "legendFormat": "{{postgresql.subscription.name}} sync errors"
         },
         {
           "datasource": {
             "type": "victoriametrics-metrics-datasource",
             "uid": "vm"
           },
-          "expr": "sum by (subscription_name, conflict_type) (postgresql.subscription.conflicts) > 0",
+          "expr": "sum by (postgresql.subscription.name, postgresql.conflict.type) (postgresql.subscription.conflict) > 0",
           "refId": "C",
           "range": true,
           "instant": false,
-          "legendFormat": "{{subscription_name}} conflicts {{conflict_type}}"
+          "legendFormat": "{{postgresql.subscription.name}} conflicts {{postgresql.conflict.type}}"
         }
       ],
       "fieldConfig": {
@@ -929,22 +929,22 @@
             "type": "victoriametrics-metrics-datasource",
             "uid": "vm"
           },
-          "expr": "pgbouncer.pool.clients_active",
+          "expr": "pgbouncer.pool.active_client.count",
           "refId": "A",
           "range": true,
           "instant": false,
-          "legendFormat": "{{database}}/{{user}} active"
+          "legendFormat": "{{pgbouncer.database.name}}/{{user.name}} active"
         },
         {
           "datasource": {
             "type": "victoriametrics-metrics-datasource",
             "uid": "vm"
           },
-          "expr": "pgbouncer.pool.clients_waiting",
+          "expr": "pgbouncer.pool.waiting_client.count",
           "refId": "B",
           "range": true,
           "instant": false,
-          "legendFormat": "{{database}}/{{user}} waiting"
+          "legendFormat": "{{pgbouncer.database.name}}/{{user.name}} waiting"
         }
       ],
       "fieldConfig": {
@@ -989,44 +989,44 @@
             "type": "victoriametrics-metrics-datasource",
             "uid": "vm"
           },
-          "expr": "pgbouncer.pool.servers_active",
+          "expr": "pgbouncer.pool.active_server.count",
           "refId": "A",
           "range": true,
           "instant": false,
-          "legendFormat": "{{database}}/{{user}} active"
+          "legendFormat": "{{pgbouncer.database.name}}/{{user.name}} active"
         },
         {
           "datasource": {
             "type": "victoriametrics-metrics-datasource",
             "uid": "vm"
           },
-          "expr": "pgbouncer.pool.servers_idle",
+          "expr": "pgbouncer.pool.idle_server.count",
           "refId": "B",
           "range": true,
           "instant": false,
-          "legendFormat": "{{database}}/{{user}} idle"
+          "legendFormat": "{{pgbouncer.database.name}}/{{user.name}} idle"
         },
         {
           "datasource": {
             "type": "victoriametrics-metrics-datasource",
             "uid": "vm"
           },
-          "expr": "pgbouncer.pool.servers_used",
+          "expr": "pgbouncer.pool.used_server.count",
           "refId": "C",
           "range": true,
           "instant": false,
-          "legendFormat": "{{database}}/{{user}} used"
+          "legendFormat": "{{pgbouncer.database.name}}/{{user.name}} used"
         },
         {
           "datasource": {
             "type": "victoriametrics-metrics-datasource",
             "uid": "vm"
           },
-          "expr": "pgbouncer.database.pool_size",
+          "expr": "pgbouncer.database.server_connection.limit",
           "refId": "D",
           "range": true,
           "instant": false,
-          "legendFormat": "pool_size {{name}}"
+          "legendFormat": "pool_size {{pgbouncer.database.name}}"
         }
       ],
       "fieldConfig": {
@@ -1071,11 +1071,11 @@
             "type": "victoriametrics-metrics-datasource",
             "uid": "vm"
           },
-          "expr": "pgbouncer.pool.maxwait + pgbouncer.pool.maxwait_us / 1e6",
+          "expr": "pgbouncer.pool.oldest_wait_age + pgbouncer.pool.oldest_wait_subsecond_age",
           "refId": "A",
           "range": true,
           "instant": false,
-          "legendFormat": "{{database}}/{{user}} maxwait"
+          "legendFormat": "{{pgbouncer.database.name}}/{{user.name}} oldest wait"
         },
         {
           "datasource": {
@@ -1109,7 +1109,7 @@
           "mode": "multi"
         }
       },
-      "description": "SHOW POOLS maxwait plus maxwait_us. PgbouncerClientsWaiting fires above 5 s for 1 m."
+      "description": "SHOW POOLS maxwait plus maxwait_us (pgbouncer.pool.oldest_wait_age plus pgbouncer.pool.oldest_wait_subsecond_age, both in seconds). PgbouncerClientsWaiting fires above 5 s for 1 m."
     },
     {
       "id": 19,
@@ -1131,7 +1131,7 @@
             "type": "victoriametrics-metrics-datasource",
             "uid": "vm"
           },
-          "expr": "pgbouncer.list.items{list=\"used_clients\"}",
+          "expr": "pgbouncer.list.item.count{pgbouncer.list.name=\"used_clients\"}",
           "refId": "A",
           "range": true,
           "instant": false,
@@ -1142,7 +1142,7 @@
             "type": "victoriametrics-metrics-datasource",
             "uid": "vm"
           },
-          "expr": "pgbouncer.config.max_client_conn",
+          "expr": "pgbouncer.client_connection.limit",
           "refId": "B",
           "range": true,
           "instant": false,
@@ -1191,22 +1191,22 @@
             "type": "victoriametrics-metrics-datasource",
             "uid": "vm"
           },
-          "expr": "rate(pgbouncer.stats.wait_time{database!=\"pgbouncer\"}[$__rate_interval]) / rate(pgbouncer.stats.server_assignments{database!=\"pgbouncer\"}[$__rate_interval]) / 1e6",
+          "expr": "rate(pgbouncer.stats.wait_time{pgbouncer.database.name!=\"pgbouncer\"}[$__rate_interval]) / rate(pgbouncer.stats.server_assignment{pgbouncer.database.name!=\"pgbouncer\"}[$__rate_interval])",
           "refId": "A",
           "range": true,
           "instant": false,
-          "legendFormat": "{{database}} wait per server assignment"
+          "legendFormat": "{{pgbouncer.database.name}} wait per server assignment"
         },
         {
           "datasource": {
             "type": "victoriametrics-metrics-datasource",
             "uid": "vm"
           },
-          "expr": "rate(pgbouncer.stats.query_time{database!=\"pgbouncer\"}[$__rate_interval]) / rate(pgbouncer.stats.queries{database!=\"pgbouncer\"}[$__rate_interval]) / 1e6",
+          "expr": "rate(pgbouncer.stats.query_time{pgbouncer.database.name!=\"pgbouncer\"}[$__rate_interval]) / rate(pgbouncer.stats.query{pgbouncer.database.name!=\"pgbouncer\"}[$__rate_interval])",
           "refId": "B",
           "range": true,
           "instant": false,
-          "legendFormat": "{{database}} query time"
+          "legendFormat": "{{pgbouncer.database.name}} query time"
         }
       ],
       "fieldConfig": {

@@ -10,11 +10,11 @@ tests:
   - name: a promotion fires once, per cluster, and resolves after the window
     interval: 15s
     input_series:
-      - series: 'postgresql.recovery.active{k8s.namespace.name="obenhub",db.cluster.name="pg",service.instance.id="pg-1"}'
+      - series: 'postgresql.recovery.active{k8s.namespace.name="obenhub",obenhub.cluster.name="pg",service.instance.id="pg-1"}'
         values: '0x20 1x50'
-      - series: 'postgresql.recovery.active{k8s.namespace.name="obenhub",db.cluster.name="pg",service.instance.id="pg-2"}'
+      - series: 'postgresql.recovery.active{k8s.namespace.name="obenhub",obenhub.cluster.name="pg",service.instance.id="pg-2"}'
         values: '1x20 0x50'
-      - series: 'postgresql.recovery.active{k8s.namespace.name="obenhub",db.cluster.name="pg",service.instance.id="pg-3"}'
+      - series: 'postgresql.recovery.active{k8s.namespace.name="obenhub",obenhub.cluster.name="pg",service.instance.id="pg-3"}'
         values: '1x70'
     alert_rule_test:
       - eval_time: 4m30s   # still the first primary
@@ -25,14 +25,14 @@ tests:
         groupname: cnpg
         alertname: CNPGPrimaryChanged
         exp_alerts:
-          - exp_labels: {severity: warning, k8s.namespace.name: obenhub, db.cluster.name: pg}
+          - exp_labels: {severity: warning, k8s.namespace.name: obenhub, obenhub.cluster.name: pg}
             exp_annotations:
               summary: A replica of cluster pg (obenhub) was promoted
       - eval_time: 7m30s   # 2m30s after the last 1 sample (5m), inside the window
         groupname: cnpg
         alertname: CNPGPrimaryChanged
         exp_alerts:
-          - exp_labels: {severity: warning, k8s.namespace.name: obenhub, db.cluster.name: pg}
+          - exp_labels: {severity: warning, k8s.namespace.name: obenhub, obenhub.cluster.name: pg}
             exp_annotations:
               summary: A replica of cluster pg (obenhub) was promoted
       - eval_time: 8m30s   # the 1 at 5m has left the 3m window
@@ -43,11 +43,11 @@ tests:
   - name: a steady primary is silent
     interval: 15s
     input_series:
-      - series: 'postgresql.recovery.active{k8s.namespace.name="obenhub",db.cluster.name="pg",service.instance.id="pg-1"}'
+      - series: 'postgresql.recovery.active{k8s.namespace.name="obenhub",obenhub.cluster.name="pg",service.instance.id="pg-1"}'
         values: '0x60'
-      - series: 'postgresql.recovery.active{k8s.namespace.name="obenhub",db.cluster.name="pg",service.instance.id="pg-2"}'
+      - series: 'postgresql.recovery.active{k8s.namespace.name="obenhub",obenhub.cluster.name="pg",service.instance.id="pg-2"}'
         values: '1x60'
-      - series: 'postgresql.recovery.active{k8s.namespace.name="obenhub",db.cluster.name="pg",service.instance.id="pg-3"}'
+      - series: 'postgresql.recovery.active{k8s.namespace.name="obenhub",obenhub.cluster.name="pg",service.instance.id="pg-3"}'
         values: '1x60'
     alert_rule_test:
       - eval_time: 10m
@@ -63,9 +63,9 @@ tests:
     interval: 15s
     input_series:
       # pg-1 was primary, disappears (deleted pod) and returns in recovery
-      - series: 'postgresql.recovery.active{k8s.namespace.name="obenhub",db.cluster.name="pg",service.instance.id="pg-1"}'
+      - series: 'postgresql.recovery.active{k8s.namespace.name="obenhub",obenhub.cluster.name="pg",service.instance.id="pg-1"}'
         values: '0x20 _x20 1x20'
-      - series: 'postgresql.recovery.active{k8s.namespace.name="obenhub",db.cluster.name="pg",service.instance.id="pg-2"}'
+      - series: 'postgresql.recovery.active{k8s.namespace.name="obenhub",obenhub.cluster.name="pg",service.instance.id="pg-2"}'
         values: '1x60'
     alert_rule_test:
       - eval_time: 7m   # pg-1 absent
@@ -80,9 +80,9 @@ tests:
   - name: an instance that restarts as primary without having been a replica is silent
     interval: 15s
     input_series:
-      - series: 'postgresql.recovery.active{k8s.namespace.name="obenhub",db.cluster.name="pg",service.instance.id="pg-1"}'
+      - series: 'postgresql.recovery.active{k8s.namespace.name="obenhub",obenhub.cluster.name="pg",service.instance.id="pg-1"}'
         values: '0x20 _x10 0x30'
-      - series: 'postgresql.recovery.active{k8s.namespace.name="obenhub",db.cluster.name="pg",service.instance.id="pg-2"}'
+      - series: 'postgresql.recovery.active{k8s.namespace.name="obenhub",obenhub.cluster.name="pg",service.instance.id="pg-2"}'
         values: '1x60'
     alert_rule_test:
       - eval_time: 12m
@@ -93,20 +93,20 @@ tests:
   - name: two clusters are told apart by namespace and name
     interval: 15s
     input_series:
-      - series: 'postgresql.recovery.active{k8s.namespace.name="obenhub",db.cluster.name="pg",service.instance.id="pg-1"}'
+      - series: 'postgresql.recovery.active{k8s.namespace.name="obenhub",obenhub.cluster.name="pg",service.instance.id="pg-1"}'
         values: '0x60'
-      - series: 'postgresql.recovery.active{k8s.namespace.name="obenhub",db.cluster.name="pg",service.instance.id="pg-2"}'
+      - series: 'postgresql.recovery.active{k8s.namespace.name="obenhub",obenhub.cluster.name="pg",service.instance.id="pg-2"}'
         values: '1x60'
-      - series: 'postgresql.recovery.active{k8s.namespace.name="other",db.cluster.name="pg",service.instance.id="pg-1"}'
+      - series: 'postgresql.recovery.active{k8s.namespace.name="other",obenhub.cluster.name="pg",service.instance.id="pg-1"}'
         values: '1x20 0x40'
-      - series: 'postgresql.recovery.active{k8s.namespace.name="other",db.cluster.name="pg",service.instance.id="pg-2"}'
+      - series: 'postgresql.recovery.active{k8s.namespace.name="other",obenhub.cluster.name="pg",service.instance.id="pg-2"}'
         values: '0x20 1x40'
     alert_rule_test:
       - eval_time: 6m
         groupname: cnpg
         alertname: CNPGPrimaryChanged
         exp_alerts:
-          - exp_labels: {severity: warning, k8s.namespace.name: other, db.cluster.name: pg}
+          - exp_labels: {severity: warning, k8s.namespace.name: other, obenhub.cluster.name: pg}
             exp_annotations:
               summary: A replica of cluster pg (other) was promoted
 
@@ -114,18 +114,18 @@ tests:
     interval: 15s
     input_series:
       # pg-2 is the primary and is deleted at 5m; its new pod (new uid) is a replica
-      - series: 'postgresql.recovery.active{k8s.namespace.name="obenhub",db.cluster.name="pg",service.instance.id="pg-2",k8s.pod.uid="old"}'
+      - series: 'postgresql.recovery.active{k8s.namespace.name="obenhub",obenhub.cluster.name="pg",service.instance.id="pg-2",k8s.pod.uid="old"}'
         values: '0x20 _x60'
-      - series: 'postgresql.recovery.active{k8s.namespace.name="obenhub",db.cluster.name="pg",service.instance.id="pg-2",k8s.pod.uid="new"}'
+      - series: 'postgresql.recovery.active{k8s.namespace.name="obenhub",obenhub.cluster.name="pg",service.instance.id="pg-2",k8s.pod.uid="new"}'
         values: '_x24 1x56'
-      - series: 'postgresql.recovery.active{k8s.namespace.name="obenhub",db.cluster.name="pg",service.instance.id="pg-1"}'
+      - series: 'postgresql.recovery.active{k8s.namespace.name="obenhub",obenhub.cluster.name="pg",service.instance.id="pg-1"}'
         values: '1x21 0x59'
     alert_rule_test:
       - eval_time: 6m
         groupname: cnpg
         alertname: CNPGPrimaryChanged
         exp_alerts:
-          - exp_labels: {severity: warning, k8s.namespace.name: obenhub, db.cluster.name: pg}
+          - exp_labels: {severity: warning, k8s.namespace.name: obenhub, obenhub.cluster.name: pg}
             exp_annotations:
               summary: A replica of cluster pg (obenhub) was promoted
       - eval_time: 8m30s   # 3m30s after pg-1's last 1; the old pod's last 0 (5m) is 3m30s old
@@ -139,9 +139,9 @@ tests:
   - name: a fenced instance fires after the hold, only for that instance, and resolves when unfenced
     interval: 15s
     input_series:
-      - series: 'cnpg_collector_fencing_on{k8s.namespace.name="obenhub",db.cluster.name="pg",service.instance.id="pg-3"}'
+      - series: 'cnpg_collector_fencing_on{k8s.namespace.name="obenhub",obenhub.cluster.name="pg",service.instance.id="pg-3"}'
         values: '0x8 1x16 0x40'
-      - series: 'cnpg_collector_fencing_on{k8s.namespace.name="obenhub",db.cluster.name="pg",service.instance.id="pg-2"}'
+      - series: 'cnpg_collector_fencing_on{k8s.namespace.name="obenhub",obenhub.cluster.name="pg",service.instance.id="pg-2"}'
         values: '0x64'
     alert_rule_test:
       - eval_time: 2m30s   # fenced since 2m, 30 s into the 1m hold
@@ -152,7 +152,7 @@ tests:
         groupname: cnpg
         alertname: CNPGInstanceFenced
         exp_alerts:
-          - exp_labels: {severity: warning, k8s.namespace.name: obenhub, db.cluster.name: pg, service.instance.id: pg-3}
+          - exp_labels: {severity: warning, k8s.namespace.name: obenhub, obenhub.cluster.name: pg, service.instance.id: pg-3}
             exp_annotations:
               summary: Instance pg-3 of cluster pg (obenhub) is fenced
       - eval_time: 7m   # unfenced at 6m
@@ -164,12 +164,12 @@ tests:
     interval: 15s
     input_series:
       # fenced for 45 s only
-      - series: 'cnpg_collector_fencing_on{k8s.namespace.name="obenhub",db.cluster.name="pg",service.instance.id="pg-3"}'
+      - series: 'cnpg_collector_fencing_on{k8s.namespace.name="obenhub",obenhub.cluster.name="pg",service.instance.id="pg-3"}'
         values: '0x8 1x3 0x50'
-      - series: 'cnpg_collector_fencing_on{k8s.namespace.name="obenhub",db.cluster.name="pg",service.instance.id="pg-2"}'
+      - series: 'cnpg_collector_fencing_on{k8s.namespace.name="obenhub",obenhub.cluster.name="pg",service.instance.id="pg-2"}'
         values: '0x60'
       # pod deleted while fenced: the series ends, nothing keeps the alert alive
-      - series: 'cnpg_collector_fencing_on{k8s.namespace.name="obenhub",db.cluster.name="pg",service.instance.id="pg-1"}'
+      - series: 'cnpg_collector_fencing_on{k8s.namespace.name="obenhub",obenhub.cluster.name="pg",service.instance.id="pg-1"}'
         values: '0x8 1x2 _x50'
     alert_rule_test:
       - eval_time: 3m

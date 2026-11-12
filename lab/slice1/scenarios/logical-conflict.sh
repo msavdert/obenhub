@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# Scenario logical-conflict: insert a row on the subscriber, then the same key on the publisher (insert_exists, the apply worker fails and retries every 5 s); expect LogicalApplyErrors for pg-subscriber only. Neither LogicalSubscriptionNotStreaming (suppressed in the rule while errors rise) nor LogicalSlotRetainingWal (the walsender restarts every 5 s, so the slot is never inactive for 3 m, and a few rows are far below 128 MiB) may fire: any other delivered alert fails the run.
+# Scenario logical-conflict: insert a row on the subscriber, then the same key on the publisher (insert_exists, the apply worker fails and retries every 5 s); expect PostgresLogicalApplyErrors for pg-subscriber only. Neither PostgresLogicalSubscriptionNotStreaming (suppressed in the rule while errors rise) nor PostgresLogicalSlotStalled (the walsender restarts every 5 s, so the slot is never inactive for 3 m, and a few rows are far below 128 MiB) may fire: any other delivered alert fails the run.
 # shellcheck disable=SC1091,SC2034
 set -uo pipefail
 . "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 
-EXPECT=("LogicalApplyErrors:pg-subscriber")
+EXPECT=("PostgresLogicalApplyErrors:pg-subscriber")
 KEY=900001
 INSERTED=0
 inject() {

@@ -148,7 +148,7 @@ def inventory_alert(severity, service, node, summary):
         ("service.name", service),
     ]
     if service != "etcd":
-        labels.append(("db.cluster.name", "pgha"))
+        labels.append(("obenhub.cluster.name", "pgha"))
     labels += [
         ("service.instance.id", f"pgha-{node}"),
         ("obenhub.collector", f"otelcol-pgha-{node}"),

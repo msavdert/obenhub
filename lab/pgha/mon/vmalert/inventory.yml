@@ -26,9 +26,9 @@ groups:
       - record: obenhub.expected_target
         expr: |
           union(
-            label_set(vector(1), "service.namespace", "obenhub-lab", "service.name", "postgresql", "db.cluster.name", "pgha", "service.instance.id", "pgha-1", "obenhub.collector", "otelcol-pgha-1"),
-            label_set(vector(1), "service.namespace", "obenhub-lab", "service.name", "postgresql", "db.cluster.name", "pgha", "service.instance.id", "pgha-2", "obenhub.collector", "otelcol-pgha-2"),
-            label_set(vector(1), "service.namespace", "obenhub-lab", "service.name", "postgresql", "db.cluster.name", "pgha", "service.instance.id", "pgha-3", "obenhub.collector", "otelcol-pgha-3")
+            label_set(vector(1), "service.namespace", "obenhub-lab", "service.name", "postgresql", "obenhub.cluster.name", "pgha", "service.instance.id", "pgha-1", "obenhub.collector", "otelcol-pgha-1"),
+            label_set(vector(1), "service.namespace", "obenhub-lab", "service.name", "postgresql", "obenhub.cluster.name", "pgha", "service.instance.id", "pgha-2", "obenhub.collector", "otelcol-pgha-2"),
+            label_set(vector(1), "service.namespace", "obenhub-lab", "service.name", "postgresql", "obenhub.cluster.name", "pgha", "service.instance.id", "pgha-3", "obenhub.collector", "otelcol-pgha-3")
           )
 
   - name: patroni-inventory
@@ -37,9 +37,9 @@ groups:
       - record: obenhub.expected_scrape
         expr: |
           union(
-            label_set(vector(1), "service.namespace", "obenhub-lab", "service.name", "patroni", "db.cluster.name", "pgha", "service.instance.id", "pgha-1", "obenhub.collector", "otelcol-pgha-1"),
-            label_set(vector(1), "service.namespace", "obenhub-lab", "service.name", "patroni", "db.cluster.name", "pgha", "service.instance.id", "pgha-2", "obenhub.collector", "otelcol-pgha-2"),
-            label_set(vector(1), "service.namespace", "obenhub-lab", "service.name", "patroni", "db.cluster.name", "pgha", "service.instance.id", "pgha-3", "obenhub.collector", "otelcol-pgha-3")
+            label_set(vector(1), "service.namespace", "obenhub-lab", "service.name", "patroni", "obenhub.cluster.name", "pgha", "service.instance.id", "pgha-1", "obenhub.collector", "otelcol-pgha-1"),
+            label_set(vector(1), "service.namespace", "obenhub-lab", "service.name", "patroni", "obenhub.cluster.name", "pgha", "service.instance.id", "pgha-2", "obenhub.collector", "otelcol-pgha-2"),
+            label_set(vector(1), "service.namespace", "obenhub-lab", "service.name", "patroni", "obenhub.cluster.name", "pgha", "service.instance.id", "pgha-3", "obenhub.collector", "otelcol-pgha-3")
           )
 
   - name: etcd-inventory

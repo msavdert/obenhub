@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# Scenario deadlock: two sessions update two rows of a scratch table in database postgres in opposite order; PostgreSQL aborts one after deadlock_timeout. Expect Deadlocks for pg-primary (the Collector reads postgresql.deadlocks only for the databases it is configured with, which is postgres). The alert covers a 5 minute window, so it resolves about 5 minutes after the deadlock.
+# Scenario deadlock: two sessions update two rows of a scratch table in database postgres in opposite order; PostgreSQL aborts one after deadlock_timeout. Expect PostgresDeadlocks for pg-primary (the Collector reads postgresql.deadlocks only for the databases it is configured with, which is postgres). The alert covers a 5 minute window, so it resolves about 5 minutes after the deadlock.
 # shellcheck disable=SC1091,SC2034
 set -uo pipefail
 . "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 
-EXPECT=("Deadlocks:pg-primary")
+EXPECT=("PostgresDeadlocks:pg-primary")
 inject() {
   local before after
   psql_p -c "DROP TABLE IF EXISTS obenhub_deadlock_scratch; CREATE TABLE obenhub_deadlock_scratch AS SELECT g AS id, 0 AS v FROM generate_series(1, 2) g" >/dev/null || return 1

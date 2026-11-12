@@ -61,7 +61,7 @@ receivers:
     queries:
       - sql: SELECT 1 AS collection_heartbeat
         metrics:
-          - {metric_name: postgresql.collection.heartbeat, value_column: collection_heartbeat, value_type: int, data_type: gauge, description: "1 whenever the heartbeat query succeeded"}
+          - {metric_name: postgresql.collection.heartbeat, value_column: collection_heartbeat, value_type: int, data_type: gauge, unit: "1", description: "1 whenever the heartbeat query succeeded"}
       - sql: |
           SELECT
             CASE WHEN pg_is_in_recovery() THEN 1 ELSE 0 END AS recovery_active,
@@ -73,10 +73,10 @@ receivers:
                   THEN (pg_get_wal_replay_pause_state() <> 'not paused')::int
                   ELSE 0 END AS replay_paused
         metrics:
-          - {metric_name: postgresql.recovery.active, value_column: recovery_active, value_type: int, data_type: gauge, description: "1 when the server is in recovery"}
-          - {metric_name: postgresql.wal_receiver.streaming, value_column: wal_receiver_streaming, value_type: int, data_type: gauge, description: "1 when a WAL receiver is streaming (always 0 on a primary)"}
+          - {metric_name: postgresql.recovery.active, value_column: recovery_active, value_type: int, data_type: gauge, unit: "1", description: "1 when the server is in recovery"}
+          - {metric_name: postgresql.wal_receiver.streaming, value_column: wal_receiver_streaming, value_type: int, data_type: gauge, unit: "1", description: "1 when a WAL receiver is streaming (always 0 on a primary)"}
           - {metric_name: postgresql.replay.backlog, value_column: replay_backlog, value_type: double, data_type: gauge, unit: By, description: "Received but not yet replayed WAL"}
-          - {metric_name: postgresql.replay.paused, value_column: replay_paused, value_type: int, data_type: gauge, description: "1 when WAL replay is paused"}
+          - {metric_name: postgresql.replay.paused, value_column: replay_paused, value_type: int, data_type: gauge, unit: "1", description: "1 when WAL replay is paused"}
       - sql: |
           SELECT
             coalesce((SELECT max(extract(epoch FROM clock_timestamp() - xact_start))
@@ -84,14 +84,14 @@ receivers:
                         WHERE (backend_xmin IS NOT NULL OR backend_xid IS NOT NULL)
                           AND backend_type = 'client backend'
                           AND pid <> pg_backend_pid()), 0)::float8 AS snapshot_oldest_age,
-            (SELECT count(*) FROM pg_stat_activity WHERE backend_type = 'client backend')::int AS connection_client,
+            (SELECT count(*) FROM pg_stat_activity WHERE backend_type = 'client backend')::int AS client_connection_count,
             (current_setting('max_connections')::int
                 - current_setting('superuser_reserved_connections')::int
-                - current_setting('reserved_connections')::int) AS connection_client_capacity
+                - current_setting('reserved_connections')::int) AS client_connection_limit
         metrics:
           - {metric_name: postgresql.snapshot.oldest_age, value_column: snapshot_oldest_age, value_type: double, data_type: gauge, unit: s, description: "Age of the oldest client transaction holding a snapshot or an xid"}
-          - {metric_name: postgresql.connection.client, value_column: connection_client, value_type: int, data_type: gauge, description: "Client backends"}
-          - {metric_name: postgresql.connection.client_capacity, value_column: connection_client_capacity, value_type: int, data_type: gauge, description: "max_connections minus reserved slots"}
+          - {metric_name: postgresql.client_connection.count, value_column: client_connection_count, value_type: int, data_type: gauge, unit: '{connection}', description: "Client backends"}
+          - {metric_name: postgresql.client_connection.limit, value_column: client_connection_limit, value_type: int, data_type: gauge, unit: '{connection}', description: "max_connections minus reserved slots"}
 
 processors:
   memory_limiter:
@@ -105,7 +105,7 @@ processors:
       - {key: server.address, value: pg-lab, action: upsert}
       - {key: server.port, value: '5432', action: upsert}
       - {key: db.system.name, value: postgresql, action: upsert}
-      - {key: db.cluster.name, value: overhead, action: upsert}
+      - {key: obenhub.cluster.name, value: overhead, action: upsert}
   batch: {}
 
 exporters:

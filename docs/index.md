@@ -19,11 +19,13 @@ has a real page.
 
 - **Learn**: how OpenTelemetry and the database fit together.
 - **Guides**: how to monitor a given topology, once it runs in the lab.
-- **Reference**: metrics, events, attributes and configuration.
-- **Decisions**: the ADRs. This is the only section with content today.
+- **Reference**: metrics, events, attributes and configuration. Today one
+  generated page, [PostgreSQL pack metrics](reference/postgresql-pack-metrics.md).
+- **Decisions**: the ADRs.
 
 ## Start here
 
 - [Decisions](adr/README.md): the ADRs.
+- [Reference](reference/postgresql-pack-metrics.md): the PostgreSQL pack metrics.
 - [Roadmap](roadmap.md): what is planned, and in what order.
 - [Changelog](changelog.md): released changes.

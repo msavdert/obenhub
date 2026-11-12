@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
-# Scenario slot-invalidated: create a physical slot on the primary that nothing consumes, push the current LSN past its restart_lsn by more than max_slot_wal_keep_size (read from pg_settings) with WAL segment switches, then CHECKPOINT so PostgreSQL removes the WAL and invalidates the slot (wal_status lost, invalidation_reason wal_removed). The active slots (standby1, app_sub) are kept close to the current LSN first so the checkpoint cannot invalidate them. Expect ReplicationSlotInvalidated for pg-primary. The slot is inactive and retains no WAL once invalidated, so PhysicalSlotInactive must not fire; any other alert is unexpected (CheckpointsRequested is the risk: WAL volume also requests checkpoints, so max_wal_size is raised for the inject and reset by revert; see extra.num_requested_delta).
+# Scenario slot-invalidated: create a physical slot on the primary that nothing consumes, push the current LSN past its restart_lsn by more than max_slot_wal_keep_size (read from pg_settings) with WAL segment switches, then CHECKPOINT so PostgreSQL removes the WAL and invalidates the slot (wal_status lost, invalidation_reason wal_removed). The active slots (standby1, app_sub) are kept close to the current LSN first so the checkpoint cannot invalidate them. Expect PostgresReplicationSlotInvalidated for pg-primary. The slot is inactive and retains no WAL once invalidated, so PostgresPhysicalSlotInactive must not fire; any other alert is unexpected (PostgresCheckpointsRequested is the risk: WAL volume also requests checkpoints, so max_wal_size is raised for the inject and reset by revert; see extra.num_requested_delta).
 # shellcheck disable=SC1091,SC2034
 set -uo pipefail
 . "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 
-EXPECT=("ReplicationSlotInvalidated:pg-primary")
+EXPECT=("PostgresReplicationSlotInvalidated:pg-primary")
 SLOT=obenhub_inval
 BATCH=10   # WAL segment switches per psql call
-# The slot stays inactive past PhysicalSlotInactive's 120 s + 1m after the
+# The slot stays inactive past PostgresPhysicalSlotInactive's 120 s + 1m after the
 # detection, so the run shows that the invalidated slot does not raise it.
 HOLD_AFTER_DETECT=200
 GAP_MAX=24 # segments since the last checkpoint's redo; see inject
@@ -45,7 +45,7 @@ inject() {
   [ "$keep_mb" -gt 0 ] 2>/dev/null || { FAILS+=("max_slot_wal_keep_size is $keep_mb (unlimited or unreadable): no invalidation possible"); return 1; }
   # Two segments past the limit are enough. WAL volume also requests
   # checkpoints (about every max_wal_size / (1 + checkpoint_completion_target)
-  # since the last redo, from the docs), and CheckpointsRequested fires on more
+  # since the last redo, from the docs), and PostgresCheckpointsRequested fires on more
   # than 3 requested in 5 minutes. With the lab's 1GB, 67 switches counted 3
   # requested from a gap of 0 and 4 in another run (2026-11-10), so max_wal_size
   # is raised to WAL_SIZE for the inject: then 67 segments plus a gap under
@@ -84,7 +84,7 @@ inject() {
     || { FAILS+=("active slots did not catch up before the checkpoint"); return 1; }
   psql_p -c "CHECKPOINT" >/dev/null || return 1
   # No second CHECKPOINT if the slot is not lost yet: every requested one
-  # counts toward CheckpointsRequested (see above).
+  # counts toward PostgresCheckpointsRequested (see above).
   wait_until 10 "$SLOT invalidated" slot_lost \
     || { FAILS+=("$SLOT not invalidated after checkpoint: $(psql_p -c "SELECT wal_status, coalesce(invalidation_reason,'NULL') FROM pg_replication_slots WHERE slot_name = '$SLOT'")"); return 1; }
   st1=$(slot_field standby1 wal_status); st2=$(slot_field "$SUBSCRIPTION" wal_status)
@@ -103,7 +103,7 @@ inject() {
 }
 revert() {
   local inactive
-  # inactive_seconds at the end of the hold: shows whether PhysicalSlotInactive
+  # inactive age at the end of the hold: shows whether PostgresPhysicalSlotInactive
   # had something to exclude (the pack query coalesces a NULL to 0)
   inactive=$(psql_p -c "SELECT coalesce(extract(epoch FROM clock_timestamp() - inactive_since)::int::text, 'NULL') FROM pg_replication_slots WHERE slot_name = '$SLOT'")
   [ -n "${EXTRA_JSON:-}" ] && EXTRA_JSON=$(jq -c --arg i "${inactive:-absent}" '. + {slot_inactive_seconds_at_revert: $i}' <<<"$EXTRA_JSON")

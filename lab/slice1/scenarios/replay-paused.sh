@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# Scenario replay-paused: pause WAL replay on the standby under write load; expect ReplayBacklog for pg-standby.
+# Scenario replay-paused: pause WAL replay on the standby under write load; expect PostgresReplayBacklog for pg-standby.
 # shellcheck disable=SC1091,SC2034
 set -uo pipefail
 . "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 
-EXPECT=("ReplayBacklog:pg-standby")
+EXPECT=("PostgresReplayBacklog:pg-standby")
 PAUSED=0
 inject() {
   psql_s -c "SELECT pg_wal_replay_pause()" >/dev/null || return 1

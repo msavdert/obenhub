@@ -1,6 +1,6 @@
 # The generic PostgreSQL rules (Watchdog, PostgresTargetAbsent, CollectorAbsent,
-# StandbyNotStreaming, ReplayBacklog, SnapshotHeldTooLong, ConnectionSaturation,
-# SeriesVanished) live in lab/packs/postgresql/rules.yml. This file holds the
+# PostgresStandbyNotStreaming, PostgresReplayBacklog, PostgresSnapshotHeldTooLong, PostgresConnectionSaturation,
+# PostgresSeriesVanished) live in lab/packs/postgresql/rules.yml. This file holds the
 # inventory and the slice 1 specific groups.
 groups:
   - name: inventory
@@ -14,10 +14,10 @@ groups:
       - record: obenhub.expected_target
         expr: |
           union(
-            label_set(vector(1), "service.namespace", "obenhub-lab", "service.name", "postgresql", "db.cluster.name", "slice1", "service.instance.id", "pg-primary", "obenhub.collector", "otelcol-slice1"),
-            label_set(vector(1), "service.namespace", "obenhub-lab", "service.name", "postgresql", "db.cluster.name", "slice1", "service.instance.id", "pg-standby", "obenhub.collector", "otelcol-slice1"),
-            label_set(vector(1), "service.namespace", "obenhub-lab", "service.name", "postgresql", "db.cluster.name", "slice1-subscriber", "service.instance.id", "pg-subscriber", "obenhub.collector", "otelcol-slice1"),
-            label_set(vector(1), "service.namespace", "obenhub-lab", "service.name", "pgbouncer", "db.cluster.name", "slice1", "service.instance.id", "pgbouncer", "obenhub.collector", "otelcol-slice1")
+            label_set(vector(1), "service.namespace", "obenhub-lab", "service.name", "postgresql", "obenhub.cluster.name", "slice1", "service.instance.id", "pg-primary", "obenhub.collector", "otelcol-slice1"),
+            label_set(vector(1), "service.namespace", "obenhub-lab", "service.name", "postgresql", "obenhub.cluster.name", "slice1", "service.instance.id", "pg-standby", "obenhub.collector", "otelcol-slice1"),
+            label_set(vector(1), "service.namespace", "obenhub-lab", "service.name", "postgresql", "obenhub.cluster.name", "slice1-subscriber", "service.instance.id", "pg-subscriber", "obenhub.collector", "otelcol-slice1"),
+            label_set(vector(1), "service.namespace", "obenhub-lab", "service.name", "pgbouncer", "obenhub.cluster.name", "slice1", "service.instance.id", "pgbouncer", "obenhub.collector", "otelcol-slice1")
           )
 
   # Logical replication (stage 2). Thresholds are lab values. Measured in the
@@ -35,14 +35,14 @@ groups:
       # conflict), so two or more over 3 m means the apply worker is failing;
       # a single increase is a timeout or a one-off, and the not-streaming
       # alert covers a dead connection.
-      - alert: LogicalApplyErrors
+      - alert: PostgresLogicalApplyErrors
         expr: |
-          increase(postgresql.subscription.apply_errors[3m])
-            + increase(postgresql.subscription.sync_errors[3m]) >= 2
+          increase(postgresql.subscription.apply_error[3m])
+            + increase(postgresql.subscription.sync_error[3m]) >= 2
         labels:
           severity: critical
         annotations:
-          summary: 'Subscription {{ $labels.subscription_name }} on {{ (index $labels "service.instance.id") }} has apply or sync errors'
+          summary: 'Subscription {{ (index $labels "postgresql.subscription.name") }} on {{ (index $labels "service.instance.id") }} has apply or sync errors'
 
       # An enabled subscription that is not receiving, by either branch:
       # - the apply worker is absent for most of 1 m (avg_over_time < 0.5; the
@@ -53,27 +53,27 @@ groups:
       #   twice the ~30 s a healthy idle subscription peaks at) can only be
       #   reached when wal_receiver_timeout is longer than 60 s or 0. It is
       #   unit-tested only; no scenario reaches it with the default setting.
-      # Not while the subscription is failing with errors (LogicalApplyErrors owns that
+      # Not while the subscription is failing with errors (PostgresLogicalApplyErrors owns that
       # case: the worker restarts every 5 s) and not while the target is
       # absent. Both are expressed here, not as an Alertmanager inhibit, for
       # the reason given at PostgresTargetAbsent. A disabled subscription
       # (enabled 0) never matches.
-      - alert: LogicalSubscriptionNotStreaming
+      - alert: PostgresLogicalSubscriptionNotStreaming
         expr: |
           (
             postgresql.subscription.enabled == 1
-              and on(service.instance.id, subscription_name)
+              and on(service.instance.id, postgresql.subscription.name)
             (
               avg_over_time(postgresql.subscription.apply_worker_running[1m]) < 0.5
-                or on(service.instance.id, subscription_name)
+                or on(service.instance.id, postgresql.subscription.name)
               postgresql.subscription.last_msg_age > 60
             )
           )
-            unless on(service.instance.id, subscription_name)
+            unless on(service.instance.id, postgresql.subscription.name)
           (
-            increase(postgresql.subscription.apply_errors[3m])
-              + on(service.instance.id, subscription_name)
-            increase(postgresql.subscription.sync_errors[3m]) >= 2
+            increase(postgresql.subscription.apply_error[3m])
+              + on(service.instance.id, postgresql.subscription.name)
+            increase(postgresql.subscription.sync_error[3m]) >= 2
           )
             and on(service.instance.id)
           present_over_time(postgresql.collection.heartbeat[2m])
@@ -81,33 +81,35 @@ groups:
         labels:
           severity: critical
         annotations:
-          summary: 'Subscription {{ $labels.subscription_name }} on {{ (index $labels "service.instance.id") }} is enabled but not receiving'
+          summary: 'Subscription {{ (index $labels "postgresql.subscription.name") }} on {{ (index $labels "service.instance.id") }} is enabled but not receiving'
 
       # On the publisher. Inactive for 3 m (a subscriber restart or a worker
-      # restart loop resets inactive_seconds and does not match), or more than
+      # restart loop resets inactive_age and does not match), or more than
       # 128 MiB not yet confirmed for the whole hold time. The bytes branch has
       # no lab scenario (it would need a stuck but connected subscriber and
       # 128 MiB of writes); it is covered by a unit test only. A failing
       # subscription (logical-conflict) restarts its walsender every 5 s, so
-      # inactive_seconds stays small and a few rows stay far below the
+      # inactive_age stays small and a few rows stay far below the
       # threshold: the slot alert does not fire there, and the scenario
       # asserts that. Physical slots are out of scope here (standby-stopped
       # leaves standby1 inactive on purpose).
-      - alert: LogicalSlotRetainingWal
+      - alert: PostgresLogicalSlotStalled
         expr: |
           (
-            postgresql.replication_slot.inactive_seconds{slot_type="logical"} > 180
-              or on(service.instance.id, slot_name)
-            postgresql.replication_slot.unconfirmed_bytes{slot_type="logical"} > 128 * 1024 * 1024
+            postgresql.replication_slot.inactive_age{postgresql.replication_slot.type="logical"} > 180
+              or on(service.instance.id, postgresql.replication_slot.name)
+            postgresql.replication_slot.unconfirmed_wal{postgresql.replication_slot.type="logical"} > 128 * 1024 * 1024
           )
         for: 1m
         labels:
           severity: warning
         annotations:
-          summary: 'Logical slot {{ $labels.slot_name }} on {{ (index $labels "service.instance.id") }} is inactive or far behind and retains WAL'
+          summary: 'Logical slot {{ (index $labels "postgresql.replication_slot.name") }} on {{ (index $labels "service.instance.id") }} is inactive or far behind and retains WAL'
 
   # PgBouncer (stage 2). SHOW POOLS gives the oldest waiting client as whole
-  # seconds (maxwait) plus microseconds (maxwait_us); the sum is the wait.
+  # seconds (pgbouncer.pool.oldest_wait_age, SHOW POOLS maxwait) plus the
+  # part below one second (oldest_wait_subsecond_age, maxwait_us, converted
+  # to seconds by the Collector); the sum is the wait.
   - name: pgbouncer
     interval: 15s
     rules:
@@ -119,7 +121,7 @@ groups:
         expr: |
           obenhub.expected_target{service.name="pgbouncer"}
             unless on(service.instance.id)
-          present_over_time(pgbouncer.list.items{list="databases"}[2m])
+          present_over_time(pgbouncer.list.item.count{pgbouncer.list.name="databases"}[2m])
             and on(obenhub.collector)
           label_replace(present_over_time(otelcol_process_uptime[1m]), "obenhub.collector", "$1", "service.instance.id", "(.+)")
         for: 1m
@@ -134,26 +136,24 @@ groups:
       # the console's own pool (database pgbouncer), not for a paused or
       # disabled database (clients wait there by design), and not while the
       # target is absent (stale series); all in the expression, for the reason
-      # given at PostgresTargetAbsent in the pack. SHOW DATABASES names the database in
-      # `name`; it is copied to `database` to join SHOW POOLS.
+      # given at PostgresTargetAbsent in the pack. The Collector renames the SHOW
+      # columns (database, name, user, list) to pgbouncer.* attributes, so the
+      # SHOW DATABASES and SHOW POOLS series join on pgbouncer.database.name.
       - alert: PgbouncerClientsWaiting
         expr: |
           (
-            pgbouncer.pool.maxwait{database!="pgbouncer"}
-              + pgbouncer.pool.maxwait_us{database!="pgbouncer"} / 1e6 > 5
+            pgbouncer.pool.oldest_wait_age{pgbouncer.database.name!="pgbouncer"}
+              + pgbouncer.pool.oldest_wait_subsecond_age{pgbouncer.database.name!="pgbouncer"} > 5
           )
-            unless on(service.instance.id, database)
-          label_copy(
-            (pgbouncer.database.paused == 1 or pgbouncer.database.disabled == 1),
-            "name", "database"
-          )
+            unless on(service.instance.id, pgbouncer.database.name)
+          (pgbouncer.database.paused == 1 or pgbouncer.database.disabled == 1)
             and on(service.instance.id)
-          present_over_time(pgbouncer.list.items{list="databases"}[2m])
+          present_over_time(pgbouncer.list.item.count{pgbouncer.list.name="databases"}[2m])
         for: 1m
         labels:
           severity: warning
         annotations:
-          summary: 'PgBouncer pool {{ $labels.database }}/{{ $labels.user }} has a client waiting {{ $value | humanizeDuration }} for a server connection'
+          summary: 'PgBouncer pool {{ (index $labels "pgbouncer.database.name") }}/{{ (index $labels "user.name") }} has a client waiting {{ $value | humanizeDuration }} for a server connection'
 
       # The three rules below are not for the console (database pgbouncer),
       # not for a paused or disabled database and not while the target is
@@ -162,7 +162,7 @@ groups:
       # A pool at its size with no client queued yet is the warning before
       # clients wait: r is the share of the configured pool_size that is linked
       # to a client, averaged over 5 m (window of 20 points, see the window
-      # notes at ConnectionSaturation in lab/packs/postgresql/rules.yml; n
+      # notes at PostgresConnectionSaturation in lab/packs/postgresql/rules.yml; n
       # requires a full window, so a new pool stays silent while it warms up).
       # sv_active can exceed pool_size when a reserve pool is configured (it is
       # 0 in the lab), so r can pass 1. SHOW DATABASES pool_size shows
@@ -170,27 +170,24 @@ groups:
       - alert: PgbouncerPoolSaturated
         expr: |
           WITH (
-            r = pgbouncer.pool.servers_active{database!="pgbouncer"}
-              / on(service.instance.id, database) group_left
-            label_copy(pgbouncer.database.pool_size > 0, "name", "database"),
+            r = pgbouncer.pool.active_server.count{pgbouncer.database.name!="pgbouncer"}
+              / on(service.instance.id, pgbouncer.database.name) group_left()
+            (pgbouncer.database.server_connection.limit > 0),
             x = avg_over_time(r[5m:15s]),
             n = count_over_time(r[5m:15s])
           )
           ((x >= 0.9) and (n >= 20))
-            unless on(service.instance.id, database)
-          label_copy(
-            (pgbouncer.database.paused == 1 or pgbouncer.database.disabled == 1),
-            "name", "database"
-          )
+            unless on(service.instance.id, pgbouncer.database.name)
+          (pgbouncer.database.paused == 1 or pgbouncer.database.disabled == 1)
             and on(service.instance.id)
-          present_over_time(pgbouncer.list.items{list="databases"}[2m])
+          present_over_time(pgbouncer.list.item.count{pgbouncer.list.name="databases"}[2m])
         labels:
           severity: warning
         annotations:
-          summary: 'PgBouncer pool {{ $labels.database }}/{{ $labels.user }} used {{ $value | humanizePercentage }} of its pool_size over 5m'
+          summary: 'PgBouncer pool {{ (index $labels "pgbouncer.database.name") }}/{{ (index $labels "user.name") }} used {{ $value | humanizePercentage }} of its pool_size over 5m'
 
       # Client connections against max_client_conn, two tiers as at
-      # ConnectionSaturation (old for 1m, W' = 75s, 5 points): critical at a
+      # PostgresConnectionSaturation (old for 1m, W' = 75s, 5 points): critical at a
       # ratio of 0.95 or more, warning above 0.85 and below 0.95. used_clients
       # (SHOW LISTS) is every client connection, the console's too. Console
       # connections count towards the limit but are never refused (decide_startup_pool,
@@ -207,15 +204,15 @@ groups:
       - alert: PgbouncerClientSaturation
         expr: |
           WITH (
-            r = pgbouncer.list.items{list="used_clients"}
+            r = pgbouncer.list.item.count{pgbouncer.list.name="used_clients"}
               / on(service.instance.id)
-            pgbouncer.config.max_client_conn,
+            pgbouncer.client_connection.limit,
             x = min_over_time(r[75s:15s]),
             n = count_over_time(r[75s:15s])
           )
           (((x > 0.85) unless (x >= 0.95)) and (n >= 5))
             and on(service.instance.id)
-          present_over_time(pgbouncer.list.items{list="databases"}[2m])
+          present_over_time(pgbouncer.list.item.count{pgbouncer.list.name="databases"}[2m])
         labels:
           severity: warning
         annotations:
@@ -224,15 +221,15 @@ groups:
       - alert: PgbouncerClientSaturation
         expr: |
           WITH (
-            r = pgbouncer.list.items{list="used_clients"}
+            r = pgbouncer.list.item.count{pgbouncer.list.name="used_clients"}
               / on(service.instance.id)
-            pgbouncer.config.max_client_conn,
+            pgbouncer.client_connection.limit,
             x = min_over_time(r[75s:15s]),
             n = count_over_time(r[75s:15s])
           )
           ((x >= 0.95) and (n >= 5))
             and on(service.instance.id)
-          present_over_time(pgbouncer.list.items{list="databases"}[2m])
+          present_over_time(pgbouncer.list.item.count{pgbouncer.list.name="databases"}[2m])
         labels:
           severity: critical
         annotations:
@@ -241,8 +238,8 @@ groups:
       # Average wait per server assignment over 5 m, in seconds. Complements
       # PgbouncerClientsWaiting (oldest waiter over 5 s): many short waits that
       # never reach 5 s. total_wait_time grows when a waiting client is
-      # activated (activate_client, src/objects.c:845; microseconds, SHOW
-      # STATS). A client that died while queued is activated too, when a
+      # activated (activate_client, src/objects.c:845; microseconds in SHOW
+      # STATS, converted to seconds by the Collector). A client that died while queued is activated too, when a
       # server frees up, but gets no assignment: measured 2026-11-08, ending
       # pgbouncer-pool-saturated added about 1046 s of wait with no assignment.
       # Such a lump would dominate the average for the 5 m window, however
@@ -257,25 +254,21 @@ groups:
       - alert: PgbouncerWaitTime
         expr: |
           (
-            rate(pgbouncer.stats.wait_time{database!="pgbouncer"}[5m])
-              / (rate(pgbouncer.stats.server_assignments{database!="pgbouncer"}[5m]) > 0)
-              / 1e6 > 0.1
+            rate(pgbouncer.stats.wait_time{pgbouncer.database.name!="pgbouncer"}[5m])
+              / (rate(pgbouncer.stats.server_assignment{pgbouncer.database.name!="pgbouncer"}[5m]) > 0) > 0.1
           )
-            unless on(service.instance.id, database)
-          max by(service.instance.id, database) (
+            unless on(service.instance.id, pgbouncer.database.name)
+          max by(service.instance.id, pgbouncer.database.name) (
             max_over_time(
-              (min_over_time(pgbouncer.pool.maxwait{database!="pgbouncer"}[75s]) >= 5)[6m:15s]
+              (min_over_time(pgbouncer.pool.oldest_wait_age{pgbouncer.database.name!="pgbouncer"}[75s]) >= 5)[6m:15s]
             )
           )
-            unless on(service.instance.id, database)
-          label_copy(
-            (pgbouncer.database.paused == 1 or pgbouncer.database.disabled == 1),
-            "name", "database"
-          )
+            unless on(service.instance.id, pgbouncer.database.name)
+          (pgbouncer.database.paused == 1 or pgbouncer.database.disabled == 1)
             and on(service.instance.id)
-          present_over_time(pgbouncer.list.items{list="databases"}[2m])
+          present_over_time(pgbouncer.list.item.count{pgbouncer.list.name="databases"}[2m])
         for: 2m
         labels:
           severity: warning
         annotations:
-          summary: 'PgBouncer database {{ $labels.database }}: clients wait {{ $value | humanizeDuration }} on average for a server connection'
+          summary: 'PgBouncer database {{ (index $labels "pgbouncer.database.name") }}: clients wait {{ $value | humanizeDuration }} on average for a server connection'

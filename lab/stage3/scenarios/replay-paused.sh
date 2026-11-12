@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Scenario replay-paused: pause WAL replay on one replica under write load. Expect ReplayBacklog on it, and no PatroniReplicaNotEligible: Patroni compares max(received, replayed) with the leader's position, and a paused replay does not stop the WAL receiver. Patroni itself resumes a paused replay on a follower within one loop unless the cluster is in maintenance mode (ha.py:778 calls handle_parameter_change, defined in patroni/postgresql/__init__.py, under `if not self.is_paused()`; seen in the log "Resuming paused WAL replay"), so the scenario pauses the cluster first; PatroniClusterPaused may therefore follow after its 3 m window and is allowed. The extra fields record Patroni's own positions.
+# Scenario replay-paused: pause WAL replay on one replica under write load. Expect PostgresReplayBacklog on it, and no PatroniReplicaNotEligible: Patroni compares max(received, replayed) with the leader's position, and a paused replay does not stop the WAL receiver. Patroni itself resumes a paused replay on a follower within one loop unless the cluster is in maintenance mode (ha.py:778 calls handle_parameter_change, defined in patroni/postgresql/__init__.py, under `if not self.is_paused()`; seen in the log "Resuming paused WAL replay"), so the scenario pauses the cluster first; PatroniClusterPaused may therefore follow after its 3 m window and is allowed. The extra fields record Patroni's own positions.
 # shellcheck disable=SC1091,SC2034
 set -uo pipefail
 . "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
@@ -10,7 +10,7 @@ backlog_big() { [ "$(psql_n "$R" -c "SELECT pg_wal_lsn_diff(pg_last_wal_receive_
 inject() {
   R=$(first_replica) && [ -n "$R" ] || return 1
   L=$(leader_name) && [ -n "$L" ] || return 1
-  EXPECT=("ReplayBacklog:$R")
+  EXPECT=("PostgresReplayBacklog:$R")
   MAINT=1 # before the call: the pause may take effect even when --wait fails
   ptl pause --wait >/dev/null || return 1
   psql_n "$R" -c "SELECT pg_wal_replay_pause()" >/dev/null || return 1

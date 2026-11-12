@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# Scenario lock-blocked: one session takes ACCESS EXCLUSIVE on a scratch table in database postgres and stays idle in its transaction; a second session waits for the table. Expect BlockedSessions for pg-primary, and two more alerts that any realistic blocker brings with it. IdleInTransaction for pg-primary: the blocker is by nature a session idle in a transaction (warning after 60 s idle). SnapshotHeldTooLong for pg-primary: a plain SELECT gets its snapshot before parse analysis, which is where the table lock is requested, so the waiter holds backend_xmin while it waits and snapshot.oldest_age rises past 120 s (observed in VictoriaMetrics during the development runs of 2026-11-08; the run record of a rerun will show it). run_scenario waits for every EXPECT entry before it reverts, so the run is deterministic, not a race against the thresholds.
+# Scenario lock-blocked: one session takes ACCESS EXCLUSIVE on a scratch table in database postgres and stays idle in its transaction; a second session waits for the table. Expect PostgresBlockedSessions for pg-primary, and two more alerts that any realistic blocker brings with it. PostgresIdleInTransaction for pg-primary: the blocker is by nature a session idle in a transaction (warning after 60 s idle). PostgresSnapshotHeldTooLong for pg-primary: a plain SELECT gets its snapshot before parse analysis, which is where the table lock is requested, so the waiter holds backend_xmin while it waits and snapshot.oldest_age rises past 120 s (observed in VictoriaMetrics during the development runs of 2026-11-08; the run record of a rerun will show it). run_scenario waits for every EXPECT entry before it reverts, so the run is deterministic, not a race against the thresholds.
 # shellcheck disable=SC1091,SC2034
 set -uo pipefail
 . "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 
-EXPECT=("BlockedSessions:pg-primary" "IdleInTransaction:pg-primary" "SnapshotHeldTooLong:pg-primary")
+EXPECT=("PostgresBlockedSessions:pg-primary" "PostgresIdleInTransaction:pg-primary" "PostgresSnapshotHeldTooLong:pg-primary")
 BLOCKER=slice1-lock-blocker
 WAITER=slice1-lock-waiter
 inject() {

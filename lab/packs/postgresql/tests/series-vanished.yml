@@ -1,5 +1,5 @@
 # Tests for the shared PostgreSQL pack rules (lab/slice1 and lab/stage3 use them).
-# SeriesVanished: a pack metric disappears while the heartbeat lives.
+# PostgresSeriesVanished: a pack metric disappears while the heartbeat lives.
 rule_files:
   - ../rules.yml
 evaluation_interval: 15s
@@ -19,11 +19,11 @@ tests:
     alert_rule_test:
       - eval_time: 1m
         groupname: postgresql
-        alertname: SeriesVanished
+        alertname: PostgresSeriesVanished
         exp_alerts: []
       - eval_time: 6m
         groupname: postgresql
-        alertname: SeriesVanished
+        alertname: PostgresSeriesVanished
         exp_alerts:
           - exp_labels:
               severity: warning
@@ -42,7 +42,7 @@ tests:
     alert_rule_test:
       - eval_time: 20m
         groupname: postgresql
-        alertname: SeriesVanished
+        alertname: PostgresSeriesVanished
         exp_alerts: []
 
   - name: a series that never existed does not fire
@@ -53,7 +53,7 @@ tests:
     alert_rule_test:
       - eval_time: 20m
         groupname: postgresql
-        alertname: SeriesVanished
+        alertname: PostgresSeriesVanished
         exp_alerts: []
 
   - name: the whole replication query fails on the standby while the heartbeat continues
@@ -69,12 +69,12 @@ tests:
         values: '0x8 _x112'
       - series: 'postgresql.replay.paused{service.instance.id="pg-standby"}'
         values: '0x8 _x112'
-      - series: 'postgresql.connection.client{service.instance.id="pg-standby"}'
+      - series: 'postgresql.client_connection.count{service.instance.id="pg-standby"}'
         values: '3x120'
     alert_rule_test:
       - eval_time: 6m
         groupname: postgresql
-        alertname: SeriesVanished
+        alertname: PostgresSeriesVanished
         exp_alerts:
           - exp_labels: {severity: warning, service.instance.id: pg-standby, metric: postgresql.recovery.active}
             exp_annotations: {summary: 'postgresql.recovery.active vanished on pg-standby'}
@@ -95,7 +95,7 @@ tests:
     alert_rule_test:
       - eval_time: 6m
         groupname: postgresql
-        alertname: SeriesVanished
+        alertname: PostgresSeriesVanished
         exp_alerts:
           - exp_labels: {severity: warning, service.instance.id: pg-primary, metric: postgresql.database.count}
             exp_annotations: {summary: 'postgresql.database.count vanished on pg-primary'}
@@ -108,57 +108,57 @@ tests:
     alert_rule_test:
       - eval_time: 10m
         groupname: postgresql
-        alertname: SeriesVanished
+        alertname: PostgresSeriesVanished
         exp_alerts: []
 
-  - name: a vanished slot metric on the primary is named by SeriesVanished
+  - name: a vanished slot metric on the primary is named by PostgresSeriesVanished
     interval: 15s
     input_series:
       - series: 'postgresql.collection.heartbeat{service.instance.id="pg-primary"}'
         values: '1x120'
-      - series: 'postgresql.replication_slot.retained_bytes{service.name="postgresql",service.namespace="obenhub-lab",db.cluster.name="slice1",service.instance.id="pg-primary",slot_name="app_sub",slot_type="logical"}'
+      - series: 'postgresql.replication_slot.retained_wal{service.name="postgresql",service.namespace="obenhub-lab",obenhub.cluster.name="slice1",service.instance.id="pg-primary",postgresql.replication_slot.name="app_sub",postgresql.replication_slot.type="logical"}'
         values: '0x8 _x112'
-      - series: 'postgresql.replication_slot.active{service.name="postgresql",service.namespace="obenhub-lab",db.cluster.name="slice1",service.instance.id="pg-primary",slot_name="app_sub",slot_type="logical"}'
+      - series: 'postgresql.replication_slot.active{service.name="postgresql",service.namespace="obenhub-lab",obenhub.cluster.name="slice1",service.instance.id="pg-primary",postgresql.replication_slot.name="app_sub",postgresql.replication_slot.type="logical"}'
         values: '1x120'
     alert_rule_test:
       - eval_time: 6m
         groupname: postgresql
-        alertname: SeriesVanished
+        alertname: PostgresSeriesVanished
         exp_alerts:
           - exp_labels:
               severity: warning
               service.instance.id: pg-primary
-              metric: postgresql.replication_slot.retained_bytes
-              slot_name: app_sub
-              slot_type: logical
+              metric: postgresql.replication_slot.retained_wal
+              postgresql.replication_slot.name: app_sub
+              postgresql.replication_slot.type: logical
               service.name: postgresql
               service.namespace: obenhub-lab
-              db.cluster.name: slice1
+              obenhub.cluster.name: slice1
             exp_annotations:
-              summary: postgresql.replication_slot.retained_bytes vanished on pg-primary
+              summary: postgresql.replication_slot.retained_wal vanished on pg-primary
 
-  - name: a vanished subscription metric is named by SeriesVanished
+  - name: a vanished subscription metric is named by PostgresSeriesVanished
     interval: 15s
     input_series:
       - series: 'postgresql.collection.heartbeat{service.instance.id="pg-subscriber"}'
         values: '1x120'
-      - series: 'postgresql.subscription.apply_worker_running{service.name="postgresql",service.namespace="obenhub-lab",db.cluster.name="slice1-subscriber",service.instance.id="pg-subscriber",subscription_name="app_sub"}'
+      - series: 'postgresql.subscription.apply_worker_running{service.name="postgresql",service.namespace="obenhub-lab",obenhub.cluster.name="slice1-subscriber",service.instance.id="pg-subscriber",postgresql.subscription.name="app_sub"}'
         values: '1x8 _x112'
-      - series: 'postgresql.subscription.enabled{service.name="postgresql",service.namespace="obenhub-lab",db.cluster.name="slice1-subscriber",service.instance.id="pg-subscriber",subscription_name="app_sub"}'
+      - series: 'postgresql.subscription.enabled{service.name="postgresql",service.namespace="obenhub-lab",obenhub.cluster.name="slice1-subscriber",service.instance.id="pg-subscriber",postgresql.subscription.name="app_sub"}'
         values: '1x120'
     alert_rule_test:
       - eval_time: 6m
         groupname: postgresql
-        alertname: SeriesVanished
+        alertname: PostgresSeriesVanished
         exp_alerts:
           - exp_labels:
               severity: warning
               service.instance.id: pg-subscriber
               metric: postgresql.subscription.apply_worker_running
-              subscription_name: app_sub
+              postgresql.subscription.name: app_sub
               service.name: postgresql
               service.namespace: obenhub-lab
-              db.cluster.name: slice1-subscriber
+              obenhub.cluster.name: slice1-subscriber
             exp_annotations:
               summary: postgresql.subscription.apply_worker_running vanished on pg-subscriber
 
@@ -169,14 +169,14 @@ tests:
         values: '1x120'
       - series: 'postgresql.lock.oldest_wait_age{service.instance.id="pg-primary"}'
         values: '0x8 _x112'
-      - series: 'postgresql.database.xid_age{service.instance.id="pg-primary",datname="app"}'
+      - series: 'postgresql.database.xid_age{service.instance.id="pg-primary",postgresql.database.name="app"}'
         values: '5x120'
-      - series: 'postgresql.database.xid_age{service.instance.id="pg-primary",datname="scratch"}'
+      - series: 'postgresql.database.xid_age{service.instance.id="pg-primary",postgresql.database.name="scratch"}'
         values: '5x8 _x112'
     alert_rule_test:
       - eval_time: 6m
         groupname: postgresql
-        alertname: SeriesVanished
+        alertname: PostgresSeriesVanished
         exp_alerts:
           - exp_labels:
               severity: warning

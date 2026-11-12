@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Scenario worker-stopped: power cut of the kind node that runs the primary: `docker kill` (SIGKILL), revert `docker start`. docker kill was enough, the node rejoined by itself (Ready 2 s after the start, smoke runs 2026-11-11), so `docker stop` was not needed. The primary must run on a worker without the CloudNativePG operator (its absence would stall the failover) and the load client (its acked ids would be lost); otherwise a preparatory switchover is made and the run waits 210 s for its CNPGPrimaryChanged to pass.
 # Expect CNPGPrimaryChanged, KubernetesNodeNotReady (lab/packs/k8s/rules.yml) and CollectorAbsent for otelcol-agent-<node> (the slowest, about 3.7 minutes after the kill). The pods tolerate not-ready for 300 s (tolerationSeconds, read on the pods), so detection is capped at 270 s (DETECT_DEADLINE in lib-core.sh) plus a 15 s hold: no eviction.
-# Allowed: StandbyNotStreaming and PhysicalSlotInactive (seen in one run only) and SeriesVanished for the surviving replica only: its slot series ended with the promotion and came back after the rejoin, a gap longer than the rule's 2 m window. The killed instance has no heartbeat, which the rule requires. Replication is asynchronous (no spec.postgresql.synchronous, minSyncReplicas 0 in cnpg/cluster.yaml): writer_missing is recorded and fails the run only for a row acknowledged more than 10 s (a choice) before the kill.
+# Allowed: PostgresStandbyNotStreaming and PostgresPhysicalSlotInactive (seen in one run only) and PostgresSeriesVanished for the surviving replica only: its slot series ended with the promotion and came back after the rejoin, a gap longer than the rule's 2 m window. The killed instance has no heartbeat, which the rule requires. Replication is asynchronous (no spec.postgresql.synchronous, minSyncReplicas 0 in cnpg/cluster.yaml): writer_missing is recorded and fails the run only for a row acknowledged more than 10 s (a choice) before the kill.
 # Events seen: Node NodeNotReady, NodeReady; Pod NodeNotReady, TaintManagerEviction (message "Cancelling deletion of Pod"); Cluster FailingOver, FailoverTarget.
 # shellcheck disable=SC1091,SC2034,SC2153
 set -uo pipefail
@@ -13,7 +13,7 @@ DETECT_DEADLINE=270
 [ "$HOLD_AFTER_DETECT" -gt 0 ] || HOLD_AFTER_DETECT=15
 EXPECT=()
 ALLOW=()
-for p in "${NODES[@]}"; do ALLOW+=("StandbyNotStreaming:$p" "PhysicalSlotInactive:$p"); done
+for p in "${NODES[@]}"; do ALLOW+=("PostgresStandbyNotStreaming:$p" "PostgresPhysicalSlotInactive:$p"); done
 OLD="" TL0="" T0="" NODE="" T_KILLED="" T_STARTED="" SECONDS_DOWN=null NODE_NOT_READY=""
 
 node_ready() { [ "$(kcg get node "$1" -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}' 2>/dev/null)" = True ]; }
@@ -64,14 +64,14 @@ inject() {
   T_KILLED=$(now_ts)
 }
 after_detect() {
-  # SeriesVanished is allowed for the surviving replica only: neither the killed
+  # PostgresSeriesVanished is allowed for the surviving replica only: neither the killed
   # instance nor the promoted one. The promoted one is known by now (the run has
   # seen CNPGPrimaryChanged); if it is not, nothing is allowed.
   local new rep
   new=$(leader_name) || new=""
   if [ -n "$new" ] && [ "$new" != "$OLD" ]; then
     for rep in "${NODES[@]}"; do
-      [ "$rep" = "$OLD" ] || [ "$rep" = "$new" ] || ALLOW+=("SeriesVanished:$rep")
+      [ "$rep" = "$OLD" ] || [ "$rep" = "$new" ] || ALLOW+=("PostgresSeriesVanished:$rep")
     done
   fi
   NODE_NOT_READY=$(node_ready "$NODE" && echo false || echo true)

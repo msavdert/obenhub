@@ -56,7 +56,7 @@ tests:
     alert_rule_test:
       - eval_time: 5m
         groupname: postgresql
-        alertname: InventoryCollectorUnknown
+        alertname: CollectorUnknown
         exp_alerts: []
 
   - name: inventory guard fires for a mistyped and for a missing obenhub.collector
@@ -69,11 +69,11 @@ tests:
     alert_rule_test:
       - eval_time: 30s
         groupname: postgresql
-        alertname: InventoryCollectorUnknown
+        alertname: CollectorUnknown
         exp_alerts: []
       - eval_time: 5m
         groupname: postgresql
-        alertname: InventoryCollectorUnknown
+        alertname: CollectorUnknown
         exp_alerts:
           - exp_labels:
               severity: warning

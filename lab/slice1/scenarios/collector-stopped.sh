@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Scenario collector-stopped: stop the Collector; expect CollectorAbsent only, held 300 s after detection so that PostgresTargetAbsent and SeriesVanished (which require a live Collector) are seen not to fire.
+# Scenario collector-stopped: stop the Collector; expect CollectorAbsent only, held 300 s after detection so that PostgresTargetAbsent and PostgresSeriesVanished (which require a live Collector) are seen not to fire.
 # shellcheck disable=SC1091,SC2034
 set -uo pipefail
 . "$(dirname "${BASH_SOURCE[0]}")/lib.sh"

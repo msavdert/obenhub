@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# Scenario physical-slot-inactive: create a physical replication slot on the primary that nothing consumes (WAL reserved at creation); expect PhysicalSlotInactive for pg-primary once the slot has been inactive over 120 s (lab threshold). No other alert is expected: the slot retains almost nothing.
+# Scenario physical-slot-inactive: create a physical replication slot on the primary that nothing consumes (WAL reserved at creation); expect PostgresPhysicalSlotInactive for pg-primary once the slot has been inactive over 120 s (lab threshold). No other alert is expected: the slot retains almost nothing.
 # shellcheck disable=SC1091,SC2034
 set -uo pipefail
 . "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 
-EXPECT=("PhysicalSlotInactive:pg-primary")
+EXPECT=("PostgresPhysicalSlotInactive:pg-primary")
 SLOT=obenhub_spare
 inject() {
   local since

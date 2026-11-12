@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# Scenario logical-cut: disconnect the subscriber from the logical network; expect LogicalSubscriptionNotStreaming for pg-subscriber. LogicalSlotRetainingWal is not expected: the slot only turns inactive about 60 s (wal_sender_timeout) after the cut and the rule needs 3 m inactive plus a 1 m hold, while the scenario reverts as soon as the first alert is delivered. If it did fire, the run fails as unexpected.
+# Scenario logical-cut: disconnect the subscriber from the logical network; expect PostgresLogicalSubscriptionNotStreaming for pg-subscriber. PostgresLogicalSlotStalled is not expected: the slot only turns inactive about 60 s (wal_sender_timeout) after the cut and the rule needs 3 m inactive plus a 1 m hold, while the scenario reverts as soon as the first alert is delivered. If it did fire, the run fails as unexpected.
 # shellcheck disable=SC1091,SC2034
 set -uo pipefail
 . "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 
-EXPECT=("LogicalSubscriptionNotStreaming:pg-subscriber")
+EXPECT=("PostgresLogicalSubscriptionNotStreaming:pg-subscriber")
 SUBSCRIBER_IP=""
 inject() {
   SUBSCRIBER_IP=$(docker inspect "$SUBSCRIBER" --format "{{(index .NetworkSettings.Networks \"$LOGICAL_NET\").IPAddress}}")

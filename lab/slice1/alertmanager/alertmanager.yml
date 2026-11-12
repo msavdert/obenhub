@@ -24,7 +24,7 @@ inhibit_rules:
     target_matchers: [alertname = "PgbouncerTargetAbsent"]
   # a missing target explains its own vanished pack series
   - source_matchers: [alertname = "PostgresTargetAbsent"]
-    target_matchers: [alertname = "SeriesVanished"]
+    target_matchers: [alertname = "PostgresSeriesVanished"]
     equal: [service_instance_id]
   - source_matchers: [alertname = "CollectorAbsent"]
-    target_matchers: [alertname = "SeriesVanished"]
+    target_matchers: [alertname = "PostgresSeriesVanished"]
