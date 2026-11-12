@@ -16,6 +16,8 @@
 #   - copies otelcol.yaml to /etc/otelcol-contrib/config.yaml and the shared
 #     pack lab/packs/postgresql/queries.yaml (the version in this checkout)
 #     to /etc/otelcol-contrib/packs/postgresql/queries.yaml;
+#     (after a re-measurement, copy that pack to results/pack-measured/ so
+#     that pack-cost.py reads what was measured);
 #   - initialises pgbench (scale 100) in database postgres.
 # Usage: lab/overhead/setup.sh
 set -euo pipefail

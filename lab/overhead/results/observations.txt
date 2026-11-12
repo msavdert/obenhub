@@ -1,0 +1,40 @@
+Raw terminal output kept from the 2026-11-12 session on pg-lab. Copied from the
+session transcript, not re-measured; only the lines shown were captured.
+
+== versions (after the series) ==
+otelcol-contrib version 0.164.0
+PostgreSQL 18.6 (Debian 18.6-1.pgdg13+2) on x86_64-pc-linux-gnu, compiled by gcc (Debian 14.2.0-19) 14.2.0, 64-bit
+6.12.113+deb13-cloud-amd64        (uname -r)
+pgbench: version string not printed in this session (assumed 18.6 from the same
+PGDG package set; the per-run pgbench.out files were not kept)
+
+== database size ==
+before the series (setup.sh):  2021 MB
+after the series:              2144 MB | 11951249 rows in pgbench_history
+
+== probe of the CPU-arm client count (30 s each, no Collector; vmstat line taken
+   10 s into the run, columns r b swpd free buff cache si so bi bo in cs us sy id wa st) ==
+c=32 j=4
+32  0      0 430128 112168 5036352    0    0     0 16292 12202 51493 38 33 12  4 13  0
+tps = 25934.610267 (without initial connection time)
+c=32 j=2
+33  0      0 443660 112240 5036352    0    0     0 10353 11567 51187 42 34  6  2 16  0
+tps = 28635.526223 (without initial connection time)
+c=64 j=4
+67  0      0 366252 112548 5036352    0    0     0  7110 12035 60251 52 39  0  0  9  0
+tps = 26738.846000 (without initial connection time)
+(an earlier 60 s select-only probe, 16 clients, 4 threads, prepared protocol:
+17272.8 tps, host CPU busy 68.30%, steal 16.044%)
+
+== pg_test_fsync, data disk, 2 s per test ==
+first run (after the TPC-B arm; the first five method lines were captured):
+        open_datasync                       199.517 ops/sec    5012 usecs/op
+        fdatasync                           185.405 ops/sec    5394 usecs/op
+        fsync                                74.362 ops/sec   13448 usecs/op
+        fsync_writethrough                              n/a
+        open_sync                            59.739 ops/sec   16740 usecs/op
+second run (after the CPU-arm extension; three lines captured):
+        open_datasync                       145.684 ops/sec    6864 usecs/op
+        fdatasync                           205.476 ops/sec    4867 usecs/op
+        fsync                                76.484 ops/sec   13075 usecs/op
+(The 2026-11-07 series has no pg_test_fsync reading to compare with.)

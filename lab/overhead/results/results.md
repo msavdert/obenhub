@@ -2,18 +2,25 @@
 
 Measured 2026-11-12 with `lab/overhead/setup.sh` and `lab/overhead/run.sh`, with
 the shared PostgreSQL pack as of commit 5266555 (`lab/packs/postgresql/
-queries.yaml`, sha256 `c5b2401f4ff5...`, nine queries, ADR 0006 names). The
-first measurement (2026-11-07, three-query pack) is kept in
+queries.yaml`, sha256 `c5b2401f4ff59415b143d64221ba9fd5dd0537a70f58f064027485f6817526ee`,
+nine queries, ADR 0006 names), kept as `pack-measured/queries.yaml` next to
+these results. That is not main's pack: main's (sha256 starting `7e28cc96`,
+as reported by the coordinator; not re-checked here) is heavier, with an xmin
+horizon subquery and sync-standby and archiver queries, so every pack cost
+below understates what main's pack would cost. The first measurement (2026-11-07, three-query pack) is kept in
 `2026-11-07-old-pack/` for comparison and is not the current result.
 
 Tables: `./summarize.sh --from-block 2 results/runs.csv` (TPC-B arm) and
 `./summarize.sh --from-block 2 results/runs-cpu.csv` (CPU-saturated arm); raw
 per-run data in `runs*.csv`, warm-ups in `warmup*.csv`, the per-query cost of
-the pack in `pack-cost.csv` (from `pgss*.csv`, `./pack-cost.py`).
+the pack in `pack-cost.csv` (from `pgss*.csv` and `pack-measured/`,
+`./pack-cost.py`), block-level statistics with `./block-stats.py
+results/runs-cpu.csv [first last]`, and raw output of the side observations in
+`observations.txt`.
 
 ## Conditions
 
-- Host: pg-lab (10.0.0.13), Debian 13, kernel 6.12.113, 4 vCPU, 7.8 GB RAM,
+- Host: pg-lab (10.0.0.13), Debian 13, kernel 6.12.113 (`observations.txt`), 4 vCPU, 7.8 GB RAM,
   PostgreSQL 18.6 (PGDG), otelcol-contrib 0.164.0 (tarball, sha256 verified
   against the release's `.sha256` file), started and stopped with systemd as
   `obenhub-otelcol.service` (own cgroup).
@@ -31,22 +38,26 @@ the pack in `pack-cost.csv` (from `pgss*.csv`, `./pack-cost.py`).
   max_open_conn 3, `debug` exporter (verbosity basic) instead of the Victoria
   stack. Each ON run therefore makes about one scrape of every pack query per
   15 s (20 per 300 s run, 12 per 180 s run).
-- Database: pgbench scale 100, 2144 MB after the series (larger than
+- Database: pgbench scale 100, 2144 MB after the series (`observations.txt`) (larger than
   shared_buffers; the whole database fits in the page cache of the 7.8 GB VM).
-- Load, two arms, both pgbench 18.6 against database postgres, per-transaction
+- Load, two arms, both pgbench (version 18.6 assumed from the PGDG package; not printed, see `observations.txt`) against database postgres, per-transaction
   log, percentiles nearest-rank over every transaction of the run:
   - `tpcb` (the original arm): built-in TPC-B-like script, simple protocol,
     8 clients, 4 threads, 300 s per run. PostgreSQL used 0.37-0.45 of the 4
     cores.
   - `cpu` (new): select-only (`-S`), prepared protocol, 64 clients, 4
     threads, 180 s per run, chosen after a 30 s probe (32 clients left 6-12%
-    idle, 64 left 0%). Host CPU busy 99.9% (median, from /proc/stat, including
+    idle, 64 left 0%; raw lines in `observations.txt`). Host CPU busy 99.9% (median, from /proc/stat, including
     steal and pgbench's own CPU), PostgreSQL 2.7-2.9 of the 4 cores. Latency
     here includes run-queue wait.
 - Order, both arms: one discarded warm-up run (OFF), then four ABBA blocks of
   alternating orientation (OFF ON ON OFF, ON OFF OFF ON, ...); the `cpu` arm
-  was extended to eight blocks (16 OFF, 16 ON) because four were not
-  conclusive. Each run: Collector stopped (OFF) or freshly started (ON),
+  was extended to eight blocks (16 OFF, 16 ON). That extension was decided
+  after the summary of blocks 1-4 had been read (it showed ON below OFF, with
+  an interval spanning zero); it started about 2 h after block 4 ended, after
+  the TPC-B arm, and blocks 1-4 and 5-8 ran in different steal regimes (below).
+  Both are reported; the 8-block figure is the primary one only because it uses
+  all the data, and the stopping rule was not fixed in advance. Each run: Collector stopped (OFF) or freshly started (ON),
   CHECKPOINT, 60 s wait, `pg_stat_statements_reset()`, pgbench, Collector
   stopped, 30 s pause. Wall-clock: `cpu` 17 + 16 runs at about 4.7 min, `tpcb`
   17 runs at about 6.6 min, about 4.5 h in all, run detached with
@@ -84,10 +95,21 @@ block):
 | blocks 1-4 | 8 | -19.65 / +2.65 / +79.85 | -1.81 / -0.01 / +0.12 | -5.16 / -0.16 / +2.67 | -9.37 / -1.89 / +13.11 |
 | blocks 2-4 | 6 | -19.65 / +0.10 / +51.45 | -1.33 / +0.08 / +0.12 | -2.79 / +0.38 / +2.67 | -6.06 / -1.89 / +13.11 |
 
-Verdict: within noise. The ON-OFF differences have both signs and the spread
-between pairs (about 4% in tps) is larger than any median difference. The
-database is commit-bound here (see Caveats), so the load leaves 3.5 cores idle
-and says little about CPU contention; the `cpu` arm is for that.
+The two ON runs of a block share that block's OFF mean, so the run-level pairs
+above are not independent. The unit is the block (n = 4):
+`./block-stats.py results/runs.csv`. Block difference, ON mean minus OFF mean
+(95% t-interval, 3 degrees of freedom): tps +16.2 (+3.4%; [-19.9, +52.3],
+[-4.2%, +11.0%]); p95 -0.63 ms (-2.0%; [-3.30, +2.04] ms); p99 -1.6 ms (-2.6%;
+[-8.0, +4.8] ms). The four block differences in tps are +48.4, +15.9, -0.3 and
++0.8; the first block holds the series' fastest run (ON, 552.8 tps).
+
+Verdict: within noise, and a weak test. The interval is about +-7.6% in tps
+(its half-width), so this design would resolve an effect of that size, not
+smaller ones. The run-to-run spread of the OFF runs in tps is SD 13.6 (2.9% of
+the mean), MAD 10.0 (2.1% of the median), IQR 23.7 (5.0%). The database is
+commit-bound here (see Caveats), so the load leaves 3.5 cores idle and says
+little about CPU contention; the `cpu` arm is for that. The precise number of
+this arm is the Collector's own CPU, 2.0% of one core.
 
 ## Result, CPU-saturated arm (16 OFF, 16 ON, medians and min-max)
 
@@ -101,13 +123,15 @@ and says little about CPU contention; the `cpu` arm is for that.
 | failed transactions | 0 | 0 | 0 |
 | PostgreSQL CPU s per 180 s run | 523.6 (485.7-527.4) | 518.8 (494.9-524.1) | -4.8 |
 | CPU steal % | 2.80 (1.52-17.09) | 3.64 (1.30-16.34) | +0.84 |
+| data disk await ms | 4.14 (3.45-9.60) | 4.50 (3.65-5.87) | +0.35 |
 | host CPU busy % | 99.88 (92.4-99.92) | 99.85 (99.6-99.94) | -0.03 |
 
 Collector only (ON runs): CPU 2.96 s per 180 s run (2.69-3.53), memory.peak
 about 69 MB (66.9-71.1), 3-4 otel_monitor sessions, 19-24 batches. That is
 1.65% of one core and 0.57% of PostgreSQL's CPU.
 
-Paired ABBA difference:
+Paired ABBA difference per run (descriptive only; the two ON runs of a block
+share its OFF mean):
 
 | pairs | n | d tps min / median / max | d p50 ms | d p95 ms | d p99 ms | d tps/(1-steal) |
 |---|---|---|---|---|---|---|
@@ -116,21 +140,40 @@ Paired ABBA difference:
 | blocks 5-8 | 8 | -1256 / -43 / +1173 | -0.03 / -0.01 / +0.06 | -0.10 / +0.08 / +0.23 | -0.48 / -0.05 / +0.34 | -1041 / -31 / +1190 |
 
 The last column is tps divided by (1 - steal share of the run), a post hoc
-correction for CPU the hypervisor took away.
+correction. It assumes throughput is linear in the CPU time not stolen and that
+steal hits OFF and ON runs alike; neither was tested.
 
-Verdict: not distinguishable from zero, with an upper bound the data does not
-shrink below a few percent. Over all 16 pairs the median ON run is 732 tps
-(2.4%) below its block's OFF mean, 10 of 16 pairs negative; the p95 median is
-+0.17 ms (4%) and p99 +0.16 ms (2%). Throughput moved far more with steal than
-with the Collector: run tps ranged 23.8k-33.1k and the low runs (OFF 12, ON 10,
-11 and 13) are the ones with steal of 15-17%. Blocks 5-8, which had steal of
-1.3-4.2%, show a median of -43 tps (0.1%) and 4 of 8 pairs below zero. The
-steal correction moves the full-series median only from -732 to -636, so it
-does not explain the sign; the first four blocks (the noisy ones, medians
-about -2000 tps) carry the negative median. Whether the Collector costs about
-0.1% or about 2% at saturation cannot be settled with 16 pairs on a VM with
-this steal; the Collector's own CPU, 1.65% of one core against 4 cores
-saturated (0.4% of the machine), is consistent with the lower end.
+Block level (n = 8; `./block-stats.py results/runs-cpu.csv [first last]`).
+Block difference, ON mean minus OFF mean, with the 95% t-interval of its mean:
+
+| blocks | n | tps | p50 ms | p95 ms | p99 ms |
+|---|---|---|---|---|---|
+| 1-8 | 8 | -800 (-2.7%) [-1848, +248] ([-6.1%, +0.8%]) | +0.003 (+0.1%) [-0.022, +0.027] | +0.32 (+7.2%) [-0.02, +0.66] | +1.06 (+13.3%) [-0.37, +2.49] |
+| 1-4 | 4 | -1500 (-5.2%) [-3678, +678] ([-12.8%, +2.4%]) | +0.011 (+0.6%) | +0.56 (+11.7%) [-0.18, +1.31] | +2.17 (+23.2%) [-0.82, +5.16] |
+| 5-8 | 4 | -100 (-0.3%) [-1206, +1006] ([-3.8%, +3.2%]) | -0.005 (-0.3%) | +0.07 (+1.8%) [-0.06, +0.20] | -0.04 (-0.7%) [-0.26, +0.18] |
+
+OFF run spread in tps (all 16 OFF runs): SD 2315 (7.7% of the mean), MAD 1234
+(4.1% of the median), IQR 2391 (7.9%).
+
+Verdict, 8 blocks: not distinguishable from zero, by a small margin. The
+mean block difference in tps is -2.7% and its 95% interval [-6.1%, +0.8%]
+contains zero; 5 of the 8 block differences are negative (the same fact as the
+interval, stated at the block level). The design resolves about +-3.5% in tps
+(the half-width), so it cannot rule out a loss of a few percent, and it cannot
+show one either. p95 and p99 are higher on ON by +7% and +13% in the mean, with
+intervals that also contain zero ([-0.6%, +15.0%] and [-4.6%, +31.1%]); tail
+latency here is the least precise number in this report, because queueing
+makes it follow steal.
+
+Two regimes, two verdicts. Blocks 1-4 (steal in single runs up to 17%; the
+low-tps runs OFF 12 and ON 10, 11, 13 all had 15-17%) give -5.2% in tps with an
+interval of +-7.6% around it, [-12.8%, +2.4%]. Blocks 5-8 (steal 1.3-4.2%) give
+-0.3%, [-3.8%, +3.2%]. The two halves overlap; the first has the larger
+negative mean and the steal-corrected run-level median moves only from -732 to
+-636 tps, so the correction does not remove it. Whether the Collector costs
+about 0.3% or about 3-5% of throughput at saturation is not settled by 8
+blocks on a VM with this steal. The precise number is the Collector's own CPU:
+1.65% of one core, 0.4% of the 4-vCPU machine.
 
 ## Cost of the pack's own queries (pg_stat_statements)
 
@@ -156,15 +199,21 @@ milliseconds.
 The three queries that read `pg_stat_activity` or `pg_locks` are 99% of the
 pack's execution time at saturation (the pg_locks scan added since the first
 measurement is the third). In the saturated arm their means are 13 to 33 times
-the TPC-B arm's because 64 busy backends make `pg_stat_activity` bigger and
-because execution time includes waiting for a CPU; the maxima reach 100 ms
-(snapshot query). Per second, the whole pack executes for 0.03 ms (tpcb) and
-0.52 ms (cpu), the postgresql receiver's statements for 0.18 ms and 5.4 ms
-(its per-table statistics query alone averages 36 ms in the saturated arm).
-The Collector process itself used 20 ms (tpcb) and 16 ms (cpu) of CPU per
-second, so the Collector's cost is mostly outside the database: query
-the pack's execution inside PostgreSQL is 0.2% (tpcb) to 3% (cpu) of what the
-Collector process burns on the same host.
+the TPC-B arm's, and the maxima reach 100 ms (snapshot query). Assumption, not
+tested: that comes from 64 busy backends making `pg_stat_activity` larger and
+from execution time including time waiting for a CPU. Against the CPU-wait
+part, the heartbeat query (`SELECT 1`, unchanged between the arms) has the same
+mean in both, about 0.006 ms; a query that short is rarely preempted, so it
+does not exclude it either.
+
+Per second, the whole measured pack executes for 0.03 ms (tpcb) and 0.52 ms
+(cpu); the postgresql receiver's statements for 0.18 ms and 5.4 ms (its
+per-table statistics query alone averages 36 ms in the saturated arm). Main's
+pack is heavier than the measured one, so 0.52 ms understates it. The Collector
+process itself used 20 ms (tpcb) and 16 ms (cpu) of CPU per second, so its
+cost is mostly outside the database: the measured pack's execution inside
+PostgreSQL is 0.2% (tpcb) to 3% (cpu) of what the Collector process burns on
+the same host.
 
 ## Compared with the 2026-11-07 measurement
 
@@ -176,8 +225,9 @@ environment was not separated (assumption: mostly the pack, whose extra
 queries add rows and attribute sets to convert). Throughput is not comparable
 across the two series: the 2026-11-07 TPC-B arm ran at about 1060 tps with a
 data disk await of 1.7 ms, this one at about 475 tps with 4.4 ms. A
-`pg_test_fsync` after the series reported 4.9 ms per fdatasync on the data
-disk (nothing comparable was recorded in 2026-11-07), so the data disk's
+`pg_test_fsync` after the series reported 4.9-5.4 ms per fdatasync on the data
+disk (two runs, raw lines in `observations.txt`; nothing comparable was
+recorded in 2026-11-07), so the data disk's
 synchronous write latency, a property of the Proxmox host, is the probable
 cause (assumption: not tested further). The 2026-11-07 verdict (within noise)
 is unchanged for the TPC-B arm.

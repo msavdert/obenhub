@@ -4,14 +4,16 @@
 
 Reads results/pgss.csv and results/pgss-cpu.csv (written by run.sh: the
 otel_monitor rows of pg_stat_statements for the window of every ON run) and
-the pack lab/packs/postgresql/queries.yaml, and writes results/pack-cost.csv,
+the pack copy (see Usage), and writes results/pack-cost.csv,
 one row per statement and arm. A statement is labelled with the first metric
 of the pack query it matches (literals normalised on both sides, first 80 characters); anything
 else is a query of the postgresql receiver and is labelled "receiver: ...".
 
 Times are pg_stat_statements total_exec_time / mean_exec_time: execution only,
 not parse, plan (track_planning is off) or network. Usage:
-    lab/overhead/pack-cost.py [results-dir]
+    lab/overhead/pack-cost.py [results-dir [pack-yaml]]
+The pack defaults to results/pack-measured/queries.yaml, the copy the series
+was measured with, not the current shared pack.
 """
 
 import csv
@@ -22,7 +24,9 @@ from collections import defaultdict
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
-PACK = HERE.parent / "packs/postgresql/queries.yaml"
+# the pack the series was measured with (a copy of lab/packs/postgresql/
+# queries.yaml at commit 5266555); the shared pack has changed since
+PACK = HERE / "results/pack-measured/queries.yaml"
 ARMS = (("tpcb", "pgss.csv", "runs.csv"), ("cpu", "pgss-cpu.csv", "runs-cpu.csv"))
 
 
@@ -110,7 +114,7 @@ def summarise(arm, pgss_path, runs_path, pack):
 
 def main():
     res = Path(sys.argv[1]) if len(sys.argv) > 1 else HERE / "results"
-    pack = pack_queries(PACK)
+    pack = pack_queries(Path(sys.argv[2]) if len(sys.argv) > 2 else PACK)
     rows = []
     for arm, pgss_name, runs_name in ARMS:
         if (res / pgss_name).exists():
