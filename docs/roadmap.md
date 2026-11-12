@@ -15,7 +15,7 @@ A stage is done by the definition in
 
 - [ ] Naming contract per ADR 0006 (in review as a pull request)
 - [ ] Query fixes: snapshot oldest-age scope, slot query on standbys, slice1
-      monitors the `app` database
+      monitors the `app` database (awaiting the full suite)
 - [ ] WAL archiving in slice1, `pg_stat_archiver` alerts and an
       archiver-failing scenario
 - [ ] One `synchronous_mode` scenario in pgha

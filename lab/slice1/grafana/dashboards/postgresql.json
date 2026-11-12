@@ -391,7 +391,7 @@
       "gridPos": {
         "x": 12,
         "y": 4,
-        "w": 12,
+        "w": 6,
         "h": 8
       },
       "targets": [
@@ -444,6 +444,55 @@
         }
       },
       "description": "Age of the oldest client transaction holding a snapshot or xid. Lab alert threshold 120 s."
+    },
+    {
+      "id": 104,
+      "title": "Oldest xmin held (transactions)",
+      "type": "timeseries",
+      "datasource": {
+        "type": "victoriametrics-metrics-datasource",
+        "uid": "vm"
+      },
+      "gridPos": {
+        "x": 18,
+        "y": 4,
+        "w": 6,
+        "h": 8
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "vm"
+          },
+          "expr": "postgresql.xmin_horizon.age{service.instance.id=\"$instance\"}",
+          "refId": "A",
+          "range": true,
+          "instant": false,
+          "legendFormat": "{{service.instance.id}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 10,
+            "showPoints": "never"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "description": "Largest age() of any xmin or xid held by a backend (walsender feedback included), a replication slot (xmin, catalog_xmin) or a prepared transaction. What the snapshot age panel cannot show: slots and standby feedback have no timestamp. No alert reads it yet."
     },
     {
       "id": 7,
