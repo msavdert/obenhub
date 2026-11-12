@@ -235,48 +235,56 @@ gets is a race; the asynchronous replication did not lose a row in either.
 
 The lab runs asynchronously. `synchronous-standby-cut` sets `synchronous_mode`
 and `synchronous_mode_strict` through `patronictl edit-config`, removes both
-keys again in revert (a following `switchover` and `control` passed), and cuts
-the synchronous standby in two steps. Strict mode is part of it: the
+keys again in revert, and refuses to start while either key or the table
+`inet obenhub_fault2` is left over. Strict mode is part of it: the
 [Patroni replication modes page](https://patroni.readthedocs.io/en/latest/replication_modes.html)
 (the `latest` docs, read 2026-11-11; no version stated, the pinned Patroni is
 4.1.5) says that without strict the primary falls back to asynchronous
 replication after the HA loop; that case was not run.
-Step 1 isolates the standby (`isolate_node`, as `network-partition-replica`);
-step 2 then drops tcp 5432 between the leader and the other replica
-(`inet obenhub_fault2`, etcd stays reachable, no failover). A sampler on the
-leader records `synchronous_standby_names`, the `sync_state` of every WAL
-sender and the duration of a transactional `pg_logical_emit_message` commit
-once per second (a commit wait shows as 8.0 s, the client's limit;
-`statement_timeout` does not cut it).
+Step 1 isolates the synchronous standby (`isolate_node`, as
+`network-partition-replica`); step 2 then drops tcp 5432 between the leader and
+the other replica (`inet obenhub_fault2`, etcd stays reachable, no failover).
+A sampler on the leader records `synchronous_standby_names`, the `sync_state`
+of every WAL sender and the duration of a transactional
+`pg_logical_emit_message` commit once per second. A commit wait shows as 8.0 s,
+the client's limit (`statement_timeout` does not cut it); the probe stops after
+20 waiting samples so that a long hold cannot exhaust connections.
 
-Three runs (01:03, 01:38 and 02:08 UTC) gave the same sequence,
-seconds from the cut:
+Three smoke runs (01:03, 01:38 and 02:08 UTC) showed the same sequence. The raw
+sampler data was not kept; what follows is "observed in smoke runs" unless it
+names the Patroni journal of the 01:38 run, which is in VictoriaLogs
+(cut at 01:38:58):
 
-- Commits wait from the cut. Patroni named the other replica as
-  synchronous standby after 39.8 to 42.8 s, and commits resumed at that moment
-  (`synchronous_standby_names` changed from the first standby to the other).
-  The cut standby was still listed as `sync` by `pg_stat_replication` until
-  36 to 38 s. Why 40 s (the Patroni HA loop and its timeouts) was not
-  traced to a log line.
-- Step 2: the other replica's `sync` row disappeared 65 s after its table was
-  in place (consistent with the default `wal_sender_timeout` of 60 s;
-  assumption, the setting was not read). Patroni then set
-  `synchronous_standby_names` to `*` (74 s) and left it there; no commit
-  succeeded from then until revert (0 unblocked samples in step 2, 34 to 36
-  waiting samples in all). Leader, timeline and boot ids did not change.
+- Commits waited from the cut until Patroni changed the setting, 37.8 s after
+  the cut in the journal of the 01:38 run: `Updating synchronous privilege
+  temporarily from ['pgha-3'] to []` at 01:39:36.46, then `Assigning
+  synchronous standby status to ['pgha-2']`. Smoke runs: the other replica was
+  listed `sync` 39.8 to 42.8 s after the cut and commits resumed then. The
+  delay is consistent with ttl 30 s and loop_wait 10 s of the lab (the cut
+  member's key expiring plus one loop); that is inferred, not proven.
+- Step 2: the other replica's `sync` row disappeared about 65 s after its
+  table was in place, consistent with `wal_sender_timeout` = 60 s (`1min`,
+  read with `SHOW` on pgha-2 on 2026-11-12). In the journal, Patroni logged
+  `Updating synchronous privilege temporarily from ['pgha-2'] to []` at
+  01:40:46.30 and `Assigning synchronous standby status to ['*']` from
+  01:40:46.37, repeated every 10 s until revert: strict mode leaves the
+  setting at `*` and does not fall back. In the smoke runs no commit succeeded
+  from then until revert (0 unblocked samples in step 2).
+- Leader, timeline and boot ids did not change in any run.
 - Alerts: `EtcdNoLeader`, `PostgresStandbyNotStreaming` for both standbys,
   `PostgresPhysicalSlotInactive` for the leader, and
-  `PostgresSynchronousStandbyMissing` for the leader (about 3 minutes after
-  step 2: the row has to vanish, then `for: 1m`). In the first two runs one
+  `PostgresSynchronousStandbyMissing` for the leader, about 3 minutes after
+  step 2 (the row has to vanish, then `for: 1m`). In the first two runs one
   further alert each fired on the leader (`PostgresSnapshotHeldTooLong`,
-  `PostgresBlockedSessions`: waiting commits keep snapshots and row locks, so
-  the load queues); the scenario allows both.
+  `PostgresBlockedSessions`); waiting commits keep snapshots and row locks,
+  which is the likely cause (not checked). The scenario allows both.
   `PatroniReplicaNotEligible` never fired.
 - Patroni's `/metrics` has `patroni_sync_standby` per node (Patroni 4.1.5
   `api.py` on the nodes) but no flag for whether synchronous mode is on, so an
   alert on "no synchronous standby" from Patroni alone cannot tell the
   asynchronous lab from a failure. The alert therefore reads PostgreSQL: the
-  pack metrics `postgresql.replication.synchronous_standby.required`
-  (`synchronous_standby_names` not empty) and `.count` (`sync` or `quorum`
-  rows of `pg_stat_replication`). Without strict mode Patroni empties the
-  setting and this alert is silent (not run; from the Patroni page).
+  pack metrics `postgresql.replication.synchronous_standby.required` (the
+  `num_sync` of `synchronous_standby_names`) and `.count` (`sync` or `quorum`
+  rows of `pg_stat_replication`), and fires when count is below required.
+  Without strict mode Patroni empties the setting and this alert is silent
+  (not run; from the Patroni page).

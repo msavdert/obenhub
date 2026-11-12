@@ -92,6 +92,25 @@
   metrics:
     - {metric_name: postgresql.lock.waiting_session.count, value_column: lock_waiting_session_count, value_type: int, data_type: gauge, unit: '{session}', description: "Sessions waiting for a lock"}
     - {metric_name: postgresql.lock.oldest_wait_age, value_column: oldest_wait_age, value_type: double, data_type: gauge, unit: s, description: "Longest current lock wait (0 when none)"}
+# Synchronous replication. required is the number of synchronous standbys a
+# commit waits for, taken from synchronous_standby_names (PostgreSQL 18 docs,
+# runtime-config-replication): "FIRST num_sync (...)", "ANY num_sync (...)" and
+# "num_sync (...)" give num_sync; a plain list ("a, b", FIRST 1 by the docs) or
+# "*" (a one-entry plain list; inferred, the page does not say) means 1; empty
+# means 0 (asynchronous). count is the number of connected standbys that
+# pg_stat_replication lists as sync or quorum. Both are reported on every node;
+# only a primary has senders and a non-empty setting that matters.
+- sql: |
+    SELECT
+      CASE
+        WHEN btrim(s.names) = '' THEN 0
+        ELSE coalesce((regexp_match(s.names, '^\s*(?:FIRST|ANY)?\s*([0-9]+)\s*\(', 'i'))[1]::int, 1)
+      END AS synchronous_standby_required,
+      (SELECT count(*) FROM pg_stat_replication WHERE sync_state IN ('sync', 'quorum'))::int AS synchronous_standby_count
+    FROM (SELECT current_setting('synchronous_standby_names') AS names) s
+  metrics:
+    - {metric_name: postgresql.replication.synchronous_standby.required, value_column: synchronous_standby_required, value_type: int, data_type: gauge, unit: '{standby}', description: "Synchronous standbys a commit waits for, parsed from synchronous_standby_names (0 when empty, 1 for a plain list or *)"}
+    - {metric_name: postgresql.replication.synchronous_standby.count, value_column: synchronous_standby_count, value_type: int, data_type: gauge, unit: '{standby}', description: "Standbys that pg_stat_replication reports as sync or quorum (0 where there are no WAL senders)"}
 # One row per replication slot, on every node. Without a slot there is
 # no series, which is no fault. The current LSN is read with
 # pg_last_wal_receive_lsn() in recovery, where pg_current_wal_lsn() errors;
@@ -100,13 +119,6 @@
 # LSN is used (greatest ignores NULL), never a negative or silent 0
 # wal_status as a number: 0 reserved, 1 extended, 2 unreserved, 3 lost,
 # -1 none (no restart_lsn). inactive_age is 0 while the slot is active.
-- sql: |
-    SELECT
-      (btrim(current_setting('synchronous_standby_names')) <> '')::int AS synchronous_standby_required,
-      (SELECT count(*) FROM pg_stat_replication WHERE sync_state IN ('sync', 'quorum'))::int AS synchronous_standby_count
-  metrics:
-    - {metric_name: postgresql.replication.synchronous_standby.required, value_column: synchronous_standby_required, value_type: int, data_type: gauge, unit: "1", description: "1 when synchronous_standby_names is not empty (commits wait for a standby)"}
-    - {metric_name: postgresql.replication.synchronous_standby.count, value_column: synchronous_standby_count, value_type: int, data_type: gauge, unit: '{standby}', description: "Standbys that pg_stat_replication reports as sync or quorum (0 where there are no WAL senders)"}
 - sql: |
     SELECT
       slot_name AS "postgresql.replication_slot.name",

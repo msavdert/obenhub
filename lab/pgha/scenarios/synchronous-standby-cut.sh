@@ -19,21 +19,29 @@ T_STEP2="" T_SWITCH="" REV_EPOCH=""
 EXTRA_JSON=null
 declare -A BOOT0=()
 
-# the Patroni keys this scenario sets; absent from the lab's dynamic configuration otherwise
-sync_keys_present() { ptl show-config 2>/dev/null | grep -q '^synchronous_mode'; }
+# sync_keys_removed: true only when patronictl show-config answered and lists no synchronous_* key
+# (the keys this scenario sets are absent from the lab's dynamic configuration otherwise).
+# A failing show-config is not "removed".
+sync_keys_removed() { local c; c=$(ptl show-config) || return 1; ! grep -q '^synchronous_' <<<"$c"; }
 
 sync_standby_member() { members | jq -r '[.[] | select(.Role == "Sync Standby")] | if length == 1 then .[0].Member else empty end'; }
 
 # one sample per second on the leader: epoch|elapsed|synchronous_standby_names|app:state,app:state
+# A commit that waits keeps its backend until the wait ends (the client's 8 s
+# timeout does not cancel it), so the commit probe stops after MAX_WAITING
+# waiting samples (elapsed "skipped" from then on) and a long
+# HOLD_AFTER_DETECT cannot exhaust the connections.
+MAX_WAITING=20
 sampler() {
-  local l=$1 parent=$2 t0 out el
+  local l=$1 parent=$2 t0 out el waiting=0 stmts
   while kill -0 "$parent" 2>/dev/null; do
     t0=$(date +%s.%N)
-    out=$(printf '%s\n' \
-      "SELECT current_setting('synchronous_standby_names') || '|' || coalesce((SELECT string_agg(application_name || ':' || sync_state, ',' ORDER BY application_name) FROM pg_stat_replication), '');" \
-      "SELECT pg_logical_emit_message(true, 'obenhub', 'probe') IS NOT NULL;" \
+    stmts=("SELECT current_setting('synchronous_standby_names') || '|' || coalesce((SELECT string_agg(application_name || ':' || sync_state, ',' ORDER BY application_name) FROM pg_stat_replication), '');")
+    [ "$waiting" -lt "$MAX_WAITING" ] && stmts+=("SELECT pg_logical_emit_message(true, 'obenhub', 'probe') IS NOT NULL;")
+    out=$(printf '%s\n' "${stmts[@]}" \
       | timeout 8 ssh "${SSH_OPTS[@]}" "$l" "sudo $(printf '%q ' -u postgres psql -h /var/run/postgresql -X -q -At -f -)" 2>/dev/null | sed -n 1p | tr -d ' ')
     el=$(awk -v a="$t0" -v b="$(date +%s.%N)" 'BEGIN{printf "%.2f", b-a}')
+    if [ "${#stmts[@]}" -eq 1 ]; then el=skipped; elif awk -v e="$el" 'BEGIN{exit !(e > 1.8)}'; then waiting=$((waiting + 1)); fi
     echo "$t0|$el|${out:-unreadable}" >>"$SAMP_DIR/s"
     sleep 1
   done
@@ -132,25 +140,28 @@ extra_checks() {
   leader1=$(leader_name); tl1=$(timeline)
   [ "$leader1" = "$LEADER0" ] || FAILS+=("leader changed from $LEADER0 to ${leader1:-none}")
   [ "${tl1:-0}" = "${TL0:-0}" ] || FAILS+=("timeline changed from $TL0 to ${tl1:-?}")
-  sync_keys_present && FAILS+=("synchronous_mode keys still in the Patroni dynamic configuration")
+  sync_keys_removed || FAILS+=("synchronous_* keys still in the Patroni dynamic configuration, or patronictl show-config failed")
+  [ -n "$T_SWITCH" ] || FAILS+=("the other replica $OTHER never became sync standby within 180 s of the cut")
   # seconds are relative to the start of step 1 (PART_EPOCH); a sample with elapsed over 1.8 s is a commit that waited
   # (the client gives up after 8 s, so 8.0 means "still waiting"; statement_timeout does not cut a commit wait)
   summ=$(awk -F'|' -v part="${PART_EPOCH:-0}" -v st2="${T_STEP2:-0}" -v rev="${REV_EPOCH:-0}" -v other="$OTHER" -v victim="$VICTIM" '
     $1 >= part && part > 0 {
       n++; gsub(/"/, "", $3)
-      blocked = ($2 + 0 > 1.8 && $3 != "unreadable")
+      probed = ($2 != "skipped"); blocked = (probed && $2 + 0 > 1.8 && $3 != "unreadable")
       if ($3 == "unreadable") u++
       if (blocked) { b++; if (!bf) bf = $1 }
-      else if (bf && !fc) fc = $1
+      else if (probed && bf && !fc) fc = $1
       if (index($4, other ":sync") && !os) os = $1
       if ($1 < st2 && index($4, victim ":sync")) vs = $1
       if ($1 >= st2 && $1 < rev && $4 !~ /:sync|:quorum/ && !ns) ns = $1
       if ($1 >= st2 && $1 < rev && $3 == "*" && !ss) ss = $1
-      if ($1 >= st2 && $1 < rev) { last_names = $3; last_states = $4; if (!blocked) nb++ }
+      if ($1 >= st2 && $1 < rev) { last_names = $3; last_states = $4; if (probed && !blocked) nb++ }
     }
     function f(x) { return x ? sprintf("%.1f", x - part) : "null" }
     END { printf "{\"samples\":%d,\"unreadable\":%d,\"blocked_samples\":%d,\"first_blocked_s\":%s,\"first_unblocked_after_that_s\":%s,\"victim_last_sync_s\":%s,\"other_first_sync_s\":%s,\"no_sync_row_from_s\":%s,\"names_star_from_s\":%s,\"unblocked_samples_in_step2\":%d,\"names_before_revert\":\"%s\",\"states_before_revert\":\"%s\"}\n", n, u, b, f(bf), f(fc), f(vs), f(os), f(ns), f(ss), nb, last_names, last_states }' "$SAMP_DIR/s" 2>/dev/null)
   [ -n "$summ" ] || summ=null
+  jq -e '.samples > 0' <<<"$summ" >/dev/null 2>&1 || FAILS+=("the sampler recorded no samples after the cut")
+  jq -e '.blocked_samples > 0' <<<"$summ" >/dev/null 2>&1 || FAILS+=("no commit waited for the synchronous standby (zero blocked samples): the fault did not bite or the probe did not work")
   EXTRA_JSON=$(jq -n -c --argjson s "$summ" --arg v "$VICTIM" --arg o "$OTHER" --arg l0 "$LEADER0" --arg l1 "$leader1" --argjson tl0 "${TL0:-0}" --argjson tl1 "${tl1:-0}" \
     --arg part "${PART_T:-}" --arg pe "${PART_EPOCH:-}" --arg t2 "${T_STEP2:-}" --arg ts "${T_SWITCH:-}" --arg rev "${REV_EPOCH:-}" \
     --argjson drops "${DROPS_JSON:-null}" --argjson drev "${DROPS_REVERT:-null}" --arg f2l "${F2_LEADER:-}" --arg f2o "${F2_OTHER:-}" \
