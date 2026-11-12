@@ -13,7 +13,9 @@ receivers:
     transport: tcp
     username: otel_monitor
     password: ${env:OTEL_MONITOR_PASSWORD}
-    databases: [postgres]
+    # The workload lives in database app; postgres holds the administrative
+    # objects. The receiver connects to each listed database.
+    databases: [postgres, app]
     collection_interval: 15s
     # Optional upstream metric, off by default (receiver metadata, v0.164.0).
     metrics:
@@ -26,7 +28,9 @@ receivers:
     transport: tcp
     username: otel_monitor
     password: ${env:OTEL_MONITOR_PASSWORD}
-    databases: [postgres]
+    # The workload lives in database app; postgres holds the administrative
+    # objects. The receiver connects to each listed database.
+    databases: [postgres, app]
     collection_interval: 15s
     # Optional upstream metric, off by default (receiver metadata, v0.164.0).
     metrics:
@@ -40,7 +44,9 @@ receivers:
     transport: tcp
     username: otel_monitor
     password: ${env:OTEL_MONITOR_PASSWORD}
-    databases: [postgres]
+    # The workload lives in database app; postgres holds the administrative
+    # objects. The receiver connects to each listed database.
+    databases: [postgres, app]
     collection_interval: 15s
     # Optional upstream metric, off by default (receiver metadata, v0.164.0).
     metrics:
