@@ -117,11 +117,18 @@ component_versions() {
 }
 
 lab_precondition() {
-  local n
+  local n t cfg
   # first, so a left-over partition is named as such instead of as "etcd not healthy"
   for n in "${NODES[@]}"; do
     [ "$(fault_table_state "$n")" = absent ] || { PRE_ERR="nftables table obenhub_fault left over on $n, or $n unreachable"; return 1; }
   done
+  # the synchronous-standby-cut scenario's second table, and its Patroni keys
+  for n in "${NODES[@]}"; do
+    t=$(rn "$n" nft list tables) || { PRE_ERR="cannot list nftables tables on $n"; return 1; }
+    ! grep -qx 'table inet obenhub_fault2' <<<"$t" || { PRE_ERR="nftables table obenhub_fault2 left over on $n"; return 1; }
+  done
+  cfg=$(ptl show-config) || { PRE_ERR="patronictl show-config failed"; return 1; }
+  ! grep -q '^synchronous_' <<<"$cfg" || { PRE_ERR="synchronous_* keys in the Patroni dynamic configuration (left over from synchronous-standby-cut?)"; return 1; }
   wait_until 120 "etcd healthy (three members, one leader)" etcd_healthy || { PRE_ERR="etcd not healthy"; return 1; }
   wait_until 180 "cluster healthy (one leader, two streaming replicas)" cluster_healthy || { PRE_ERR="cluster not healthy"; return 1; }
   not_paused || { PRE_ERR="cluster is paused"; return 1; }

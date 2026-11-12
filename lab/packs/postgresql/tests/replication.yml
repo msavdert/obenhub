@@ -313,3 +313,164 @@ tests:
         groupname: postgresql
         alertname: PostgresMultiplePrimaries
         exp_alerts: []
+
+  # --- PostgresSynchronousStandbyMissing (required = num_sync of synchronous_standby_names, count = sync + quorum rows) ---
+
+  - name: FIRST 2 with one synchronous standby left fires (required 2, count 2 then 1)
+    interval: 15s
+    input_series:
+      - series: 'postgresql.replication.synchronous_standby.required{service.instance.id="pg-1"}'
+        values: '2x60'
+      - series: 'postgresql.replication.synchronous_standby.count{service.instance.id="pg-1"}'
+        values: '2x8 1x52'
+      - series: 'postgresql.recovery.active{service.instance.id="pg-1"}'
+        values: '0x60'
+    alert_rule_test:
+      - eval_time: 1m   # enough standbys
+        groupname: postgresql
+        alertname: PostgresSynchronousStandbyMissing
+        exp_alerts: []
+      - eval_time: 2m30s   # short for 30s, below the 1m hold
+        groupname: postgresql
+        alertname: PostgresSynchronousStandbyMissing
+        exp_alerts: []
+      - eval_time: 5m
+        groupname: postgresql
+        alertname: PostgresSynchronousStandbyMissing
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              service.instance.id: pg-1
+            exp_annotations:
+              summary: 'pg-1 has fewer synchronous standbys than synchronous_standby_names requires: commits wait'
+
+  - name: ANY 2 of 3 with one standby left fires (required 2, count 2 then 1)
+    interval: 15s
+    input_series:
+      - series: 'postgresql.replication.synchronous_standby.required{service.instance.id="pg-1"}'
+        values: '2x60'
+      - series: 'postgresql.replication.synchronous_standby.count{service.instance.id="pg-1"}'
+        values: '2x8 1x52'
+      - series: 'postgresql.recovery.active{service.instance.id="pg-1"}'
+        values: '0x60'
+    alert_rule_test:
+      - eval_time: 1m   # enough standbys
+        groupname: postgresql
+        alertname: PostgresSynchronousStandbyMissing
+        exp_alerts: []
+      - eval_time: 2m30s   # short for 30s, below the 1m hold
+        groupname: postgresql
+        alertname: PostgresSynchronousStandbyMissing
+        exp_alerts: []
+      - eval_time: 5m
+        groupname: postgresql
+        alertname: PostgresSynchronousStandbyMissing
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              service.instance.id: pg-1
+            exp_annotations:
+              summary: 'pg-1 has fewer synchronous standbys than synchronous_standby_names requires: commits wait'
+
+  - name: a star or a plain list with no synchronous standby fires (required 1, count 1 then 0)
+    interval: 15s
+    input_series:
+      - series: 'postgresql.replication.synchronous_standby.required{service.instance.id="pg-1"}'
+        values: '1x60'
+      - series: 'postgresql.replication.synchronous_standby.count{service.instance.id="pg-1"}'
+        values: '1x8 0x52'
+      - series: 'postgresql.recovery.active{service.instance.id="pg-1"}'
+        values: '0x60'
+    alert_rule_test:
+      - eval_time: 1m   # enough standbys
+        groupname: postgresql
+        alertname: PostgresSynchronousStandbyMissing
+        exp_alerts: []
+      - eval_time: 2m30s   # short for 30s, below the 1m hold
+        groupname: postgresql
+        alertname: PostgresSynchronousStandbyMissing
+        exp_alerts: []
+      - eval_time: 5m
+        groupname: postgresql
+        alertname: PostgresSynchronousStandbyMissing
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              service.instance.id: pg-1
+            exp_annotations:
+              summary: 'pg-1 has fewer synchronous standbys than synchronous_standby_names requires: commits wait'
+
+  - name: empty synchronous_standby_names (required 0, count 0) is quiet
+    interval: 15s
+    input_series:
+      - series: 'postgresql.replication.synchronous_standby.required{service.instance.id="pg-1"}'
+        values: '0x60'
+      - series: 'postgresql.replication.synchronous_standby.count{service.instance.id="pg-1"}'
+        values: '0x60'
+      - series: 'postgresql.recovery.active{service.instance.id="pg-1"}'
+        values: '0x60'
+    alert_rule_test:
+      - eval_time: 5m
+        groupname: postgresql
+        alertname: PostgresSynchronousStandbyMissing
+        exp_alerts: []
+
+  - name: enough standbys (required 2, count 2) is quiet
+    interval: 15s
+    input_series:
+      - series: 'postgresql.replication.synchronous_standby.required{service.instance.id="pg-1"}'
+        values: '2x60'
+      - series: 'postgresql.replication.synchronous_standby.count{service.instance.id="pg-1"}'
+        values: '2x60'
+      - series: 'postgresql.recovery.active{service.instance.id="pg-1"}'
+        values: '0x60'
+    alert_rule_test:
+      - eval_time: 5m
+        groupname: postgresql
+        alertname: PostgresSynchronousStandbyMissing
+        exp_alerts: []
+
+  - name: more than required (required 1, count 2) is quiet
+    interval: 15s
+    input_series:
+      - series: 'postgresql.replication.synchronous_standby.required{service.instance.id="pg-1"}'
+        values: '1x60'
+      - series: 'postgresql.replication.synchronous_standby.count{service.instance.id="pg-1"}'
+        values: '2x60'
+      - series: 'postgresql.recovery.active{service.instance.id="pg-1"}'
+        values: '0x60'
+    alert_rule_test:
+      - eval_time: 5m
+        groupname: postgresql
+        alertname: PostgresSynchronousStandbyMissing
+        exp_alerts: []
+
+  - name: a standby (in recovery) never fires, whatever its own counts
+    interval: 15s
+    input_series:
+      - series: 'postgresql.replication.synchronous_standby.required{service.instance.id="pg-1"}'
+        values: '2x60'
+      - series: 'postgresql.replication.synchronous_standby.count{service.instance.id="pg-1"}'
+        values: '0x60'
+      - series: 'postgresql.recovery.active{service.instance.id="pg-1"}'
+        values: '1x60'
+    alert_rule_test:
+      - eval_time: 5m
+        groupname: postgresql
+        alertname: PostgresSynchronousStandbyMissing
+        exp_alerts: []
+
+  - name: a failed collection (no samples) does not fire
+    interval: 15s
+    input_series:
+      - series: 'postgresql.replication.synchronous_standby.required{service.instance.id="pg-1"}'
+        values: '1x8 _x52'
+      - series: 'postgresql.replication.synchronous_standby.count{service.instance.id="pg-1"}'
+        values: '1x8 _x52'
+      - series: 'postgresql.recovery.active{service.instance.id="pg-1"}'
+        values: '0x8 _x52'
+    alert_rule_test:
+      - eval_time: 8m
+        groupname: postgresql
+        alertname: PostgresSynchronousStandbyMissing
+        exp_alerts: []
