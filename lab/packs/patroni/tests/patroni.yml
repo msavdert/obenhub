@@ -69,7 +69,7 @@ tests:
         exp_alerts: []
 
   # --- multiple primaries ----------------------------------------------------
-  - name: two fresh primaries fire only after the 45 s hold, with the scope and the count
+  - name: two fresh primaries fire only after the 60 s hold, with the scope and the count
     interval: 15s
     input_series:
       - series: 'patroni_primary{scope="stage3",service.instance.id="pg-1"}'
@@ -87,6 +87,17 @@ tests:
         groupname: patroni
         alertname: PatroniMultiplePrimaries
         exp_alerts: []
+      - eval_time: 3m   # two primaries since 2m15: 45 s, a 45 s hold would fire at 3m
+        groupname: patroni
+        alertname: PatroniMultiplePrimaries
+        exp_alerts: []
+      - eval_time: 3m15s   # 60 s: the hold completes (a 75 s hold would not fire yet)
+        groupname: patroni
+        alertname: PatroniMultiplePrimaries
+        exp_alerts:
+          - exp_labels: {severity: critical, scope: stage3}
+            exp_annotations:
+              summary: Cluster stage3 has 2 members reporting primary (split brain)
       - eval_time: 4m
         groupname: patroni
         alertname: PatroniMultiplePrimaries
@@ -116,18 +127,19 @@ tests:
       # Worst case: pg-2 reports its first 1 at 1m30, two scrapes before pg-1
       # reports its last 1 (2m) and stops (its Collector died). The stale 1
       # stays in a 30 s window until 2m15 only, so the overlap (1m30 to 2m15)
-      # is 45 s, which does not fire (the hold must be exceeded). With a 45 s
-      # window the overlap lasts to 2m30 (60 s) and the alert fires; without
+      # is 45 s: one scrape (15 s) below the 60 s hold. With a 45 s window the
+      # overlap lasts to 2m30 (60 s) and the alert fires; without
       # last_over_time (the 5 m lookback) it fires too. Both mutations fail
-      # this test (checked in a scratch copy, 2026-11-11).
+      # this test (checked in a scratch copy, 2026-11-11 and again with the
+      # 60 s hold, 2026-11-12).
       - series: 'patroni_primary{scope="stage3",service.instance.id="pg-1"}'
         values: '1x8 _x52'
       - series: 'patroni_primary{scope="stage3",service.instance.id="pg-2"}'
-        values: '0x6 1x54'
+        values: '0x5 1x55'
       - series: 'patroni_primary{scope="stage3",service.instance.id="pg-3"}'
         values: '0x60'
     alert_rule_test:
-      - eval_time: 2m15s
+      - eval_time: 2m15s   # overlap 1m30 to 2m15 = 45 s: a 45 s hold would fire here
         groupname: patroni
         alertname: PatroniMultiplePrimaries
         exp_alerts: []
