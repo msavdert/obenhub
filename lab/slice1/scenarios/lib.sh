@@ -113,7 +113,7 @@ subscription_enabled() {
 }
 
 lab_precondition() {
-  subscription_enabled || { PRE_ERR="pg-subscriber has no enabled subscription $SUBSCRIPTION (its init gave up waiting for the primary); recover with: mise run lab:down, then lab:up"; return 1; }
+  wait_until 120 "subscription $SUBSCRIPTION enabled on pg-subscriber" subscription_enabled || { PRE_ERR="pg-subscriber is down or has no enabled subscription $SUBSCRIPTION (missing: its init gave up waiting for the primary, recover with mise run lab:down, then lab:up; disabled: a scenario revert failed, ALTER SUBSCRIPTION $SUBSCRIPTION ENABLE)"; return 1; }
   wait_until 120 "replication streaming" is_streaming || { PRE_ERR="replication not streaming"; return 1; }
   wait_until 120 "logical replication streaming" logical_streaming || { PRE_ERR="logical replication not streaming"; return 1; }
   wait_until 120 "app tables in sync" app_in_sync || { PRE_ERR="app tables differ between publisher and subscriber"; return 1; }

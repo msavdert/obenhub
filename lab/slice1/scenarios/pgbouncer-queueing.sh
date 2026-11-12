@@ -10,7 +10,14 @@ CLIENTS=${CLIENTS:-15}
 CLIENT_PID=""
 PGB_LOG=""
 
-pgbench_connected() { docker exec "$PRIMARY" pgrep -x pgbench >/dev/null && [ $(($(pool_field cl_active) + $(pool_field cl_waiting))) -ge 1 ]; }
+# an empty field (console unreachable) counts as 0, never as an arithmetic error
+pgbench_connected() {
+  local a w
+  docker exec "$PRIMARY" pgrep -x pgbench >/dev/null || return 1
+  a=$(pool_field cl_active); w=$(pool_field cl_waiting)
+  case "$a$w" in '' | *[!0-9]*) return 1 ;; esac
+  [ $((a + w)) -ge 1 ]
+}
 inject() {
   [ -n "${APP_PASSWORD:-}" ] && [ -n "${OTEL_MONITOR_PASSWORD:-}" ] || { echo "passwords missing: run lab/slice1/scripts/gen-env.sh" >&2; return 1; }
   docker exec "$PRIMARY" sh -c "printf 'SELECT pg_sleep(0.1);\n' >/tmp/queue.sql" || return 1
@@ -20,8 +27,10 @@ inject() {
     IFS= read -r PGPASSWORD; export PGPASSWORD
     exec pgbench -n -c '"$CLIENTS"' -j 3 -T 1200 -f /tmp/queue.sql -h pgbouncer -p 6432 -U app -d app' >"$PGB_LOG" 2>&1 &
   CLIENT_PID=$!
-  wait_until 60 "pgbench clients connected to PgBouncer" pgbench_connected
-  docker exec "$PRIMARY" pgrep -x pgbench >/dev/null || { echo "pgbench is not running: $(tail -n 3 "$PGB_LOG")" >&2; return 1; }
+  if ! wait_until 60 "pgbench clients connected to PgBouncer" pgbench_connected; then
+    echo "pgbench not connected to PgBouncer: $(tail -n 3 "$PGB_LOG")" >&2
+    return 1
+  fi
   log "pgbench running: $CLIENTS clients, pool_size $(pgb_console 'SHOW DATABASES' | awk -F'|' 'NR == 1 { for (i = 1; i <= NF; i++) if ($i == "pool_size") c = i } $1 == "app" { print $c }')"
 }
 
