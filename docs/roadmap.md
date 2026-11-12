@@ -4,34 +4,12 @@ The only place for plans, open items only: what runs is described in
 `lab/README.md` and each lab's README. Scope and order are
 decided in [ADR 0001](adr/0001-goal-and-scope.md).
 
-## Next: hardening pass
+## Next
 
-Stages 1 to 4 have run (slice1, stage3, pgha, k8s). Decided 2026-11-11: the
-work items of the project review of that date come first, and no new stage
-starts before they are done. Stage 5 is not next (owner decision 2026-11-08).
-A stage is done by the definition in
-[AGENTS.md](https://github.com/msavdert/obenhub/blob/main/AGENTS.md) (ADR
-0001); the open items below keep stage 4 and pgha from meeting it.
-
-- [ ] Naming contract per ADR 0006 (in review as a pull request)
-- [ ] Query fixes: snapshot oldest-age scope, slot query on standbys, slice1
-      monitors the `app` database (awaiting the full suite)
-- [ ] WAL archiving in slice1, `pg_stat_archiver` alerts and an
-      archiver-failing scenario (awaiting the full suite)
-- [ ] One `synchronous_mode` scenario in pgha
-- [ ] Dashboards: CloudNativePG/Kubernetes for `lab/k8s` and host (operating
-      system) for `lab/pgha` are written and their queries checked against the
-      live backends (in review); the scenario-only panels (alerts firing, slot
-      WAL) still have to be seen with data in the full suites
-- [ ] Dedupe shared lab code: common monitoring Compose base, one
-      `gen-env.sh`, shared Patroni scenarios, stage3 Collector template (all in review)
-- [ ] Low-severity fixes: image digests, passwords on command lines, fixed
-      sleeps, resource limits
-- [ ] k8s tool pinning (in review)
-- [ ] Redo the overhead measurement with the current pack and a
-      CPU-saturated arm
-- [ ] Full suites of all four labs on one `main` commit; record the
-      `leader-killed` outcome or adjust its text
+The hardening pass of the 2026-11-11 project review is done: every lab passed
+its full suite on `main` (`scripts/check-evidence.sh --strict <lab>` passes for
+slice1, stage3, pgha and k8s). What follows is the owner's decision; Stage 5
+is not next (owner decision 2026-11-08).
 
 ## Backups
 

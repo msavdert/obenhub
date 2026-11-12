@@ -229,9 +229,11 @@ Two smoke runs on the script before its audit fixes (not in `runs.jsonl`;
 had one outcome each: 23:12 outcome A (18.4 s, 531 of 531 rows), 23:21
 outcome B, where pgha-1 took over (timeline 15 to 16, 8.8 s without a
 writable node, 465 of 465 rows, `pg_rewind` on pgha-2). Which outcome a run
-gets is a race; the asynchronous replication did not lose a row in either.
+gets is a race; the asynchronous replication did not lose a row in either. The
+suites of 2026-11-11 and 2026-11-12 (`pgha-20261112T105036Z-2d9245b`) both
+recorded outcome A; outcome B is known only from that smoke run.
 
-### Synchronous standby cut (smoke runs 2026-11-12, not in `runs.jsonl`)
+### Synchronous standby cut (smoke runs and suite `pgha-20261112T105036Z-2d9245b`, 2026-11-12)
 
 The lab runs asynchronously. `synchronous-standby-cut` sets `synchronous_mode`
 and `synchronous_mode_strict` through `patronictl edit-config`, removes both
