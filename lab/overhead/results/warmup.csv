@@ -1,2 +1,2 @@
-seq,mode,start_utc,duration_s,txns,tps,lat_mean_ms,lat_p50_ms,lat_p95_ms,lat_p99_ms,lat_max_ms,failed,pg_cpu_s,col_cpu_s,col_mem_peak_mb,col_mem_cur_max_mb,otel_sessions_mid,otel_sessions_max,collector_metric_batches,collector_procs,steal_pct,disk_await_ms
-0,OFF,2026-11-07T00:19:26Z,300,275386,917.9,8.7079,7.5570,15.9990,26.1340,408.0130,0,161.248,0.000,0.0,0.0,0,0,0,0,0.412,2.068
+seq,mode,start_utc,duration_s,txns,tps,lat_mean_ms,lat_p50_ms,lat_p95_ms,lat_p99_ms,lat_max_ms,failed,pg_cpu_s,col_cpu_s,col_mem_peak_mb,col_mem_cur_max_mb,otel_sessions_mid,otel_sessions_max,collector_metric_batches,collector_procs,steal_pct,disk_await_ms,host_cpu_busy_pct
+0,OFF,2026-11-12T01:54:26Z,300,148664,495.5,16.1333,13.4610,29.5780,57.1520,747.2680,0,114.098,0.000,0.0,0.0,0,0,0,0,1.787,4.280,13.63

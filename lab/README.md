@@ -35,7 +35,7 @@ Shared parts:
 
 One-off measurements on the `pg-lab` VM, not scenario labs:
 
-- [overhead](overhead): Collector CPU and memory next to pgbench
+- [overhead](overhead): Collector CPU and memory next to pgbench (TPC-B and CPU-saturated arms, per-query pack cost)
   ([results](overhead/results/results.md)).
 - [obi](obi): OpenTelemetry eBPF Instrumentation against PostgreSQL and
   PgBouncer; not adopted ([results](obi/results/results.md)).
