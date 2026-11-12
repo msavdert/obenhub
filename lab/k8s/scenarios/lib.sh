@@ -24,12 +24,18 @@
 # the backend containers), the lab running (lab/k8s/scripts/up.sh).
 
 # The pinned tools live in mise.k8s.toml (MISE_ENV=k8s). A scenario started
-# without them on PATH re-runs itself once under `MISE_ENV=k8s mise exec`.
-if ! "$(dirname "${BASH_SOURCE[0]}")/../scripts/check-tools.sh" >/dev/null 2>&1 &&
+# without them on PATH re-runs itself once under `MISE_ENV=k8s mise exec`,
+# from the repository root so mise finds mise.k8s.toml; it stops if the tools
+# are still wrong after that.
+_k8s_check_tools="$(cd "$(dirname "${BASH_SOURCE[0]}")/../scripts" && pwd)/check-tools.sh"
+if ! "$_k8s_check_tools" >/dev/null 2>&1 &&
   [ -z "${OBENHUB_MISE_REEXEC:-}" ] && command -v mise >/dev/null; then
   export OBENHUB_MISE_REEXEC=1
-  MISE_ENV=k8s exec mise exec -- "$0" "$@"
+  _k8s_self="$(cd "$(dirname "$0")" && pwd)/$(basename "$0")"
+  cd "$(dirname "$_k8s_check_tools")/../../.." || exit 1
+  MISE_ENV=k8s exec mise exec -- "$_k8s_self" "$@"
 fi
+"$_k8s_check_tools" >/dev/null || exit 1
 
 SC_DIR="$(cd "$(dirname "${BASH_SOURCE[1]:-${BASH_SOURCE[0]}}")" && pwd)"
 LAB_DIR="$(cd "$SC_DIR/.." && pwd)"

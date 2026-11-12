@@ -10,7 +10,7 @@ REP="" PRIM="" READY_FENCED="" POD_READY_FENCED=""
 inject() {
   REP=$(first_replica) && [ -n "$REP" ] || return 1
   PRIM=$(leader_name)
-  EXPECT=("CNPGInstanceFenced:$REP" "PhysicalSlotInactive:$PRIM")
+  EXPECT=("CNPGInstanceFenced:$REP" "PostgresPhysicalSlotInactive:$PRIM")
   log "fencing $REP (primary $PRIM)"
   kc annotate cluster "$CLUSTER" "cnpg.io/fencedInstances=[\"$REP\"]" --overwrite >/dev/null
 }
