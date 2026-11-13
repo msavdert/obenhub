@@ -169,9 +169,10 @@ services:
     networks:
       - mon
 
-  # pgBackRest backups of the primary: creates the stanza, then takes a backup
-  # every BACKUP_INTERVAL seconds (a full one first, then incremental, every
-  # 10th full). Local mode: it reads the primary's data volume (read-only) and
+  # pgBackRest backups of the primary: creates the stanza, then keeps one
+  # backup per BACKUP_INTERVAL seconds, scheduled from the repository (full
+  # when none exists or the last full is older than FULL_EVERY intervals, else
+  # incremental; see postgres/pgbackrest-backup.sh). Local mode: it reads the primary's data volume (read-only) and
   # talks to the server over the socket volume. `docker compose stop` of this
   # service is how the backup-stale scenario stops backups. The 600 s interval
   # (checkpoint_timeout is 300 s, assumed default) keeps the immediate

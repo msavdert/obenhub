@@ -31,7 +31,8 @@ access to `apt.postgresql.org`.
   `pg_stat_subscription`, `pg_stat_subscription_stats` and `pg_stat_archiver`.
 - pgBackRest 2.60.0 (ADR 0007): the primary archives WAL with `archive-push`
   into a repository volume; the `pgbackrest-backup` service creates the stanza
-  and takes a backup every 600 s (a full one first and every tenth);
+  and keeps one backup per 600 s, scheduled from the repository (a full one when
+  none exists or the last is older than ten intervals, else incremental);
   woblerr/pgbackrest_exporter v0.25.0 refreshes every 30 s and the Collector
   scrapes it (`prometheus/pgbackrest`); the pack is
   [lab/packs/pgbackrest](../packs/pgbackrest).

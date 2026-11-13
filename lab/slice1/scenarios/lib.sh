@@ -112,8 +112,11 @@ PGBR_WAL_DIR=/var/lib/pgbackrest/archive/slice1/18-1
 pgbr() { docker exec -u postgres "$PRIMARY" pgbackrest --stanza=slice1 "$@"; }
 # a completed backup is in the repository
 backup_exists() { pgbr info --output=json 2>/dev/null | jq -e '.[0].backup | length > 0' >/dev/null; }
-# BACKUP_INTERVAL of the pgbackrest-backup service in compose.yaml (seconds)
-BACKUP_INTERVAL=600
+# BACKUP_INTERVAL of the pgbackrest-backup service, read from compose.yaml so
+# the two cannot drift (seconds)
+BACKUP_INTERVAL=$(docker compose -p obenhub-slice1 -f "$LAB_DIR/compose.yaml" config --format json 2>/dev/null \
+  | jq -r '.services["pgbackrest-backup"].environment.BACKUP_INTERVAL // empty')
+[ -n "$BACKUP_INTERVAL" ] || { echo "BACKUP_INTERVAL of pgbackrest-backup not found in compose.yaml" >&2; exit 1; }
 # the archiver has no backlog: no .ready file, or the last attempt succeeded (or never failed)
 archiver_clear() {
   [ "$(psql_p -c "SELECT ((SELECT count(*) FROM pg_ls_archive_statusdir() WHERE name LIKE '%.ready') = 0 OR last_failed_time IS NULL OR last_archived_time >= last_failed_time)::int FROM pg_stat_archiver")" = 1 ]
@@ -142,11 +145,13 @@ pause_backups() {
 # Start the periodic backups again. The service schedules from the repository
 # and does not back up at once, so when the last backup is older than the
 # interval (a paused run, a fault) one is taken first, which must succeed.
+# The service is started even when that backup fails.
 resume_backups() {
-  local age
+  local age rc=0
   age=$(backup_age)
-  if [ -z "$age" ] || [ "$age" -gt "$BACKUP_INTERVAL" ]; then take_backup || return 1; fi
-  dc start "$BACKUP_SVC" >/dev/null
+  if [ -z "$age" ] || [ "$age" -gt "$BACKUP_INTERVAL" ]; then take_backup || rc=1; fi
+  dc start "$BACKUP_SVC" >/dev/null || rc=1
+  return "$rc"
 }
 # the pgbackrest-backup service is running
 backup_service_running() { [ "$(docker inspect -f '{{.State.Running}}' "$BACKUP_C" 2>/dev/null)" = true ]; }

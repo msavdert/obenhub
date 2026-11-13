@@ -7,7 +7,9 @@
 # none or it is overdue). The backup is a full one when no full backup exists
 # or the last full one is older than FULL_EVERY * BACKUP_INTERVAL, else an
 # incremental one. Stop the service to stop backups (scenario backup-stale).
-# A failed backup is logged and tried again at once after the next look.
+# A failed backup is logged and tried again after 60 s. Every pass sleeps at
+# least 60 s after a backup, so an info output the parser cannot read (it then
+# sees no backup) gives one full backup a minute, not a tight loop.
 # The info JSON has keys in alphabetical order, so a backup's timestamp object
 # is followed by its type: {"timestamp":{"start":N,"stop":N},"type":"full"}.
 set -u
@@ -34,5 +36,6 @@ while :; do
   fi
   type=incr
   if [ "$last_full" -eq 0 ] || [ $((now - last_full)) -gt $((full_every * interval)) ]; then type=full; fi
-  pgbackrest --stanza="$stanza" --type="$type" backup || { echo "pgbackrest-backup: $type backup failed" >&2; sleep 60; }
+  pgbackrest --stanza="$stanza" --type="$type" backup || echo "pgbackrest-backup: $type backup failed" >&2
+  sleep 60
 done
