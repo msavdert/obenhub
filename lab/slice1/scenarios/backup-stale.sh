@@ -1,10 +1,13 @@
 #!/usr/bin/env bash
-# Scenario backup-stale: stop the pgbackrest-backup service, so no backup completes; expect PgBackRestBackupStale once the age of the last backup passes the lab parameter (obenhub.max_backup_age, 420 s in vmalert/rules/pgbackrest.yml) for 1 m. The service takes a backup every 240 s, so detection takes up to about 8 minutes from the stop. The revert starts the service again (its first backup is a full one), which resolves the alert.
+# Scenario backup-stale: take a backup, then stop the pgbackrest-backup service, so no further backup completes; expect PgBackRestBackupStale once the age of the last backup passes the lab parameter (obenhub.backup_age.limit, 780 s in vmalert/rules/pgbackrest.yml) for 1 m. The age starts at 0 (a backup is taken at the stop), so detection takes about 15 minutes. The revert starts the service again (its first backup is a full one), which resolves the alert.
 # shellcheck disable=SC1091,SC2034
 set -uo pipefail
 . "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 
 EXPECT=("PgBackRestBackupStale:pgbackrest")
-inject() { dc stop "$BACKUP_SVC" >/dev/null; }
-revert() { dc start "$BACKUP_SVC" >/dev/null; }
+# threshold 780 s + exporter refresh 30 s + scrape 30 s + evaluation 15 s + for 60 s + margin 120 s = 1035 s, rounded up
+DETECT_TIMEOUT=1200
+# one backup is taken first (age 0), then the periodic ones stop
+inject() { pause_backups; }
+revert() { resume_backups; }
 run_scenario backup-stale

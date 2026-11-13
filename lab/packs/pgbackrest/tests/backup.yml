@@ -8,7 +8,7 @@ tests:
   - name: stale fires when the age passes the lab parameter for 1m, clears after a new backup
     interval: 15s
     input_series:
-      - series: 'obenhub.max_backup_age'
+      - series: 'obenhub.backup_age.limit'
         values: '300x80'
       # age grows 15 s per step; a backup at step 40 (10m) resets it
       - series: 'pgbackrest_backup_since_last_completion_seconds{backup_type="incr",stanza="slice1",service.name="pgbackrest",service.instance.id="pgbackrest"}'
@@ -65,7 +65,7 @@ tests:
   - name: no age series, no alert
     interval: 15s
     input_series:
-      - series: 'obenhub.max_backup_age'
+      - series: 'obenhub.backup_age.limit'
         values: '300x40'
     alert_rule_test:
       - eval_time: 8m

@@ -1469,7 +1469,7 @@
                   },
                   {
                     "color": "red",
-                    "value": 420
+                    "value": 780
                   }
                 ]
               },
@@ -1489,7 +1489,7 @@
             "graphMode": "none",
             "textMode": "value"
           },
-          "description": "Seconds since the last completed backup of any kind (pgBackRest exporter; backup_type incr counts full, differential and incremental backups). Alert: PgBackRestBackupStale, above obenhub.max_backup_age (420 s in slice1). Not filtered by the instance variable: pgBackRest is its own target."
+          "description": "Seconds since the last completed backup of any kind (pgBackRest exporter; backup_type incr counts full, differential and incremental backups). Alert: PgBackRestBackupStale, above obenhub.backup_age.limit (780 s in slice1). Not filtered by the instance variable: pgBackRest is its own target."
         },
         {
           "id": 107,

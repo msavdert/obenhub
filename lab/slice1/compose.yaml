@@ -173,11 +173,12 @@ services:
   # every BACKUP_INTERVAL seconds (a full one first, then incremental, every
   # 10th full). Local mode: it reads the primary's data volume (read-only) and
   # talks to the server over the socket volume. `docker compose stop` of this
-  # service is how the backup-stale scenario stops backups. The 240 s interval
-  # is a lab value so that the stale threshold (vmalert/rules/pgbackrest.yml)
-  # can be minutes; each backup starts with an immediate checkpoint, and more
-  # often than every 240 s would add up to the requested-checkpoint alert's
-  # threshold (more than 3 in 5 minutes, PostgresCheckpointsRequested).
+  # service is how the backup-stale scenario stops backups. The 600 s interval
+  # (checkpoint_timeout is 300 s, assumed default) keeps the immediate
+  # checkpoint of each backup from adding up to the requested-checkpoint
+  # alert's threshold (more than 3 in 5 minutes, PostgresCheckpointsRequested).
+  # Scenarios that count checkpoints pause the service (pause_backups in
+  # scenarios/lib.sh).
   pgbackrest-backup:
     image: obenhub-slice1-postgres:18.7-pgbackrest-2.60.0
     container_name: obenhub-slice1-pgbackrest-backup
@@ -185,7 +186,7 @@ services:
     init: true
     entrypoint: ["/opt/obenhub/pgbackrest-backup.sh"]
     environment:
-      BACKUP_INTERVAL: "240"
+      BACKUP_INTERVAL: "600"
     mem_limit: 128m
     restart: unless-stopped
     depends_on:
@@ -205,7 +206,7 @@ services:
   # postgres user of the postgres image, the owner of the repository.
   # --collect.interval 30 s: the info run is cheap on a lab repository, and a
   # backup that finished is visible within one exporter refresh plus one
-  # Collector scrape (30 s each), small against the 420 s stale threshold of the
+  # Collector scrape (30 s each), small against the 780 s stale threshold of the
   # lab.
   pgbackrest-exporter:
     image: woblerr/pgbackrest_exporter:v0.25.0@sha256:6d8182f96020d8713caa365b743d3a39e1639ac759920aa5a2ee23bffc4f479d

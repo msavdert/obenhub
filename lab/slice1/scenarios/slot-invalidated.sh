@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Scenario slot-invalidated: create a physical slot on the primary that nothing consumes, push the current LSN past its restart_lsn by more than max_slot_wal_keep_size (read from pg_settings) with WAL segment switches, then CHECKPOINT so PostgreSQL removes the WAL and invalidates the slot (wal_status lost, invalidation_reason wal_removed). The inject starts only with enough time before the next timed checkpoint, and the active slots (standby1, app_sub) are kept close to the current LSN first, so no checkpoint can invalidate them. Expect PostgresReplicationSlotInvalidated for pg-primary. The slot is inactive and retains no WAL once invalidated, so PostgresPhysicalSlotInactive must not fire; any other alert is unexpected (PostgresCheckpointsRequested is the risk: WAL volume also requests checkpoints, so max_wal_size is raised for the inject and reset by revert; see extra.num_requested_delta).
+# Scenario slot-invalidated: create a physical slot on the primary that nothing consumes, push the current LSN past its restart_lsn by more than max_slot_wal_keep_size (read from pg_settings) with WAL segment switches, then CHECKPOINT so PostgreSQL removes the WAL and invalidates the slot (wal_status lost, invalidation_reason wal_removed). The inject starts only with enough time before the next timed checkpoint, and the active slots (standby1, app_sub) are kept close to the current LSN first, so no checkpoint can invalidate them. Expect PostgresReplicationSlotInvalidated for pg-primary. The slot is inactive and retains no WAL once invalidated, so PostgresPhysicalSlotInactive must not fire; any other alert is unexpected (PostgresCheckpointsRequested is the risk, and every pgBackRest backup is one more requested checkpoint, so the periodic backups are paused for the run: WAL volume also requests checkpoints, so max_wal_size is raised for the inject and reset by revert; see extra.num_requested_delta).
 # shellcheck disable=SC1091,SC2034
 set -uo pipefail
 . "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
@@ -55,6 +55,8 @@ walused() { docker exec "$PRIMARY" sh -c 'du -sb "$PGDATA/pg_wal" 2>/dev/null ||
 
 inject() {
   local n gap0 gap left0 left keep_mb seg target restart diff switches=0 req0 req1 wal0 wal1 st1 st2 st3 reason
+  # Every pgBackRest backup is a requested checkpoint and would break the "next timed checkpoint" timing below.
+  pause_backups || { FAILS+=("could not pause the pgBackRest backups"); return 1; }
   psql_p -c "SELECT pg_drop_replication_slot(slot_name) FROM pg_replication_slots WHERE slot_name = '$SLOT'" >/dev/null || return 1
   keep_mb=$(psql_p -c "SELECT setting FROM pg_settings WHERE name = 'max_slot_wal_keep_size'") || return 1
   seg=$(psql_p -c "SELECT setting FROM pg_settings WHERE name = 'wal_segment_size'") || return 1
@@ -145,6 +147,7 @@ revert() {
   psql_p -c "SELECT pg_drop_replication_slot(slot_name) FROM pg_replication_slots WHERE slot_name = '$SLOT'" >/dev/null || rc=1
   psql_p -c "ALTER SYSTEM RESET max_wal_size" -c "SELECT pg_reload_conf()" >/dev/null || rc=1
   wait_until 30 "max_wal_size reset" wal_size_reset || rc=1
+  resume_backups || rc=1
   return "$rc"
 }
 run_scenario slot-invalidated

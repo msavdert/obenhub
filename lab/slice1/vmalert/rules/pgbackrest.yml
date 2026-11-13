@@ -1,14 +1,14 @@
 # Slice 1 parameter of the pgBackRest pack (lab/packs/pgbackrest/rules.yml):
-# the tolerated age of the last completed backup, in seconds. The
-# pgbackrest-backup service takes a backup every 240 s (compose.yaml) and one
-# takes about 45 s (seen 2026-11-13), so the age at a healthy completion is
-# about 285 s; the exporter's 30 s refresh and the Collector's 30 s scrape add
-# up to 60 s. 420 s leaves about 75 s of margin and still lets the backup-stale
-# scenario fire in minutes. A production value is a multiple of the real backup
-# interval (the pack default is 26 h). Lab value, to be confirmed by the suite.
+# the tolerated age of the last completed backup, in seconds. Arithmetic:
+# backup interval 600 s (compose.yaml, BACKUP_INTERVAL) + the longest full
+# backup seen 53 s (pgbackrest info, 2026-11-13; an incremental took 1 to 4 s)
+# + exporter refresh 30 s + Collector scrape 30 s + margin 67 s = 780 s. The
+# alert then waits for: 1m on top. A production value is a multiple of the real
+# backup interval (the pack default is 26 h). Lab value, to be confirmed by
+# the suite.
 groups:
   - name: pgbackrest-parameters
     interval: 15s
     rules:
-      - record: obenhub.max_backup_age
-        expr: vector(420)
+      - record: obenhub.backup_age.limit
+        expr: vector(780)

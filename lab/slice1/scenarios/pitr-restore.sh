@@ -33,6 +33,8 @@ archived_past() { # LSN: the WAL segment that ends at LSN is archived
 
 inject() {
   local target lsn out before after
+  # a volume left by a killed run would make the restore fail with "[040] ... contains files"
+  docker volume rm "$RESTORE_VOL" >/dev/null 2>&1 || true
   psql_p -c "DROP TABLE IF EXISTS pitr_marker" -c "CREATE TABLE pitr_marker (id serial PRIMARY KEY, phase text NOT NULL, at timestamptz NOT NULL DEFAULT clock_timestamp())" >/dev/null || return 1
   psql_p -c "INSERT INTO pitr_marker (phase) SELECT 'before' FROM generate_series(1, $ROWS)" >/dev/null || return 1
   sleep 3

@@ -56,6 +56,10 @@ Candidates, read on 2026-11-12:
   final catalogue number came in a release after 18.0.
 - Barman stays the documented alternative; CloudNativePG backups (the Barman
   Cloud plugin) are a separate item for the k8s lab, not part of this ADR.
+  operasoftware/cnpg-plugin-pgbackrest (Apache-2.0, v0.10.0 of 2026-11-09)
+  is a candidate for that item; its README calls it experimental, supports
+  S3-compatible storage only and documents no backup metrics (read
+  2026-11-13).
 
 ## Backup state path (chosen 2026-11-13)
 

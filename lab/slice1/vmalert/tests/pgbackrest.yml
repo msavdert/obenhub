@@ -1,5 +1,5 @@
 # The slice 1 parameter of the pgBackRest pack (rules/pgbackrest.yml records
-# obenhub.max_backup_age = 420 s) read by PgBackRestBackupStale. The pack's own
+# obenhub.backup_age.limit = 780 s) read by PgBackRestBackupStale. The pack's own
 # behaviour is tested in lab/packs/pgbackrest/tests.
 rule_files:
   - ../rules/pgbackrest.yml
@@ -7,11 +7,11 @@ rule_files:
 evaluation_interval: 15s
 
 tests:
-  - name: with the slice 1 parameter a backup 500 s old is stale and one 300 s old is not
+  - name: with the slice 1 parameter a backup 900 s old is stale and one 600 s old is not
     interval: 15s
     input_series:
       - series: 'pgbackrest_backup_since_last_completion_seconds{backup_type="incr",stanza="slice1",service.name="pgbackrest",service.instance.id="pgbackrest"}'
-        values: '300x20 500x20'
+        values: '600x20 900x20'
     alert_rule_test:
       - eval_time: 4m
         groupname: pgbackrest
@@ -28,4 +28,4 @@ tests:
               service.name: pgbackrest
               service.instance.id: pgbackrest
             exp_annotations:
-              summary: 'No completed pgBackRest backup of stanza slice1 for 500 s'
+              summary: 'No completed pgBackRest backup of stanza slice1 for 900 s'

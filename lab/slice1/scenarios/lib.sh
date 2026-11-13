@@ -112,8 +112,21 @@ PGBR_WAL_DIR=/var/lib/pgbackrest/archive/slice1/18-1
 pgbr() { docker exec -u postgres "$PRIMARY" pgbackrest --stanza=slice1 "$@"; }
 # a completed backup is in the repository
 backup_exists() { pgbr info --output=json 2>/dev/null | jq -e '.[0].backup | length > 0' >/dev/null; }
-# an incremental backup now; it fails harmlessly when the pgbackrest-backup service holds the backup lock
+# an incremental backup now; fails when another backup runs, so pause_backups first
 take_backup() { pgbr --type=incr backup >&2; }
+
+# no pgbackrest backup process runs in the primary container
+no_backup_running() { ! docker exec "$PRIMARY" pgrep -f 'pgbackrest.* backup' >/dev/null 2>&1; }
+# Stop the periodic backups and take one synchronously, so that the backup age
+# is 0 and the backup's own (start-fast) checkpoint has happened before the
+# scenario measures anything. Fails when the backup fails. Pair it with
+# resume_backups in revert(); revert() also runs after a failed inject().
+pause_backups() {
+  dc stop "$BACKUP_SVC" >/dev/null || return 1
+  wait_until 60 "no pgbackrest backup process left" no_backup_running || return 1
+  take_backup
+}
+resume_backups() { dc start "$BACKUP_SVC" >/dev/null; }
 
 # component versions recorded under "images" in runs.jsonl
 component_versions() {

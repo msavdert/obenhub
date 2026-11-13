@@ -10,13 +10,18 @@
 #   exporter's HELP text "last completed full, differential or incremental
 #   backup"; seen equal for all three types after one full backup), so
 #   backup_type="incr" is "the last backup of any kind".
-# - pgbackrest_stanza_status: 0 ok; 1 missing stanza path and 2 no valid
-#   backups were seen live (before stanza-create, before the first backup);
-#   the other codes (3 to 6, 99) are from the exporter documentation as
-#   remembered and are not confirmed here. Any non-zero value is an error.
+# - pgbackrest_stanza_status: 0 ok. Seen live: 1 (missing stanza path) and 2
+#   (no valid backups) before the stanza and the first backup exist, and 99
+#   (error, other) with the WAL directory of the repository made unreadable
+#   (archiver-failing smoke run, 2026-11-13). The codes 3 to 6 are from the
+#   exporter documentation as remembered and are not confirmed here. Any
+#   non-zero value is an error.
 # - pgbackrest_exporter_status: 1 when the exporter could run `pgbackrest info`.
+# pgbackrest_backup_error_status (page checksum errors in a backup) has no
+# alert: the lab cannot produce it, and an alert nobody has seen fire is not
+# added.
 # The tolerated age of the last backup is a per-lab parameter: the series
-# obenhub.max_backup_age (seconds), recorded by the lab's own rules (slice1:
+# obenhub.backup_age.limit (seconds), recorded by the lab's own rules (slice1:
 # lab/slice1/vmalert/rules/pgbackrest.yml). Without that series the default of
 # 93600 s (26 h: a daily backup plus 2 h) applies. The default is an
 # assumption for a daily backup schedule, not a measured value.
@@ -25,13 +30,13 @@ groups:
     interval: 15s
     rules:
       # No completed backup for longer than the tolerated age. The comparison
-      # joins on no label: obenhub.max_backup_age is one series without labels,
+      # joins on no label: obenhub.backup_age.limit is one series without labels,
       # or the default below takes its place.
       - alert: PgBackRestBackupStale
         expr: |
           pgbackrest_backup_since_last_completion_seconds{backup_type="incr"}
             > on() group_left()
-          (obenhub.max_backup_age or vector(93600))
+          (obenhub.backup_age.limit or vector(93600))
         for: 1m
         labels:
           severity: warning

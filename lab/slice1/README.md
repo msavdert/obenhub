@@ -31,7 +31,7 @@ access to `apt.postgresql.org`.
   `pg_stat_subscription`, `pg_stat_subscription_stats` and `pg_stat_archiver`.
 - pgBackRest 2.60.0 (ADR 0007): the primary archives WAL with `archive-push`
   into a repository volume; the `pgbackrest-backup` service creates the stanza
-  and takes a backup every 240 s (a full one first and every tenth);
+  and takes a backup every 600 s (a full one first and every tenth);
   woblerr/pgbackrest_exporter v0.25.0 refreshes every 30 s and the Collector
   scrapes it (`prometheus/pgbackrest`); the pack is
   [lab/packs/pgbackrest](../packs/pgbackrest).
@@ -61,10 +61,12 @@ fires, zero monitoring-role errors in the server log). Notable details:
   fault makes `pgbackrest info` report an error, so `PgBackRestStanzaError`
   and, after the revert, `PgBackRestBackupStale` may fire; the scenario allows
   both and expects neither.
-- `backup-stale` stops the `pgbackrest-backup` service (a backup every 240 s)
-  and expects `PgBackRestBackupStale` once the last backup is older than the
-  lab's 420 s (`vmalert/rules/pgbackrest.yml`); detection takes up to about
-  8 minutes. The pack default is 26 h.
+- `backup-stale` takes a backup, stops the `pgbackrest-backup` service (a
+  backup every 600 s) and expects `PgBackRestBackupStale` once the last backup
+  is older than the lab's 780 s (`vmalert/rules/pgbackrest.yml`); detection
+  takes about 15 minutes. The pack default is 26 h. `archiver-failing`,
+  `slot-invalidated` and `checkpoint-pressure` pause the periodic backups for
+  their run (each backup is a requested checkpoint).
 - `pitr-restore` writes marker rows, notes the time, writes more rows,
   restores with `pgbackrest restore --type=time` into a throwaway container
   and volume without network, and checks that only the earlier rows exist.
