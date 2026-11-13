@@ -1,4 +1,24 @@
-# The Oracle lab has no alert rules yet (lab/packs/oracledb-dg has none). The
-# shared vmalert flags (lab/mon/compose.base.yaml) read this file, so it exists
-# and holds no groups.
-groups: []
+# Oracle lab inventory: the Collector and the databases this lab expects (the
+# observer Collector on ora-dg-obs, which reads both databases of the CDB19
+# Data Guard pair). The rules that read these series are the pack
+# lab/packs/oracledb-dg. Same record names and shapes as lab/pgha's inventory.
+groups:
+  - name: inventory
+    interval: 15s
+    rules:
+      # The Collector this lab expects, by its self-telemetry
+      # service.instance.id. The gateway is not listed: assumption, its own
+      # self-metrics are not part of this lab's checks yet.
+      - record: obenhub.expected_collector
+        expr: |
+          label_set(vector(1), "service.namespace", "obenhub-lab", "service.instance.id", "otelcol-ora-dg-obs")
+
+      # The databases: service.instance.id is the db_unique_name, and the
+      # obenhub.collector label names the Collector that collects them (the one
+      # observer reads both).
+      - record: obenhub.expected_target
+        expr: |
+          union(
+            label_set(vector(1), "service.namespace", "obenhub-lab", "service.name", "oracledb", "obenhub.cluster.name", "cdb19", "service.instance.id", "CDB19", "obenhub.collector", "otelcol-ora-dg-obs"),
+            label_set(vector(1), "service.namespace", "obenhub-lab", "service.name", "oracledb", "obenhub.cluster.name", "cdb19", "service.instance.id", "CDB19_STBY", "obenhub.collector", "otelcol-ora-dg-obs")
+          )

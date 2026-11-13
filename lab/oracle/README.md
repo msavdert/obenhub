@@ -71,8 +71,11 @@ first samples are the Collector's first scrape.
 OTLP/HTTP receiver (the config is shared with [pgha](../pgha), at
 `lab/mon/otelcol-gateway-mtls.yaml`), and the shared VictoriaMetrics,
 VictoriaLogs, vmalert, Alertmanager and Grafana services of
-[lab/mon](../mon). There are no alert rules or dashboards yet, so vmalert
-loads an empty `inventory.yml`.
+[lab/mon](../mon). vmalert loads `mon/vmalert/inventory.yml` (the observer
+Collector and the two databases), the shared Collector pack and the Data Guard pack rules
+([lab/packs/oracledb-dg](../packs/oracledb-dg/rules.yml)); the rules are
+unit-tested (`mise run lab:oracle:rules-test`) and not yet exercised by
+scenarios. There are no dashboards yet.
 
 ```sh
 mise run lab:oracle:pki      # CA, gateway certificate, client certificate (lab/oracle/pki, gitignored)
