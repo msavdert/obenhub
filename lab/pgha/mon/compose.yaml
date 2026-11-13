@@ -21,7 +21,7 @@ services:
     ports:
       - "${GATEWAY_IP:?}:${GATEWAY_PORT:?}:4318"
     volumes:
-      - ./otelcol-gateway.yaml:/etc/otelcol/config.yaml:ro
+      - ../../mon/otelcol-gateway-mtls.yaml:/etc/otelcol/config.yaml:ro
       - ../pki/ca.crt:/etc/otelcol/tls/ca.crt:ro
       - ../pki/gateway/gateway.crt:/etc/otelcol/tls/gateway.crt:ro
       - ../pki/gateway/gateway.key:/etc/otelcol/tls/gateway.key:ro

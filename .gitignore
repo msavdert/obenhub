@@ -16,3 +16,4 @@ site/
 /lab/k8s/results/*.log
 /lab/pgha/.env
 /lab/pgha/pki/
+/lab/oracle/pki/

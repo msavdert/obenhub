@@ -1,0 +1,4 @@
+# The Oracle lab has no alert rules yet (lab/packs/oracledb-dg has none). The
+# shared vmalert flags (lab/mon/compose.base.yaml) read this file, so it exists
+# and holds no groups.
+groups: []

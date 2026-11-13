@@ -1,7 +1,9 @@
-# pgha gateway Collector: receives OTLP/HTTP from the three node Collectors
-# (lab/pgha/files/otelcol.yaml.tmpl) over mutual TLS and forwards to
-# VictoriaMetrics and VictoriaLogs. Nodes set all resource attributes; the
-# gateway adds none.
+# Gateway Collector with a mutual-TLS OTLP/HTTP receiver, shared by lab/pgha and
+# lab/oracle (their mon/compose.yaml mount it): receives from the lab's VM
+# Collectors (lab/pgha/files/otelcol.yaml.tmpl, lab/oracle/files/otelcol-obs.yaml)
+# and forwards to VictoriaMetrics and VictoriaLogs. The VM Collectors set all
+# resource attributes; the gateway adds none. lab/k8s has its own gateway
+# config (plain OTLP).
 # Receiver TLS keys: opentelemetry-collector config/configtls README (server:
 # cert_file, key_file, client_ca_file, min_version); OTLP receiver HTTP
 # settings: receiver/otlpreceiver at v0.164.0.
