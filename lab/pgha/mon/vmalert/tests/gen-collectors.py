@@ -45,6 +45,7 @@ tests:
 """
 RULE_FILES = [
     "../inventory.yml",
+    "../../../../packs/collector/rules.yml",
     "../../../../packs/postgresql/rules.yml",
     "../../../../packs/patroni/rules.yml",
     "../../../../packs/etcd/rules.yml",
@@ -52,7 +53,7 @@ RULE_FILES = [
 
 # alertname -> rule group
 GROUPS = {
-    "CollectorAbsent": "postgresql",
+    "CollectorAbsent": "collector",
     "PostgresTargetAbsent": "postgresql",
     "PatroniTargetAbsent": "patroni",
     "EtcdMemberAbsent": "etcd",

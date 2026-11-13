@@ -1,12 +1,13 @@
 # Collector liveness in the k8s lab: the gateway, the cluster Collector and one
 # agent per worker, as listed in ../inventory.yml, read by CollectorAbsent of the
-# shared PostgreSQL pack. Samples are 15 s apart; a stopped Collector's
+# shared Collector pack. Samples are 15 s apart; a stopped Collector's
 # self-metrics end after 2 m (8 samples). CollectorAbsent: the 2 m window
 # empties at 3m45s, firing after for: 1m (4m45s), so it is asserted from 5m;
 # nothing may fire earlier. A Collector behind the gateway is left out while
 # the gateway itself is absent, so a stopped gateway raises one alert, not five.
 rule_files:
   - ../inventory.yml
+  - ../../../../packs/collector/rules.yml
   - ../../../../packs/postgresql/rules.yml
 evaluation_interval: 15s
 
@@ -26,27 +27,27 @@ tests:
         values: '1x60'
     alert_rule_test:
       - eval_time: 2m30s
-        groupname: postgresql
+        groupname: collector
         alertname: CollectorAbsent
         exp_alerts: []
       - eval_time: 3m
-        groupname: postgresql
+        groupname: collector
         alertname: CollectorAbsent
         exp_alerts: []
       - eval_time: 4m
-        groupname: postgresql
+        groupname: collector
         alertname: CollectorAbsent
         exp_alerts: []
       - eval_time: 5m
-        groupname: postgresql
+        groupname: collector
         alertname: CollectorAbsent
         exp_alerts: []
       - eval_time: 6m
-        groupname: postgresql
+        groupname: collector
         alertname: CollectorAbsent
         exp_alerts: []
       - eval_time: 7m
-        groupname: postgresql
+        groupname: collector
         alertname: CollectorAbsent
         exp_alerts: []
 
@@ -65,19 +66,19 @@ tests:
         values: '1x60'
     alert_rule_test:
       - eval_time: 2m30s
-        groupname: postgresql
+        groupname: collector
         alertname: CollectorAbsent
         exp_alerts: []
       - eval_time: 3m
-        groupname: postgresql
+        groupname: collector
         alertname: CollectorAbsent
         exp_alerts: []
       - eval_time: 4m
-        groupname: postgresql
+        groupname: collector
         alertname: CollectorAbsent
         exp_alerts: []
       - eval_time: 5m
-        groupname: postgresql
+        groupname: collector
         alertname: CollectorAbsent
         exp_alerts:
           - exp_labels:
@@ -88,7 +89,7 @@ tests:
             exp_annotations:
               summary: Collector otelcol-agent-obenhub-worker2 reports no self-metrics
       - eval_time: 6m
-        groupname: postgresql
+        groupname: collector
         alertname: CollectorAbsent
         exp_alerts:
           - exp_labels:
@@ -99,7 +100,7 @@ tests:
             exp_annotations:
               summary: Collector otelcol-agent-obenhub-worker2 reports no self-metrics
       - eval_time: 7m
-        groupname: postgresql
+        groupname: collector
         alertname: CollectorAbsent
         exp_alerts:
           - exp_labels:
@@ -125,19 +126,19 @@ tests:
         values: '1x60'
     alert_rule_test:
       - eval_time: 2m30s
-        groupname: postgresql
+        groupname: collector
         alertname: CollectorAbsent
         exp_alerts: []
       - eval_time: 3m
-        groupname: postgresql
+        groupname: collector
         alertname: CollectorAbsent
         exp_alerts: []
       - eval_time: 4m
-        groupname: postgresql
+        groupname: collector
         alertname: CollectorAbsent
         exp_alerts: []
       - eval_time: 5m
-        groupname: postgresql
+        groupname: collector
         alertname: CollectorAbsent
         exp_alerts:
           - exp_labels:
@@ -148,7 +149,7 @@ tests:
             exp_annotations:
               summary: Collector otelcol-cluster reports no self-metrics
       - eval_time: 6m
-        groupname: postgresql
+        groupname: collector
         alertname: CollectorAbsent
         exp_alerts:
           - exp_labels:
@@ -159,7 +160,7 @@ tests:
             exp_annotations:
               summary: Collector otelcol-cluster reports no self-metrics
       - eval_time: 7m
-        groupname: postgresql
+        groupname: collector
         alertname: CollectorAbsent
         exp_alerts:
           - exp_labels:
@@ -185,19 +186,19 @@ tests:
         values: '1x8 _x52'
     alert_rule_test:
       - eval_time: 2m30s
-        groupname: postgresql
+        groupname: collector
         alertname: CollectorAbsent
         exp_alerts: []
       - eval_time: 3m
-        groupname: postgresql
+        groupname: collector
         alertname: CollectorAbsent
         exp_alerts: []
       - eval_time: 4m
-        groupname: postgresql
+        groupname: collector
         alertname: CollectorAbsent
         exp_alerts: []
       - eval_time: 5m
-        groupname: postgresql
+        groupname: collector
         alertname: CollectorAbsent
         exp_alerts:
           - exp_labels:
@@ -215,7 +216,7 @@ tests:
             exp_annotations:
               summary: Collector otelcol-agent-obenhub-worker3 reports no self-metrics
       - eval_time: 6m
-        groupname: postgresql
+        groupname: collector
         alertname: CollectorAbsent
         exp_alerts:
           - exp_labels:
@@ -233,7 +234,7 @@ tests:
             exp_annotations:
               summary: Collector otelcol-agent-obenhub-worker3 reports no self-metrics
       - eval_time: 7m
-        groupname: postgresql
+        groupname: collector
         alertname: CollectorAbsent
         exp_alerts:
           - exp_labels:
@@ -266,19 +267,19 @@ tests:
         values: '1x8 _x52'
     alert_rule_test:
       - eval_time: 2m30s
-        groupname: postgresql
+        groupname: collector
         alertname: CollectorAbsent
         exp_alerts: []
       - eval_time: 3m
-        groupname: postgresql
+        groupname: collector
         alertname: CollectorAbsent
         exp_alerts: []
       - eval_time: 4m
-        groupname: postgresql
+        groupname: collector
         alertname: CollectorAbsent
         exp_alerts: []
       - eval_time: 5m
-        groupname: postgresql
+        groupname: collector
         alertname: CollectorAbsent
         exp_alerts:
           - exp_labels:
@@ -288,7 +289,7 @@ tests:
             exp_annotations:
               summary: Collector otelcol-gateway reports no self-metrics
       - eval_time: 6m
-        groupname: postgresql
+        groupname: collector
         alertname: CollectorAbsent
         exp_alerts:
           - exp_labels:
@@ -298,7 +299,7 @@ tests:
             exp_annotations:
               summary: Collector otelcol-gateway reports no self-metrics
       - eval_time: 7m
-        groupname: postgresql
+        groupname: collector
         alertname: CollectorAbsent
         exp_alerts:
           - exp_labels:

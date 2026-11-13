@@ -227,6 +227,7 @@ services:
       - "127.0.0.1:28880:8880"
     volumes:
       - ./vmalert/inventory.yml:/etc/vmalert/inventory.yml:ro
+      - ../packs/collector/rules.yml:/etc/vmalert/pack/collector.yml:ro
       - ../packs/postgresql/rules.yml:/etc/vmalert/pack/postgresql.yml:ro
       - ../packs/patroni/rules.yml:/etc/vmalert/pack/patroni.yml:ro
       - ../packs/etcd/rules.yml:/etc/vmalert/pack/etcd.yml:ro

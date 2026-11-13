@@ -304,6 +304,7 @@ services:
       - -remoteWrite.url=http://victoriametrics:8428
       - -notifier.url=http://alertmanager:9093
       - -rule=/etc/vmalert/rules/*.yml
+      - -rule=/etc/vmalert/collector/rules.yml
       - -rule=/etc/vmalert/pack/rules.yml
       - -rule=/etc/vmalert/pgbackrest/rules.yml
       - -evaluationInterval=15s
@@ -311,6 +312,7 @@ services:
       - "127.0.0.1:18880:8880"
     volumes:
       - ./vmalert/rules:/etc/vmalert/rules:ro
+      - ../packs/collector/rules.yml:/etc/vmalert/collector/rules.yml:ro
       - ../packs/postgresql/rules.yml:/etc/vmalert/pack/rules.yml:ro
       - ../packs/pgbackrest/rules.yml:/etc/vmalert/pgbackrest/rules.yml:ro
 
