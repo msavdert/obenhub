@@ -2,8 +2,9 @@
 
 The Oracle lab of [ADR 0008](../../docs/adr/0008-oracle-lab-scope.md). What
 runs so far is the database side of the first slice, the `CDB19` Data Guard
-pair, and its Collector configuration. There are no scenarios, backend or
-evidence yet, so the lab is not in the [lab table](../README.md).
+pair, its Collector configuration and the backend the Collector pushes to.
+There are no scenarios or evidence yet, so the lab is not in the
+[lab table](../README.md).
 
 ## Prerequisites
 
@@ -16,7 +17,9 @@ The scripts expect, as `pair.sh` names them:
   physical standby) on `ora-dg-stby`, one broker configuration with
   fast-start failover, SIDs listed in `/etc/oratab`, the listeners on port
   1521 under the `lab.local` names;
-- a 19c Oracle home on `ora-dg-obs` (the observers'), used to check logins.
+- a 19c Oracle home on `ora-dg-obs` (the observers'), used to check logins;
+- Docker on this box for the backend, and `ora-dg-obs` able to reach this box
+  at `10.0.0.11` (assumption: the lab LAN address; `gateway.sh` holds it).
 
 ## Provision
 
@@ -41,3 +44,41 @@ the exporter replaced by `debug` and `file`: the receiver's 25 default
 metrics from `CDB19` and every pack metric that applies to each role (lag,
 apply and gap from the standby, the redo destination from the primary)
 arrived. It is not installed on `ora-dg-obs` yet.
+
+## Backend
+
+`mon/compose.yaml` runs on this box: a gateway Collector with a mutual-TLS
+OTLP/HTTP receiver (the config is shared with [pgha](../pgha), at
+`lab/mon/otelcol-gateway-mtls.yaml`), and the shared VictoriaMetrics,
+VictoriaLogs, vmalert, Alertmanager and Grafana services of
+[lab/mon](../mon). There are no alert rules or dashboards yet, so vmalert
+loads an empty `inventory.yml`.
+
+```sh
+mise run lab:oracle:pki      # CA, gateway certificate, client certificate (lab/oracle/pki, gitignored)
+mise run lab:oracle:mon:up   # writes mon/.env, then docker compose up --wait
+mise run lab:oracle:mon:down # also deletes the volumes
+```
+
+`pki.sh` issues only what is missing and runs on every `mon:up`. After a
+change of `GATEWAY_IP` in `gateway.sh`, delete `pki/gateway/` so the
+gateway certificate is issued again with the new address.
+
+Only the gateway listens on the LAN, the rest on `127.0.0.1`:
+
+| Service | Host port |
+| --- | --- |
+| gateway (OTLP/HTTP, mutual TLS) | `10.0.0.11:54318` |
+| VictoriaMetrics | 58428 |
+| VictoriaLogs | 59428 |
+| vmalert | 58880 |
+| Alertmanager | 59093 |
+| Grafana | 53000 |
+
+The gateway certificate has `10.0.0.11` as its SAN. `ca.crt`, `otelcol.crt` and
+`otelcol.key` from `pki/` go to `/etc/otelcol-contrib/tls` on `ora-dg-obs`
+(`OBENHUB_GATEWAY_ENDPOINT=https://10.0.0.11:54318`). On 2026-11-13 the
+Collector configuration above ran in the contrib 0.164.0 container on this box
+against this backend with the client certificate: 38 `oracledb.*` metric names
+reached VictoriaMetrics, 34 for `CDB19` and 11 for `CDB19_STBY` (both pack
+roles). A client without a certificate was refused (curl exit 56).

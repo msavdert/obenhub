@@ -1,0 +1,86 @@
+# Oracle backend, run on the box (not on ora-dg-obs): the observer Collector
+# pushes to the gateway over mutual TLS; everything else listens on 127.0.0.1
+# only. The five backend services extend lab/mon/compose.base.yaml (images,
+# versions, flags, Alertmanager config, Grafana provisioning); this file adds
+# ports, names and rule files. The gateway config is shared with lab/pgha.
+# No alert rules or dashboards yet.
+# Start with: mise run lab:oracle:mon:up (generates .env and the certificates).
+name: obenhub-oracle
+
+services:
+  gateway:
+    image: otel/opentelemetry-collector-contrib:0.164.0@sha256:340c9ca6a36617084c6661bdc4f0fe92b7cda5a805d61673ec8db375fddc522b
+    container_name: obenhub-oracle-gateway
+    restart: unless-stopped
+    mem_limit: 256m
+    # the keys in ../pki are 0600 owned by the user who ran pki.sh
+    user: "${GATEWAY_UID:?run: mise run lab:oracle:mon:up (it generates lab/oracle/mon/.env)}:${GATEWAY_GID:?}"
+    command: ["--config=/etc/otelcol/config.yaml"]
+    # the only LAN-facing port: the box address on the lab LAN (gateway.sh)
+    ports:
+      - "${GATEWAY_IP:?}:${GATEWAY_PORT:?}:4318"
+    volumes:
+      - ../../mon/otelcol-gateway-mtls.yaml:/etc/otelcol/config.yaml:ro
+      - ../pki/ca.crt:/etc/otelcol/tls/ca.crt:ro
+      - ../pki/gateway/gateway.crt:/etc/otelcol/tls/gateway.crt:ro
+      - ../pki/gateway/gateway.key:/etc/otelcol/tls/gateway.key:ro
+    depends_on:
+      victoriametrics:
+        condition: service_healthy
+      victorialogs:
+        condition: service_started
+    networks:
+      - mon
+
+  victoriametrics:
+    extends:
+      file: ../../mon/compose.base.yaml
+      service: victoriametrics
+    container_name: obenhub-oracle-victoriametrics
+    ports:
+      - "127.0.0.1:58428:8428"
+
+  victorialogs:
+    extends:
+      file: ../../mon/compose.base.yaml
+      service: victorialogs
+    container_name: obenhub-oracle-victorialogs
+    ports:
+      - "127.0.0.1:59428:9428"
+
+  vmalert:
+    extends:
+      file: ../../mon/compose.base.yaml
+      service: vmalert
+    container_name: obenhub-oracle-vmalert
+    ports:
+      - "127.0.0.1:58880:8880"
+    volumes:
+      - ./vmalert/inventory.yml:/etc/vmalert/inventory.yml:ro
+
+  alertmanager:
+    extends:
+      file: ../../mon/compose.base.yaml
+      service: alertmanager
+    container_name: obenhub-oracle-alertmanager
+    ports:
+      - "127.0.0.1:59093:9093"
+
+  grafana:
+    extends:
+      file: ../../mon/compose.base.yaml
+      service: grafana
+    container_name: obenhub-oracle-grafana
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: "${GRAFANA_ADMIN_PASSWORD:?run: mise run lab:oracle:mon:up (it generates lab/oracle/mon/.env)}"
+    ports:
+      - "127.0.0.1:53000:3000"
+
+networks:
+  mon: {}
+
+volumes:
+  vm-data: {}
+  vl-data: {}
+  am-data: {}
+  grafana-data: {}

@@ -290,6 +290,26 @@ run = "docker compose -p obenhub-pgha -f lab/pgha/mon/compose.yaml down -v"
 description = "show the pgha backend containers"
 run = "docker compose -p obenhub-pgha -f lab/pgha/mon/compose.yaml ps"
 
+[tasks."lab:oracle:pki"]
+description = "create the Oracle lab CA, gateway certificate and the ora-dg-obs client certificate in lab/oracle/pki (gitignored; existing files are kept)"
+run = "lab/oracle/scripts/pki.sh"
+
+[tasks."lab:oracle:mon:up"]
+description = "start the Oracle backend on this box (gateway Collector on the LAN address, VictoriaMetrics/Logs, vmalert, Alertmanager, Grafana)"
+run = """
+lab/oracle/scripts/gen-mon-env.sh
+lab/oracle/scripts/pki.sh
+docker compose -p obenhub-oracle -f lab/oracle/mon/compose.yaml up -d --wait
+"""
+
+[tasks."lab:oracle:mon:down"]
+description = "stop the Oracle backend and delete its volumes"
+run = "docker compose -p obenhub-oracle -f lab/oracle/mon/compose.yaml down -v"
+
+[tasks."lab:oracle:mon:ps"]
+description = "show the Oracle backend containers"
+run = "docker compose -p obenhub-oracle -f lab/oracle/mon/compose.yaml ps"
+
 [tasks."lab:pgha:provision"]
 description = "install or converge etcd, PostgreSQL 18 and Patroni (TLS) on the pgha-1..3 VMs over ssh; idempotent; optional node names as arguments"
 usage = 'arg "[node]..." var=#true help "node names, default all three"'
