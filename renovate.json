@@ -114,7 +114,7 @@
         "/^lab/.+\\.sh$/"
       ],
       "matchStrings": [
-        "# renovate: datasource=(?<datasource>(?!deb\\b)\\S+) depName=(?<depName>\\S+)(?: extractVersion=(?<extractVersion>\\S+))?\\s+[A-Z_]+=(?<currentValue>\\S+)"
+        "# renovate: datasource=(?<datasource>github-releases|github-tags|docker) depName=(?<depName>\\S+)(?: extractVersion=(?<extractVersion>\\S+))?\\s+[A-Z_]+=(?<currentValue>\\S+)"
       ]
     },
     {
