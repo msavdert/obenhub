@@ -74,26 +74,31 @@ bb_size_mb() {
 
 # Both pg_basebackup runs are requested checkpoints, and PostgresCheckpointsRequested
 # fires above 3 in 5 minutes (lab/packs/postgresql/rules.yml; a third run within
-# five minutes of two others tripped it, 2026-11-13). Start only when the
-# primary's own window (the rule's expression, from VictoriaMetrics) holds at
-# most one.
+# five minutes of two others tripped it, 2026-11-13). The periodic pgBackRest
+# backup (also a requested checkpoint) is paused for the run with one backup
+# taken first (pause_backups), so the backup age stays below the interval and
+# revert (resume_backups) takes no further one; the run then starts only when
+# the primary's own window (the rule's expression, from VictoriaMetrics) holds
+# none: a checkpoint taken after the last scrape is not visible yet, so one
+# unseen plus the two of this run stays at the threshold.
 checkpoint_headroom() {
   local n
   n=$(vm_query 'max(last_over_time({__name__="postgresql.bgwriter.checkpoint.count",type="requested","service.instance.id"="pg-primary"}[5m]) - first_over_time({__name__="postgresql.bgwriter.checkpoint.count",type="requested","service.instance.id"="pg-primary"}[5m]))')
-  [ -n "$n" ] && [ "$n" -le 1 ]
+  [ -n "$n" ] && [ "$n" -le 0 ]
 }
 
 summary() { # what pgBackRest gives for the same job, from the lab's repository, against this path
   log "comparison: pgBackRest catalogue of the same cluster (pgbackrest info): $(pgbr info --output=json | jq -r '.[0] | "stanza \(.status.message), \(.backup | length) backups listed (\(.backup[0].label) .. \(.backup[-1].label)), WAL archive \(.archive[0].min) .. \(.archive[0].max)"')"
   log "comparison: retention is configured (repo1-retention-full=$(docker exec "$PRIMARY" sed -n 's/^repo1-retention-full=//p' /etc/pgbackrest/pgbackrest.conf)); backup age is $(backup_age)s and reaches the monitoring stack as a metric (PgBackRestBackupStale)"
-  log "comparison: this path left two unrelated directories on a volume: no catalogue to list or choose a restore point from, no retention or expiry of old backups or of the WAL they need, no backup age metric or alert, no repository-wide checksum or WAL-range check (pg_verifybackup checked one directory), and the restore needed hand-written recovery settings"
+  log "comparison: this path left three unrelated directories on a volume (full, incremental, combined): no catalogue to list or choose a restore point from, no retention or expiry of old backups or of the WAL they need, no backup age metric or alert, no repository-wide check (pg_verifybackup checks the files and WAL range of one backup directory at a time), and the restore needed hand-written recovery settings"
 }
 
 inject() {
   local ms_full ms_incr ms_combine ms_verify out lsn target
   local size_full size_incr size_combined
   local sw
-  wait_until 600 "at most one requested checkpoint on the primary in the last 5 minutes" checkpoint_headroom || return 1
+  pause_backups || { FAILS+=("pausing the periodic backups (stop and one backup) failed"); return 1; }
+  wait_until 600 "no requested checkpoint on the primary in the last 5 minutes" checkpoint_headroom || return 1
   # a volume or container left by a killed run would make the next one fail
   docker rm -f "$BB_C" >/dev/null 2>&1 || true
   docker volume rm "$BB_VOL" >/dev/null 2>&1 || true
@@ -171,8 +176,11 @@ inject() {
   [ "$n_after" = 0 ] || { FAILS+=("restored $n_after rows written after the target, expected 0"); return 1; }
 }
 revert() {
-  psql_p -c "DROP TABLE IF EXISTS bb_marker, bb_ballast" >/dev/null
+  local rc=0
+  psql_p -c "DROP TABLE IF EXISTS bb_marker, bb_ballast" >/dev/null || rc=1
   docker rm -f "$BB_C" >/dev/null 2>&1 || true
   docker volume rm "$BB_VOL" >/dev/null 2>&1 || true
+  resume_backups || rc=1
+  return "$rc"
 }
 run_scenario basebackup-compare

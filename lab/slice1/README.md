@@ -77,7 +77,11 @@ fires, zero monitoring-role errors in the server log). Notable details:
   --incremental`, `pg_combinebackup`, `pg_verifybackup`, then a point-in-time
   restore of the combined backup (WAL from the pgBackRest archive) and a row
   check. Step durations and sizes are in the result row; no alert is expected.
-  It needs `summarize_wal=on`, set in `compose.yaml`.
+  It needs `summarize_wal=on`, set in `compose.yaml` (a lab started before
+  that change needs its containers recreated). It pauses the periodic
+  pgBackRest backups after taking one, and waits for a 5-minute window without
+  a requested checkpoint, because both of its backups are requested
+  checkpoints.
 - `pgbouncer-pool-saturated` opens more transactions than the pool size.
 
 The Collector's overhead is measured in [lab/overhead](../overhead).
