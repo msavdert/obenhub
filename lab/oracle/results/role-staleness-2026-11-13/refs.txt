@@ -1,0 +1,13 @@
+6b96aab83ba5be641d04d3b944cdcf5d80926754	refs/heads/main
+6643db8cbbdd9c43fc1aed6cc090cc330c2aec15	refs/tags/receiver/oracledbreceiver/v0.164.0
+18fcec7bd1f5b4702a40a1861e0b5eb95f9a3152	refs/tags/receiver/oracledbreceiver/v0.164.0^{}
+f3947636fc50d083f173c4f84f7e81e383fac57f	refs/tags/receiver/oracledbreceiver/v0.164.1
+9d85835bdee87a7e33e315da1a875cbaabd50b91	refs/tags/receiver/oracledbreceiver/v0.164.1^{}
+f062e4f7831d3d0a3c1e6f17d79ad73f3899ac07	refs/tags/receiver/oracledbreceiver/v0.165.0
+f56f9a38c9864e892af542f1dbd28f475d6779dc	refs/tags/receiver/oracledbreceiver/v0.165.0^{}
+b33787f5dbcd6944c8347c55a93475b37052b1ae	refs/tags/receiver/oracledbreceiver/v0.165.1
+6083b2c53d78b21d0925b703194aaed920c01af5	refs/tags/receiver/oracledbreceiver/v0.165.1^{}
+ac1bcd29585a13dd7586ee37140052100d79d7b7	refs/tags/v0.164.0
+18fcec7bd1f5b4702a40a1861e0b5eb95f9a3152	refs/tags/v0.164.0^{}
+140351a94bba5e2794b8b9f61e31fe5e75d44b27	refs/tags/v0.165.1
+6083b2c53d78b21d0925b703194aaed920c01af5	refs/tags/v0.165.1^{}

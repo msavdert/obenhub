@@ -302,6 +302,10 @@ lab/oracle/scripts/pki.sh
 docker compose -p obenhub-oracle -f lab/oracle/mon/compose.yaml up -d --wait
 """
 
+[tasks."lab:oracle:collector"]
+description = "install or converge otelcol-contrib on ora-dg-obs over ssh (rpm pinned by lab/pgha/versions.sh, config, pack, client certificate, environment file); restarts only on change; needs lab/oracle/.env and the PKI of lab:oracle:mon:up"
+run = "lab/oracle/scripts/collector.sh"
+
 [tasks."lab:oracle:mon:down"]
 description = "stop the Oracle backend and delete its volumes"
 run = "docker compose -p obenhub-oracle -f lab/oracle/mon/compose.yaml down -v"
