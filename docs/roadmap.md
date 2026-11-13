@@ -26,9 +26,15 @@ decision 2026-11-08):
       `PostgresTransactionIdWraparound` and one for
       `PostgresReplicationSlotRetainingWAL` outside k8s
 - [ ] First Learn and Guides pages on the docs site, only for things that run
-- [ ] Oracle, in parallel with the PostgreSQL items above (owner decision
-      2026-11-13): first a scope ADR and a read-only survey of the lab VMs,
-      then a first lab slice
+- [ ] Oracle first slice (ADR 0008), in parallel with the PostgreSQL items
+      above (owner decision 2026-11-13)
+- [ ] Version drift, every engine (owner decision 2026-11-13): a generated
+      catalog diff between two versions of an engine (PostgreSQL majors;
+      Oracle release updates and 19c against 26ai) that lists new and changed
+      monitoring views and columns, run when Renovate or the EOL check brings
+      a new version; queries in the packs carry the versions they support,
+      and the pack tests run on every supported version. First use: the
+      PostgreSQL 19 item above
 
 ## Backups
 
