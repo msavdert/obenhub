@@ -1,5 +1,65 @@
 # Changelog
 
+## [0.14.0](https://github.com/msavdert/obenhub/compare/v0.13.0...v0.14.0) (2026-11-13)
+
+
+### ⚠ BREAKING CHANGES
+
+* **lab:** metric, attribute and alert names change per ADR 0006; restart running lab Collectors and recreate vmalert/Alertmanager before the next suite.
+
+### refactor
+
+* **lab:** apply the naming contract (ADR 0006) ([#26](https://github.com/msavdert/obenhub/issues/26)) ([bcbb5e2](https://github.com/msavdert/obenhub/commit/bcbb5e264da02c120de81e407a35dc450b8c8d25))
+
+
+### Features
+
+* **lab:** add CloudNativePG/Kubernetes and host dashboards ([#29](https://github.com/msavdert/obenhub/issues/29)) ([f1a233f](https://github.com/msavdert/obenhub/commit/f1a233f84a412c8098863f5020d550e5c77aa8f8))
+* **lab:** add the pgha synchronous-standby-cut scenario and a missing-sync-standby alert ([#34](https://github.com/msavdert/obenhub/issues/34)) ([239409f](https://github.com/msavdert/obenhub/commit/239409f6d172904d2476f9e071504e0e95a40be9))
+* **lab:** add the stage 4 kind lab with CloudNativePG and a PostgreSQL 18 cluster ([b1fabeb](https://github.com/msavdert/obenhub/commit/b1fabeb37bb3c42eef20a504d1ce8e2b1d332a4d))
+* **lab:** alert on CloudNativePG primary changes and run switchover and failover scenarios on kind ([9cf57f5](https://github.com/msavdert/obenhub/commit/9cf57f5f707150424b73d5266c077ae454c31966))
+* **lab:** alert on fenced CloudNativePG instances and slots retaining WAL, with fenced, replica-cut and slot scenarios on kind ([427ccbf](https://github.com/msavdert/obenhub/commit/427ccbfc46c055d1109d1709e47bfcd0410a20fa))
+* **lab:** alert on NotReady Kubernetes nodes and run a worker power-cut scenario on kind ([362c2bd](https://github.com/msavdert/obenhub/commit/362c2bd983a4fff2481c794bd7e979064c8f2c52))
+* **lab:** alert on two writable primaries from Patroni and from PostgreSQL ([#22](https://github.com/msavdert/obenhub/issues/22)) ([87e8dfc](https://github.com/msavdert/obenhub/commit/87e8dfcb51e9dc233756985075c44b07b5a851ed))
+* **lab:** archive WAL in slice1, monitor pg_stat_archiver, add archiver-failing ([#31](https://github.com/msavdert/obenhub/issues/31)) ([84e2472](https://github.com/msavdert/obenhub/commit/84e247249f7d1b33ca261db3ff2428328b71aec8))
+* **lab:** collect PostgreSQL, Kubernetes and logs from the kind lab into obenhub-k8s ([5237de8](https://github.com/msavdert/obenhub/commit/5237de84bcf2ff51e3a544593af90c15d7cb1dda))
+* **lab:** report labs whose suite evidence predates their code ([#24](https://github.com/msavdert/obenhub/issues/24)) ([e92dba5](https://github.com/msavdert/obenhub/commit/e92dba5b93213eb657d4a6bfc9afdd7229d575dd))
+* **lab:** run scenario suites on a clean tree under one host lock ([#23](https://github.com/msavdert/obenhub/issues/23)) ([dbe9b53](https://github.com/msavdert/obenhub/commit/dbe9b530ab820f32c98c2a07f1cf19f480051748))
+* **lab:** scrape CloudNativePG's exporter for cnpg_collector_* only ([f7cf626](https://github.com/msavdert/obenhub/commit/f7cf626649bafa3149699cc87afd6440a3380f29))
+
+
+### Bug fixes
+
+* **ci:** open the end-of-life issue only on a finding ([#47](https://github.com/msavdert/obenhub/issues/47)) ([3f6ba85](https://github.com/msavdert/obenhub/commit/3f6ba85538f6232165456944cedcc633257723fa))
+* **lab:** count only complete, clean suites of the full scenario list on main ([#28](https://github.com/msavdert/obenhub/issues/28)) ([025ed9f](https://github.com/msavdert/obenhub/commit/025ed9f957aa44b2d970665cfd309f90d7fd1c5c))
+* **lab:** guard temp-dir removal, fail on silent timeouts, move the suite lock to the user runtime dir ([#42](https://github.com/msavdert/obenhub/issues/42)) ([09e96f3](https://github.com/msavdert/obenhub/commit/09e96f31c0635a76b3b151656dc8ea3b76f84790))
+* **lab:** keep prose out of the evidence staleness check and reject suites with mixed or missing config hashes ([#41](https://github.com/msavdert/obenhub/issues/41)) ([2a87758](https://github.com/msavdert/obenhub/commit/2a87758ff6c24b0c5aa53477f8cc024c95472a1d))
+* **lab:** pgha provision waits for a healthy cluster, load runs as app, images by digest ([#35](https://github.com/msavdert/obenhub/issues/35)) ([4e1c22d](https://github.com/msavdert/obenhub/commit/4e1c22dfcd2df34c54dfd867365a719820f389a4))
+* **lab:** pin images by digest, keep passwords off command lines, wait for conditions instead of sleeps ([#33](https://github.com/msavdert/obenhub/issues/33)) ([f9f76c2](https://github.com/msavdert/obenhub/commit/f9f76c22ea52089e45f3e24d49bc6e1c372a0301))
+* **lab:** run every pack rule test file, fix the archiver backlog pending case ([#32](https://github.com/msavdert/obenhub/issues/32)) ([64b90d1](https://github.com/msavdert/obenhub/commit/64b90d12f7bea5f0b34a1f8d0e7a0f91c1152947))
+* **lab:** start slot-invalidated only well before the next timed checkpoint ([#45](https://github.com/msavdert/obenhub/issues/45)) ([aba0f39](https://github.com/msavdert/obenhub/commit/aba0f395cd27cbb500ba650bc3ec5831fb37b918))
+* **lab:** tie PostgresSeriesVanished to the pack queries, alert on a held xmin horizon, give the split-brain alerts a scrape of margin ([#43](https://github.com/msavdert/obenhub/issues/43)) ([276ffee](https://github.com/msavdert/obenhub/commit/276ffee1d878b3468d9677e8fb86670c9bb55959))
+* **lab:** wait for Patroni to name a Sync Standby before cutting it ([#38](https://github.com/msavdert/obenhub/issues/38)) ([2d9245b](https://github.com/msavdert/obenhub/commit/2d9245b0c7808117775652e9e7d79658a8a3c49e))
+* **lab:** widen the snapshot scope, fix slot retention on standbys, monitor app in slice1 ([#30](https://github.com/msavdert/obenhub/issues/30)) ([03183d1](https://github.com/msavdert/obenhub/commit/03183d19fedcdcc6dc7b6c7245278e5747173caf))
+
+
+### Performance
+
+* **lab:** measure Collector overhead with the current pack and a CPU-saturated arm ([#37](https://github.com/msavdert/obenhub/issues/37)) ([1be1361](https://github.com/msavdert/obenhub/commit/1be13616bcf4f20e1cc996a881b97b25ecbe5b19))
+
+
+### Documentation
+
+* **adr:** choose pgBackRest with a pg_basebackup comparison, plan PostgreSQL 19 next to 18 ([#48](https://github.com/msavdert/obenhub/issues/48)) ([5818981](https://github.com/msavdert/obenhub/commit/58189812aa98948015dffe3ab5f6344def3344cb))
+* **adr:** record Collector topology, scraped endpoints, packs and MetricsQL ([#20](https://github.com/msavdert/obenhub/issues/20)) ([1a14d7f](https://github.com/msavdert/obenhub/commit/1a14d7ff4ddfaf7c880b15f0c6201e72c79c7902))
+* correct stale lab and roadmap text, record the next steps and the accepted gaps ([#40](https://github.com/msavdert/obenhub/issues/40)) ([c12e353](https://github.com/msavdert/obenhub/commit/c12e3536c77f59b912b86d6187f2e33da8d908b2))
+* every change through a PR, releases only at milestones ([#19](https://github.com/msavdert/obenhub/issues/19)) ([820e4a1](https://github.com/msavdert/obenhub/commit/820e4a14d537031f129cce513edec602bd31f02e))
+* reduce the roadmap to open items and record the hardening pass ([#25](https://github.com/msavdert/obenhub/issues/25)) ([7952167](https://github.com/msavdert/obenhub/commit/7952167f42dd09fbc3eac9e14374d98ae941dd9d))
+* replace "nothing runs yet" with a lab status list ([#18](https://github.com/msavdert/obenhub/issues/18)) ([e2adf20](https://github.com/msavdert/obenhub/commit/e2adf2002a597bb13318336c5dc3d1cb437eee4d))
+* **roadmap:** plan stage 4, CloudNativePG on kind ([716c1fb](https://github.com/msavdert/obenhub/commit/716c1fb08f7851208148c9b4318d436b5992538d))
+* **roadmap:** tick the stage 4 Collector item ([0d2d0e4](https://github.com/msavdert/obenhub/commit/0d2d0e4f5d1428d68238a155bbd078b17f6e3d33))
+* **roadmap:** tick the stage 4 kind lab item ([604d8d5](https://github.com/msavdert/obenhub/commit/604d8d5d926c7627421b072646ae8a207f5a6f63))
+
 ## [0.13.0](https://github.com/msavdert/obenhub/compare/v0.12.0...v0.13.0) (2026-11-11)
 
 
