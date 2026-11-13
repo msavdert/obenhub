@@ -27,7 +27,8 @@ fi
 failed=0
 validate() { # <label> <config file>
   if docker run --rm --user "$(id -u):$(id -g)" \
-    -e OTEL_MONITOR_PASSWORD=dummy \
+    -e OTEL_MONITOR_PASSWORD=dummy -e ORA_MON_PASSWORD=dummy -e ORA_DG_PASSWORD=dummy \
+    -e OBENHUB_GATEWAY_ENDPOINT=https://10.0.0.2:4318 \
     -v "$2:/c.yaml:ro" \
     -v "$PWD/lab/packs:/etc/otelcol/packs:ro" \
     -v "$PWD/lab/packs:/etc/otelcol-contrib/packs:ro" \

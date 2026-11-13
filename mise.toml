@@ -168,7 +168,7 @@ scripts/check-panels.sh lab/slice1/grafana/dashboards/postgresql.json $g $e pg-1
 """
 
 [tasks."lint:pack-names"]
-description = "pack metric names against ADR 0006: units, unit words, dotted attributes, no clash with postgresqlreceiver (no network)"
+description = "pack metric names against ADR 0006: units, unit words, dotted attributes, no clash with postgresqlreceiver or oracledbreceiver (no network)"
 run = "python3 scripts/check-pack-names.py"
 
 [tasks."lint:series-vanished"]
@@ -176,7 +176,7 @@ description = "PostgresSeriesVanished watches exactly the metrics of the Postgre
 run = "python3 scripts/check-series-vanished.py"
 
 [tasks."docs:reference-check"]
-description = "fail when docs/reference/postgresql-pack-metrics.md differs from what gen-pack-metrics.py generates"
+description = "fail when a docs/reference/*-pack-metrics.md page differs from what gen-pack-metrics.py generates"
 run = "python3 scripts/gen-pack-metrics.py --check"
 
 [tasks.check]

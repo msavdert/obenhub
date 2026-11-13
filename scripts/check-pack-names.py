@@ -2,15 +2,15 @@
 # SPDX-License-Identifier: Apache-2.0
 """Check the names project metrics use against ADR 0006. No network.
 
-For lab/packs/postgresql/queries.yaml and the pgbouncer queries of
-lab/slice1/otelcol/config.yaml:
+For the pack query files (lab/packs/postgresql, lab/packs/oracledb-dg) and
+the pgbouncer queries of lab/slice1/otelcol/config.yaml:
     - every metric has a unit;
     - no metric name ends in a unit word (_seconds, _bytes, _ms, _us, _total);
     - names are lowercase, dot-separated.
-For the PostgreSQL pack only:
-    - attribute columns are dotted (postgresql.*, never a bare column name);
-    - no metric name equals a postgresqlreceiver metric name (list in
-    lab/packs/postgresql/upstream-receiver-metrics.txt).
+For the packs only:
+    - attribute columns are dotted (never a bare column name);
+    - no metric name equals a metric name of the engine's receiver (list in
+    upstream-receiver-metrics.txt next to the pack's queries.yaml).
 """
 
 import re
@@ -20,23 +20,35 @@ from pathlib import Path
 from packmetrics import parse_metrics
 
 ROOT = Path(__file__).resolve().parent.parent
-PACK = ROOT / "lab/packs/postgresql/queries.yaml"
-UPSTREAM = ROOT / "lab/packs/postgresql/upstream-receiver-metrics.txt"
+# (pack directory, metric prefix, receiver whose names a pack name must not take)
+PACKS = (
+    (ROOT / "lab/packs/postgresql", "postgresql.", "postgresqlreceiver"),
+    (ROOT / "lab/packs/oracledb-dg", "oracledb.", "oracledbreceiver"),
+)
 PGBOUNCER = ROOT / "lab/slice1/otelcol/config.yaml"
 UNIT_WORDS = ("_seconds", "_bytes", "_ms", "_us", "_total")
 NAME = re.compile(r"^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)+$")
 
 
-def main():
-    upstream = {
+def read_upstream(path):
+    names = {
         line.strip()
-        for line in UPSTREAM.read_text(encoding="utf-8").splitlines()
+        for line in path.read_text(encoding="utf-8").splitlines()
         if line.strip() and not line.startswith("#")
     }
-    if not upstream:
-        sys.exit(f"{UPSTREAM.relative_to(ROOT)}: no metric names")
+    if not names:
+        sys.exit(f"{path.relative_to(ROOT)}: no metric names")
+    return names
+
+
+def main():
+    targets = [
+        (d / "queries.yaml", read_upstream(d / "upstream-receiver-metrics.txt"), prefix, receiver)
+        for d, prefix, receiver in PACKS
+    ]
+    targets.append((PGBOUNCER, None, "pgbouncer.", None))
     errors = []
-    for path, is_pack, prefix in ((PACK, True, "postgresql."), (PGBOUNCER, False, "pgbouncer.")):
+    for path, upstream, prefix, receiver in targets:
         metrics, mentions = parse_metrics(path)
         rel = path.relative_to(ROOT)
         if mentions != len(metrics):
@@ -62,9 +74,9 @@ def main():
                 errors.append(f"{rel}: {name}: ends in a unit word")
             if not m.get("unit"):
                 errors.append(f"{rel}: {name}: no unit")
-            if is_pack:
+            if upstream is not None:
                 if name in upstream:
-                    errors.append(f"{rel}: {name}: equals a postgresqlreceiver metric")
+                    errors.append(f"{rel}: {name}: equals a {receiver} metric")
                 for col in m.get("attribute_columns", []):
                     if not NAME.match(col):
                         errors.append(f"{rel}: {name}: attribute {col!r} is not dotted")

@@ -1,0 +1,85 @@
+# Collector on ora-dg-obs (otelcol-contrib 0.164.0): the database receivers of
+# the CDB19 pair, run once from the observer's vantage point (ADR 0008
+# decision 2), so they keep reporting while either database VM is down.
+#   oracledb            C##OBENHUB_MON on the primary's CDB root
+#   sql_query/primary   oracledb-dg pack, C##OBENHUB_DG as SYSDG on CDB19
+#   sql_query/standby   oracledb-dg pack, C##OBENHUB_DG as SYSDG on CDB19_STBY
+# The two sql_query receivers read the same pack on both databases on every
+# collection, so roles are read again after a switchover or failover; the
+# oracledb receiver detects role and open mode once at start (contrib
+# v0.164.0) and stays pointed at the VM that was primary when it started.
+# Component keys: receiver/{oracledbreceiver,sqlqueryreceiver} READMEs at
+# contrib v0.164.0. The data source option "DBA PRIVILEGE" is parsed by go-ora
+# v2.9.0 (v2/configurations/connect_config.go); "#" in the user name is
+# percent-encoded in the URL.
+# Passwords and the gateway endpoint come from the environment (ORA_*_PASSWORD
+# hold the 30 characters Oracle uses, see scripts/provision.sh); nothing
+# secret is written here.
+receivers:
+  oracledb:
+    endpoint: ora-au-lab.lab.local:1521
+    service: CDB19
+    username: C##OBENHUB_MON
+    password: ${env:ORA_MON_PASSWORD}
+    collection_interval: 30s
+  sql_query/primary:
+    driver: oracle
+    datasource: "oracle://C%23%23OBENHUB_DG:${env:ORA_DG_PASSWORD}@ora-au-lab.lab.local:1521/CDB19?DBA%20PRIVILEGE=SYSDG"
+    collection_interval: 15s
+    queries: ${file:/etc/otelcol-contrib/packs/oracledb-dg/queries.yaml}
+  sql_query/standby:
+    driver: oracle
+    datasource: "oracle://C%23%23OBENHUB_DG:${env:ORA_DG_PASSWORD}@ora-dg-stby.lab.local:1521/CDB19_STBY?DBA%20PRIVILEGE=SYSDG"
+    collection_interval: 15s
+    queries: ${file:/etc/otelcol-contrib/packs/oracledb-dg/queries.yaml}
+
+processors:
+  memory_limiter:
+    check_interval: 1s
+    limit_mib: 256
+  # server.address is the VM a receiver connects to, not a role: roles move
+  # and are read from the oracledb.database.primary metric.
+  resource/primary:
+    attributes:
+      - {key: service.namespace, value: obenhub-lab, action: upsert}
+      - {key: service.name, value: oracledb, action: upsert}
+      - {key: service.instance.id, value: CDB19, action: upsert}
+      - {key: server.address, value: ora-au-lab, action: upsert}
+      - {key: server.port, value: '1521', action: upsert}
+      - {key: db.system.name, value: oracle.db, action: upsert}
+      - {key: obenhub.cluster.name, value: cdb19, action: upsert}
+  resource/standby:
+    attributes:
+      - {key: service.namespace, value: obenhub-lab, action: upsert}
+      - {key: service.name, value: oracledb, action: upsert}
+      - {key: service.instance.id, value: CDB19_STBY, action: upsert}
+      - {key: server.address, value: ora-dg-stby, action: upsert}
+      - {key: server.port, value: '1521', action: upsert}
+      - {key: db.system.name, value: oracle.db, action: upsert}
+      - {key: obenhub.cluster.name, value: cdb19, action: upsert}
+  batch: {}
+
+exporters:
+  otlp_http/gateway:
+    endpoint: ${env:OBENHUB_GATEWAY_ENDPOINT}
+    tls:
+      ca_file: /etc/otelcol-contrib/tls/ca.crt
+      cert_file: /etc/otelcol-contrib/tls/otelcol.crt
+      key_file: /etc/otelcol-contrib/tls/otelcol.key
+
+service:
+  telemetry:
+    resource:
+      attributes:
+        - {name: service.namespace, value: obenhub-lab}
+        - {name: service.name, value: otelcol}
+        - {name: service.instance.id, value: otelcol-ora-dg-obs}
+  pipelines:
+    metrics/primary:
+      receivers: [oracledb, sql_query/primary]
+      processors: [memory_limiter, resource/primary, batch]
+      exporters: [otlp_http/gateway]
+    metrics/standby:
+      receivers: [sql_query/standby]
+      processors: [memory_limiter, resource/standby, batch]
+      exporters: [otlp_http/gateway]

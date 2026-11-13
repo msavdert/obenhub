@@ -61,11 +61,27 @@ because pooled sessions survive; the receiver's query samples cost about
    `SELECT_CATALOG_ROLE` and no `SELECT ANY`, with `CONTAINER_DATA` for the
    PDB metrics, and a profile whose password never expires (an expired
    monitoring password is a known incident, ORA-28001). The grant list
-   follows the receiver README and is tested on each major version; whether
-   `CONTAINER_DATA` works for this user on 19c is unverified. How the
-   mounted standby is read (a `SYSDG` connection, or only primary-side
-   views such as `V$ARCHIVE_DEST_STATUS`) is decided in the first slice and
-   recorded here.
+   follows the receiver README and is tested on each major version. On
+   19.33 `CONTAINER_DATA=ALL` works for this user: from the root it sees
+   all three containers in `V$CON_SYSSTAT` (lab, 2026-11-13).
+   The mounted standby is read with a second common user that holds only
+   the `SYSDG` administrative privilege and is used by `sql_query` alone, on
+   both databases of a pair (owner decision, 2026-11-13). The monitoring
+   user above stays the only user of `oracledb` and reads the open primary.
+   Reasons, from the `CDB19` pair on 2026-11-13: a mounted database admits
+   only administrative connections, and on 19.33 `V$DATAGUARD_STATS` is
+   empty on the primary, so apply lag exists only on the standby. Contrib
+   v0.164.0 `oracledbreceiver` has no field for an administrative
+   connection; the go-ora v2.9.0 data source takes `DBA PRIVILEGE=SYSDG`,
+   which `sql_query` passes through unchanged. A `SYSDG` login is checked
+   against the password file, so the standby's file must match the
+   primary's. In the lab the first `SYSDG` login on the standby failed until
+   the primary's file was copied; a later password change on the primary
+   reached the standby's file through redo without a copy. The provision
+   script therefore copies the file only when the two differ. `SYSDG` covers more
+   than reading (it can stop apply or fail over); the lab accepts that for
+   this user only, with its password from `.env`, never in the
+   repository.
 5. **Data Guard telemetry.** No receiver reads it, so a pack
    `lab/packs/oracledb-dg/` holds `sql_query` statements for transport and
    apply lag, archive gap, apply state, protection mode, role, open mode
