@@ -1,7 +1,8 @@
 # Security policy
 
 Report vulnerabilities privately through GitHub private vulnerability
-reporting (the "Security" tab of this repository, "Report a vulnerability").
+reporting (the "Security" tab of this repository, "Report a vulnerability":
+<https://github.com/msavdert/obenhub/security/advisories/new>).
 
 Do not open a public issue for a vulnerability. Never put secrets, tokens,
 connection strings or customer data in issues, pull requests or logs.

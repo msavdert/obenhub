@@ -12,6 +12,11 @@
   ],
   "minimumReleaseAge": "3 days",
   "minimumReleaseAgeBehaviour": "timestamp-optional",
+  "labels": [
+    "dependencies"
+  ],
+  "prConcurrentLimit": 5,
+  "commitBodyTable": true,
   "ignoreDeps": [
     "obenhub-stage3-node"
   ],
