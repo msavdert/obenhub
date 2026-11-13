@@ -7,6 +7,7 @@ set -uo pipefail
 EXPECT=()
 ROWS=20
 RESTORE_VOL=${PROJECT}_pitr-restore
+RESTORE_C=${PROJECT}-pitr-restore
 
 # Runs as root in the throwaway container: restore, start PostgreSQL on a
 # socket only, wait for recovery to end, print "before=N after=M". $1 is the target.
@@ -34,6 +35,7 @@ archived_past() { # LSN: the WAL segment that ends at LSN is archived
 inject() {
   local target lsn out before after
   # a volume left by a killed run would make the restore fail with "[040] ... contains files"
+  docker rm -f "$RESTORE_C" >/dev/null 2>&1 || true
   docker volume rm "$RESTORE_VOL" >/dev/null 2>&1 || true
   psql_p -c "DROP TABLE IF EXISTS pitr_marker" -c "CREATE TABLE pitr_marker (id serial PRIMARY KEY, phase text NOT NULL, at timestamptz NOT NULL DEFAULT clock_timestamp())" >/dev/null || return 1
   psql_p -c "INSERT INTO pitr_marker (phase) SELECT 'before' FROM generate_series(1, $ROWS)" >/dev/null || return 1
@@ -46,7 +48,7 @@ inject() {
   wait_until 120 "WAL up to $lsn archived" archived_past "$lsn" || return 1
   log "restore target $target"
   docker volume create "$RESTORE_VOL" >/dev/null || return 1
-  out=$(docker run --rm --network none -v "$RESTORE_VOL:/restore" -v "$REPO_VOL:/var/lib/pgbackrest:ro" \
+  out=$(docker run --rm --name "$RESTORE_C" --network none -v "$RESTORE_VOL:/restore" -v "$REPO_VOL:/var/lib/pgbackrest:ro" \
     --entrypoint sh "$PG_IMAGE" -c "$RESTORE_SCRIPT" sh "$target") || { FAILS+=("restore container failed"); return 1; }
   log "restored: $out"
   before=${out#before=}; before=${before%% *}
@@ -58,6 +60,7 @@ inject() {
 }
 revert() {
   psql_p -c "DROP TABLE IF EXISTS pitr_marker" >/dev/null
+  docker rm -f "$RESTORE_C" >/dev/null 2>&1 || true
   docker volume rm "$RESTORE_VOL" >/dev/null 2>&1 || true
 }
 run_scenario pitr-restore

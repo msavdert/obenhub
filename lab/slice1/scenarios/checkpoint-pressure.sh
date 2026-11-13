@@ -5,6 +5,8 @@ set -uo pipefail
 . "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 
 EXPECT=("PostgresCheckpointsRequested:pg-primary")
+# the paused run can last longer than the 780 s stale limit + for 1m on a slow path (the 550 s detection seen under host load, 2026-11-13, plus the revert)
+ALLOW=("PgBackRestBackupStale:pgbackrest")
 DB=obenhub_ckpt
 WAL_SIZE=${WAL_SIZE:-48MB}
 RATE=${RATE:-400}       # pgbench transactions per second, all clients together
@@ -26,10 +28,13 @@ after_detect() {
   EXTRA_JSON=$(jq -n -c --arg w "$WAL_SIZE" --argjson r "$RATE" --argjson n "$(requested)" '{max_wal_size: $w, pgbench_rate: $r, num_requested_at_detect: $n}')
 }
 revert() {
+  local rc=0
   docker exec "$PRIMARY" pkill -x pgbench 2>/dev/null
-  psql_p -c "ALTER SYSTEM RESET max_wal_size" -c "SELECT pg_reload_conf()" >/dev/null || return 1
+  psql_p -c "ALTER SYSTEM RESET max_wal_size" -c "SELECT pg_reload_conf()" >/dev/null || rc=1
   sleep 2
-  psql_p -c "DROP DATABASE IF EXISTS $DB WITH (FORCE)" >/dev/null
-  resume_backups
+  psql_p -c "DROP DATABASE IF EXISTS $DB WITH (FORCE)" >/dev/null || rc=1
+  # also after a failed reset: the service must not stay stopped
+  resume_backups || rc=1
+  return "$rc"
 }
 run_scenario checkpoint-pressure
