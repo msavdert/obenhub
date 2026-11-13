@@ -11,8 +11,15 @@ Every lab has a full suite recorded on `main`; the evidence is in each lab's
 it. Order decided by the owner on 2026-11-12 (ADR 0001, depth before
 breadth); Stage 5 is not next (owner decision 2026-11-08):
 
+- [ ] Update wave: PostgreSQL 18.7 in every lab, etcd 3.7.3 if the stage3
+      run passes (PR #8), and the pending Collector, VictoriaMetrics and
+      Alertmanager updates; then one full suite chain on `main`
 - [ ] Backup tool with a restore scenario in slice1, building on its WAL
       archive (see Backups)
+- [ ] PostgreSQL 19 (release 2026-11-19, owner decision 2026-11-12) next to
+      18 in slice1: the same suite on both majors, the pack's queries tested
+      on both. Before it starts, check 19 support in the `postgresql`
+      receiver, pgBackRest and the official image
 - [ ] Monitoring gaps in slice1: dashboard panels for transaction-id age,
       idle-in-transaction, locks, deadlocks and checkpoints; a scenario for
       `PostgresTransactionIdWraparound` and one for
@@ -27,10 +34,12 @@ in slice1 (scenario `archiver-failing`) with no restore. A backup tool is a
 stage of its own, because it brings a component, storage and a restore
 scenario.
 
-- [ ] Choose a backup tool (pgBackRest or Barman) and read its `LICENSE` file
-      per [ADR 0004](adr/0004-licence-policy.md) before choosing. Then:
-      the tool in one lab, backup age and verification monitored, an alert
+pgBackRest, with a `pg_basebackup` comparison scenario
+([ADR 0007](adr/0007-backup-tool.md)).
+
+- [ ] pgBackRest in slice1, backup age and verification monitored, an alert
       for a stale or failed backup, and a restore scenario with evidence
+- [ ] The `pg_basebackup` scenario of ADR 0007 decision 3
 
 ## Known gaps, accepted for now
 
