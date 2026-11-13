@@ -107,3 +107,13 @@ when the Collector has to use a pooled endpoint instead of a direct one.
 
 See [ADR 0003](adr/0003-receiver-strategy.md), decision 3. Each candidate is
 checked against existing upstream issues before work starts.
+
+- [ ] `postgresqlreceiver`: replication slot metrics from
+      `pg_replication_slots`, version-gated (evidence: slice1 scenarios
+      `physical-slot-inactive`, `slot-invalidated`). Issue
+      [contrib#53105](https://github.com/open-telemetry/opentelemetry-collector-contrib/issues/53105)
+      opened 2026-11-13; no code before a code owner agrees on the direction
+- [ ] `oracledbreceiver`: role and open mode are read once at start
+      (contrib v0.164.0, `scraper.go` `start()`), so they stay stale after a
+      switchover until the Collector restarts. Issue after the `lab/oracle`
+      fast-start failover scenario shows it; upstream not searched yet
