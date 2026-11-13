@@ -142,12 +142,14 @@ if [ "$state" != active ] || [ "$changed" = 1 ]; then
   # Three active samples 2 s apart within 30 s, NRestarts and ActiveEnterTimestamp
   # unchanged between the first and the last (as lab/pgha/scripts/provision.sh):
   # a slow crash loop can look active on every sample but moves one of them.
+  # first_props is the first active sample ever, kept across a non-active one,
+  # so a crash and recovery inside the window fails the check too.
   ok=0 first_props="" last_props=""
   for _ in $(seq 1 15); do
     last_props=$(rn systemctl show -p NRestarts -p ActiveEnterTimestamp -p ActiveState otelcol-contrib || true)
     if grep -qx 'ActiveState=active' <<<"$last_props"; then
       ok=$((ok + 1))
-      if [ "$ok" = 1 ]; then first_props="$last_props"; fi
+      if [ -z "$first_props" ]; then first_props="$last_props"; fi
     else
       ok=0
     fi

@@ -399,7 +399,7 @@ phase_collector() {
       last_props=$(rn "$n" systemctl show -p NRestarts -p ActiveEnterTimestamp -p ActiveState otelcol-contrib || true)
       if grep -qx 'ActiveState=active' <<<"$last_props"; then
         ok=$((ok + 1))
-        if [ "$ok" = 1 ]; then first_props="$last_props"; fi
+        if [ -z "$first_props" ]; then first_props="$last_props"; fi
       else
         ok=0
       fi

@@ -74,6 +74,21 @@ service:
         - {name: service.namespace, value: obenhub-lab}
         - {name: service.name, value: otelcol}
         - {name: service.instance.id, value: otelcol-ora-dg-obs}
+    # Self-metrics to the gateway (as lab/pgha/files/otelcol.yaml.tmpl): the
+    # CollectorAbsent rule and the Collector gate of OracleTargetAbsent read
+    # otelcol_process_uptime with this service.instance.id.
+    metrics:
+      level: normal
+      readers:
+        - periodic:
+            interval: 15000
+            exporter:
+              otlp:
+                protocol: http/protobuf
+                endpoint: ${env:OBENHUB_GATEWAY_ENDPOINT}/v1/metrics
+                certificate: /etc/otelcol-contrib/tls/ca.crt
+                client_certificate: /etc/otelcol-contrib/tls/otelcol.crt
+                client_key: /etc/otelcol-contrib/tls/otelcol.key
   pipelines:
     metrics/primary:
       receivers: [oracledb, sql_query/primary]
