@@ -28,10 +28,6 @@ gosu postgres pg_ctl -D /restore/data -m fast stop >&2
 EOS
 )
 
-archived_past() { # LSN: the WAL segment that ends at LSN is archived
-  [ "$(psql_p -c "SELECT (last_archived_wal >= pg_walfile_name('$1'::pg_lsn - 1))::int FROM pg_stat_archiver")" = 1 ]
-}
-
 inject() {
   local target lsn out before after
   # a volume left by a killed run would make the restore fail with "[040] ... contains files"
