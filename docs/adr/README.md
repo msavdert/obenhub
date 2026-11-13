@@ -8,6 +8,7 @@
 | [0004](0004-licence-policy.md) | Licence policy | Accepted |
 | [0005](0005-lab-collection-topology-and-packs.md) | Collector topology, scraped endpoints, packs and MetricsQL | Accepted |
 | [0006](0006-naming-contract.md) | Naming contract for metrics, attributes and alerts | Accepted |
+| [0007](0007-backup-tool.md) | Backup tool - pgBackRest, compared with pg_basebackup | Accepted |
 
 ## Template
 
