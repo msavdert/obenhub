@@ -1,0 +1,104 @@
+# Oracle Data Guard pack: the sql_query list read on both databases of a
+# Data Guard pair (ADR 0008 decision 5), through the SYSDG-only user (ADR 0008
+# decision 4), because a mounted standby admits only administrative
+# connections. Every query runs on every collection, so role and open mode are
+# read again after a switchover or failover.
+# One query per concern; a query that does not apply to the current role
+# returns no rows (lag, apply and gap only on a standby, destinations only
+# where a remote destination is in use). One Collector reads both databases
+# of a pair into one pipeline, so every query but the heartbeat carries the
+# database's db_unique_name as oracledb.database.unique_name (the heartbeat
+# relies on the resource attributes of its pipeline).
+# Names follow ADR 0006 under the receiver's namespace oracledb.*. Aliases
+# are quoted so that go-ora returns them in lower case.
+# Views read on the CDB19 pair (19.33) on 2026-11-13: V$DATAGUARD_STATS is
+# empty on the primary; V$DATAGUARD_STATS.VALUE is an interval string
+# ('+00 00:00:00') and DATUM_TIME a string in MM/DD/YYYY HH24:MI:SS.
+- sql: SELECT 1 AS "heartbeat" FROM dual
+  metrics:
+    - {metric_name: oracledb.collection.heartbeat, value_column: heartbeat, value_type: int, data_type: gauge, unit: "1", description: "1 whenever the heartbeat query succeeded"}
+- sql: |
+    SELECT
+      db_unique_name AS "oracledb.database.unique_name",
+      database_role AS "oracledb.database.role",
+      open_mode AS "oracledb.database.open_mode",
+      CASE WHEN database_role = 'PRIMARY' THEN 1 ELSE 0 END AS "primary",
+      CASE WHEN open_mode LIKE 'READ %' THEN 1 ELSE 0 END AS "open"
+    FROM v$database
+  metrics:
+    - {metric_name: oracledb.database.primary, value_column: primary, attribute_columns: ["oracledb.database.unique_name", "oracledb.database.role"], value_type: int, data_type: gauge, unit: "1", description: "1 when the database role is PRIMARY"}
+    - {metric_name: oracledb.database.open, value_column: open, attribute_columns: ["oracledb.database.unique_name", "oracledb.database.open_mode"], value_type: int, data_type: gauge, unit: "1", description: "1 when the database is open (read write or read only), 0 when mounted"}
+# PROTECTION_LEVEL falls below PROTECTION_MODE when the configuration cannot
+# keep the configured mode (for example MAXIMUM AVAILABILITY with the
+# standby unreachable).
+- sql: |
+    SELECT
+      db_unique_name AS "oracledb.database.unique_name",
+      protection_mode AS "oracledb.dataguard.protection_mode",
+      protection_level AS "oracledb.dataguard.protection_level",
+      CASE WHEN protection_level <> protection_mode THEN 1 ELSE 0 END AS "degraded"
+    FROM v$database
+  metrics:
+    - {metric_name: oracledb.dataguard.protection.degraded, value_column: degraded, attribute_columns: ["oracledb.database.unique_name", "oracledb.dataguard.protection_mode", "oracledb.dataguard.protection_level"], value_type: int, data_type: gauge, unit: "1", description: "1 when the protection level is below the configured protection mode"}
+# DISABLED as the value with fast-start failover off is from memory, not
+# observed (the lab runs with it on): unverified.
+- sql: |
+    SELECT
+      db_unique_name AS "oracledb.database.unique_name",
+      fs_failover_status AS "oracledb.fast_start_failover.status",
+      CASE WHEN fs_failover_status <> 'DISABLED' THEN 1 ELSE 0 END AS "enabled",
+      CASE WHEN fs_failover_status = 'SYNCHRONIZED' THEN 1 ELSE 0 END AS "synchronized",
+      CASE WHEN fs_failover_observer_present = 'YES' THEN 1 ELSE 0 END AS "observer_present"
+    FROM v$database
+  metrics:
+    - {metric_name: oracledb.fast_start_failover.enabled, value_column: enabled, attribute_columns: ["oracledb.database.unique_name"], value_type: int, data_type: gauge, unit: "1", description: "1 when fast-start failover is not DISABLED"}
+    - {metric_name: oracledb.fast_start_failover.synchronized, value_column: synchronized, attribute_columns: ["oracledb.database.unique_name", "oracledb.fast_start_failover.status"], value_type: int, data_type: gauge, unit: "1", description: "1 when the fast-start failover status is SYNCHRONIZED"}
+    - {metric_name: oracledb.fast_start_failover.observer_present, value_column: observer_present, attribute_columns: ["oracledb.database.unique_name"], value_type: int, data_type: gauge, unit: "1", description: "1 when this database sees a fast-start failover observer"}
+# Standby only. lag_data_age grows when the standby stops receiving the data
+# the lag is computed from, so a stale lag value is visible (the lag itself
+# may then stay low).
+- sql: |
+    SELECT
+      d.db_unique_name AS "oracledb.database.unique_name",
+      CASE s.name WHEN 'transport lag' THEN 'transport' ELSE 'apply' END AS "oracledb.dataguard.lag.type",
+      EXTRACT(DAY FROM TO_DSINTERVAL(s.value)) * 86400
+        + EXTRACT(HOUR FROM TO_DSINTERVAL(s.value)) * 3600
+        + EXTRACT(MINUTE FROM TO_DSINTERVAL(s.value)) * 60
+        + EXTRACT(SECOND FROM TO_DSINTERVAL(s.value)) AS "lag",
+      ROUND((SYSDATE - TO_DATE(s.datum_time, 'MM/DD/YYYY HH24:MI:SS')) * 86400) AS "data_age"
+    FROM v$dataguard_stats s CROSS JOIN v$database d
+    WHERE s.name IN ('transport lag', 'apply lag')
+      AND s.value IS NOT NULL AND s.datum_time IS NOT NULL
+      AND d.database_role <> 'PRIMARY'
+  metrics:
+    - {metric_name: oracledb.dataguard.lag, value_column: lag, attribute_columns: ["oracledb.database.unique_name", "oracledb.dataguard.lag.type"], value_type: double, data_type: gauge, unit: s, description: "Transport or apply lag reported by V$DATAGUARD_STATS on the standby"}
+    - {metric_name: oracledb.dataguard.lag.data_age, value_column: data_age, attribute_columns: ["oracledb.database.unique_name", "oracledb.dataguard.lag.type"], value_type: double, data_type: gauge, unit: s, description: "Time since the standby last received the data its lag value is computed from (DATUM_TIME)"}
+# Standby only. The managed recovery process (MRP0) exists while redo apply
+# runs; that it is gone after the broker sets APPLY-OFF is an expectation for
+# the apply-stopped scenario to confirm (unverified).
+- sql: |
+    SELECT
+      d.db_unique_name AS "oracledb.database.unique_name",
+      (SELECT LEAST(COUNT(*), 1) FROM v$dataguard_process WHERE role = 'managed recovery') AS "running",
+      (SELECT NVL(SUM(high_sequence# - low_sequence# + 1), 0) FROM v$archive_gap) AS "missing_log"
+    FROM v$database d
+    WHERE d.database_role <> 'PRIMARY'
+  metrics:
+    - {metric_name: oracledb.dataguard.apply.running, value_column: running, attribute_columns: ["oracledb.database.unique_name"], value_type: int, data_type: gauge, unit: "1", description: "1 when a managed recovery process exists on the standby"}
+    - {metric_name: oracledb.dataguard.missing_log.count, value_column: missing_log, attribute_columns: ["oracledb.database.unique_name"], value_type: int, data_type: gauge, unit: "{log}", description: "Archived logs the standby is missing (V$ARCHIVE_GAP)"}
+# Remote redo destinations in use, normally on the primary. TYPE UNKNOWN is
+# left out: the standby lists an unused destination with that type.
+- sql: |
+    SELECT
+      d.db_unique_name AS "oracledb.database.unique_name",
+      TO_CHAR(a.dest_id) AS "oracledb.archive_dest.id",
+      a.destination AS "oracledb.archive_dest.destination",
+      a.status AS "oracledb.archive_dest.status",
+      NVL(a.gap_status, 'NONE') AS "oracledb.archive_dest.gap_status",
+      CASE WHEN a.status = 'VALID' THEN 1 ELSE 0 END AS "valid",
+      CASE WHEN a.gap_status IS NULL OR a.gap_status = 'NO GAP' THEN 0 ELSE 1 END AS "gap"
+    FROM v$archive_dest_status a CROSS JOIN v$database d
+    WHERE a.status <> 'INACTIVE' AND a.type NOT IN ('LOCAL', 'UNKNOWN')
+  metrics:
+    - {metric_name: oracledb.archive_dest.valid, value_column: valid, attribute_columns: ["oracledb.database.unique_name", "oracledb.archive_dest.id", "oracledb.archive_dest.destination", "oracledb.archive_dest.status"], value_type: int, data_type: gauge, unit: "1", description: "1 when the remote redo destination status is VALID"}
+    - {metric_name: oracledb.archive_dest.gapped, value_column: gap, attribute_columns: ["oracledb.database.unique_name", "oracledb.archive_dest.id", "oracledb.archive_dest.destination", "oracledb.archive_dest.gap_status"], value_type: int, data_type: gauge, unit: "1", description: "1 when the destination reports a redo gap (GAP_STATUS other than NO GAP)"}

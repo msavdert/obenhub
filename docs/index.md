@@ -17,6 +17,6 @@ page are described in
 ## Start here
 
 - [Decisions](adr/README.md): the ADRs.
-- [Reference](reference/postgresql-pack-metrics.md): the PostgreSQL pack metrics.
+- Reference: the [PostgreSQL pack](reference/postgresql-pack-metrics.md) and [Oracle Data Guard pack](reference/oracledb-dg-pack-metrics.md) metrics.
 - [Roadmap](roadmap.md): what is planned, and in what order.
 - [Changelog](changelog.md): released changes.
