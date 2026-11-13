@@ -114,7 +114,7 @@
         "/^lab/.+\\.sh$/"
       ],
       "matchStrings": [
-        "# renovate: datasource=(?<datasource>\\S+) depName=(?<depName>\\S+)(?: extractVersion=(?<extractVersion>\\S+))?\\s+[A-Z_]+=(?<currentValue>\\S+)"
+        "# renovate: datasource=(?<datasource>github-releases|github-tags|docker) depName=(?<depName>\\S+)(?: extractVersion=(?<extractVersion>\\S+))?\\s+[A-Z_]+=(?<currentValue>\\S+)"
       ]
     },
     {
@@ -136,6 +136,17 @@
       ],
       "matchStrings": [
         "# renovate: datasource=(?<datasource>\\S+) depName=(?<depName>\\S+)\\s+ARG [A-Z_]+=(?<currentValue>\\S+)"
+      ],
+      "registryUrlTemplate": "https://apt.postgresql.org/pub/repos/apt?suite=trixie-pgdg&components=main&binaryArch=amd64"
+    },
+    {
+      "customType": "regex",
+      "description": "Debian package pins in lab versions.sh: a '# renovate: datasource=deb depName=<package>' comment above a NAME=version line (the pgha PGDG pins). Same PGDG trixie repository as the Dockerfile manager. Unconfirmed: not yet seen to open a pull request.",
+      "managerFilePatterns": [
+        "/^lab/.+/versions\\.sh$/"
+      ],
+      "matchStrings": [
+        "# renovate: datasource=(?<datasource>deb) depName=(?<depName>\\S+)\\s+[A-Z_]+=(?<currentValue>\\S+)"
       ],
       "registryUrlTemplate": "https://apt.postgresql.org/pub/repos/apt?suite=trixie-pgdg&components=main&binaryArch=amd64"
     },

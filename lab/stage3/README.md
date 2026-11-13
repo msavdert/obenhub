@@ -5,7 +5,7 @@ lab keeps running. Run it with `mise run lab:stage3:scenarios`; results are in
 `results/runs.jsonl`. The same cluster on VMs is [pgha](../pgha).
 
 Versions read 2026-11-07: Patroni 4.1.5 (MIT; PostgreSQL 18 support since
-4.0.7) from the PGDG package in `postgres:18.6-trixie`, etcd 3.6.16
+4.0.7) from the PGDG package in `postgres:18.7-trixie`, etcd 3.6.16
 (Apache-2.0).
 
 ## Prerequisites

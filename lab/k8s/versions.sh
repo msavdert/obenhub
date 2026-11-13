@@ -27,13 +27,13 @@ CNPG_VERSION=1.30.1
 CNPG_MANIFEST_URL="https://raw.githubusercontent.com/cloudnative-pg/cloudnative-pg/v${CNPG_VERSION}/releases/cnpg-${CNPG_VERSION}.yaml"
 CNPG_MANIFEST_SHA256=37237f145d8138256ea25ae830f87759255665ff08f8d552fdd8224a5ec032fb
 
-# PostgreSQL 18 operand: DefaultImageName in pkg/versions/versions.go at tag
-# v1.30.1 of cloudnative-pg/cloudnative-pg is
-# ghcr.io/cloudnative-pg/postgresql:18.6-system-trixie. The digest is the
-# multi-arch index digest, read from the registry with
-# `docker buildx imagetools inspect` on 2026-11-10.
+# PostgreSQL 18 operand: DefaultImageName at tag v1.30.1 of
+# cloudnative-pg/cloudnative-pg is ghcr.io/cloudnative-pg/postgresql:18.6-system-trixie;
+# this pin is one minor release newer (18.7, released 2026-11-12, security fixes).
+# The digest is the multi-arch index digest, read from the registry with
+# `docker buildx imagetools inspect` on 2026-11-12.
 # renovate: datasource=docker
-PG_IMAGE=ghcr.io/cloudnative-pg/postgresql:18.6-system-trixie@sha256:48a0038fdd9672d12853d5300666b2592f97f9d34a993ea42e3ecb5a9a5e43e3
+PG_IMAGE=ghcr.io/cloudnative-pg/postgresql:18.7-system-trixie@sha256:5a5dfbde88d5909fd4938189c141f53fb153f53c519f14907dce9e7c04baa153
 
 # Collector Helm chart opentelemetry-collector, release tag
 # opentelemetry-collector-<version> of open-telemetry/opentelemetry-helm-charts
