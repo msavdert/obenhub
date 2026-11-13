@@ -2,7 +2,8 @@
 
 - Status: Accepted; scraped endpoints and the pack layout refined by ADR 0005
 - Date: 2026-11-06 (exporter evaluation added the same day; pack generator
-  deferred the same day after a seven-model review)
+  deferred the same day after a seven-model review; Oracle
+  facts rechecked 2026-11-13)
 
 ## Context
 
@@ -36,8 +37,16 @@ from 14).
 
 `oracledbreceiver`: metrics alpha (25 of 135 on by default), logs
 development, with query_sample, top_query, query_plan, top_procedure and
-session.wait_sample events. It branches on CDB/PDB and privileges, not on
-version.
+session.wait_sample events, all off by default. It branches on CDB/PDB and
+privileges, and on version only twice: the role, open mode and CDB query
+needs Oracle 12 or later, hosting-type detection 19c or later
+(`instance_info.go`); there is no branch for 21c, 23ai or 26ai. Role and open
+mode are resource attributes (`oracle.db.role`, `oracle.db.open_mode`) read
+once at start; there is no apply or transport lag. Rechecked at contrib
+v0.165.1 (`6083b2c53d78b21d0925b703194aaed920c01af5`) on 2026-11-13: the
+counts and stability levels are unchanged from v0.164.0, and the only
+oracledb changelog entry in between is `oracledb.wait.start_time` on the
+query_sample event (v0.165.0).
 
 At contrib v0.164.0 (`18fcec7`) the receiver has no standby-side view: no
 query reads `pg_stat_wal_receiver`, `pg_is_in_recovery()`,
@@ -111,7 +120,7 @@ each contributes instead:
 | pgsty/pg_exporter v1.5.0 | Apache-2.0 | The design for the deferred pack generator: version-ranged query branches, tag and predicate planning, re-plan on fact change, per-query TTL, timeout and self-metrics. 96 collector branches covering PG 10 to 19 (count unverified, no source recorded), the main source of SQL for our packs. Weak points: one target per process, self-counts exposed as gauges that reset on re-plan, 100 ms client-only default timeout, `sslmode=disable` when unset. Maintained by essentially one person. |
 | burningalchemist/sql_exporter 0.24.13 | MIT | Per-collector `min_interval`, per-query error, duration and row metrics, a scrape deadline passed to the driver, `value_label`. No version mechanism. |
 | CrunchyData/pgmonitor | Apache-2.0 | Its PG version handling lives in `pgmonitor-extension` (needs `CREATE EXTENSION`, possibly a preload), which we cannot assume on managed PG; PG 18 support not found. Its 40 PostgreSQL alert rules (plus Patroni, node, etcd) are the checklist for our rules. |
-| oracle/oracle-db-appdev-monitoring 2.5.1 | MIT + UPL-1.0 | Only 12 default queries, no CDB or version awareness, OTLP push without a start time. Worth taking: per-metric interval and timeout, failure metric with a `result` attribute, alert log export, a few queries (tablespace, ASM guard, resource limits). Defaults avoid Diagnostics Pack views. |
+| oracle/oracle-db-appdev-monitoring 2.5.1 (`b578a3a`, latest release on 2026-11-13) | MIT + UPL-1.0 (`LICENSE.txt`) | Prometheus first: 12 default queries in `default-metrics.toml` (one is `top_sql` on `gv$sqlstats`), no CDB or version awareness, optional OTLP push without a start time (`otlp/adapter.go`), godror (Instant Client) by default with go-ora experimental. Worth taking: per-metric interval and timeout, the opt-in per-metric duration gauge with a success/error `result` label and `scrape_errors_total` by collector and database (`collector/collector.go`), alert log export (to a JSON file, not OTLP logs), a few queries (tablespace, ASM guard, resource limits). Defaults avoid Diagnostics Pack views. |
 
 SQL copied from these projects keeps its copyright notice and licence and
 names the upstream file and commit (ADR 0004).

@@ -103,6 +103,42 @@ Unconfirmed until a run: whether each provider's admin role can grant
 paused and an Aiven free service from being powered off; and what changes
 when the Collector has to use a pooled endpoint instead of a direct one.
 
+## Managed Oracle and Oracle on Kubernetes
+
+Waits until the Oracle first slice (ADR 0008) and its scenarios are done on
+`main`; checked against ADR 0001 before it starts. Managed comes first. Read
+2026-11-13; the items marked unverified are open until a run settles them.
+
+- [ ] Autonomous Database as a target for `oracledbreceiver`: one Always
+      Free instance (two per tenancy, 20 GB, fixed compute, stopped after 7
+      idle days, may be deleted after 90 stopped days, no backups;
+      [Always Free ADB](https://docs.oracle.com/iaas/autonomous-database-shared/doc/autonomous-always-free.html)),
+      a monitoring user granted `SELECT_CATALOG_ROLE` by ADMIN, which has no
+      SYSDBA ([ADMIN roles](https://docs.oracle.com/en-us/iaas/autonomous-database-serverless/doc/autonomous-admin-user-roles.html)).
+      Wallet-less TLS needs mTLS set to "Not Required"
+      ([TLS](https://docs.oracle.com/en-us/iaas/autonomous-database-serverless/doc/cdw-connecting-go-wallet-tls.html)).
+      Unverified: go-ora over that TLS, which `V$` views ADB lets the
+      receiver read, 20 or 30 sessions (the two Oracle pages disagree), 19c
+      or 26ai in our home region, and that it uses no A1 or block quota.
+      Fallback without OCI: the `adb-free` container (UPL-1.0, 4 CPU, 8 GiB;
+      [oracle/adb-free](https://github.com/oracle/adb-free)). Paid options
+      (Base Database, RDS for Oracle SE2) only with prices read on the day.
+- [ ] oracle-database-operator 2.2.0 (UPL-1.0, `ff6f917`) on the kind
+      cluster, as a spike first: the operator plus one
+      `SingleInstanceDatabase` with the Free image. The operator is a
+      control plane, not monitoring: its own metrics are controller-runtime
+      only, with no database status
+      ([operator metrics](https://github.com/oracle/oracle-database-operator/blob/2.2.0/docs/operator-metrics/README.md)),
+      and its `DatabaseObserver` deploys the appdev exporter (ADR 0003) for
+      Prometheus. Free has no Data Guard (2 threads, 2 GB RAM, 12 GB data;
+      [Licensing Information 26](https://docs.oracle.com/en/database/oracle/oracle-database/26/dblic/Licensing-Information.html),
+      Table 1-5), and the `DataguardBroker` CRD needs Enterprise images and
+      leaves switchover to DGMGRL
+      ([SIDB](https://github.com/oracle/oracle-database-operator/blob/2.2.0/docs/sidb/README.md)),
+      so there is no failover lab here as there is with CloudNativePG.
+      Unverified: whether it starts on kind (not in its platform list) and
+      its memory needs there. Kept or dropped by an ADR after the spike.
+
 ## Upstream PR candidates
 
 See [ADR 0003](adr/0003-receiver-strategy.md), decision 3. Each candidate is
