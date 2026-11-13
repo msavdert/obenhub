@@ -6,7 +6,10 @@
 name: obenhub-slice1
 
 x-postgres: &postgres
-  image: postgres:18.7-trixie@sha256:9f4fd4aa918f52ae3d6f3b687f1de90d8f867cd4d520021545a9a50c120eae3b
+  # postgres/Dockerfile: the pinned postgres image plus pgBackRest 2.60.0 (PGDG)
+  build:
+    context: ./postgres
+  image: obenhub-slice1-postgres:18.7-pgbackrest-2.60.0
   entrypoint: ["/entrypoint.sh"]
   shm_size: 256mb
   # same as stage 3; observed use of the slice 1 containers is far below it (docker stats, 2026-11-11)
@@ -64,16 +67,9 @@ x-postgres-command: &postgres-command
   - reserved_connections=8
   - -c
   - max_slot_wal_keep_size=1GB
-  # WAL archiving to a local directory, /archive, a named volume of each node
-  # (the subscriber is a different cluster; a standby archives only after a
-  # promotion, archive_mode=on). postgres/archive-wal.sh follows the rules of
-  # the PostgreSQL 18 docs, 25.3.1 (https://www.postgresql.org/docs/18/
-  # continuous-archiving.html): no overwrite, identical re-archive after a
-  # crash succeeds. Nothing prunes the archive; `docker compose down -v` does.
-  - -c
-  - archive_mode=on
-  - -c
-  - archive_command=sh /opt/obenhub/archive-wal.sh %p %f
+  # WAL archiving is set per node by entrypoint.sh (ARCHIVE_STANZA): only the
+  # primary archives, with pgBackRest (ADR 0007). The standby would archive
+  # only after a promotion and the subscriber is another cluster.
 
 services:
   pg-primary:
@@ -86,15 +82,16 @@ services:
       OTEL_MONITOR_PASSWORD: "${OTEL_MONITOR_PASSWORD:?run: mise run lab:up (it generates lab/slice1/.env)}"
       LOGICAL_PASSWORD: "${LOGICAL_PASSWORD:?run: mise run lab:up (it generates lab/slice1/.env)}"
       APP_PASSWORD: "${APP_PASSWORD:?run: mise run lab:up (it generates lab/slice1/.env)}"
+      ARCHIVE_STANZA: slice1
     volumes:
       - primary-data:/var/lib/postgresql
       - primary-log:/var/log/postgresql
-      - primary-archive:/archive
+      - primary-run:/var/run/postgresql
+      - pgbackrest-repo:/var/lib/pgbackrest
       - ./postgres/entrypoint.sh:/entrypoint.sh:ro
       - ./postgres/10-init-primary.sh:/docker-entrypoint-initdb.d/10-init-primary.sh:ro
       # outside /docker-entrypoint-initdb.d: the image would also run it in `postgres`
       - ./postgres/app-schema.sql:/opt/obenhub/app-schema.sql:ro
-      - ./postgres/archive-wal.sh:/opt/obenhub/archive-wal.sh:ro
     networks:
       repl:
         aliases: [pg-primary-repl]
@@ -116,9 +113,7 @@ services:
     volumes:
       - standby-data:/var/lib/postgresql
       - standby-log:/var/log/postgresql
-      - standby-archive:/archive
       - ./postgres/entrypoint.sh:/entrypoint.sh:ro
-      - ./postgres/archive-wal.sh:/opt/obenhub/archive-wal.sh:ro
     networks:
       - repl
       - mon
@@ -139,11 +134,9 @@ services:
     volumes:
       - subscriber-data:/var/lib/postgresql
       - subscriber-log:/var/log/postgresql
-      - subscriber-archive:/archive
       - ./postgres/entrypoint.sh:/entrypoint.sh:ro
       - ./postgres/10-init-subscriber.sh:/docker-entrypoint-initdb.d/10-init-subscriber.sh:ro
       - ./postgres/app-schema.sql:/opt/obenhub/app-schema.sql:ro
-      - ./postgres/archive-wal.sh:/opt/obenhub/archive-wal.sh:ro
     networks:
       - logical
       - mon
@@ -176,6 +169,62 @@ services:
     networks:
       - mon
 
+  # pgBackRest backups of the primary: creates the stanza, then takes a backup
+  # every BACKUP_INTERVAL seconds (a full one first, then incremental, every
+  # 10th full). Local mode: it reads the primary's data volume (read-only) and
+  # talks to the server over the socket volume. `docker compose stop` of this
+  # service is how the backup-stale scenario stops backups. The 240 s interval
+  # is a lab value so that the stale threshold (vmalert/rules/pgbackrest.yml)
+  # can be minutes; each backup starts with an immediate checkpoint, and more
+  # often than every 240 s would add up to the requested-checkpoint alert's
+  # threshold (more than 3 in 5 minutes, PostgresCheckpointsRequested).
+  pgbackrest-backup:
+    image: obenhub-slice1-postgres:18.7-pgbackrest-2.60.0
+    container_name: obenhub-slice1-pgbackrest-backup
+    user: postgres
+    init: true
+    entrypoint: ["/opt/obenhub/pgbackrest-backup.sh"]
+    environment:
+      BACKUP_INTERVAL: "240"
+    mem_limit: 128m
+    restart: unless-stopped
+    depends_on:
+      pg-primary:
+        condition: service_healthy
+    volumes:
+      - primary-data:/var/lib/postgresql:ro
+      - primary-run:/var/run/postgresql
+      - pgbackrest-repo:/var/lib/pgbackrest
+      - ./postgres/pgbackrest-backup.sh:/opt/obenhub/pgbackrest-backup.sh:ro
+    network_mode: none
+
+  # woblerr/pgbackrest_exporter v0.25.0 (MIT): runs `pgbackrest info` against
+  # the repository and serves Prometheus metrics, scraped by the Collector.
+  # The image bundles pgBackRest 2.60.0 (the version of the primary image).
+  # It starts as root, then runs as BACKREST_USER; uid and gid 999 are the
+  # postgres user of the postgres image, the owner of the repository.
+  # --collect.interval 30 s: the info run is cheap on a lab repository, and a
+  # backup that finished is visible within one exporter refresh plus one
+  # Collector scrape (30 s each), small against the 420 s stale threshold of the
+  # lab.
+  pgbackrest-exporter:
+    image: woblerr/pgbackrest_exporter:v0.25.0@sha256:6d8182f96020d8713caa365b743d3a39e1639ac759920aa5a2ee23bffc4f479d
+    container_name: obenhub-slice1-pgbackrest-exporter
+    environment:
+      BACKREST_USER: postgres
+      BACKREST_GROUP: postgres
+      BACKREST_UID: "999"
+      BACKREST_GID: "999"
+      COLLECT_INTERVAL: "30"
+      STANZA_INCLUDE: slice1
+    mem_limit: 128m
+    restart: unless-stopped
+    volumes:
+      - pgbackrest-repo:/var/lib/pgbackrest:ro
+      - ./postgres/pgbackrest.conf:/etc/pgbackrest/pgbackrest.conf:ro
+    networks:
+      - mon
+
   otelcol:
     image: otel/opentelemetry-collector-contrib:0.164.0@sha256:340c9ca6a36617084c6661bdc4f0fe92b7cda5a805d61673ec8db375fddc522b
     container_name: obenhub-slice1-otelcol
@@ -202,6 +251,8 @@ services:
         condition: service_healthy
       pgbouncer:
         condition: service_healthy
+      pgbackrest-exporter:
+        condition: service_started
       victoriametrics:
         condition: service_healthy
       victorialogs:
@@ -247,12 +298,14 @@ services:
       - -notifier.url=http://alertmanager:9093
       - -rule=/etc/vmalert/rules/*.yml
       - -rule=/etc/vmalert/pack/rules.yml
+      - -rule=/etc/vmalert/pgbackrest/rules.yml
       - -evaluationInterval=15s
     ports:
       - "127.0.0.1:18880:8880"
     volumes:
       - ./vmalert/rules:/etc/vmalert/rules:ro
       - ../packs/postgresql/rules.yml:/etc/vmalert/pack/rules.yml:ro
+      - ../packs/pgbackrest/rules.yml:/etc/vmalert/pgbackrest/rules.yml:ro
 
   alertmanager:
     extends:
@@ -304,12 +357,11 @@ volumes:
   primary-data: {}
   standby-data: {}
   primary-log: {}
-  primary-archive: {}
+  primary-run: {}
+  pgbackrest-repo: {}
   standby-log: {}
-  standby-archive: {}
   subscriber-data: {}
   subscriber-log: {}
-  subscriber-archive: {}
   vm-data: {}
   vl-data: {}
   otelcol-data: {}

@@ -27,19 +27,22 @@ PRIMARY=obenhub-slice1-pg-primary
 STANDBY=obenhub-slice1-pg-standby
 SUBSCRIBER=obenhub-slice1-pg-subscriber
 PGBOUNCER=obenhub-slice1-pgbouncer
+BACKUP_SVC=pgbackrest-backup
+BACKUP_C=obenhub-slice1-pgbackrest-backup
+PG_IMAGE=obenhub-slice1-postgres:18.7-pgbackrest-2.60.0
 REPL_NET=obenhub-slice1_repl
 LOGICAL_NET=obenhub-slice1_logical
 SUBSCRIPTION=app_sub
 
 # Same files, same order as the containers read them: rules/*.yml (sorted in
-# the C locale, as the container sorts them), then the PostgreSQL pack, then
-# alertmanager.yml.
+# the C locale, as the container sorts them), then the PostgreSQL pack, the
+# pgBackRest pack, then alertmanager.yml.
 _lc_collate=${LC_COLLATE-}
 LC_COLLATE=C
-CONFIG_FILES=("$LAB_DIR"/vmalert/rules/*.yml "$LAB_DIR/../packs/postgresql/rules.yml" "$LAB_DIR/alertmanager/alertmanager.yml")
+CONFIG_FILES=("$LAB_DIR"/vmalert/rules/*.yml "$LAB_DIR/../packs/postgresql/rules.yml" "$LAB_DIR/../packs/pgbackrest/rules.yml" "$LAB_DIR/alertmanager/alertmanager.yml")
 LC_COLLATE=$_lc_collate
 unset _lc_collate
-VMALERT_LOADED_CAT='cat /etc/vmalert/rules/*.yml /etc/vmalert/pack/rules.yml'
+VMALERT_LOADED_CAT='cat /etc/vmalert/rules/*.yml /etc/vmalert/pack/rules.yml /etc/vmalert/pgbackrest/rules.yml'
 # the record carries crash_restarts; null until the check at the end ran
 CRASH_RESTARTS=null
 
@@ -100,6 +103,18 @@ app_in_sync() {
   a=$(psql_pa -c "$app_digest") && b=$(psql_sa -c "$app_digest") && [ -n "$a" ] && [ "$a" = "$b" ]
 }
 
+# pgBackRest (ADR 0007). The repository is the volume pgbackrest-repo; pgbackrest
+# runs as postgres in the primary container (local mode, same as the
+# pgbackrest-backup service). PGBR_WAL_DIR is the repository directory that
+# holds the archived WAL of the first PostgreSQL cluster of the stanza (18-1).
+REPO_VOL=${PROJECT}_pgbackrest-repo
+PGBR_WAL_DIR=/var/lib/pgbackrest/archive/slice1/18-1
+pgbr() { docker exec -u postgres "$PRIMARY" pgbackrest --stanza=slice1 "$@"; }
+# a completed backup is in the repository
+backup_exists() { pgbr info --output=json 2>/dev/null | jq -e '.[0].backup | length > 0' >/dev/null; }
+# an incremental backup now; it fails harmlessly when the pgbackrest-backup service holds the backup lock
+take_backup() { pgbr --type=incr backup >&2; }
+
 # component versions recorded under "images" in runs.jsonl
 component_versions() {
   docker compose -p obenhub-slice1 -f "$LAB_DIR/compose.yaml" config --images 2>/dev/null | sort -u \
@@ -117,6 +132,7 @@ lab_precondition() {
   wait_until 120 "replication streaming" is_streaming || { PRE_ERR="replication not streaming"; return 1; }
   wait_until 120 "logical replication streaming" logical_streaming || { PRE_ERR="logical replication not streaming"; return 1; }
   wait_until 120 "app tables in sync" app_in_sync || { PRE_ERR="app tables differ between publisher and subscriber"; return 1; }
+  wait_until 300 "a pgBackRest backup in the repository" backup_exists || { PRE_ERR="no completed pgBackRest backup (is the pgbackrest-backup service running?)"; return 1; }
 }
 
 # a scenario must not crash a PostgreSQL server: its postmaster logs this line

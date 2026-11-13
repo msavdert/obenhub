@@ -1418,6 +1418,244 @@
       ]
     },
     {
+      "id": 103,
+      "type": "row",
+      "title": "pgBackRest (labs with pgBackRest: slice1)",
+      "collapsed": true,
+      "gridPos": {
+        "x": 0,
+        "y": 38,
+        "w": 24,
+        "h": 1
+      },
+      "panels": [
+        {
+          "id": 106,
+          "title": "Last backup age",
+          "type": "stat",
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "vm"
+          },
+          "gridPos": {
+            "x": 0,
+            "y": 39,
+            "w": 8,
+            "h": 4
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "victoriametrics-metrics-datasource",
+                "uid": "vm"
+              },
+              "expr": "pgbackrest_backup_since_last_completion_seconds{backup_type=\"incr\"}",
+              "refId": "A",
+              "range": true,
+              "instant": false
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "thresholds"
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "red",
+                    "value": 420
+                  }
+                ]
+              },
+              "unit": "s"
+            },
+            "overrides": []
+          },
+          "options": {
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
+            },
+            "colorMode": "background",
+            "graphMode": "none",
+            "textMode": "value"
+          },
+          "description": "Seconds since the last completed backup of any kind (pgBackRest exporter; backup_type incr counts full, differential and incremental backups). Alert: PgBackRestBackupStale, above obenhub.max_backup_age (420 s in slice1). Not filtered by the instance variable: pgBackRest is its own target."
+        },
+        {
+          "id": 107,
+          "title": "Stanza status",
+          "type": "stat",
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "vm"
+          },
+          "gridPos": {
+            "x": 8,
+            "y": 39,
+            "w": 8,
+            "h": 4
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "victoriametrics-metrics-datasource",
+                "uid": "vm"
+              },
+              "expr": "pgbackrest_stanza_status",
+              "refId": "A",
+              "range": true,
+              "instant": false
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "thresholds"
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              },
+              "mappings": [
+                {
+                  "type": "value",
+                  "options": {
+                    "0": {
+                      "text": "ok",
+                      "color": "green",
+                      "index": 0
+                    }
+                  }
+                },
+                {
+                  "type": "range",
+                  "options": {
+                    "from": 1,
+                    "to": 1000,
+                    "result": {
+                      "text": "error",
+                      "color": "red",
+                      "index": 1
+                    }
+                  }
+                }
+              ]
+            },
+            "overrides": []
+          },
+          "options": {
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
+            },
+            "colorMode": "background",
+            "graphMode": "none",
+            "textMode": "value"
+          },
+          "description": "pgbackrest_stanza_status: 0 is ok, any other value is an error (1 missing stanza path and 2 no valid backups were seen live). Alert: PgBackRestStanzaError (non-zero for 2 minutes)."
+        },
+        {
+          "id": 108,
+          "title": "Repository status",
+          "type": "stat",
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "vm"
+          },
+          "gridPos": {
+            "x": 16,
+            "y": 39,
+            "w": 8,
+            "h": 4
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "victoriametrics-metrics-datasource",
+                "uid": "vm"
+              },
+              "expr": "pgbackrest_repo_status",
+              "refId": "A",
+              "range": true,
+              "instant": false
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "thresholds"
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              },
+              "mappings": [
+                {
+                  "type": "value",
+                  "options": {
+                    "0": {
+                      "text": "ok",
+                      "color": "green",
+                      "index": 0
+                    }
+                  }
+                },
+                {
+                  "type": "range",
+                  "options": {
+                    "from": 1,
+                    "to": 1000,
+                    "result": {
+                      "text": "error",
+                      "color": "red",
+                      "index": 1
+                    }
+                  }
+                }
+              ]
+            },
+            "overrides": []
+          },
+          "options": {
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
+            },
+            "colorMode": "background",
+            "graphMode": "none",
+            "textMode": "value"
+          },
+          "description": "pgbackrest_repo_status: 0 is ok, any other value is an error for that repository (the lab has repo 1). Shown only; PgBackRestStanzaError covers the same failures."
+        }
+      ]
+    },
+    {
       "id": 9,
       "title": "PostgreSQL ERROR and FATAL (server log)",
       "type": "logs",
@@ -1427,7 +1665,7 @@
       },
       "gridPos": {
         "x": 0,
-        "y": 38,
+        "y": 39,
         "w": 24,
         "h": 9
       },
@@ -1464,7 +1702,7 @@
       },
       "gridPos": {
         "x": 0,
-        "y": 47,
+        "y": 48,
         "w": 24,
         "h": 9
       },

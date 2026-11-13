@@ -110,6 +110,10 @@ run = "scripts/vmalert-unittest.sh lab/packs/cnpg/tests"
 description = "unit-test the Kubernetes pack rules (lab/packs/k8s, vmalert-tool); needs docker"
 run = "scripts/vmalert-unittest.sh lab/packs/k8s/tests"
 
+[tasks."lab:pgbackrest:rules-test"]
+description = "unit-test the pgBackRest pack rules (lab/packs/pgbackrest, vmalert-tool); needs docker"
+run = "scripts/vmalert-unittest.sh lab/packs/pgbackrest/tests"
+
 [tasks."lab:host:rules-test"]
 description = "unit-test the shared host pack rules (lab/packs/host, vmalert-tool); needs docker"
 run = "scripts/vmalert-unittest.sh lab/packs/host/tests"
@@ -206,6 +210,7 @@ depends = [
   "lab:k8s:rules-test",
   "lab:cnpg:rules-test",
   "lab:k8s-pack:rules-test",
+  "lab:pgbackrest:rules-test",
   "docs:build",
 ]
 

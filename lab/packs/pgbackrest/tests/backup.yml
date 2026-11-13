@@ -1,0 +1,149 @@
+# Tests for the pgBackRest pack: PgBackRestBackupStale (lab parameter and the
+# 26 h default), PgBackRestStanzaError, PgBackRestExporterDown.
+rule_files:
+  - ../rules.yml
+evaluation_interval: 15s
+
+tests:
+  - name: stale fires when the age passes the lab parameter for 1m, clears after a new backup
+    interval: 15s
+    input_series:
+      - series: 'obenhub.max_backup_age'
+        values: '300x80'
+      # age grows 15 s per step; a backup at step 40 (10m) resets it
+      - series: 'pgbackrest_backup_since_last_completion_seconds{backup_type="incr",stanza="slice1",service.name="pgbackrest",service.instance.id="pgbackrest"}'
+        values: '0+15x39 0+15x40'
+    alert_rule_test:
+      - eval_time: 5m   # 300 s: not above the parameter
+        groupname: pgbackrest
+        alertname: PgBackRestBackupStale
+        exp_alerts: []
+      - eval_time: 5m45s   # above for 30 s: pending
+        groupname: pgbackrest
+        alertname: PgBackRestBackupStale
+        exp_alerts: []
+      - eval_time: 7m
+        groupname: pgbackrest
+        alertname: PgBackRestBackupStale
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              backup_type: incr
+              stanza: slice1
+              service.name: pgbackrest
+              service.instance.id: pgbackrest
+            exp_annotations:
+              summary: 'No completed pgBackRest backup of stanza slice1 for 420 s'
+      - eval_time: 11m   # a backup was completed at 10m
+        groupname: pgbackrest
+        alertname: PgBackRestBackupStale
+        exp_alerts: []
+
+  - name: without the lab parameter the 26 h default applies
+    interval: 5m
+    input_series:
+      - series: 'pgbackrest_backup_since_last_completion_seconds{backup_type="incr",stanza="slice1",service.name="pgbackrest",service.instance.id="pgbackrest"}'
+        values: '0+300x400'
+    alert_rule_test:
+      - eval_time: 25h   # 90000 s: below 93600
+        groupname: pgbackrest
+        alertname: PgBackRestBackupStale
+        exp_alerts: []
+      - eval_time: 27h   # 97200 s, for 1m passed
+        groupname: pgbackrest
+        alertname: PgBackRestBackupStale
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              backup_type: incr
+              stanza: slice1
+              service.name: pgbackrest
+              service.instance.id: pgbackrest
+            exp_annotations:
+              summary: 'No completed pgBackRest backup of stanza slice1 for 97200 s'
+
+  - name: no age series, no alert
+    interval: 15s
+    input_series:
+      - series: 'obenhub.max_backup_age'
+        values: '300x40'
+    alert_rule_test:
+      - eval_time: 8m
+        groupname: pgbackrest
+        alertname: PgBackRestBackupStale
+        exp_alerts: []
+
+  - name: stanza status other than 0 fires after 2m (1 and 2 as seen live), 0 does not
+    interval: 15s
+    input_series:
+      - series: 'pgbackrest_stanza_status{stanza="slice1",service.name="pgbackrest",service.instance.id="pgbackrest"}'
+        values: '1x4 2x8 0x40'
+    alert_rule_test:
+      - eval_time: 1m
+        groupname: pgbackrest
+        alertname: PgBackRestStanzaError
+        exp_alerts: []
+      - eval_time: 2m30s
+        groupname: pgbackrest
+        alertname: PgBackRestStanzaError
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              stanza: slice1
+              service.name: pgbackrest
+              service.instance.id: pgbackrest
+            exp_annotations:
+              summary: 'pgBackRest stanza slice1 reports status 2'
+      - eval_time: 8m
+        groupname: pgbackrest
+        alertname: PgBackRestStanzaError
+        exp_alerts: []
+
+  - name: a short blip of the stanza status does not fire
+    interval: 15s
+    input_series:
+      - series: 'pgbackrest_stanza_status{stanza="slice1",service.name="pgbackrest",service.instance.id="pgbackrest"}'
+        values: '0x4 2x5 0x40'
+    alert_rule_test:
+      - eval_time: 4m
+        groupname: pgbackrest
+        alertname: PgBackRestStanzaError
+        exp_alerts: []
+
+  - name: exporter down fires on a failed scrape and on exporter_status 0, not on 1
+    interval: 15s
+    input_series:
+      - series: 'up{service.name="pgbackrest",service.instance.id="pgbackrest"}'
+        values: '1x8 0x20 1x30'
+      - series: 'pgbackrest_exporter_status{stanza="slice1",service.name="pgbackrest",service.instance.id="pgbackrest"}'
+        values: '1x40 0x20 1x18'
+    alert_rule_test:
+      - eval_time: 2m
+        groupname: pgbackrest
+        alertname: PgBackRestExporterDown
+        exp_alerts: []
+      - eval_time: 5m   # up 0 since 2m, for 2m passed
+        groupname: pgbackrest
+        alertname: PgBackRestExporterDown
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              service.name: pgbackrest
+              service.instance.id: pgbackrest
+            exp_annotations:
+              summary: 'pgBackRest state is not being collected (pgbackrest)'
+      - eval_time: 9m   # both fine again
+        groupname: pgbackrest
+        alertname: PgBackRestExporterDown
+        exp_alerts: []
+      - eval_time: 13m   # exporter_status 0 from 10m, for 2m passed
+        groupname: pgbackrest
+        alertname: PgBackRestExporterDown
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              stanza: slice1
+              service.name: pgbackrest
+              service.instance.id: pgbackrest
+            exp_annotations:
+              summary: 'pgBackRest state is not being collected (pgbackrest)'
