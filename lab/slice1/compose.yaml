@@ -67,6 +67,11 @@ x-postgres-command: &postgres-command
   - reserved_connections=8
   - -c
   - max_slot_wal_keep_size=1GB
+  # incremental pg_basebackup (scenario basebackup-compare) needs WAL
+  # summaries on the source; the command is shared, so every node writes them
+  # (a small summary file per checkpoint; not measured). sighup context.
+  - -c
+  - summarize_wal=on
   # WAL archiving is set per node by entrypoint.sh (ARCHIVE_STANZA): only the
   # primary archives, with pgBackRest (ADR 0007). The standby would archive
   # only after a promotion and the subscriber is another cluster.

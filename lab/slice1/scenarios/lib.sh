@@ -121,6 +121,10 @@ BACKUP_INTERVAL=$(docker compose -p obenhub-slice1 -f "$LAB_DIR/compose.yaml" co
 archiver_clear() {
   [ "$(psql_p -c "SELECT ((SELECT count(*) FROM pg_ls_archive_statusdir() WHERE name LIKE '%.ready') = 0 OR last_failed_time IS NULL OR last_archived_time >= last_failed_time)::int FROM pg_stat_archiver")" = 1 ]
 }
+# the WAL segment that ends at LSN is archived (pg_stat_archiver)
+archived_past() {
+  [ "$(psql_p -c "SELECT (last_archived_wal >= pg_walfile_name('$1'::pg_lsn - 1))::int FROM pg_stat_archiver")" = 1 ]
+}
 # Seconds since the last completed backup, empty when none or unreadable.
 backup_age() {
   pgbr info --output=json 2>/dev/null | jq -r '[.[0].backup[].timestamp.stop] | if length == 0 then empty else (now - max | floor) end'

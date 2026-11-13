@@ -21,4 +21,5 @@ slot-invalidated
 archiver-failing
 backup-stale
 pitr-restore
+basebackup-compare
 control
