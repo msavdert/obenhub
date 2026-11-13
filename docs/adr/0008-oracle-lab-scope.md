@@ -1,6 +1,6 @@
 # ADR 0008: Oracle lab - scope, topology and first slice
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-11-13
 
 ## Context
