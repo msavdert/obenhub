@@ -9,7 +9,8 @@ decided in [ADR 0001](adr/0001-goal-and-scope.md).
 Every lab has a full suite recorded on `main`; the evidence is in each lab's
 `results/runs.jsonl` and `scripts/check-evidence.sh --strict <lab>` verifies
 it. Order decided by the owner on 2026-11-12 (ADR 0001, depth before
-breadth); Stage 5 is not next (owner decision 2026-11-08):
+breadth), Oracle moved up on 2026-11-13; Stage 5 is not next (owner
+decision 2026-11-08):
 
 - [ ] Update wave: PostgreSQL 18.7 in every lab, etcd 3.7.3 if the stage3
       run passes (PR #8), and the pending Collector, VictoriaMetrics and
@@ -25,7 +26,9 @@ breadth); Stage 5 is not next (owner decision 2026-11-08):
       `PostgresTransactionIdWraparound` and one for
       `PostgresReplicationSlotRetainingWAL` outside k8s
 - [ ] First Learn and Guides pages on the docs site, only for things that run
-- [ ] Oracle, after the items above
+- [ ] Oracle, in parallel with the PostgreSQL items above (owner decision
+      2026-11-13): first a scope ADR and a read-only survey of the lab VMs,
+      then a first lab slice
 
 ## Backups
 
