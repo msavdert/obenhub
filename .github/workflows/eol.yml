@@ -31,8 +31,10 @@ jobs:
           set +e
           python3 scripts/check-eol.py 2>&1 | tee eol-report.txt
           echo "code=${PIPESTATUS[0]}" >> "$GITHUB_OUTPUT"
+      # Exit 1 is a finding; exit 2 (network or parse error) fails the run
+      # without opening an issue.
       - name: Open or update issue
-        if: steps.eol.outputs.code != '0'
+        if: steps.eol.outputs.code == '1'
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
