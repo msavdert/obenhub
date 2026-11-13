@@ -86,33 +86,37 @@ run = "scripts/test-k8s-check-tools.sh"
 [tasks."lab:rules-test"]
 description = "unit-test the lab alert rules (vmalert-tool) and Alertmanager routing (throwaway container); needs docker"
 run = [
-  """docker run --rm -v "$PWD/lab:/lab:ro" victoriametrics/vmalert-tool:v1.155.0 unittest --files=/lab/slice1/vmalert/tests/targets.yml,/lab/slice1/vmalert/tests/logical.yml,/lab/slice1/vmalert/tests/pgbouncer.yml""",
+  "scripts/vmalert-unittest.sh lab/slice1/vmalert/tests",
   "lab/slice1/alertmanager/test.sh",
 ]
 
 [tasks."lab:stage3:rules-test"]
 description = "unit-test the stage 3 inventory and the shared Patroni and etcd pack rules (vmalert-tool); needs docker"
-run = """docker run --rm -v "$PWD/lab:/lab:ro" victoriametrics/vmalert-tool:v1.155.0 unittest --files=/lab/stage3/vmalert/tests/targets.yml,/lab/packs/patroni/tests/patroni.yml,/lab/packs/etcd/tests/etcd.yml"""
+run = "scripts/vmalert-unittest.sh lab/stage3/vmalert/tests lab/packs/patroni/tests lab/packs/etcd/tests"
 
 [tasks."lab:pgha:rules-test"]
 description = "unit-test Collector liveness in the pgha inventory with the shared pack rules (vmalert-tool); needs docker"
-run = """docker run --rm -v "$PWD/lab:/lab:ro" victoriametrics/vmalert-tool:v1.155.0 unittest --files=/lab/pgha/mon/vmalert/tests/collectors.yml"""
+run = "scripts/vmalert-unittest.sh lab/pgha/mon/vmalert/tests"
 
 [tasks."lab:k8s:rules-test"]
 description = "unit-test Collector liveness in the k8s inventory with the shared PostgreSQL pack rules (vmalert-tool); needs docker"
-run = """docker run --rm -v "$PWD/lab:/lab:ro" victoriametrics/vmalert-tool:v1.155.0 unittest --files=/lab/k8s/mon/vmalert/tests/collectors.yml"""
+run = "scripts/vmalert-unittest.sh lab/k8s/mon/vmalert/tests"
 
 [tasks."lab:cnpg:rules-test"]
 description = "unit-test the CloudNativePG pack rules (lab/packs/cnpg, vmalert-tool); needs docker"
-run = """docker run --rm -v "$PWD/lab:/lab:ro" victoriametrics/vmalert-tool:v1.155.0 unittest --files=/lab/packs/cnpg/tests/cnpg.yml"""
+run = "scripts/vmalert-unittest.sh lab/packs/cnpg/tests"
 
 [tasks."lab:k8s-pack:rules-test"]
 description = "unit-test the Kubernetes pack rules (lab/packs/k8s, vmalert-tool); needs docker"
-run = """docker run --rm -v "$PWD/lab:/lab:ro" victoriametrics/vmalert-tool:v1.155.0 unittest --files=/lab/packs/k8s/tests/k8s.yml"""
+run = "scripts/vmalert-unittest.sh lab/packs/k8s/tests"
 
 [tasks."lab:host:rules-test"]
 description = "unit-test the shared host pack rules (lab/packs/host, vmalert-tool); needs docker"
-run = """docker run --rm -v "$PWD/lab:/lab:ro" victoriametrics/vmalert-tool:v1.155.0 unittest --files=/lab/packs/host/tests/host.yml"""
+run = "scripts/vmalert-unittest.sh lab/packs/host/tests"
+
+[tasks."lab:stage3:otelcol-check"]
+description = "fail when lab/stage3/otelcol/config.yaml differs from what its template renders (lab/stage3/scripts/gen-otelcol.sh)"
+run = "lab/stage3/scripts/gen-otelcol.sh --check"
 
 [tasks."lab:pgha:rules-gen-check"]
 description = "fail when lab/pgha/mon/vmalert/tests/collectors.yml differs from what gen-collectors.py generates"
@@ -125,8 +129,10 @@ diff -u lab/pgha/mon/vmalert/tests/collectors.yml "$t" || { echo "collectors.yml
 
 [tasks."lab:pack:rules-test"]
 description = "unit-test the shared PostgreSQL pack rules (lab/packs/postgresql, vmalert-tool); needs docker"
-# Every test file of the pack runs; a new file cannot be left out.
-run = """files=$(printf '/%s,' lab/packs/postgresql/tests/*.yml); docker run --rm -v "$PWD/lab:/lab:ro" victoriametrics/vmalert-tool:v1.155.0 unittest --files="${files%,}""""
+# Every rule-test task runs every *.yml of its test directories
+# (scripts/vmalert-unittest.sh), so a new test file cannot be left out. The
+# image is pinned in lab/packs/versions.sh.
+run = "scripts/vmalert-unittest.sh lab/packs/postgresql/tests"
 
 [tasks."lab:slice1:panels"]
 description = "run the panel queries of the slice 1 PostgreSQL dashboard against the running slice 1 Grafana (scripts/check-panels.sh); needs the lab, not part of check"
@@ -161,6 +167,10 @@ scripts/check-panels.sh lab/slice1/grafana/dashboards/postgresql.json $g $e pg-1
 description = "pack metric names against ADR 0006: units, unit words, dotted attributes, no clash with postgresqlreceiver (no network)"
 run = "python3 scripts/check-pack-names.py"
 
+[tasks."lint:series-vanished"]
+description = "PostgresSeriesVanished watches exactly the metrics of the PostgreSQL pack query file (no network)"
+run = "python3 scripts/check-series-vanished.py"
+
 [tasks."docs:reference-check"]
 description = "fail when docs/reference/postgresql-pack-metrics.md differs from what gen-pack-metrics.py generates"
 run = "python3 scripts/gen-pack-metrics.py --check"
@@ -184,6 +194,7 @@ depends = [
   "lab:evidence-test",
   "lab:evidence",
   "lint:pack-names",
+  "lint:series-vanished",
   "docs:reference-check",
   "lab:pack:rules-test",
   "lab:host:rules-test",
@@ -191,6 +202,7 @@ depends = [
   "lab:stage3:rules-test",
   "lab:pgha:rules-test",
   "lab:pgha:rules-gen-check",
+  "lab:stage3:otelcol-check",
   "lab:k8s:rules-test",
   "lab:cnpg:rules-test",
   "lab:k8s-pack:rules-test",
@@ -204,7 +216,7 @@ run = "python3 scripts/check-eol.py"
 [tasks."lab:up"]
 description = "start the slice 1 lab (PostgreSQL primary, standby, logical subscriber and PgBouncer, collector, VictoriaMetrics/Logs)"
 run = """
-lab/slice1/scripts/gen-env.sh
+lab/scripts/gen-env.sh lab/slice1/.env POSTGRES_PASSWORD REPLICATOR_PASSWORD LOGICAL_PASSWORD OTEL_MONITOR_PASSWORD APP_PASSWORD GRAFANA_ADMIN_PASSWORD
 docker compose -p obenhub-slice1 -f lab/slice1/compose.yaml up -d --wait
 """
 
@@ -241,7 +253,7 @@ MISE_ENV=k8s exec mise exec -- lab/scenarios/run-suite.sh k8s $(cat lab/k8s/scen
 [tasks."lab:stage3:up"]
 description = "start the stage 3 lab (three etcd members, three Patroni nodes, load client, collector, VictoriaMetrics/Logs)"
 run = """
-lab/stage3/scripts/gen-env.sh
+lab/scripts/gen-env.sh lab/stage3/.env POSTGRES_PASSWORD REPLICATOR_PASSWORD OTEL_MONITOR_PASSWORD APP_PASSWORD GRAFANA_ADMIN_PASSWORD
 docker compose -p obenhub-stage3 -f lab/stage3/compose.yaml up -d --build --wait
 """
 

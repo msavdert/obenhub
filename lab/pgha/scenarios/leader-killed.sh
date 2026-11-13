@@ -143,7 +143,7 @@ finalize() {
   if [ -n "$POLL_DIR" ]; then
     summary=$(poll_summary) || summary=null
     [ -n "$summary" ] || summary=null
-    rm -rf "$POLL_DIR"; POLL_DIR=""
+    rm -rf "${POLL_DIR:?}"; POLL_DIR=""
   fi
   nl=$(leader_name 2>/dev/null) || nl=""
   # FAULTED: the freeze was sent; before that, poller and writer checks would only add noise
@@ -194,7 +194,9 @@ finalize() {
   else
     [ -n "$faulted" ] && FAILS+=("writer result not available (no leader or no acknowledged ids)")
   fi
-  rm -rf "$WR_DIR"; WR_DIR=""
+  # WR_DIR is empty when the writer never started: nothing to remove then
+  if [ -n "$WR_DIR" ]; then rm -rf "${WR_DIR:?}"; fi
+  WR_DIR=""
   # logs: the new boot's first kernel line, Patroni's last line before it
   if [ -n "$OLD" ] && [ "$reb" = true ]; then
     wait_until 60 "new boot's kernel line in VictoriaLogs" have_boot_line

@@ -26,14 +26,21 @@ Shared parts:
   component (postgresql, patroni, etcd, cnpg, host, k8s).
 - [scenarios/lib-core.sh](scenarios/lib-core.sh): the scenario harness used by
   slice1, stage3, pgha and k8s.
+- [scenarios/patroni](scenarios/patroni): the Patroni scenarios stage3 and pgha
+  share; each lab links them from its `scenarios/` and supplies the adapter
+  functions in its `lib.sh` (`etcd_stop`, `etcd_start`, `ptl`, ...).
+- [mon](mon): `compose.base.yaml`, the VictoriaMetrics, VictoriaLogs, vmalert,
+  Alertmanager and Grafana services every lab extends, with the shared
+  Alertmanager config and Grafana provisioning.
 
 One-off measurements on the `pg-lab` VM, not scenario labs:
 
-- [overhead](overhead): Collector CPU and memory next to pgbench
+- [overhead](overhead): Collector CPU and memory next to pgbench (TPC-B and CPU-saturated arms, per-query pack cost)
   ([results](overhead/results/results.md)).
 - [obi](obi): OpenTelemetry eBPF Instrumentation against PostgreSQL and
   PgBouncer; not adopted ([results](obi/results/results.md)).
 
 Not covered yet: backups and PITR (WAL archiving to a local directory is in
-slice1, with no restore), synchronous replication. A backup tool is an open
-item in the [roadmap](../docs/roadmap.md).
+slice1, with no restore). A backup tool is an open item in the
+[roadmap](../docs/roadmap.md). Synchronous replication is covered by pgha
+(`synchronous-standby-cut`).

@@ -34,7 +34,7 @@ NODE_MAP=$NODES
 NODES=()
 for _e in $NODE_MAP; do NODES+=("${_e%%=*}"); done
 ETCD_MEMBERS=("${NODES[@]}")
-CONFIG_FILES=("$LAB_DIR/mon/vmalert/inventory.yml" "$LAB_DIR/../packs/etcd/rules.yml" "$LAB_DIR/../packs/host/rules.yml" "$LAB_DIR/../packs/patroni/rules.yml" "$LAB_DIR/../packs/postgresql/rules.yml" "$LAB_DIR/../stage3/alertmanager/alertmanager.yml")
+CONFIG_FILES=("$LAB_DIR/mon/vmalert/inventory.yml" "$LAB_DIR/../packs/etcd/rules.yml" "$LAB_DIR/../packs/host/rules.yml" "$LAB_DIR/../packs/patroni/rules.yml" "$LAB_DIR/../packs/postgresql/rules.yml" "$LAB_DIR/../mon/alertmanager.yml")
 
 # shellcheck source=lab/scenarios/lib-core.sh
 . "$SC_DIR/../../scenarios/lib-core.sh"
@@ -80,6 +80,12 @@ etcd_move_leader() {
   rn "$l" etcdctl --endpoints="https://$(node_ip "$l"):2379" "${ETCD_TLS[@]}" move-leader "$id" >/dev/null
 }
 
+# etcd_stop / etcd_start MEMBER...: stop or start etcd (systemctl) on the node
+# of that name (shared scenarios etcd-member-down and quorum-lost). Stop quits
+# at the first failure; start tries every member and fails if one failed.
+etcd_stop() { local m; for m in "$@"; do rn "$m" systemctl stop etcd || return 1; done; }
+etcd_start() { local m rc=0; for m in "$@"; do rn "$m" systemctl start --no-block etcd || rc=1; done; return $rc; }
+
 # nftables fault table "inet obenhub_fault" on a node. fault_table_add reads
 # the table definition from stdin; fault_table_del removes it and succeeds
 # when it is already gone.
@@ -117,11 +123,18 @@ component_versions() {
 }
 
 lab_precondition() {
-  local n
+  local n t cfg
   # first, so a left-over partition is named as such instead of as "etcd not healthy"
   for n in "${NODES[@]}"; do
     [ "$(fault_table_state "$n")" = absent ] || { PRE_ERR="nftables table obenhub_fault left over on $n, or $n unreachable"; return 1; }
   done
+  # the synchronous-standby-cut scenario's second table, and its Patroni keys
+  for n in "${NODES[@]}"; do
+    t=$(rn "$n" nft list tables) || { PRE_ERR="cannot list nftables tables on $n"; return 1; }
+    ! grep -qx 'table inet obenhub_fault2' <<<"$t" || { PRE_ERR="nftables table obenhub_fault2 left over on $n"; return 1; }
+  done
+  cfg=$(ptl show-config) || { PRE_ERR="patronictl show-config failed"; return 1; }
+  ! grep -q '^synchronous_' <<<"$cfg" || { PRE_ERR="synchronous_* keys in the Patroni dynamic configuration (left over from synchronous-standby-cut?)"; return 1; }
   wait_until 120 "etcd healthy (three members, one leader)" etcd_healthy || { PRE_ERR="etcd not healthy"; return 1; }
   wait_until 180 "cluster healthy (one leader, two streaming replicas)" cluster_healthy || { PRE_ERR="cluster not healthy"; return 1; }
   not_paused || { PRE_ERR="cluster is paused"; return 1; }
@@ -180,7 +193,7 @@ run_probes() {
       closed:0) FAILS+=("probe $s: reachable, expected dropped"); bad=1 ;;
     esac
   done
-  rm -rf "$d"
+  rm -rf "${d:?}"
   return "$bad"
 }
 # fault_counters NODE: prints "in=N out=N", the packet counters of the two chains

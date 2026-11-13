@@ -103,6 +103,28 @@ groups:
         annotations:
           summary: '{{ (index $labels "service.instance.id") }} is in recovery and not streaming'
 
+      # Fewer standbys listed as sync or quorum by pg_stat_replication than
+      # synchronous_standby_names requires (FIRST n, ANY n, n, a plain list or
+      # * is 1, empty is 0; see the pack query). Primary only. It assumes
+      # synchronous_commit waits for a standby (on, remote_write or
+      # remote_apply); with local or off commits do not wait and the alert
+      # still fires. With Patroni synchronous_mode_strict on, Patroni leaves the
+      # setting in place and every commit blocks; without strict it empties the
+      # setting after a loop and this alert cannot see the loss (lab scenario
+      # synchronous-standby-cut, lab/pgha/README.md). 1m is a lab value.
+      - alert: PostgresSynchronousStandbyMissing
+        expr: |
+          postgresql.replication.synchronous_standby.count
+            < on(service.instance.id)
+          postgresql.replication.synchronous_standby.required
+            and on(service.instance.id)
+          postgresql.recovery.active == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: '{{ (index $labels "service.instance.id") }} has fewer synchronous standbys than synchronous_standby_names requires: commits wait'
+
       - alert: PostgresReplayBacklog
         expr: |
           postgresql.replay.backlog > 16 * 1024 * 1024
@@ -121,6 +143,32 @@ groups:
           severity: warning
         annotations:
           summary: 'A snapshot on {{ (index $labels "service.instance.id") }} is {{ $value | humanizeDuration }} old (lab threshold)'
+
+      # The xmin horizon held without a client transaction to blame: a replication
+      # slot (xmin, catalog_xmin), standby feedback (a walsender's backend_xmin)
+      # or a prepared transaction pins old row versions, and
+      # postgresql.snapshot.oldest_age (seconds, client transactions and prepared
+      # transactions only) shows nothing for the first two. The metric is an
+      # age in transactions (queries.yaml), so the threshold depends on the
+      # workload: 10 million is an assumption (5 % of autovacuum_freeze_max_age,
+      # default 200 million; PostgreSQL 18 docs, runtime-config-autovacuum, not read: unverified), about
+      # three hours at 1000 transactions/s. Suppressed while PostgresSnapshotHeldTooLong's
+      # condition holds on the instance (a client snapshot older than 120 s
+      # explains the horizon and has its own alert). Not reachable in a lab run
+      # (unit tests only, as PostgresTransactionIdWraparound): hot_standby_feedback
+      # is off in every lab, the heaviest load client is stage3's pgbench at
+      # -R 100 (lab/stage3/scripts/load.sh; 10 million transactions take about
+      # 28 hours), and a scenario holds a slot or snapshot for minutes.
+      - alert: PostgresXminHorizonHeld
+        expr: |
+          postgresql.xmin_horizon.age > 10000000
+            unless on(service.instance.id)
+          postgresql.snapshot.oldest_age > 120
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'The xmin horizon on {{ (index $labels "service.instance.id") }} is {{ $value | humanize }} transactions old with no client snapshot over 120 s: check replication slots, standby feedback and prepared transactions (assumed threshold)'
 
       # Two tiers share one alertname and differ in severity, with no `for` and so
       # no pending state: the old `for` became a window inside the expression.
@@ -412,6 +460,9 @@ groups:
         annotations:
           summary: '{{ $value | printf "%.0f" }} WAL files on {{ (index $labels "service.instance.id") }} are waiting for the archiver (lab threshold)'
 
+      # The two metric lists below must equal queries.yaml (less the exclusions
+      # listed in the script): scripts/check-series-vanished.py, mise run
+      # lint:series-vanished, fails when they drift.
       # Covers the pack and postgresqlreceiver's database.count (a canary for the
       # receiver). Every pack query returns at least one row on every node, or
       # (slots, subscriptions) none by design, so the list holds both kinds. `on(__name__)` is not honoured by binary
@@ -425,9 +476,9 @@ groups:
       # alerts for up to an hour; that is accepted, not filtered.
       - alert: PostgresSeriesVanished
         expr: |
-          label_copy(last_over_time({__name__=~"postgresql[.](recovery[.]active|wal_receiver[.]streaming|replay[.](backlog|paused)|snapshot[.]oldest_age|xmin_horizon[.]age|client_connection[.](count|limit)|database[.](count|xid_age|mxid_age)|transaction[.]idle_age|lock[.](waiting_session[.]count|oldest_wait_age)|replication_slot[.](active|retained_wal|unconfirmed_wal|wal_status|invalidated|inactive_age)|subscription[.](enabled|apply_worker_running|last_msg_age|apply_error|sync_error|conflict)|archiver[.](archived_file|failure|failing|ready_file[.]count))"}[1h]) keep_metric_names, "__name__", "metric")
+          label_copy(last_over_time({__name__=~"postgresql[.](recovery[.]active|wal_receiver[.]streaming|replay[.](backlog|paused)|snapshot[.]oldest_age|xmin_horizon[.]age|client_connection[.](count|limit)|database[.](count|xid_age|mxid_age)|transaction[.]idle_age|lock[.](waiting_session[.]count|oldest_wait_age)|replication[.]synchronous_standby[.](count|required)|replication_slot[.](active|retained_wal|unconfirmed_wal|wal_status|invalidated|inactive_age)|subscription[.](enabled|apply_worker_running|last_msg_age|apply_error|sync_error|conflict)|archiver[.](archived_file|failure|failing|ready_file[.]count))"}[1h]) keep_metric_names, "__name__", "metric")
             unless on(metric, service.instance.id)
-          label_copy(present_over_time({__name__=~"postgresql[.](recovery[.]active|wal_receiver[.]streaming|replay[.](backlog|paused)|snapshot[.]oldest_age|xmin_horizon[.]age|client_connection[.](count|limit)|database[.](count|xid_age|mxid_age)|transaction[.]idle_age|lock[.](waiting_session[.]count|oldest_wait_age)|replication_slot[.](active|retained_wal|unconfirmed_wal|wal_status|invalidated|inactive_age)|subscription[.](enabled|apply_worker_running|last_msg_age|apply_error|sync_error|conflict)|archiver[.](archived_file|failure|failing|ready_file[.]count))"}[2m]) keep_metric_names, "__name__", "metric")
+          label_copy(present_over_time({__name__=~"postgresql[.](recovery[.]active|wal_receiver[.]streaming|replay[.](backlog|paused)|snapshot[.]oldest_age|xmin_horizon[.]age|client_connection[.](count|limit)|database[.](count|xid_age|mxid_age)|transaction[.]idle_age|lock[.](waiting_session[.]count|oldest_wait_age)|replication[.]synchronous_standby[.](count|required)|replication_slot[.](active|retained_wal|unconfirmed_wal|wal_status|invalidated|inactive_age)|subscription[.](enabled|apply_worker_running|last_msg_age|apply_error|sync_error|conflict)|archiver[.](archived_file|failure|failing|ready_file[.]count))"}[2m]) keep_metric_names, "__name__", "metric")
             and on(service.instance.id)
           present_over_time(postgresql.collection.heartbeat[2m])
         # Only while the target's heartbeat lives: a dead target or Collector
@@ -456,15 +507,18 @@ groups:
       # name is a new series (k8s.pod.uid) and the deleted pod's last 0 must
       # not count twice; max prefers "in recovery" (1), so this can only hide
       # an alert, never invent one.
-      # "for" is 45 s (three evaluations). On CloudNativePG the deleted
-      # primary's last 0 overlaps the promoted replica's 0 for roughly 10 to
-      # 40 s (lab/k8s primary-deleted run: replica writable about 6 s after
-      # the kill, the new pod starts at +6 s, then recovery and up to one 15 s
-      # scrape before it reports 1). With a 30 s window the stale 0 is gone
-      # before a 45 s hold can complete. Patroni: the leader key expires 20 to
-      # 30 s after the last sample, so the overlap is shorter still.
-      # Trade-off, accepted: a real split brain shorter than about 60 s (the
-      # hold plus a window's worth of samples) is not alerted; dropping a
+      # "for" is 60 s (four evaluations). The stale 0 of a deleted primary
+      # lives 30 s after its last sample (the window; two 15 s scrapes), so a
+      # failover overlap is at most that 30 s plus the 15 s between the
+      # promoted instance's first sample and the stale one's last: a 45 s
+      # worst case, which the unit test (failover) uses. That is a derived
+      # bound, not a measurement. What the recorded suites of 2026-11-12 show
+      # is overlaps of a single 15 s sample (k8s switchover at 05:19:00 UTC);
+      # no recorded overlap is longer. "for" is the 45 s bound plus one scrape
+      # interval (15 s) of margin. Patroni: the leader key expires 20 to 30 s
+      # after the last sample, so the overlap is shorter still.
+      # Trade-off, accepted: a real split brain shorter than about 75 s (the
+      # hold plus one 15 s sample) is not alerted; dropping a
       # series after two missed collections can only hide an alert.
       - alert: PostgresMultiplePrimaries
         expr: |
@@ -473,7 +527,7 @@ groups:
               last_over_time(postgresql.recovery.active[30s])
             ) == 0
           ) > 1
-        for: 45s
+        for: 60s
         labels:
           severity: critical
         annotations:

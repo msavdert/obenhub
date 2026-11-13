@@ -26,7 +26,7 @@ dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 . "$dir/versions.sh"
 # shellcheck source=/dev/null
 . "$dir/nodes.sh"
-[ -s "$dir/.env" ] || "$dir/scripts/gen-env.sh"
+[ -s "$dir/.env" ] || "$dir/../scripts/gen-env.sh" "$dir/.env" POSTGRES_PASSWORD REPLICATOR_PASSWORD OTEL_MONITOR_PASSWORD APP_PASSWORD PATRONI_API_PASSWORD
 # pki.sh keeps existing files and adds missing ones (for example the Collector
 # certificates of a checkout provisioned before they existed)
 "$dir/scripts/pki.sh"
@@ -142,7 +142,7 @@ phase_base() {
     keyfp() { gpg --show-keys --with-colons "$1" 2>/dev/null | awk -F: "/^pub/{p++} /^fpr/&&!f{f=\$10} END{if(p==1)print f}"; }
     [ "$(keyfp "$k")" = "$1" ] && exit 0
     command -v gpg >/dev/null || DEBIAN_FRONTEND=noninteractive sh -c "apt-get update -qq && apt-get install -y -qq gpg"
-    d=$(mktemp -d); trap "rm -rf $d" EXIT
+    d=$(mktemp -d); trap "rm -rf \"\${d:?}\"" EXIT
     curl -fsSL -o "$d/key.asc" https://www.postgresql.org/media/keys/ACCC4CF8.asc
     [ "$(keyfp "$d/key.asc")" = "$1" ] || { echo "PGDG key fingerprint mismatch" >&2; exit 1; }
     mkdir -p "$(dirname "$k")"
@@ -205,7 +205,7 @@ SRC
   if [ "$(rn "$n" sh -c "/usr/local/bin/etcd --version 2>/dev/null | sed -n 's/^etcd Version: //p'")" != "$ETCD_VERSION" ]; then
     rn "$n" sh -euc '
       v=$1; t=etcd-v$v-linux-amd64.tar.gz; b=https://github.com/etcd-io/etcd/releases/download/v$v
-      d=$(mktemp -d); trap "rm -rf $d" EXIT; cd "$d"
+      d=$(mktemp -d); trap "rm -rf \"\${d:?}\"" EXIT; cd "$d"
       curl -fsSL -O "$b/$t"; curl -fsSL -O "$b/SHA256SUMS"
       grep " $t\$" SHA256SUMS | sha256sum -c - >/dev/null
       tar -xzf "$t" --strip-components=1 "etcd-v$v-linux-amd64/etcd" "etcd-v$v-linux-amd64/etcdctl" "etcd-v$v-linux-amd64/etcdutl"
@@ -221,7 +221,7 @@ SRC
     rn "$n" sh -euc '
       v=$1; f=otelcol-contrib_${v}_linux_amd64.deb
       b=https://github.com/open-telemetry/opentelemetry-collector-releases/releases/download/v$v
-      d=$(mktemp -d); trap "rm -rf $d" EXIT; cd "$d"
+      d=$(mktemp -d); trap "rm -rf \"\${d:?}\"" EXIT; cd "$d"
       curl -fsSL -O "$b/$f"; curl -fsSL -O "$b/$f.sha256"
       echo "$(cut -d" " -f1 "$f.sha256")  $f" | sha256sum -c - >/dev/null
       DEBIAN_FRONTEND=noninteractive dpkg -i --force-confdef --force-confold "$f" >/dev/null' sh "$OTELCOL_VERSION"
@@ -280,7 +280,11 @@ SRC
 # failing assignment stops the script here (set -e, inherit_errexit); the
 # here-string in put adds back the newline that $(...) strips.
 for key in POSTGRES_PASSWORD REPLICATOR_PASSWORD OTEL_MONITOR_PASSWORD APP_PASSWORD PATRONI_API_PASSWORD; do
-  [ -n "${!key:-}" ] || { echo "$key missing or empty in lab/pgha/.env" >&2; exit 1; }
+  [ -n "${!key:-}" ] || {
+    echo "$key missing or empty in lab/pgha/.env; add the missing keys (existing values are kept) with:" >&2
+    echo "  lab/scripts/gen-env.sh lab/pgha/.env POSTGRES_PASSWORD REPLICATOR_PASSWORD OTEL_MONITOR_PASSWORD APP_PASSWORD PATRONI_API_PASSWORD" >&2
+    exit 1
+  }
 done
 PATRONI_ENV="$(printf 'OTEL_MONITOR_PASSWORD=%s\nAPP_PASSWORD=%s' "$OTEL_MONITOR_PASSWORD" "$APP_PASSWORD")"
 for n in $want; do
@@ -333,20 +337,23 @@ for n in $want; do
 done
 for n in $want; do wait_etcd "$n"; done
 
-# Patroni
+# Patroni. A marker is removed only after the cluster check at the end of this
+# script passed (PATRONI_DONE lists the nodes whose start or reload was issued),
+# so a provision that fails there is finished by the next run.
+PATRONI_DONE=""
 for n in $want; do
   if [ "$(rn "$n" systemctl is-enabled patroni 2>/dev/null || true)" != enabled ]; then
     rn "$n" systemctl enable patroni >/dev/null 2>&1
   fi
   if [ "$(rn "$n" systemctl is-active patroni || true)" != active ]; then
     rn "$n" systemctl start --no-block patroni
-    rn "$n" rm -f "$PATRONI_MARK"
+    PATRONI_DONE="$PATRONI_DONE $n"
     log "$n" "patroni started"
   elif [ "${PATRONI_CHANGED[$n]}" = 1 ]; then
     # SIGHUP reload; settings that need a PostgreSQL restart show up as
     # "pending restart" in patronictl list and are not restarted here
     rn "$n" systemctl reload patroni
-    rn "$n" rm -f "$PATRONI_MARK"
+    PATRONI_DONE="$PATRONI_DONE $n"
     log "$n" "patroni reloaded (config changed)"
   fi
 done
@@ -383,9 +390,24 @@ phase_collector() {
     rn "$n" systemctl daemon-reload
     rn "$n" systemctl enable otelcol-contrib >/dev/null 2>&1
     rn "$n" systemctl restart otelcol-contrib
-    sleep 5
-    if [ "$(rn "$n" systemctl is-active otelcol-contrib || true)" != active ]; then
-      echo "[$n] otelcol-contrib not active after restart" >&2
+    # Three active samples 2 s apart (a window of about 4 s), within 30 s, and
+    # NRestarts and ActiveEnterTimestamp unchanged between the first and the
+    # last sample: a slow crash loop can look active on every sample, but it
+    # raises NRestarts or moves the timestamp.
+    ok=0 first_props="" last_props=""
+    for _ in $(seq 1 15); do
+      last_props=$(rn "$n" systemctl show -p NRestarts -p ActiveEnterTimestamp -p ActiveState otelcol-contrib || true)
+      if grep -qx 'ActiveState=active' <<<"$last_props"; then
+        ok=$((ok + 1))
+        if [ "$ok" = 1 ]; then first_props="$last_props"; fi
+      else
+        ok=0
+      fi
+      if [ "$ok" -ge 3 ]; then break; fi
+      sleep 2
+    done
+    if [ "$ok" -lt 3 ] || [ "$first_props" != "$last_props" ]; then
+      echo "[$n] otelcol-contrib not stably active within 30 s of the restart (restarted or flapping)" >&2
       rn "$n" journalctl -u otelcol-contrib -n 20 --no-pager >&2 || true
       exit 1
     fi
@@ -399,8 +421,8 @@ for n in $want; do phase_collector "$n"; done
 
 # Fault-scenario support: nftables (the scenarios add and delete the table
 # "inet obenhub_fault" themselves; Debian's default /etc/nftables.conf is
-# left alone) and the client load unit (files/load.sh), which writes through
-# the local socket only while the node is the primary. The unit is restarted
+# left alone) and the client load unit (files/load.sh), which writes as role
+# app over TLS (sslmode=require, no CA verification) to the node IP only while the node is the primary. The unit is restarted
 # only when the script or the unit file changed.
 phase_scenarios() {
   local n="$1" changed=0
@@ -411,6 +433,11 @@ phase_scenarios() {
   fi
   CHANGED=0
   putf "$n" /usr/local/bin/obenhub-load.sh 755 root:root "$files/load.sh"
+  # root-only; systemd reads it (EnvironmentFile), so the password is on no
+  # command line. The load connects to the node address over TLS (hostssl rule
+  # for the subnet in pg_hba), as the non-superuser role app.
+  put "$n" /etc/obenhub-load.env 600 root:root <<<"PGHOST=$(ip_of "$n")
+PGPASSWORD=$APP_PASSWORD"
   putf "$n" /etc/systemd/system/obenhub-load.service 644 root:root "$files/obenhub-load.service"
   changed=$CHANGED
   if [ "$changed" = 1 ]; then rn "$n" systemctl daemon-reload; fi
@@ -427,11 +454,42 @@ phase_scenarios() {
 }
 for n in $want; do phase_scenarios "$n"; done
 
+# Success: the members are exactly NODES, one is the running Leader and every
+# other one is a Replica, Sync Standby or Quorum Standby in state streaming (patronictl list -f json, Patroni 4). Deadline
+# 240 s; on failure the last listing is printed.
 first="${want%% *}"
-for _ in $(seq 1 90); do
-  out=$(rn "$first" sudo -u postgres patronictl -c /etc/patroni/config.yml list 2>/dev/null || true)
-  if grep -q Leader <<<"$out"; then printf '%s\n' "$out"; exit 0; fi
-  sleep 2
+n_nodes=$(wc -w <<<"$NODES")
+node_names=()
+for e in $NODES; do node_names+=("${e%%=*}"); done
+check_cluster='
+import json, sys
+n = int(sys.argv[1])
+m = json.load(sys.stdin)
+leaders = [x["Member"] for x in m if x["Role"] == "Leader" and x["State"] == "running"]
+streaming = [x["Member"] for x in m if x["Role"] in ("Replica", "Sync Standby", "Quorum Standby") and x["State"] == "streaming"]
+if sorted(x["Member"] for x in m) == sorted(sys.argv[2:]) and len(leaders) == 1 and len(streaming) == n - 1:
+    print(leaders[0])
+    sys.exit(0)
+sys.exit(1)'
+leader=""
+out=""
+deadline=$((SECONDS + 240))
+while [ "$SECONDS" -lt "$deadline" ]; do
+  out=$(rn "$first" sudo -u postgres patronictl -c /etc/patroni/config.yml list -f json 2>/dev/null || true)
+  if leader=$(python3 -I -c "$check_cluster" "$n_nodes" "${node_names[@]}" <<<"$out" 2>/dev/null); then break; fi
+  leader=""
+  sleep 3
 done
-echo "no Patroni leader after 180 s" >&2
-exit 1
+if [ -z "$leader" ]; then
+  echo "cluster not healthy after 240 s: want $n_nodes members, one running Leader and $((n_nodes - 1)) streaming Replicas/Sync Standbys; last patronictl list:" >&2
+  rn "$first" sudo -u postgres patronictl -c /etc/patroni/config.yml list >&2 || printf '%s\n' "$out" >&2
+  exit 1
+fi
+for n in $PATRONI_DONE; do rn "$n" rm -f "$PATRONI_MARK"; done
+rn "$first" sudo -u postgres patronictl -c /etc/patroni/config.yml list
+
+# The client load runs as the non-superuser role app, which post-bootstrap.sh
+# creates. A cluster loaded before that change has pgbench tables owned by
+# postgres: hand them to app on the leader (idempotent; replicates).
+rn "$leader" sudo -u postgres /usr/lib/postgresql/"$PG_MAJOR"/bin/psql -X -d app -v ON_ERROR_STOP=1 -qAt -c \
+  "DO \$\$ DECLARE t text; BEGIN FOR t IN SELECT tablename FROM pg_tables WHERE schemaname='public' AND tablename LIKE 'pgbench\\_%' AND tableowner <> 'app' LOOP EXECUTE format('ALTER TABLE public.%I OWNER TO app', t); END LOOP; END \$\$"

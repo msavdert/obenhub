@@ -13,7 +13,11 @@
 #   - mirrors the slice 1 PostgreSQL settings in conf.d/90-overhead.conf,
 #     restarts postgresql@18-main, creates role otel_monitor and
 #     pg_stat_statements;
-#   - copies otelcol.yaml to /etc/otelcol-contrib/config.yaml;
+#   - copies otelcol.yaml to /etc/otelcol-contrib/config.yaml and the shared
+#     pack lab/packs/postgresql/queries.yaml (the version in this checkout)
+#     to /etc/otelcol-contrib/packs/postgresql/queries.yaml;
+#     (after a re-measurement, copy that pack to results/pack-measured/ so
+#     that pack-cost.py reads what was measured);
 #   - initialises pgbench (scale 100) in database postgres.
 # Usage: lab/overhead/setup.sh
 set -euo pipefail
@@ -25,6 +29,7 @@ VERSION=0.164.0
 SCALE="${SCALE:-100}"
 
 scp -q "$HERE/otelcol.yaml" "$HOST:/tmp/obenhub-otelcol.yaml"
+scp -q "$HERE/../packs/postgresql/queries.yaml" "$HOST:/tmp/obenhub-queries.yaml"
 
 ssh -o ServerAliveInterval=30 -o ServerAliveCountMax=4 "$HOST" sudo VERSION="$VERSION" SCALE="$SCALE" bash -s <<'REMOTE'
 set -euo pipefail
@@ -52,6 +57,10 @@ chown root:root /etc/otelcol-contrib/env
 chmod 0600 /etc/otelcol-contrib/env
 install -m 0644 /tmp/obenhub-otelcol.yaml /etc/otelcol-contrib/config.yaml
 rm -f /tmp/obenhub-otelcol.yaml
+install -d -m 0755 /etc/otelcol-contrib/packs/postgresql
+install -m 0644 /tmp/obenhub-queries.yaml /etc/otelcol-contrib/packs/postgresql/queries.yaml
+rm -f /tmp/obenhub-queries.yaml
+sha256sum /etc/otelcol-contrib/packs/postgresql/queries.yaml
 
 cat >/etc/systemd/system/obenhub-otelcol.service <<'UNIT'
 [Unit]
@@ -90,7 +99,12 @@ log_min_duration_statement = 1000
 track_io_timing = on
 CONF
 systemctl restart postgresql@18-main.service </dev/null
-for _ in $(seq 30); do sudo -u postgres pg_isready -q </dev/null && break; sleep 1; done
+ready=""
+for _ in $(seq 30); do
+  if sudo -u postgres pg_isready -q </dev/null; then ready=1; break; fi
+  sleep 1
+done
+[ -n "$ready" ] || { echo "setup: PostgreSQL did not accept connections within 30 s" >&2; exit 1; }
 
 # the password goes through stdin as a psql variable, not through argv
 # shellcheck disable=SC1091

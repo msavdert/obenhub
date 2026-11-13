@@ -114,7 +114,7 @@
         "/^lab/.+\\.sh$/"
       ],
       "matchStrings": [
-        "# renovate: datasource=(?<datasource>\\S+) depName=(?<depName>\\S+)(?: extractVersion=(?<extractVersion>\\S+))?\\s+[A-Z_]+=(?<currentValue>\\S+)"
+        "# renovate: datasource=(?<datasource>github-releases|github-tags|docker) depName=(?<depName>\\S+)(?: extractVersion=(?<extractVersion>\\S+))?\\s+[A-Z_]+=(?<currentValue>\\S+)"
       ]
     },
     {
@@ -141,20 +141,20 @@
     },
     {
       "customType": "regex",
-      "description": "vmalert-tool image in the lab:rules-test task; moves with vmalert",
+      "description": "Debian package pins in lab versions.sh: a '# renovate: datasource=deb depName=<package>' comment above a NAME=version line (the pgha PGDG pins). Same PGDG trixie repository as the Dockerfile manager. Unconfirmed: not yet seen to open a pull request.",
       "managerFilePatterns": [
-        "/(^|/)mise\\.toml$/"
+        "/^lab/.+/versions\\.sh$/"
       ],
       "matchStrings": [
-        "(?<depName>victoriametrics/vmalert-tool):(?<currentValue>v[0-9.]+)"
+        "# renovate: datasource=(?<datasource>deb) depName=(?<depName>\\S+)\\s+[A-Z_]+=(?<currentValue>\\S+)"
       ],
-      "datasourceTemplate": "docker"
+      "registryUrlTemplate": "https://apt.postgresql.org/pub/repos/apt?suite=trixie-pgdg&components=main&binaryArch=amd64"
     },
     {
       "customType": "regex",
       "description": "Grafana plugins preinstalled by the lab compose files",
       "managerFilePatterns": [
-        "/^lab/.+/compose\\.ya?ml$/"
+        "/^lab/.+/compose(\\.base)?\\.ya?ml$/"
       ],
       "matchStrings": [
         "victoriametrics-metrics-datasource@(?<currentValue>[0-9.]+)"
@@ -167,7 +167,7 @@
       "customType": "regex",
       "description": "Grafana plugins preinstalled by the lab compose files",
       "managerFilePatterns": [
-        "/^lab/.+/compose\\.ya?ml$/"
+        "/^lab/.+/compose(\\.base)?\\.ya?ml$/"
       ],
       "matchStrings": [
         "victoriametrics-logs-datasource@(?<currentValue>[0-9.]+)"

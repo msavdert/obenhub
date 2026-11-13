@@ -102,7 +102,7 @@ app_in_sync() {
 
 # component versions recorded under "images" in runs.jsonl
 component_versions() {
-  grep -E '^[[:space:]]+image:' "$LAB_DIR/compose.yaml" | sed 's/.*image: *//' | sort -u \
+  docker compose -p obenhub-slice1 -f "$LAB_DIR/compose.yaml" config --images 2>/dev/null | sort -u \
     | jq -R . | jq -s -c .
 }
 

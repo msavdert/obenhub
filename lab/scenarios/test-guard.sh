@@ -118,5 +118,39 @@ BGPID=$(cat "$BG_PID")
 check "background child of a scenario is still running" kill -0 "$BGPID"
 check "background child of a scenario does not keep the suite lock" in_repo '! lock_taken'
 
+# a symlink at the lock path is refused and its target is not written
+echo keep >"$work/target"
+ln -s "$work/target" "$work/linklock"
+check_not "lock_acquire refuses a symlinked lock path" env SUITE_LOCK_FILE="$work/linklock" bash -c '. "$1/lab/scenarios/guard.sh"; lock_acquire smoke' _ "$repo"
+check_not "scenario_lock refuses a symlinked lock path" env SUITE_LOCK_FILE="$work/linklock" bash -c '. "$1/lab/scenarios/guard.sh"; scenario_lock' _ "$repo"
+check "a symlinked lock path reads as taken" env SUITE_LOCK_FILE="$work/linklock" bash -c '. "$1/lab/scenarios/guard.sh"; lock_taken' _ "$repo"
+check "the symlink target is untouched" test "$(cat "$work/target")" = keep
+
+# a symlinked lock path whose target names the suite id and a live ancestor pid must not be trusted
+echo "t-fake $$" >"$work/target"
+check_not "suite_trusted refuses a symlinked lock path" env SUITE_LOCK_FILE="$work/linklock" bash -c '. "$1/lab/scenarios/guard.sh"; suite_trusted t-fake' _ "$repo"
+check_not "scenario_lock does not return 0 through a symlinked lock path" env SUITE_ID=t-fake SUITE_LOCK_FILE="$work/linklock" bash -c '. "$1/lab/scenarios/guard.sh"; scenario_lock' _ "$repo"
+
+# an unusable (not symlink) lock path fails closed
+nolock=$work/nodir/lock
+check "lock_taken reads an unopenable lock file as taken" env SUITE_LOCK_FILE="$nolock" bash -c '. "$1/lab/scenarios/guard.sh"; lock_taken' _ "$repo"
+check_not "scenario_lock refuses an unopenable lock file" env SUITE_LOCK_FILE="$nolock" bash -c '. "$1/lab/scenarios/guard.sh"; scenario_lock' _ "$repo"
+check_not "lock_acquire fails on an unopenable lock file" env SUITE_LOCK_FILE="$nolock" bash -c '. "$1/lab/scenarios/guard.sh"; lock_acquire smoke' _ "$repo"
+env SUITE_LOCK_FILE="$nolock" bash -c '. "$1/lab/scenarios/guard.sh"; scenario_lock' _ "$repo" >/dev/null 2>&1; rc=$?
+[ "$rc" = 3 ] && ok "scenario_lock returns 3 on an unopenable lock file" || bad "scenario_lock returns 3 on an unopenable lock file (got $rc)"
+
+# the default path must not depend on XDG_RUNTIME_DIR
+default_path() { env -u SUITE_LOCK_FILE "$@" bash -c '. "$1/lab/scenarios/guard.sh"; echo "$SUITE_LOCK_FILE"' _ "$repo"; }
+p1=$(default_path -u XDG_RUNTIME_DIR)
+p2=$(default_path XDG_RUNTIME_DIR="$work")  # an existing writable dir: any variant that honours the variable differs
+[ -n "$p1" ] && [ "$p1" = "$p2" ] && ok "default lock path ignores XDG_RUNTIME_DIR ($p1)" || bad "default lock path differs: '$p1' vs '$p2'"
+
+# a failing id must not abort a caller under set -e; the /tmp path is used
+mkdir -p "$work/stubbin"
+printf '#!/bin/sh\nexit 1\n' >"$work/stubbin/id"
+chmod +x "$work/stubbin/id"
+p3=$(env -u SUITE_LOCK_FILE PATH="$work/stubbin:$PATH" bash -c 'set -e; . "$1/lab/scenarios/guard.sh"; echo "$SUITE_LOCK_FILE"' _ "$repo" 2>/dev/null)
+[ "$p3" = /tmp/obenhub-lab-suite.lock ] && ok "failing id under set -e resolves the /tmp path" || bad "failing id under set -e: got '$p3'"
+
 [ "$FAILED" = 0 ] && echo "guard tests passed" || echo "guard tests FAILED"
 exit "$FAILED"

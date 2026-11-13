@@ -30,8 +30,8 @@ Compose project on the box (`obenhub-k8s`).
 - Free ports on 127.0.0.1 (VictoriaMetrics 48428, VictoriaLogs 49428, vmalert
   48880, Alertmanager 49093, Grafana 43000) and 44317 on the `kind` network's
   gateway address (see Monitoring).
-- The backend's Alertmanager and Grafana files are the ones in `lab/stage3/`
-  (`alertmanager`, `grafana`).
+- The backend services extend `lab/mon/compose.base.yaml`; the Alertmanager
+  config and Grafana provisioning are the shared ones in `lab/mon/`.
 
 ```sh
 lab/k8s/scripts/up.sh     # idempotent; about 7 minutes from nothing
@@ -95,12 +95,14 @@ kind cluster                                   box (Compose project obenhub-k8s)
 - Role: a CloudNativePG managed role `otel_monitor` (`pg_monitor`,
   `pg_use_reserved_connections`) with a random password in the Secret
   `pg-otel-monitor`, which `up.sh` creates once and copies to `obenhub-otel`.
-  CloudNativePG's server certificate names only the Services, so the pod
-  address cannot be verified: `sql_query` uses `sslmode=verify-ca` against the
+  The pod address is probably not in the server certificate (unverified; the
+  [CloudNativePG 1.30 certificates page](https://cloudnative-pg.io/docs/1.30/certificates)
+  does not list the generated names), so `sql_query` uses `sslmode=verify-ca` against the
   cluster CA (ConfigMap `obenhub-pg-ca`, public certificate), the `postgresql`
   receiver has no such mode and uses TLS without verification.
-  The CA is copied when `up.sh` runs; after CloudNativePG rotates it (90 days
-  by default, per the audit; not observed here), `sql_query` fails until
+  The CA is copied when `up.sh` runs; after CloudNativePG renews it (90-day validity of generated certificates, renewed
+  7 days before expiry, per the same page; the CA's own period and any
+  rotation here are unverified), `sql_query` fails until
   `up.sh` runs again.
 - Alerts: vmalert loads `lab/packs/postgresql/rules.yml` unchanged,
   `lab/packs/cnpg/rules.yml` (`CNPGPrimaryChanged`, unit tests in
@@ -115,8 +117,8 @@ kind cluster                                   box (Compose project obenhub-k8s)
   collects a pod depends on scheduling). `otelcol-cluster` is pinned to the
   control-plane node (`otel/cluster-values.yaml`), so stopping a worker does not
   take the node-condition signal with it.
-  Notifications go to VictoriaLogs through the stage 3 Alertmanager config, as
-  in pgha.
+  Notifications go to VictoriaLogs through the shared Alertmanager config
+  (`lab/mon/alertmanager.yml`), as in pgha.
 
 ## Fault scenarios
 
@@ -130,7 +132,7 @@ lab/k8s/scenarios/slot-retaining-wal.sh  # the cut replica's slot retains bounde
 lab/k8s/scenarios/worker-stopped.sh      # power cut of the primary's worker node
 ```
 
-The machinery is `lab/scenarios/lib-core.sh`, shared with stage 3 and pgha;
+The machinery is `lab/scenarios/lib-core.sh`, shared with slice 1, stage 3 and pgha;
 `scenarios/lib.sh` is the adapter (Cluster status instead of Patroni). Each run
 appends one line to `results/runs.jsonl`. `mise run lab:k8s:scenarios` runs them
 all as a suite, `control` last (see [lab/README.md](../README.md)). A scenario
@@ -156,8 +158,8 @@ client acknowledges rows.
   2026-11-11), then the replica's walsender is terminated, because a policy
   does not end an established connection. `slot-retaining-wal` then writes a
   scratch table until the replica's slot retains 640 MiB. The Cluster sets
-  `max_slot_wal_keep_size: 1GB` as the guard (it was unlimited, and the 1Gi
-  claim is not enforced by local-path); the alert threshold is 512 MiB.
+  `max_slot_wal_keep_size: 1GB` as the guard (it was unlimited; local-path does not
+  enforce the volume size, per the comment in `cnpg/cluster.yaml`); the alert threshold is 512 MiB.
 - `worker-stopped`: `docker kill` of the kind node that runs the
   primary (a worker free of the operator and the load client; a preparatory
   switchover if needed), held until `CollectorAbsent` for that node's agent
@@ -176,67 +178,22 @@ and Cluster manifests hold a `${...}` placeholder that `up.sh` fills from it.
 The cluster name is `KIND_CLUSTER` in `versions.sh`; every kubectl call uses
 the context `kind-<name>`.
 
-## Checked on 2026-11-10
+## Behaviour worth knowing
 
-`up.sh` from nothing: kind v0.33.0, node `v1.36.4`, CloudNativePG 1.30.1,
-operand `postgresql:18.6-system-trixie`. Result:
+Observed on 2026-11-10 while building the lab (versions in `versions.sh`; the
+scenario runs are in `results/runs.jsonl`):
 
-- pods `pg-1`, `pg-2`, `pg-3` on `obenhub-worker`, `-worker2`, `-worker3`
-- Cluster `Cluster in healthy state`, primary `pg-1`, 3 ready instances
-- `show server_version` returns `18.6`; `pg_stat_replication` on the primary
-  lists `pg-2` and `pg-3` as `streaming`
-- a row inserted with `psql -h pg-rw` inside `pg-3` was served by the
-  primary's pod IP with `pg_is_in_recovery()` false, and `pg-3` (in
-  recovery) then read it back
-- a second `up.sh` changes nothing and returns in about 2 seconds
-
-## Collectors checked on 2026-11-10
-
-`up.sh` from nothing took 6m28s: cluster ready after 245 s, backend 125 s
-(most of it Grafana's plugin download and `--wait`), Secret, ConfigMaps and
-both Helm releases 18 s. Chart `opentelemetry-collector` 0.178.3, image
-`otel/opentelemetry-collector-contrib` 0.164.0. A second run changes nothing
-(both releases `unchanged`, 6 s). Then, in VictoriaMetrics and VictoriaLogs:
-
-- `postgresql.collection.heartbeat` and the other pack series exist for
-  `pg-1`, `pg-2` and `pg-3`, with `k8s.pod.name`, `k8s.node.name` and
-  `k8s.pod.uid`; `kubeletstats` (`k8s.pod.cpu.usage` on all three workers) and
-  `k8s_cluster` (`k8s.node.condition_ready`, `k8s.deployment.available`) series
-  are present; `otelcol_process_uptime` exists for the gateway, the cluster
-  Collector and the three agents
-- `select 1/0` on `pg-1` arrives as one log record with `error_severity`
-  `ERROR`, `sql_state_code` `22012`, `user_name`, `database_name`,
-  `backend_type`, `process_id` and the message `division by zero` as the body
-- Kubernetes events arrive as log records (scaling `otelcol-cluster` to 2 and
-  back gave `ScalingReplicaSet`, `Scheduled`, `Started`, `Killing`). The
-  `k8sobjects` receiver in `watch` mode emitted none for events that happened
-  before it started. The event body is a map without a message field, so
-  VictoriaLogs shows its `_msg` placeholder; the text is in `object.note`
-- vmalert, ten quiet minutes: only `Watchdog`. Keeping the agent off
-  `obenhub-worker2` with a node affinity patch raised `CollectorAbsent` for
-  `otelcol-agent-obenhub-worker2` alone (active 2 minutes after the patch,
-  firing when read at 5m45s); removing the patch cleared it. On a fresh backend `CollectorAbsent` fires for the
-  Collectors that are not yet installed, then clears once they push
-
-## CloudNativePG exporter checked on 2026-11-10
-
-On the running lab (Cluster created before `disableDefaultQueries` was set):
-
-- before the change, `pg-1:9187/metrics` served 58 `cnpg_pg_*`, 3
-  `cnpg_backends_*` and 20 `cnpg_collector_*` metric names, plus the Go
-  runtime series
-- `up.sh` set `disableDefaultQueries: true`, but the Cluster kept the
-  `customQueriesConfigMap: cnpg-default-monitoring` entry that the defaulting
-  webhook had added at creation, and the exporter kept serving `cnpg_pg_*`.
-  Removing that entry (`kubectl patch --type=json`, op `remove`) stopped
-  them, with no pod restart. A server-side dry run of
-  `cnpg/cluster.yaml` as a new Cluster gets no such entry, so `up.sh` from
-  nothing needs no patch; a lab created before this change needs it once
-  (the `keep` filter would hide the duplicate queries in VictoriaMetrics)
-- in VictoriaMetrics, `service.name=cnpg-instance-manager` holds the 17
-  `cnpg_collector_*` names left after the drop, `cnpg_last_error` and the
-  receiver's own `up` and `scrape_*`, for `pg-1`, `pg-2` and `pg-3`;
-  no `cnpg_pg_*`, `cnpg_cache_*` or `go_*`
+- `up.sh` is idempotent: a second run changes nothing.
+- Kubernetes events arrive as log records, but the `k8sobjects` receiver in
+  `watch` mode emitted none for events that happened before it started. The
+  event body is a map without a message field, so VictoriaLogs shows its
+  `_msg` placeholder; the text is in `object.note`.
+- On a fresh backend `CollectorAbsent` fires for the Collectors that are not
+  installed yet and clears once they push.
+- The Cluster keeps `monitoring.disableDefaultQueries: true` from creation; the
+  exporter then serves no `cnpg_pg_*`, `cnpg_cache_*` or `go_*` series, only
+  `cnpg_collector_*`, `cnpg_last_error` and the receiver's own `up` and
+  `scrape_*`.
 
 Not checked: a run on a cluster other than this one, and recovery after a
 restart of the gateway container while the Collectors are running.
