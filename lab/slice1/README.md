@@ -9,6 +9,9 @@ Run it with `mise run lab:up` and `mise run lab:scenarios`; results are in
 Docker with Compose, and `mise install` for the tools. `mise run lab:up` starts
 the lab and generates its `.env` with random passwords; `mise run lab:down`
 stops it. Scenarios run on a clean tree, one suite at a time on the host.
+The PostgreSQL image is built locally (`postgres/Dockerfile`: the pinned
+postgres image plus pgBackRest from PGDG), so the first `lab:up` needs network
+access to `apt.postgresql.org`.
 
 ## What runs
 
@@ -26,6 +29,13 @@ stops it. Scenarios run on a clean tree, one suite at a time on the host.
   `postgresqlreceiver` v0.164.0 has no replication slot or subscription
   metrics, so the pack queries `pg_replication_slots`, `pg_subscription`,
   `pg_stat_subscription`, `pg_stat_subscription_stats` and `pg_stat_archiver`.
+- pgBackRest 2.60.0 (ADR 0007): the primary archives WAL with `archive-push`
+  into a repository volume; the `pgbackrest-backup` service creates the stanza
+  and keeps one backup per 600 s, scheduled from the repository (a full one when
+  none exists or the last is older than ten intervals, else incremental);
+  woblerr/pgbackrest_exporter v0.25.0 refreshes every 30 s and the Collector
+  scrapes it (`prometheus/pgbackrest`); the pack is
+  [lab/packs/pgbackrest](../packs/pgbackrest).
 - An expected-target inventory the heartbeat is checked against; PgBouncer's
   heartbeat is the `SHOW LISTS` row `databases`.
 - VictoriaMetrics, VictoriaLogs, vmalert, Alertmanager with a webhook sink
@@ -45,13 +55,23 @@ fires, zero monitoring-role errors in the server log). Notable details:
   connect.
 - `slot-invalidated` pushes a physical slot past `max_slot_wal_keep_size`,
   then checkpoints.
-- `archiver-failing` makes `/archive` on the primary unwritable and switches
-  WAL segments; both archiving alerts fire. Every node archives to its own
-  volume with `postgres/archive-wal.sh`, which follows the PostgreSQL 18 docs
-  (25.3.1): no overwrite, an identical re-archive after a crash succeeds;
-  nothing prunes it. Measured 2026-11-12: about 116 MB per 10 minutes on
-  average, about 320 MB per 10 minutes under the `control` run's pgbench load;
-  the host had 206 GB free. `mise run lab:down` (`down -v`) clears it.
+- `archiver-failing` removes all access to the repository directory that
+  holds the archived WAL (`chmod 000`) and switches WAL segments; both
+  archiving alerts fire. Only the primary archives, with pgBackRest
+  (`archive-push`); the standby and the subscriber do not archive. The same
+  fault makes `pgbackrest info` report an error, so `PgBackRestStanzaError`
+  and, after the revert, `PgBackRestBackupStale` may fire; the scenario allows
+  both and expects neither.
+- `backup-stale` takes a backup, stops the `pgbackrest-backup` service (a
+  backup every 600 s) and expects `PgBackRestBackupStale` once the last backup
+  is older than the lab's 780 s (`vmalert/rules/pgbackrest.yml`); detection
+  takes about 15 minutes. The pack default is 26 h. `archiver-failing`,
+  `slot-invalidated` and `checkpoint-pressure` pause the periodic backups for
+  their run (each backup is a requested checkpoint).
+- `pitr-restore` writes marker rows, notes the time, writes more rows,
+  restores with `pgbackrest restore --type=time` into a throwaway container
+  and volume without network, and checks that only the earlier rows exist.
+  The counts are in the result row. No alert is expected.
 - `pgbouncer-pool-saturated` opens more transactions than the pool size.
 
 The Collector's overhead is measured in [lab/overhead](../overhead).

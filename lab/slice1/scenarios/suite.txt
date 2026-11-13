@@ -19,4 +19,6 @@ checkpoint-pressure
 physical-slot-inactive
 slot-invalidated
 archiver-failing
+backup-stale
+pitr-restore
 control

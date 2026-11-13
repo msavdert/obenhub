@@ -65,9 +65,11 @@ Kubernetes attributes) are used as they arrive.
    and the cluster a target belongs to, `obenhub.cluster.name`, which replaces
    `db.cluster.name`. Members of one streaming cluster share it; a logical
    subscriber is its own cluster.
+   Lab parameters recorded as series (a threshold a lab sets for a pack rule,
+   for example `obenhub.backup_age.limit`) also live under `obenhub.*`.
 5. **Alert names.** `UpperCamelCase`, prefixed with the component
-   (`Postgres`, `Pgbouncer`, `Patroni`, `Etcd`, `CNPG`, `Kubernetes`, `Host`,
-   `Collector`), then the condition. Acronyms stay upper case (`WAL`, `CNPG`).
+   (`Postgres`, `Pgbouncer`, `PgBackRest`, `Patroni`, `Etcd`, `CNPG`,
+   `Kubernetes`, `Host`, `Collector`), then the condition. Acronyms stay upper case (`WAL`, `CNPG`).
    Two alerts never describe the same condition.
    The one exception to the prefix is `Watchdog`, the always-firing heartbeat
    of the alert pipeline: its name is an Alertmanager convention and belongs

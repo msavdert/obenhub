@@ -27,19 +27,22 @@ PRIMARY=obenhub-slice1-pg-primary
 STANDBY=obenhub-slice1-pg-standby
 SUBSCRIBER=obenhub-slice1-pg-subscriber
 PGBOUNCER=obenhub-slice1-pgbouncer
+BACKUP_SVC=pgbackrest-backup
+BACKUP_C=obenhub-slice1-pgbackrest-backup
+PG_IMAGE=obenhub-slice1-postgres:18.7-pgbackrest-2.60.0
 REPL_NET=obenhub-slice1_repl
 LOGICAL_NET=obenhub-slice1_logical
 SUBSCRIPTION=app_sub
 
 # Same files, same order as the containers read them: rules/*.yml (sorted in
-# the C locale, as the container sorts them), then the PostgreSQL pack, then
-# alertmanager.yml.
+# the C locale, as the container sorts them), then the PostgreSQL pack, the
+# pgBackRest pack, then alertmanager.yml.
 _lc_collate=${LC_COLLATE-}
 LC_COLLATE=C
-CONFIG_FILES=("$LAB_DIR"/vmalert/rules/*.yml "$LAB_DIR/../packs/postgresql/rules.yml" "$LAB_DIR/alertmanager/alertmanager.yml")
+CONFIG_FILES=("$LAB_DIR"/vmalert/rules/*.yml "$LAB_DIR/../packs/postgresql/rules.yml" "$LAB_DIR/../packs/pgbackrest/rules.yml" "$LAB_DIR/alertmanager/alertmanager.yml")
 LC_COLLATE=$_lc_collate
 unset _lc_collate
-VMALERT_LOADED_CAT='cat /etc/vmalert/rules/*.yml /etc/vmalert/pack/rules.yml'
+VMALERT_LOADED_CAT='cat /etc/vmalert/rules/*.yml /etc/vmalert/pack/rules.yml /etc/vmalert/pgbackrest/rules.yml'
 # the record carries crash_restarts; null until the check at the end ran
 CRASH_RESTARTS=null
 
@@ -100,6 +103,59 @@ app_in_sync() {
   a=$(psql_pa -c "$app_digest") && b=$(psql_sa -c "$app_digest") && [ -n "$a" ] && [ "$a" = "$b" ]
 }
 
+# pgBackRest (ADR 0007). The repository is the volume pgbackrest-repo; pgbackrest
+# runs as postgres in the primary container (local mode, same as the
+# pgbackrest-backup service). PGBR_WAL_DIR is the repository directory that
+# holds the archived WAL of the first PostgreSQL cluster of the stanza (18-1).
+REPO_VOL=${PROJECT}_pgbackrest-repo
+PGBR_WAL_DIR=/var/lib/pgbackrest/archive/slice1/18-1
+pgbr() { docker exec -u postgres "$PRIMARY" pgbackrest --stanza=slice1 "$@"; }
+# a completed backup is in the repository
+backup_exists() { pgbr info --output=json 2>/dev/null | jq -e '.[0].backup | length > 0' >/dev/null; }
+# BACKUP_INTERVAL of the pgbackrest-backup service, read from compose.yaml so
+# the two cannot drift (seconds)
+BACKUP_INTERVAL=$(docker compose -p obenhub-slice1 -f "$LAB_DIR/compose.yaml" config --format json 2>/dev/null \
+  | jq -r '.services["pgbackrest-backup"].environment.BACKUP_INTERVAL // empty')
+[ -n "$BACKUP_INTERVAL" ] || { echo "BACKUP_INTERVAL of pgbackrest-backup not found in compose.yaml" >&2; exit 1; }
+# the archiver has no backlog: no .ready file, or the last attempt succeeded (or never failed)
+archiver_clear() {
+  [ "$(psql_p -c "SELECT ((SELECT count(*) FROM pg_ls_archive_statusdir() WHERE name LIKE '%.ready') = 0 OR last_failed_time IS NULL OR last_archived_time >= last_failed_time)::int FROM pg_stat_archiver")" = 1 ]
+}
+# Seconds since the last completed backup, empty when none or unreadable.
+backup_age() {
+  pgbr info --output=json 2>/dev/null | jq -r '[.[0].backup[].timestamp.stop] | if length == 0 then empty else (now - max | floor) end'
+}
+# An incremental backup now, after the archiver has no backlog (a backup waits
+# for the WAL it needs to be archived). Fails when either step fails. pgBackRest
+# locks are per container (/tmp/pgbackrest), so this is NOT blocked by a backup
+# of the pgbackrest-backup service: the caller stops that service first
+# (pause_backups), which is the guard against two concurrent backups.
+take_backup() {
+  wait_until 120 "archiver without backlog" archiver_clear || return 1
+  pgbr --type=incr backup >&2
+}
+# Stop the periodic backups and take one, so that the backup age is 0 and the
+# backup's own (start-fast) checkpoint has happened before the scenario
+# measures anything. Fails when the backup fails. Pair it with resume_backups
+# in revert(); revert() also runs after a failed inject().
+pause_backups() {
+  dc stop "$BACKUP_SVC" >/dev/null || return 1
+  take_backup
+}
+# Start the periodic backups again. The service schedules from the repository
+# and does not back up at once, so when the last backup is older than the
+# interval (a paused run, a fault) one is taken first, which must succeed.
+# The service is started even when that backup fails.
+resume_backups() {
+  local age rc=0
+  age=$(backup_age)
+  if [ -z "$age" ] || [ "$age" -gt "$BACKUP_INTERVAL" ]; then take_backup || rc=1; fi
+  dc start "$BACKUP_SVC" >/dev/null || rc=1
+  return "$rc"
+}
+# the pgbackrest-backup service is running
+backup_service_running() { [ "$(docker inspect -f '{{.State.Running}}' "$BACKUP_C" 2>/dev/null)" = true ]; }
+
 # component versions recorded under "images" in runs.jsonl
 component_versions() {
   docker compose -p obenhub-slice1 -f "$LAB_DIR/compose.yaml" config --images 2>/dev/null | sort -u \
@@ -117,6 +173,8 @@ lab_precondition() {
   wait_until 120 "replication streaming" is_streaming || { PRE_ERR="replication not streaming"; return 1; }
   wait_until 120 "logical replication streaming" logical_streaming || { PRE_ERR="logical replication not streaming"; return 1; }
   wait_until 120 "app tables in sync" app_in_sync || { PRE_ERR="app tables differ between publisher and subscriber"; return 1; }
+  backup_service_running || { PRE_ERR="the pgbackrest-backup service is not running (a killed scenario can leave it stopped: docker compose -p $PROJECT start $BACKUP_SVC)"; return 1; }
+  wait_until 300 "a pgBackRest backup in the repository" backup_exists || { PRE_ERR="no completed pgBackRest backup (is the pgbackrest-backup service running?)"; return 1; }
 }
 
 # a scenario must not crash a PostgreSQL server: its postmaster logs this line

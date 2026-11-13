@@ -6,10 +6,18 @@ set -euo pipefail
 mkdir -p /var/log/postgresql
 chown postgres:postgres /var/log/postgresql
 
-# local WAL archive (archive_command in compose.yaml); a volume mounts it as root; chmod undoes a SIGKILLed archiver-failing scenario
-mkdir -p /archive
-chown postgres:postgres /archive
-chmod 755 /archive
+# ARCHIVE_STANZA=<stanza>: archive WAL with pgBackRest (ADR 0007). The
+# repository and the socket directory are named volumes shared with the
+# pgbackrest-backup service and mounted as root. A volume copies its ownership
+# from the image on first use; chown makes it so for a volume that already
+# existed.
+if [ -n "${ARCHIVE_STANZA:-}" ]; then
+  chown postgres:postgres /var/run/postgresql
+  # -R and u+rwX also undo a SIGKILLed archiver-failing scenario (it removes access to a repository directory)
+  chown -R postgres:postgres /var/lib/pgbackrest
+  chmod -R u+rwX /var/lib/pgbackrest
+  set -- "$@" -c archive_mode=on -c "archive_command=pgbackrest --stanza=${ARCHIVE_STANZA} archive-push %p"
+fi
 
 # The clone is marked incomplete before it starts and unmarked after pg_basebackup
 # returned, so a container killed in the middle (the data volume survives) is

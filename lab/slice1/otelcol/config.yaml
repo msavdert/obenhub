@@ -1,4 +1,5 @@
-# Slice 1 collector. Receiver keys: receiver/postgresqlreceiver at v0.164.0.
+# Slice 1 collector. Receiver keys: receiver/postgresqlreceiver and
+# receiver/prometheusreceiver at v0.164.0.
 extensions:
   health_check:
     endpoint: 0.0.0.0:13133
@@ -217,6 +218,26 @@ receivers:
         metrics:
           - {metric_name: pgbouncer.list.item.count, value_column: items, attribute_columns: [list], value_type: int, data_type: gauge, unit: '{item}', description: "Count per SHOW LISTS entry"}
 
+  # pgBackRest backup state. Contrib has no pgBackRest receiver, so this is the
+  # generic prometheusreceiver scraping woblerr/pgbackrest_exporter v0.25.0
+  # (ADR 0007). The exporter refreshes its data every 30 s (--collect.interval),
+  # so scraping faster gains nothing. Metric names arrive as the exporter
+  # defines them (ADR 0006). Only the series that an alert or the dashboard
+  # reads are kept (the exporter also exports per-backup sizes, database
+  # counts and Go runtime metrics).
+  prometheus/pgbackrest:
+    config:
+      scrape_configs:
+        - job_name: pgbackrest
+          scrape_interval: 30s
+          scrape_timeout: 10s
+          static_configs:
+            - targets: ['pgbackrest-exporter:9854']
+          metric_relabel_configs:
+            - source_labels: [__name__]
+              regex: 'up|pgbackrest_(backup_since_last_completion_seconds|stanza_status|repo_status|exporter_status|version_info)'
+              action: keep
+
 processors:
   memory_limiter:
     check_interval: 1s
@@ -262,6 +283,14 @@ processors:
       - {key: server.address, value: pgbouncer, action: upsert}
       - {key: server.port, value: '6432', action: upsert}
       - {key: db.system.name, value: pgbouncer, action: upsert}
+      - {key: obenhub.cluster.name, value: slice1, action: upsert}
+  resource/pgbackrest:
+    attributes:
+      - {key: service.namespace, value: obenhub-lab, action: upsert}
+      - {key: service.name, value: pgbackrest, action: upsert}
+      - {key: service.instance.id, value: pgbackrest, action: upsert}
+      - {key: server.address, value: pgbackrest-exporter, action: upsert}
+      - {key: server.port, value: '9854', action: upsert}
       - {key: obenhub.cluster.name, value: slice1, action: upsert}
   # SHOW output cannot be aliased in SQL, so the console's column names are
   # renamed here: database (SHOW POOLS, SHOW STATS) and name (SHOW DATABASES)
@@ -336,6 +365,10 @@ service:
     metrics/pgbouncer:
       receivers: [sql_query/pgbouncer]
       processors: [memory_limiter, attributes/pgbouncer, transform/pgbouncer-seconds, resource/pgbouncer, batch]
+      exporters: [otlp_http/vm]
+    metrics/pgbackrest:
+      receivers: [prometheus/pgbackrest]
+      processors: [memory_limiter, resource/pgbackrest, batch]
       exporters: [otlp_http/vm]
     logs/primary:
       receivers: [file_log/primary]

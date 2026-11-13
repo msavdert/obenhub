@@ -37,8 +37,8 @@ Candidates, read on 2026-11-12:
    (`archive-push`); the `archiver-failing` scenario keeps its alerts.
 2. Backup state reaches the Collector from `pgbackrest info --output=json`.
    How (an upstream receiver, an existing exporter or a small converter) is
-   chosen during implementation, with its licence read, and the choice is
-   added to this ADR before it merges.
+   chosen during implementation, with its licence read; the choice is in
+   "Backup state path" below.
 3. One scenario does the same job with PostgreSQL's own tools: a full and an
    incremental `pg_basebackup`, `pg_combinebackup`, `pg_verifybackup`, and a
    point-in-time restore. It has no alert of its own; it shows what a tool
@@ -56,3 +56,26 @@ Candidates, read on 2026-11-12:
   final catalogue number came in a release after 18.0.
 - Barman stays the documented alternative; CloudNativePG backups (the Barman
   Cloud plugin) are a separate item for the k8s lab, not part of this ADR.
+  operasoftware/cnpg-plugin-pgbackrest (Apache-2.0, v0.10.0 of 2026-11-09)
+  is a candidate for that item; its README calls it experimental, supports
+  S3-compatible storage only and documents no backup metrics (read
+  2026-11-13).
+
+## Backup state path (chosen 2026-11-13)
+
+woblerr/pgbackrest_exporter v0.25.0 (tag commit
+`4cf845c0bd1caad5d5b8f12b20513b68a4ee226a`; `LICENSE` read at that tag: MIT)
+runs `pgbackrest info` on the repository and serves Prometheus metrics; the
+Collector's `prometheus` receiver scrapes it (`prometheus/pgbackrest` in
+`lab/slice1/otelcol/config.yaml`). Metric names are the exporter's, as ADR
+0006 allows for names that arrive from upstream. The exporter image bundles
+pgBackRest 2.60.0, the version installed in the PostgreSQL image (`pgbackrest
+version` in both containers, 2026-11-13). Rejected:
+
+- A contrib receiver: none exists for pgBackRest at the pinned Collector
+  version (assumption: not re-checked against that release's receiver list
+  while implementing this).
+- The user guide's SQL function that calls `pgbackrest info` through
+  `COPY ... FROM PROGRAM`: the monitoring role would run shell commands.
+- Crunchy pgMonitor: its pgBackRest metrics need postgres_exporter, a second
+  collector next to the Collector.

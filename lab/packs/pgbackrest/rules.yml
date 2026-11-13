@@ -1,0 +1,71 @@
+# pgBackRest backup state (ADR 0007), from woblerr/pgbackrest_exporter v0.25.0
+# scraped by the Collector's prometheusreceiver. Metric names are the
+# exporter's (ADR 0006: names that arrive from upstream are used as they
+# arrive); the Collector keeps only the series read here and on the dashboard.
+# Meaning of the series, read from the exporter's own HELP text and from its
+# output on a live lab (2026-11-13):
+# - pgbackrest_backup_since_last_completion_seconds{backup_type=...}: seconds
+#   since the last completed backup of that type. For incr the exporter counts
+#   a full, differential or incremental backup alike (assumption from the
+#   exporter's HELP text "last completed full, differential or incremental
+#   backup"; seen equal for all three types after one full backup), so
+#   backup_type="incr" is "the last backup of any kind".
+# - pgbackrest_stanza_status: 0 ok. Seen live: 1 (missing stanza path) and 2
+#   (no valid backups) before the stanza and the first backup exist, and 99
+#   (error, other) with the WAL directory of the repository made unreadable
+#   (archiver-failing smoke run, 2026-11-13). The codes 3 to 6 are from the
+#   exporter documentation as remembered and are not confirmed here. Any
+#   non-zero value is an error.
+# - pgbackrest_exporter_status: 1 when the exporter could run `pgbackrest info`.
+# pgbackrest_backup_error_status (page checksum errors in a backup) has no
+# alert: the lab cannot produce it, and an alert nobody has seen fire is not
+# added.
+# The tolerated age of the last backup is a per-lab parameter: the series
+# obenhub.backup_age.limit (seconds), recorded by the lab's own rules (slice1:
+# lab/slice1/vmalert/rules/pgbackrest.yml). Without that series the default of
+# 93600 s (26 h: a daily backup plus 2 h) applies. The default is an
+# assumption for a daily backup schedule, not a measured value.
+groups:
+  - name: pgbackrest
+    interval: 15s
+    rules:
+      # No completed backup for longer than the tolerated age. The comparison
+      # joins on no label: obenhub.backup_age.limit is one series without labels,
+      # or the default below takes its place.
+      - alert: PgBackRestBackupStale
+        expr: |
+          pgbackrest_backup_since_last_completion_seconds{backup_type="incr"}
+            > on() group_left()
+          (obenhub.backup_age.limit or vector(93600))
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'No completed pgBackRest backup of stanza {{ (index $labels "stanza") }} for {{ $value | printf "%.0f" }} s'
+
+      # The stanza is not healthy: missing, or without a valid backup (also
+      # while the first backup of a new lab runs: about a minute in slice1,
+      # which for: 2m rides out).
+      - alert: PgBackRestStanzaError
+        expr: pgbackrest_stanza_status != 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: 'pgBackRest stanza {{ (index $labels "stanza") }} reports status {{ $value | printf "%.0f" }}'
+
+      # The exporter cannot read the repository (pgbackrest_exporter_status 0)
+      # or the Collector cannot scrape the exporter (up 0). Not a duplicate of
+      # CollectorAbsent (that one is about the Collector itself) or of
+      # PostgresTargetAbsent (PostgreSQL targets only); while it fires the
+      # backup age above is frozen or absent and cannot be trusted.
+      - alert: PgBackRestExporterDown
+        expr: |
+          up{service.name="pgbackrest"} == 0
+            or
+          pgbackrest_exporter_status == 0
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'pgBackRest state is not being collected ({{ (index $labels "service.instance.id") }})'
