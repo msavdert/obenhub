@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
-# Lab CA, gateway server certificate and the client certificate of ora-dg-obs,
+# Lab CA, gateway server certificate and the client certificates of the three VMs,
 # openssl only. Output: lab/oracle/pki/ (gitignored). ca.key is created here and
 # never copied to a VM. Idempotent: an existing file is kept; to re-issue,
 # delete the file (or the whole directory) and run again.
+#   <host>/otelcol.{crt,key}   the same for ora-au-lab and ora-dg-stby (CN otelcol-<host>)
 #   otelcol.{crt,key}          client cert the ora-dg-obs Collector presents to
 #                              the gateway (mutual TLS); install it with ca.crt
 #                              under /etc/otelcol-contrib/tls
@@ -18,6 +19,8 @@ set -euo pipefail
 dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 # shellcheck source=/dev/null
 . "$dir/gateway.sh"
+# shellcheck source=/dev/null
+. "$dir/pair.sh"
 pki="$dir/pki"
 umask 077
 mkdir -p "$pki/gateway"
@@ -72,5 +75,9 @@ issue() {
 
 issue "$pki/gateway/gateway" "obenhub-oracle-gateway" "serverAuth" "DNS:obenhub-oracle-gateway,IP:$GATEWAY_IP"
 issue "$pki/otelcol" "otelcol-ora-dg-obs" "clientAuth" ""
+for h in "$PRIMARY_HOST" "$STANDBY_HOST"; do
+  mkdir -p "$pki/$h"
+  issue "$pki/$h/otelcol" "otelcol-$h" "clientAuth" ""
+done
 rm -f "$pki/ca.srl"
 echo "pki: $pki complete"

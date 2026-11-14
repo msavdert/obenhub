@@ -25,14 +25,17 @@ if grep -q '@[A-Z_]*@' "$tmp/pgha-node.yaml"; then
 fi
 
 failed=0
-validate() { # <label> <config file>
+validate() { # <label> <config file> [<second config file, merged>]
+  local mount=() extra=()
+  if [ -n "${3:-}" ]; then mount=(-v "$3:/c2.yaml:ro"); extra=(--config=/c2.yaml); fi
   if docker run --rm --user "$(id -u):$(id -g)" \
+    -e OBENHUB_NODE=dummy -e OBENHUB_DB_UNIQUE_NAME=DUMMY -e OBENHUB_ALERT_LOG=/var/log/dummy.log \
     -e OTEL_MONITOR_PASSWORD=dummy -e ORA_MON_PASSWORD=dummy -e ORA_DG_PASSWORD=dummy \
     -e OBENHUB_GATEWAY_ENDPOINT=https://10.0.0.2:4318 \
     -v "$2:/c.yaml:ro" \
     -v "$PWD/lab/packs:/etc/otelcol/packs:ro" \
     -v "$PWD/lab/packs:/etc/otelcol-contrib/packs:ro" \
-    "$image" validate --config=/c.yaml >"$tmp/out" 2>&1; then
+    "${mount[@]}" "$image" validate --config=/c.yaml "${extra[@]}" >"$tmp/out" 2>&1; then
     echo "ok   $1"
   else
     echo "FAIL $1" >&2
@@ -43,7 +46,12 @@ validate() { # <label> <config file>
 
 # Every tracked Collector config (a top-level `service:` section).
 while IFS= read -r f; do
-  if grep -q '^service:' "$f"; then validate "$f" "$PWD/$f"; fi
+  case "$f" in
+    # per-VM overlays of the Oracle lab, loaded with otelcol-host.yaml
+    lab/oracle/files/otelcol-db.yaml|lab/oracle/files/otelcol-obs.yaml)
+      validate "$f (+ otelcol-host.yaml)" "$PWD/$f" "$PWD/lab/oracle/files/otelcol-host.yaml" ;;
+    *) if grep -q '^service:' "$f"; then validate "$f" "$PWD/$f"; fi ;;
+  esac
 done < <(git ls-files 'lab/*otelcol*.yaml' 'lab/*/otelcol/*.yaml')
 validate "lab/pgha/files/otelcol.yaml.tmpl (rendered)" "$tmp/pgha-node.yaml"
 exit "$failed"

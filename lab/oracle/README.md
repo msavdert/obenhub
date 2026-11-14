@@ -33,37 +33,88 @@ again.
 
 ## Collector
 
-`files/otelcol-obs.yaml` is the configuration for the Collector on
-`ora-dg-obs`: the `oracledb` receiver on the primary and the
-[oracledb-dg pack](../packs/oracledb-dg) on both databases. It needs
-`ORA_MON_PASSWORD` and `ORA_DG_PASSWORD` (the first 30 characters of the
-`.env` values), `OBENHUB_GATEWAY_ENDPOINT` and client certificates under
-`/etc/otelcol-contrib/tls`. On 2026-11-13 it ran in the
-`otel/opentelemetry-collector-contrib:0.164.0` container on this box with
-the exporter replaced by `debug` and `file`: the receiver's 25 default
-metrics from `CDB19` and every pack metric that applies to each role (lag,
-apply and gap from the standby, the redo destination from the primary)
-arrived.
+One otelcol-contrib per VM (ADR 0008 decision 2), each started with two
+configuration files that the Collector merges:
+[files/otelcol-host.yaml](files/otelcol-host.yaml) on all three (host metrics,
+the journal of `oracle-db` and the Collector itself, the kernel ring buffer,
+the exporter to the gateway over mutual TLS, self-metrics for
+`CollectorAbsent`) and one per-VM file:
+
+| VM | Per-VM file | Adds |
+| --- | --- | --- |
+| `ora-au-lab` | [otelcol-db.yaml](files/otelcol-db.yaml) | alert log of `CDB19` |
+| `ora-dg-stby` | [otelcol-db.yaml](files/otelcol-db.yaml) | alert log of `CDB19_STBY` |
+| `ora-dg-obs` | [otelcol-obs.yaml](files/otelcol-obs.yaml) | the database receivers (`oracledb` on the primary, the [oracledb-dg pack](../packs/oracledb-dg) on both databases) and the journal of the `dg-observer@cdb19` and `@cdb19b` units |
+
+Only the `CDB19` pair's alert logs are read; `CDB26`, `CDB19B` and
+`CDB19B_STBY` are not. An alert log entry (timestamp line plus message lines)
+becomes one log record with the entry's own timestamp, the first `ORA-` code
+in `db.response.status_code` (assumption: the fitting semantic-conventions
+name, not checked against the registry) and the resource attributes
+`oracledb.database.unique_name`, `service.instance.id` (both the
+`db_unique_name`) and `host.name`. The code is padded to five digits
+(the log writes both `ORA-3136` and `ORA-00313`, so `ORA-3136` is stored as
+`ORA-03136`), and the severity is `ERROR` for an entry with a code, `WARN` for
+the client-event codes 00060, 00028, 01013, 02396 and 03136, and `INFO`
+without a code (rules copied from the predecessor project's alert log
+receiver, source in the YAML). The record starts at the end of the file, so
+history is not sent. The observer unit is a oneshot whose journal holds only
+its start and stop lines; the observer's own log file (`observer.log`) is not
+read, so no observer events are collected. The database Collector needs `OBENHUB_NODE`,
+`OBENHUB_DB_UNIQUE_NAME`, `OBENHUB_ALERT_LOG` and
+`OBENHUB_GATEWAY_ENDPOINT`; the observer one also `ORA_MON_PASSWORD` and
+`ORA_DG_PASSWORD` (the first 30 characters of the `.env` values); client
+certificates sit under `/etc/otelcol-contrib/tls`. All of it is written by
+the script below, in a root-only environment file.
 
 ```sh
-mise run lab:oracle:collector   # scripts/collector.sh, from this box over ssh
+mise run lab:oracle:collector                  # scripts/collector.sh, all three VMs, from this box over ssh
+lab/oracle/scripts/collector.sh ora-dg-stby    # one VM
 ```
 
 The script installs the otelcol-contrib `.rpm` of `OTELCOL_VERSION`
 (`lab/pgha/versions.sh`, the pin all labs share) from the
 opentelemetry-collector-releases release after checking its `.sha256` file,
-then writes the configuration, the `oracledb-dg` pack's `queries.yaml`, the
-client certificate from `pki/` and a root-only environment file
-(`/etc/otelcol-contrib/obenhub.env`, read by systemd through a drop-in) with
-the two passwords and the gateway endpoint. It restarts the service only when
-the package or a file changed and fails unless the service stays active. It
-needs `.env` (from `provision.sh`) and `pki/` (from `lab:oracle:mon:up` or
-`lab:oracle:pki`). On 2026-11-13 the first run installed 0.164.0 on
-`ora-dg-obs` (Oracle Linux 9.8) and started it; a second run changed nothing
-and did not restart it. After three minutes the journal showed only the two
-`CDB_PROCEDURES` fallback warnings the receiver logs at start, and
-VictoriaMetrics held `oracledb.*` series from `CDB19` and `CDB19_STBY` whose
-first samples are the Collector's first scrape.
+then writes the two configuration files, the client certificate of that VM
+from `pki/`, the environment file (read by systemd through a drop-in, which
+also sets `SupplementaryGroups=systemd-journal` and the two `--config`
+arguments) and, on the observer, the pack's `queries.yaml`. On a database VM
+it also grants the service user read access to the alert log as POSIX ACLs
+(`setfacl`): `--x` on the `diag` directories down to the instance, `r-x` on
+`trace/`, `r--` on the file. Group `oinstall` is not used, because the `diag`
+and `rdbms` directories are group-writable. The oracle-owned modes do not
+change (`getfacl` shows the entries; remove them with `setfacl -x
+u:otelcol-contrib`). A replaced alert log file loses its ACL, and the script re-applies it on
+every run. Check with `ssh ora-au-lab sudo getfacl -p
+/u01/app/oracle/diag/rdbms/cdb19/CDB19/trace/alert_CDB19.log` (an
+`user:otelcol-contrib:r--` line); `getfacl` is the reliable check. The
+Collector logs a permission-denied error for the file in its own journal
+once when it finds the file unreadable (and again after a restart), not on
+every poll; the `otelcol-contrib` journald receiver sends it to
+VictoriaLogs, where the LogsQL query `service.name:host
+service.instance.id:ora-au-lab journald._SYSTEMD_UNIT:otelcol-contrib.service
+"permission denied"` with a `_time` filter covering the replacement finds it. It restarts a service only when the package or a file changed
+and fails unless the service stays active. It needs `.env` (from
+`provision.sh`), `pki/` (from `lab:oracle:mon:up` or `lab:oracle:pki`) and
+`setfacl` on the database VMs. The script stops at the first VM that
+fails, and it checks the certificates of all three VMs even when you name one.
+
+On 2026-11-13 the observer configuration ran in the
+`otel/opentelemetry-collector-contrib:0.164.0` container on this box with
+the exporter replaced by `debug` and `file`: the receiver's 25 default
+metrics from `CDB19` and every pack metric that applies to each role (lag,
+apply and gap from the standby, the redo destination from the primary)
+arrived. The first rpm install on `ora-dg-obs` (Oracle Linux 9.8) the same
+day showed only the two `CDB_PROCEDURES` fallback warnings the receiver logs
+at start. On 2026-11-14 the Collectors on all three VMs were running against
+the backend: `system.*` metrics and journal records from each VM,
+`otelcol_process_uptime` from each, and alert log records from `CDB19` and
+`CDB19_STBY` after an `alter system switch logfile` on the primary. The
+`ORA-` parsing was run in the Collector's `debug` output on a copy of 120 kB
+of the primary's alert log and on a scratch log: `ORA-3136` came out as
+`ORA-03136` with `WARN`, `ORA-1109` as `ORA-01109` and `ORA-00313` with
+`ERROR`, an entry without a code with `INFO`. No live `ORA-` entry has been
+collected yet.
 
 ## Backend
 
@@ -71,11 +122,12 @@ first samples are the Collector's first scrape.
 OTLP/HTTP receiver (the config is shared with [pgha](../pgha), at
 `lab/mon/otelcol-gateway-mtls.yaml`), and the shared VictoriaMetrics,
 VictoriaLogs, vmalert, Alertmanager and Grafana services of
-[lab/mon](../mon). vmalert loads `mon/vmalert/inventory.yml` (the observer
-Collector and the two databases), the shared Collector pack and the Data Guard pack rules
+[lab/mon](../mon). vmalert loads `mon/vmalert/inventory.yml` (the three Collectors and the two
+databases), the shared Collector and [host](../packs/host/rules.yml) packs and
+the Data Guard pack rules
 ([lab/packs/oracledb-dg](../packs/oracledb-dg/rules.yml)); the rules are
 unit-tested (`mise run lab:oracle:rules-test`) and six of them are exercised by
-the scenarios below. Grafana provisions one dashboard, "Oracle Data Guard"
+the scenarios below. Grafana provisions the shared host dashboard and "Oracle Data Guard"
 ([oracle-dg.json](../packs/oracledb-dg/dashboards/oracle-dg.json)): lag and
 data age, apply state, fast-start failover, protection level and redo
 destination, heartbeat and the observer Collector, and the firing alerts.
@@ -102,8 +154,9 @@ Only the gateway listens on the LAN, the rest on `127.0.0.1`:
 | Alertmanager | 59093 |
 | Grafana | 53000 |
 
-The gateway certificate has `10.0.0.11` as its SAN. `ca.crt`, `otelcol.crt` and
-`otelcol.key` from `pki/` go to `/etc/otelcol-contrib/tls` on `ora-dg-obs`
+The gateway certificate has `10.0.0.11` as its SAN. `ca.crt` and the VM's
+client certificate (`pki/otelcol.*` for `ora-dg-obs`, `pki/<host>/otelcol.*`
+for the others) go to `/etc/otelcol-contrib/tls` on each VM
 (`OBENHUB_GATEWAY_ENDPOINT=https://10.0.0.11:54318`). On 2026-11-13 the
 Collector configuration above ran in the contrib 0.164.0 container on this box
 against this backend with the client certificate: 38 `oracledb.*` metric names

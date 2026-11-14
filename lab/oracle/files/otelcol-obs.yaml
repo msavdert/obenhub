@@ -32,11 +32,14 @@ receivers:
     datasource: "oracle://C%23%23OBENHUB_DG:${env:ORA_DG_PASSWORD}@ora-dg-stby.lab.local:1521/CDB19_STBY?DBA%20PRIVILEGE=SYSDG"
     collection_interval: 15s
     queries: ${file:/etc/otelcol-contrib/packs/oracledb-dg/queries.yaml}
+  # The FSFO observers (units of /home/oracle/scripts/observer.sh, owner
+  # provided); a template instance is named with its configuration.
+  journald/observer:
+    units: [dg-observer@cdb19, dg-observer@cdb19b]
+    storage: file_storage
+    convert_to_semantic_conventions: true
 
 processors:
-  memory_limiter:
-    check_interval: 1s
-    limit_mib: 256
   # server.address is the VM a receiver connects to, not a role: roles move
   # and are read from the oracledb.database.primary metric.
   resource/primary:
@@ -57,39 +60,16 @@ processors:
       - {key: server.port, value: '1521', action: upsert}
       - {key: db.system.name, value: oracle.db, action: upsert}
       - {key: obenhub.cluster.name, value: cdb19, action: upsert}
-  batch: {}
 
-exporters:
-  otlp_http/gateway:
-    endpoint: ${env:OBENHUB_GATEWAY_ENDPOINT}
-    tls:
-      ca_file: /etc/otelcol-contrib/tls/ca.crt
-      cert_file: /etc/otelcol-contrib/tls/otelcol.crt
-      key_file: /etc/otelcol-contrib/tls/otelcol.key
-
+# The exporter, the self-metrics, host metrics and the journal of this VM are
+# in otelcol-host.yaml, loaded with this file; the pipelines below use its
+# memory_limiter, batch and exporter. The observers' journal is read here.
 service:
-  telemetry:
-    resource:
-      attributes:
-        - {name: service.namespace, value: obenhub-lab}
-        - {name: service.name, value: otelcol}
-        - {name: service.instance.id, value: otelcol-ora-dg-obs}
-    # Self-metrics to the gateway (as lab/pgha/files/otelcol.yaml.tmpl): the
-    # CollectorAbsent rule and the Collector gate of OracleTargetAbsent read
-    # otelcol_process_uptime with this service.instance.id.
-    metrics:
-      level: normal
-      readers:
-        - periodic:
-            interval: 15000
-            exporter:
-              otlp:
-                protocol: http/protobuf
-                endpoint: ${env:OBENHUB_GATEWAY_ENDPOINT}/v1/metrics
-                certificate: /etc/otelcol-contrib/tls/ca.crt
-                client_certificate: /etc/otelcol-contrib/tls/otelcol.crt
-                client_key: /etc/otelcol-contrib/tls/otelcol.key
   pipelines:
+    logs/observer:
+      receivers: [journald/observer]
+      processors: [memory_limiter, resource_detection/system, resource/host, batch]
+      exporters: [otlp_http/gateway]
     metrics/primary:
       receivers: [oracledb, sql_query/primary]
       processors: [memory_limiter, resource/primary, batch]
