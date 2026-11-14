@@ -3,8 +3,8 @@
 The Oracle lab of [ADR 0008](../../docs/adr/0008-oracle-lab-scope.md). What
 runs so far is the database side of the first slice, the `CDB19` Data Guard
 pair, its Collector configuration and the backend the Collector pushes to.
-There are no scenarios or evidence yet, so the lab is not in the
-[lab table](../README.md).
+The first fault scenarios are in `scenarios/` (below); there is no suite
+evidence yet, so the lab is not in the [lab table](../README.md).
 
 ## Prerequisites
 
@@ -74,8 +74,8 @@ VictoriaLogs, vmalert, Alertmanager and Grafana services of
 [lab/mon](../mon). vmalert loads `mon/vmalert/inventory.yml` (the observer
 Collector and the two databases), the shared Collector pack and the Data Guard pack rules
 ([lab/packs/oracledb-dg](../packs/oracledb-dg/rules.yml)); the rules are
-unit-tested (`mise run lab:oracle:rules-test`) and not yet exercised by
-scenarios. There are no dashboards yet.
+unit-tested (`mise run lab:oracle:rules-test`) and six of them are exercised by
+the scenarios below. There are no dashboards yet.
 
 ```sh
 mise run lab:oracle:pki      # CA, gateway certificate, client certificate (lab/oracle/pki, gitignored)
@@ -105,3 +105,38 @@ Collector configuration above ran in the contrib 0.164.0 container on this box
 against this backend with the client certificate: 38 `oracledb.*` metric names
 reached VictoriaMetrics, 34 for `CDB19` and 11 for `CDB19_STBY` (both pack
 roles). A client without a certificate was refused (curl exit 56).
+
+## Scenarios
+
+`scenarios/` holds fault scenarios for the `CDB19` pair on the shared harness
+([lab/scenarios/lib-core.sh](../scenarios/lib-core.sh)); `scenarios/lib.sh` is
+the Oracle adapter. Each scenario injects one fault, waits for the alerts it
+expects from the [Data Guard pack](../packs/oracledb-dg/rules.yml), reverts,
+waits for them to resolve and fails on any other alert. The header of each
+script gives its expectation and why. Results are appended to
+`results/runs.jsonl`.
+
+```sh
+mise run lab:oracle:scenario control          # CONTROL_SECONDS (default 600), no fault
+mise run lab:oracle:scenario apply-stopped    # broker APPLY-OFF on CDB19_STBY
+mise run lab:oracle:scenario observer-stopped # stop the CDB19 FSFO observer
+mise run lab:oracle:scenario transport-cut    # broker TRANSPORT-OFF on the primary
+mise run lab:oracle:scenarios                 # the list in scenarios/suite.txt as one suite
+```
+
+Prerequisites, on top of those above: the backend (`lab:oracle:mon:up`) and
+the Collector (`lab:oracle:collector`) running, the pair healthy (broker
+`SUCCESS`, fast-start failover enabled, observer present, lag 0), which the
+pre-flight checks. The scenarios ssh to the VMs as the invoking user and run
+`sudo -u oracle` there (passwordless sudo, see the prerequisites), with
+operating-system authentication (`sqlplus / as sysdba`, `dgmgrl /`); no
+password is involved. Every remote command is bounded by `REMOTE_TIMEOUT`
+(180 s), and each revert step is tried three times. The observer runs as the systemd unit
+`dg-observer@cdb19` on `ora-dg-obs` (`/home/oracle/scripts/observer.sh`,
+owner-provided and not in this repository).
+Only the `CDB19` configuration is touched, never `CDB19B` or `CDB26`.
+
+There is no switchover or failover scenario: the `oracledb` receiver reads
+the database role and open mode only when the Collector starts
+([role-staleness-2026-11-13](results/role-staleness-2026-11-13)), so the
+role-based rules cannot be exercised that way yet.

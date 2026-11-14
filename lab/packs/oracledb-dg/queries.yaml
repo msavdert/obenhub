@@ -74,8 +74,8 @@
     - {metric_name: oracledb.dataguard.lag, value_column: lag, attribute_columns: ["oracledb.database.unique_name", "oracledb.dataguard.lag.type"], value_type: double, data_type: gauge, unit: s, description: "Transport or apply lag reported by V$DATAGUARD_STATS on the standby"}
     - {metric_name: oracledb.dataguard.lag.data_age, value_column: data_age, attribute_columns: ["oracledb.database.unique_name", "oracledb.dataguard.lag.type"], value_type: double, data_type: gauge, unit: s, description: "Time since the standby last received the data its lag value is computed from (DATUM_TIME)"}
 # Standby only. The managed recovery process (MRP0) exists while redo apply
-# runs; that it is gone after the broker sets APPLY-OFF is an expectation for
-# the apply-stopped scenario to confirm (unverified).
+# runs; it is gone after the broker sets APPLY-OFF (observed in the
+# apply-stopped trial runs of 2026-11-14, lab/oracle/results/runs.jsonl).
 - sql: |
     SELECT
       d.db_unique_name AS "oracledb.database.unique_name",

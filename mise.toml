@@ -316,6 +316,22 @@ docker compose -p obenhub-oracle -f lab/oracle/mon/compose.yaml up -d --wait
 description = "install or converge otelcol-contrib on ora-dg-obs over ssh (rpm pinned by lab/pgha/versions.sh, config, pack, client certificate, environment file); restarts only on change; needs lab/oracle/.env and the PKI of lab:oracle:mon:up"
 run = "lab/oracle/scripts/collector.sh"
 
+[tasks."lab:oracle:scenario"]
+description = "run one fault scenario against the CDB19 Data Guard pair (lab/oracle/scenarios/<name>.sh); appends to lab/oracle/results/runs.jsonl"
+usage = 'arg "<name>" help "scenario name, e.g. apply-stopped"'
+run = '''
+f="lab/oracle/scenarios/${usage_name}.sh"
+case "$usage_name" in *[!a-z-]*|lib|"") echo "bad scenario name: $usage_name" >&2; exit 2;; esac
+[ -x "$f" ] || { echo "no such scenario: $usage_name" >&2; ls lab/oracle/scenarios | sed -n 's/\.sh$//p' | grep -v '^lib$' >&2; exit 2; }
+exec "$f"
+'''
+
+[tasks."lab:oracle:scenarios"]
+description = "run all Oracle fault scenarios, control last, as one suite (lab/scenarios/run-suite.sh: clean tree, host-wide lock, SUITE_ID; the list is lab/oracle/scenarios/suite.txt); stops at the first failure"
+run = '''
+exec lab/scenarios/run-suite.sh oracle $(cat lab/oracle/scenarios/suite.txt)
+'''
+
 [tasks."lab:oracle:mon:down"]
 description = "stop the Oracle backend and delete its volumes"
 run = "docker compose -p obenhub-oracle -f lab/oracle/mon/compose.yaml down -v"

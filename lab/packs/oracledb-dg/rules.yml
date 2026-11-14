@@ -3,7 +3,7 @@
 # in its inventory (lab/oracle/mon/vmalert/inventory.yml); OracleTargetAbsent
 # reads it. Names follow the naming contract (ADR 0006). Every threshold and
 # hold below is a lab threshold, chosen for a 15s collection interval, not a
-# recommendation. No scenario has exercised these rules yet; each says so.
+# recommendation. Each rule names the scenario that exercised it, if any.
 #
 # Labels, read from the VictoriaMetrics of the Oracle lab on 2026-11-13 (a
 # healthy CDB19 / CDB19_STBY pair): every oracledb.* series carries
@@ -128,7 +128,7 @@ groups:
       # service.instance.id keeps only it.
       # Quiet on the healthy pair (degraded 0), and when the flag comes from a
       # standby only.
-      # Scenario: not yet run.
+      # Scenario: transport-cut (lab/oracle; single trial runs 2026-11-14, no suite yet).
       - alert: OracleProtectionDegraded
         expr: |
           (last_over_time(oracledb.dataguard.protection.degraded[30s]) == 1)
@@ -174,7 +174,7 @@ groups:
       # differ), same gating as above, 2m hold.
       # Quiet with an observer, with fast-start failover disabled, and when
       # the flags come from a standby.
-      # Scenario: not yet run.
+      # Scenario: observer-stopped (lab/oracle; single trial runs 2026-11-14, no suite yet).
       - alert: OracleFastStartFailoverObserverMissing
         expr: |
           (last_over_time(oracledb.fast_start_failover.observer_present[30s]) == 0)
@@ -195,15 +195,15 @@ groups:
       # no longer applied, so the lag will grow. The series exists only on a
       # standby; the 30s last_over_time makes a promoted standby leave the rule
       # 30s after its last sample, which a 2.5m run of 0 followed by a promotion
-      # relies on. That MRP0 disappears with APPLY-OFF is an expectation, not an
-      # observation (queries.yaml): the scenario is meant to confirm it.
+      # relies on. That MRP0 disappears with APPLY-OFF was observed in the
+      # apply-stopped trial runs of 2026-11-14 (lab/oracle/results/runs.jsonl).
       # The hold is 3m because a new standby starts apply late after a
       # switchover: on the two switchovers of 2026-11-13 (19:19:30 and 19:26:45
       # UTC) the new standby reported apply.running 0 for 60-75 s (5 samples),
       # then 1. A 1m hold fired a false critical on a planned switchover.
       # Quiet while apply runs, on a primary (no series), for the post-switchover
       # delay and for a 0 shorter than 3m.
-      # Scenario: not yet run.
+      # Scenario: apply-stopped (lab/oracle; single trial runs 2026-11-14, no suite yet).
       - alert: OracleStandbyApplyStopped
         expr: last_over_time(oracledb.dataguard.apply.running[30s]) == 0
         for: 3m
@@ -217,7 +217,7 @@ groups:
       # into seconds. Lab threshold: the healthy pair reads 0.
       # Quiet at 0, for a spike shorter than 2m, and when the lag row is gone
       # (value NULL: that is OracleStandbyLagUnknown).
-      # Scenario: not yet run.
+      # Scenario: apply-stopped (lab/oracle; single trial runs 2026-11-14, no suite yet).
       - alert: OracleStandbyLag
         expr: last_over_time(oracledb.dataguard.lag[30s]) > 60
         for: 2m
@@ -231,7 +231,7 @@ groups:
       # it grows when redo stops arriving while the lag itself may stay low.
       # Above 60 seconds for 2m. Lab threshold: the healthy pair reads 1.
       # Quiet at small values and when the series is gone.
-      # Scenario: not yet run.
+      # Scenario: transport-cut (lab/oracle; single trial runs 2026-11-14, no suite yet).
       - alert: OracleStandbyDataStale
         expr: last_over_time(oracledb.dataguard.lag.data_age[30s]) > 60
         for: 2m
@@ -290,7 +290,7 @@ groups:
       # a label, so the old VALID series lingers for 30s after the change; the
       # value 0 of the new one is what fires.
       # Quiet while VALID (1) and when the destination is not listed.
-      # Scenario: not yet run.
+      # Scenario: transport-cut (lab/oracle; single trial runs 2026-11-14, no suite yet).
       - alert: OracleRedoDestinationInvalid
         expr: last_over_time(oracledb.archive_dest.valid[30s]) == 0
         for: 1m
