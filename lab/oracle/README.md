@@ -116,6 +116,86 @@ of the primary's alert log and on a scratch log: `ORA-3136` came out as
 `ERROR`, an entry without a code with `INFO`. No live `ORA-` entry has been
 collected yet.
 
+## Backups
+
+RMAN on the `CDB19` pair (ADR 0008 decision 9), converged by
+`mise run lab:oracle:rman` ([scripts/rman.sh](scripts/rman.sh), idempotent; it
+prints every change and starts no backup; `mise run lab:oracle:rman-test` runs
+its stub tests). The same [rman-backup.sh](files/rman-backup.sh) is on both
+database VMs; the script backs up only while `v$database.database_role` is
+`PRIMARY` and otherwise logs one line to `rman-logs/<SID>-skipped.log` (kept to
+200 lines) and exits 0, so backups follow the primary after a switchover. One
+run per SID at a time (`flock`); a second one logs a skip.
+
+The oracle crontabs differ per host and each managed line ends in the tag
+`# obenhub: <SID>`: `CDB19` on `ora-au-lab`, `CDB19_STBY` on `ora-dg-stby`.
+The hand-made `CDB26` lines on `ora-au-lab` (01:30 and :15) are untouched,
+byte for byte; `rman.sh` replaces only lines with its own SID tag and aborts
+rather than overwrite a crontab it could not read.
+
+| What | When (VM time, UTC) | Command |
+| --- | --- | --- |
+| level 0 | Sunday 01:45 | `backup incremental level 0 database plus archivelog delete all input` |
+| level 1 | Monday to Saturday 01:45 | the same, `level 1 cumulative` |
+| archived logs | every 4 h at :45 | `backup archivelog all not backed up 1 times delete all input` |
+
+Each run ends with `delete obsolete` and an archived log crosscheck. Logs are in
+`/home/oracle/rman-logs` (RMAN logs for 30 days).
+
+Settings, per database controlfile (`rman-backup.sh <SID> configure` reads the
+current ones and prints `old -> new`): on a primary a retention recovery window
+of 7 days, controlfile autobackup on, compressed backupset (`BASIC`, no extra
+licence assumed), archivelog deletion policy `APPLIED ON ALL STANDBY BACKED UP
+1 TIMES TO DISK`, and block change tracking beside datafile 1 (online; the
+standby does not use it); on a standby only the deletion policy `APPLIED ON ALL
+STANDBY`. Every database of a Data Guard broker configuration runs the primary
+part before each backup while it is the primary (changes go to `<SID>-configure.log`
+in the log directory), so a promoted standby is configured by its first
+backup run, not by hand; `CDB26` (no broker) is not touched. The demoted side
+is not: a former primary keeps the primary deletion policy, never backs up as a
+standby, so its archived logs would not become reclaimable. After a role change
+run `mise run lab:oracle:rman` (it configures each database for its current
+role); `OracleRecoveryAreaFull` is the backstop. A failed block change tracking
+enable is logged in `<SID>-configure.log` and does not stop the backup (a
+backup without it only reads more); a failed `CONFIGURE` does. `configure` also
+sets `control_file_record_keep_time` to 21 days on both pair databases
+(`ALTER SYSTEM ... SCOPE=BOTH`, online, also on the mounted standby).
+
+Where the backups are: the recovery area `/u02/fra`, 20 GB on each VM
+(`v$recovery_file_dest`). A weekly level 0 and a 7-day recovery window keep two
+level 0 chains until the older one ages out, so the on-disk horizon is about 13
+to 14 days (restorable to any point in the last 7). The two sites' backups are
+not visible to each other (no recovery catalog), so after a switchover the old
+primary's backups stay on its own disk.
+
+Observed on 2026-11-14, first level 0 on `CDB19` (`v$rman_backup_job_details`:
+8.68 GiB read, 3.05 GiB written compressed, 326 s): the job ends `COMPLETED
+WITH WARNINGS` with `RMAN-08120: archived log not deleted, not yet applied by
+standby` for the newest logs. That is the normal result of `delete all input`
+on a Data Guard primary, so the pack counts that status as completed.
+
+Monitoring: the [oracledb-backup pack](../packs/oracledb-backup) reads
+`V$RMAN_BACKUP_JOB_DETAILS` on the primary through the observer's Collector
+(`oracledb.backup.age`, `oracledb.backup.failed`, per kind `database` or
+`archivelog`) and the recovery area of both databases
+(`oracledb.recovery_area.*`, readable on the mounted standby through `SYSDG`).
+`OracleBackupStale` fires above 26 h (database) or 5 h (archived logs), the
+limits recorded as `obenhub.backup_age.limit` in
+[mon/vmalert/inventory.yml](mon/vmalert/inventory.yml); `OracleBackupFailed`
+when the last finished job of a kind failed; `OracleBackupMissing` when a
+database is primary (Data Guard pack) and has no database backup series for
+30 minutes; `OracleRecoveryAreaFull` when used minus reclaimable space is above
+85% of the limit for 10 minutes. `OracleBackupMissing` fires on a fresh primary
+until its first database backup, and on a newly promoted primary until it has
+run its own, by design. The four rules have unit tests only; no scenario has
+exercised them.
+
+Check by hand on a database VM (as `oracle`): `rman target /` then `list backup
+summary;`, `show all;`. Revert: remove the crontab lines tagged `# obenhub:` for
+that SID (`crontab -e`), `CONFIGURE ... CLEAR;` for the settings, `ALTER
+DATABASE DISABLE BLOCK CHANGE TRACKING;`, `ALTER SYSTEM SET
+control_file_record_keep_time = 7 SCOPE=BOTH;`.
+
 ## Backend
 
 `mon/compose.yaml` runs on this box: a gateway Collector with a mutual-TLS
@@ -125,12 +205,16 @@ VictoriaLogs, vmalert, Alertmanager and Grafana services of
 [lab/mon](../mon). vmalert loads `mon/vmalert/inventory.yml` (the three Collectors and the two
 databases), the shared Collector and [host](../packs/host/rules.yml) packs and
 the Data Guard pack rules
-([lab/packs/oracledb-dg](../packs/oracledb-dg/rules.yml)); the rules are
-unit-tested (`mise run lab:oracle:rules-test`) and six of them are exercised by
-the scenarios below. Grafana provisions the shared host dashboard and "Oracle Data Guard"
+([lab/packs/oracledb-dg](../packs/oracledb-dg/rules.yml)) and the RMAN backup
+pack rules ([lab/packs/oracledb-backup](../packs/oracledb-backup/rules.yml):
+`OracleBackupStale`, `OracleBackupFailed`, `OracleBackupMissing`,
+`OracleRecoveryAreaFull`); the rules are unit-tested
+(`mise run lab:oracle:rules-test`) and six of the Data Guard ones are exercised
+by the scenarios below. Grafana provisions the shared host dashboard and "Oracle Data Guard"
 ([oracle-dg.json](../packs/oracledb-dg/dashboards/oracle-dg.json)): lag and
 data age, apply state, fast-start failover, protection level and redo
-destination, heartbeat and the observer Collector, and the firing alerts.
+destination, heartbeat and the observer Collector, and the firing alerts, plus
+the panels "RMAN backup age" and "RMAN last job failed".
 `mise run lab:oracle:panels` runs its queries against the running Grafana.
 
 ```sh
