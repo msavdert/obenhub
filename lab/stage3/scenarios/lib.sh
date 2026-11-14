@@ -24,7 +24,7 @@ NODES=(pg-1 pg-2 pg-3)
 ETCD_MEMBERS=(etcd-1 etcd-2 etcd-3)
 REPL_NET=obenhub-stage3_repl
 LOAD=obenhub-stage3-load
-CONFIG_FILES=("$LAB_DIR/vmalert/inventory.yml" "$LAB_DIR/../packs/etcd/rules.yml" "$LAB_DIR/../packs/patroni/rules.yml" "$LAB_DIR/../packs/postgresql/rules.yml" "$LAB_DIR/../mon/alertmanager.yml")
+CONFIG_FILES=("$LAB_DIR/vmalert/inventory.yml" "$LAB_DIR/../packs/collector/rules.yml" "$LAB_DIR/../packs/etcd/rules.yml" "$LAB_DIR/../packs/patroni/rules.yml" "$LAB_DIR/../packs/postgresql/rules.yml" "$LAB_DIR/../mon/alertmanager.yml")
 
 # shellcheck disable=SC1091
 [ -r "$LAB_DIR/.env" ] && set -a && . "$LAB_DIR/.env" && set +a

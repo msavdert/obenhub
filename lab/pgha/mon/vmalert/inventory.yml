@@ -1,6 +1,6 @@
 # pgha inventory: the targets and scrapes this lab expects (the node Collectors
 # of lab/pgha/files/otelcol.yaml.tmpl). The rules that read these series are the
-# shared packs lab/packs/{postgresql,patroni,etcd}. Same record names and
+# shared packs lab/packs/{collector,postgresql,patroni,etcd}. Same record names and
 # shapes as lab/stage3/vmalert/inventory.yml; the node ids are pgha-1..3 for
 # all three services.
 groups:

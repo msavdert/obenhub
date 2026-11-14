@@ -104,7 +104,7 @@ kind cluster                                   box (Compose project obenhub-k8s)
   7 days before expiry, per the same page; the CA's own period and any
   rotation here are unverified), `sql_query` fails until
   `up.sh` runs again.
-- Alerts: vmalert loads `lab/packs/postgresql/rules.yml` unchanged,
+- Alerts: vmalert loads `lab/packs/collector/rules.yml` and `lab/packs/postgresql/rules.yml` unchanged,
   `lab/packs/cnpg/rules.yml` (`CNPGPrimaryChanged`, unit tests in
   `lab/packs/cnpg/tests/`, `mise run lab:cnpg:rules-test`),
   `lab/packs/k8s/rules.yml` (`KubernetesNodeNotReady`, from the

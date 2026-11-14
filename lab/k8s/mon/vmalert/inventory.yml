@@ -1,5 +1,6 @@
 # k8s inventory: the Collectors this lab expects (lab/k8s/otel). The rules that
-# read it are the shared PostgreSQL pack, lab/packs/postgresql/rules.yml.
+# read it are the shared Collector pack, lab/packs/collector/rules.yml, and the
+# PostgreSQL pack.
 # Same record name and shape as lab/pgha/mon/vmalert/inventory.yml.
 # CollectorAbsent reads the Collectors by their self-telemetry
 # service.instance.id: the gateway, the cluster Deployment, and one agent per

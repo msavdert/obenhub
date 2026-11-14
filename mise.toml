@@ -99,7 +99,7 @@ description = "unit-test Collector liveness in the pgha inventory with the share
 run = "scripts/vmalert-unittest.sh lab/pgha/mon/vmalert/tests"
 
 [tasks."lab:k8s:rules-test"]
-description = "unit-test Collector liveness in the k8s inventory with the shared PostgreSQL pack rules (vmalert-tool); needs docker"
+description = "unit-test Collector liveness in the k8s inventory with the shared Collector pack rules (vmalert-tool); needs docker"
 run = "scripts/vmalert-unittest.sh lab/k8s/mon/vmalert/tests"
 
 [tasks."lab:cnpg:rules-test"]
@@ -113,6 +113,10 @@ run = "scripts/vmalert-unittest.sh lab/packs/k8s/tests"
 [tasks."lab:pgbackrest:rules-test"]
 description = "unit-test the pgBackRest pack rules (lab/packs/pgbackrest, vmalert-tool); needs docker"
 run = "scripts/vmalert-unittest.sh lab/packs/pgbackrest/tests"
+
+[tasks."lab:collector:rules-test"]
+description = "unit-test the shared Collector pack rules (lab/packs/collector, vmalert-tool); needs docker"
+run = "scripts/vmalert-unittest.sh lab/packs/collector/tests"
 
 [tasks."lab:host:rules-test"]
 description = "unit-test the shared host pack rules (lab/packs/host, vmalert-tool); needs docker"
@@ -201,6 +205,7 @@ depends = [
   "lint:series-vanished",
   "docs:reference-check",
   "lab:pack:rules-test",
+  "lab:collector:rules-test",
   "lab:host:rules-test",
   "lab:rules-test",
   "lab:stage3:rules-test",

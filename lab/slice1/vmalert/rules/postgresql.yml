@@ -1,6 +1,7 @@
-# The generic PostgreSQL rules (Watchdog, PostgresTargetAbsent, CollectorAbsent,
+# The generic PostgreSQL rules (PostgresTargetAbsent,
 # PostgresStandbyNotStreaming, PostgresReplayBacklog, PostgresSnapshotHeldTooLong, PostgresConnectionSaturation,
-# PostgresSeriesVanished) live in lab/packs/postgresql/rules.yml. This file holds the
+# PostgresSeriesVanished) live in lab/packs/postgresql/rules.yml (Watchdog, CollectorAbsent and
+# CollectorUnknown: lab/packs/collector/rules.yml). This file holds the
 # inventory and the slice 1 specific groups.
 groups:
   - name: inventory

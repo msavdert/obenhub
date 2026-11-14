@@ -1,5 +1,5 @@
 # Stage 3 inventory: the targets and scrapes this lab expects. The alert rules
-# that read these series are the shared packs, lab/packs/{postgresql,patroni,etcd}.
+# that read these series are the shared packs, lab/packs/{collector,postgresql,patroni,etcd}.
 # Every rule is role-agnostic and the inventory names nodes, never roles.
 groups:
   - name: inventory

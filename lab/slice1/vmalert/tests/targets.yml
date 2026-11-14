@@ -2,6 +2,7 @@
 # CollectorAbsent and PostgresSeriesVanished (pack rules).
 rule_files:
   - ../rules/postgresql.yml
+  - ../../../packs/collector/rules.yml
   - ../../../packs/postgresql/rules.yml
 evaluation_interval: 15s
 

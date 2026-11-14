@@ -3,6 +3,7 @@
 # alert per node.
 rule_files:
   - ../inventory.yml
+  - ../../../packs/collector/rules.yml
   - ../../../packs/postgresql/rules.yml
 evaluation_interval: 15s
 
@@ -99,7 +100,7 @@ tests:
         alertname: PostgresTargetAbsent
         exp_alerts: []
       - eval_time: 6m
-        groupname: postgresql
+        groupname: collector
         alertname: CollectorAbsent
         exp_alerts:
           - exp_labels:

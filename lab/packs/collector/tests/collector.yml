@@ -1,5 +1,5 @@
-# Tests for the shared PostgreSQL pack rules (lab/slice1 and lab/stage3 use them).
-# Watchdog and CollectorAbsent (the stage 3 inventory names the Collector).
+# Tests for the shared Collector pack rules (every lab mounts them).
+# Watchdog, CollectorAbsent and CollectorUnknown (the stage 3 inventory names the Collector).
 rule_files:
   - ../rules.yml
   - ../../../stage3/vmalert/inventory.yml
@@ -11,7 +11,7 @@ tests:
     input_series: []
     alert_rule_test:
       - eval_time: 1m
-        groupname: postgresql
+        groupname: collector
         alertname: Watchdog
         exp_alerts:
           - exp_labels: {severity: none}
@@ -25,11 +25,11 @@ tests:
         values: '1x8 _x52'
     alert_rule_test:
       - eval_time: 1m
-        groupname: postgresql
+        groupname: collector
         alertname: CollectorAbsent
         exp_alerts: []
       - eval_time: 6m
-        groupname: postgresql
+        groupname: collector
         alertname: CollectorAbsent
         exp_alerts:
           - exp_labels:
@@ -46,7 +46,7 @@ tests:
         values: '1x60'
     alert_rule_test:
       - eval_time: 10m
-        groupname: postgresql
+        groupname: collector
         alertname: CollectorAbsent
         exp_alerts: []
 
@@ -55,7 +55,7 @@ tests:
     input_series: []
     alert_rule_test:
       - eval_time: 5m
-        groupname: postgresql
+        groupname: collector
         alertname: CollectorUnknown
         exp_alerts: []
 
@@ -68,11 +68,11 @@ tests:
         values: '1x40'
     alert_rule_test:
       - eval_time: 30s
-        groupname: postgresql
+        groupname: collector
         alertname: CollectorUnknown
         exp_alerts: []
       - eval_time: 5m
-        groupname: postgresql
+        groupname: collector
         alertname: CollectorUnknown
         exp_alerts:
           - exp_labels:
