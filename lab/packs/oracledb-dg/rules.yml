@@ -433,3 +433,58 @@ groups:
           severity: critical
         annotations:
           summary: 'Oracle instance {{ (index $labels "service.instance.id") }} uses 95% or more of its PROCESSES limit: new logins fail with ORA-00020'
+
+      # oracledb.tablespace_size.usage / oracledb.tablespace_size.limit from
+      # the oracledb receiver (DBA/CDB_TABLESPACE_USAGE_METRICS, 30s
+      # collection, account C##OBENHUB_MON; enabled by default in
+      # receiver/oracledbreceiver/metadata.yaml at contrib v0.164.0, listed in
+      # lab/packs/oracledb-dg/upstream-receiver-metrics.txt). Both are bytes.
+      # The limit is TABLESPACE_SIZE of the view, the size the tablespace can
+      # reach with autoextend (scraper.go, tablespaceUsageCDBSQL; in the lab
+      # the autoextending root tablespaces report 4194302 blocks of 8 KiB, the
+      # 32 GiB file limit), so the ratio is full against what the datafiles
+      # may grow to, not against the current file size; a fixed-size
+      # tablespace is full against its size. -1 means unlimited and gives a
+      # negative ratio, which no tier matches. The lab Collector adds
+      # oracle.db.pdb to both metrics (lab/oracle/files/otelcol-obs.yaml):
+      # without it the root's and a PDB's tablespace of the same name are
+      # averaged into one series. The alert is per tablespace and container
+      # (labels tablespace_name and oracle.db.pdb, CDB$ROOT for the root).
+      # Two tiers share one alertname, with the window arithmetic of
+      # OracleProcessesSaturation above (W' = 90s, three 30s points): critical
+      # is x at or above 0.95, warning is x above 0.85 and below 0.95; the
+      # thresholds are the processes ones, assumed, not tuned to Oracle. Every
+      # tablespace is included, TEMP and the undo tablespace too (assumption:
+      # their reported usage is real allocation, not tuned here).
+      # Scenario: tablespace-full (lab/oracle, single trial runs, no suite
+      # yet). A 20 MB tablespace without autoextend is filled until ORA-01653;
+      # the numbers are in lab/oracle/results/runs.jsonl, not here.
+      - alert: OracleTablespaceUsageHigh
+        expr: |
+          WITH (
+            r = max by (service.instance.id, obenhub.cluster.name, tablespace_name, oracle.db.pdb) (oracledb.tablespace_size.usage)
+              / on(service.instance.id, obenhub.cluster.name, tablespace_name, oracle.db.pdb)
+            max by (service.instance.id, obenhub.cluster.name, tablespace_name, oracle.db.pdb) (oracledb.tablespace_size.limit),
+            x = min_over_time(r[90s:30s]),
+            n = count_over_time(r[90s:30s])
+          )
+          ((x > 0.85) unless (x >= 0.95)) and (n >= 3)
+        labels:
+          severity: warning
+        annotations:
+          summary: 'Tablespace {{ (index $labels "tablespace_name") }} ({{ (index $labels "oracle.db.pdb") }}) of Oracle instance {{ (index $labels "service.instance.id") }} is more than 85% full of its maximum size'
+
+      - alert: OracleTablespaceUsageHigh
+        expr: |
+          WITH (
+            r = max by (service.instance.id, obenhub.cluster.name, tablespace_name, oracle.db.pdb) (oracledb.tablespace_size.usage)
+              / on(service.instance.id, obenhub.cluster.name, tablespace_name, oracle.db.pdb)
+            max by (service.instance.id, obenhub.cluster.name, tablespace_name, oracle.db.pdb) (oracledb.tablespace_size.limit),
+            x = min_over_time(r[90s:30s]),
+            n = count_over_time(r[90s:30s])
+          )
+          (x >= 0.95) and (n >= 3)
+        labels:
+          severity: critical
+        annotations:
+          summary: 'Tablespace {{ (index $labels "tablespace_name") }} ({{ (index $labels "oracle.db.pdb") }}) of Oracle instance {{ (index $labels "service.instance.id") }} is 95% or more full of its maximum size: at 100% a segment that needs a new extent fails with ORA-01653'

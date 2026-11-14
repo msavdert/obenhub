@@ -84,11 +84,6 @@ others_up() {
   b=$(rn "$PRIMARY_HOST" pgrep -c -x ora_pmon_cdb19b); c=$(rn "$PRIMARY_HOST" pgrep -c -x ora_pmon_cdb26)
   echo "CDB19B=${b:-0} CDB26=${c:-0}"
 }
-# series_max SELECTOR START END: maximum, minimum and sample count of the series in the window, as JSON
-series_max() {
-  curl -fsS "$VM/api/v1/export" --data-urlencode "match[]=$1" --data-urlencode "start=$2" --data-urlencode "end=$3" \
-    | jq -s -c '[.[].values[]] | if length > 0 then {max: max, min: min, samples: length} else null end'
-}
 
 # pre-flight of this scenario on top of the adapter's
 eval "$(declare -f lab_precondition | sed '1s/^lab_precondition/base_pre/')"

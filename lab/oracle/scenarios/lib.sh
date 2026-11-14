@@ -202,6 +202,12 @@ collector_errors() {
     | jq -R -s -c --argjson lines "${n:-0}" 'split("\n") | map(select(length > 0) | split("\t") | {(.[1]): (.[0] | tonumber)}) | add // {} | . + {"error_level_lines": $lines}'
 }
 
+# series_max SELECTOR START END: maximum, minimum and sample count of the series in the window, as JSON
+series_max() {
+  curl -fsS "$VM/api/v1/export" --data-urlencode "match[]=$1" --data-urlencode "start=$2" --data-urlencode "end=$3" \
+    | jq -s -c '[.[].values[]] | if length > 0 then {max: max, min: min, samples: length} else null end'
+}
+
 # mon_pw: the 30 characters Oracle uses (provision.sh); only ever piped, never
 # put on a command line or printed
 mon_pw() { ( set -a; . "$LAB_DIR/.env"; printf '%s' "${ORA_MON_PASSWORD:0:30}" ); }

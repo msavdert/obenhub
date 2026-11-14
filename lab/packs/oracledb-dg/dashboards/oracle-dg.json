@@ -1137,6 +1137,57 @@
           "mode": "multi"
         }
       }
+    },
+    {
+      "id": 20,
+      "title": "Tablespace usage against its maximum size",
+      "type": "timeseries",
+      "datasource": {
+        "type": "victoriametrics-metrics-datasource",
+        "uid": "vm"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 57,
+        "w": 24,
+        "h": 8
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "vm"
+          },
+          "expr": "max by (service.instance.id, oracle.db.pdb, tablespace_name) (oracledb.tablespace_size.usage) / on(service.instance.id, oracle.db.pdb, tablespace_name) (max by (service.instance.id, oracle.db.pdb, tablespace_name) (oracledb.tablespace_size.limit) > 0)",
+          "refId": "A",
+          "range": true,
+          "instant": false,
+          "legendFormat": "{{service.instance.id}} {{oracle.db.pdb}} {{tablespace_name}}"
+        }
+      ],
+      "description": "Used bytes over the maximum size of each tablespace (autoextend counted: a fixed-size tablespace is full against its size), from the oracledb receiver (DBA/CDB_TABLESPACE_USAGE_METRICS, 30 s, oracle.db.pdb added by the lab Collector). Tablespaces that report a limit of -1 (unlimited) or 0 are left out. Alert: OracleTablespaceUsageHigh (warning above 85%, critical at 95% or more, held for 90 s).",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 10,
+            "showPoints": "never"
+          },
+          "unit": "percentunit",
+          "min": 0,
+          "max": 1
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
     }
   ]
 }
