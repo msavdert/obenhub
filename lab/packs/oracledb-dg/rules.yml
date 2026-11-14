@@ -375,3 +375,61 @@ groups:
           severity: critical
         annotations:
           summary: 'Monitoring account {{ (index $labels "oracledb.user.name") }} on {{ (index $labels "service.instance.id") }} is {{ (index $labels "oracledb.user.status") }}'
+
+      # Instance process slots in use against the PROCESSES parameter:
+      # oracledb.processes.usage / oracledb.processes.limit from the oracledb
+      # receiver (V$RESOURCE_LIMIT, 30s collection, account C##OBENHUB_MON;
+      # lab/packs/oracledb-dg/upstream-receiver-metrics.txt). At the limit a
+      # new dedicated server process cannot start, so new logins fail
+      # (ORA-00020, or a listener error when the connection comes through the
+      # listener) while existing sessions, including the receivers' pooled
+      # ones, keep working. Two tiers share one alertname, with no `for`, as
+      # PostgresConnectionSaturation in lab/packs/postgresql/rules.yml (read
+      # its comment for the window arithmetic): x = min_over_time(r[W':30s]) is
+      # the lowest ratio over the last W', n = count_over_time(r[W':30s]) must
+      # be a full window. The old hold was 1m; with a 30s scrape that is two
+      # more samples, so W' = 90s and a window holds 3 points (the 15s of
+      # PostgreSQL's W' = 75s is one scrape step, here 30s). Critical is x at
+      # or above 0.95, warning is x above 0.85 and below 0.95; thresholds are
+      # the PostgreSQL ones, assumed, not tuned to Oracle. Each side is
+      # max by (service.instance.id, obenhub.cluster.name): the series also
+      # carry oracle.db.role and oracle.db.open_mode labels, which the
+      # receiver reads once at start, so a changed role could leave two series
+      # of one instance. A mounted standby reports no processes series in the
+      # lab (read 2026-11-14), so only primaries are evaluated.
+      # Scenario: processes-exhausted (lab/oracle, single trial runs, no suite
+      # yet). With the processes at the limit, new logins failed while the
+      # pooled receivers kept delivering and this rule fired as critical; the
+      # numbers are in lab/oracle/results/runs.jsonl and ADR 0008 decision 7,
+      # not here. The ramp of the scenario crosses the warning band in seconds,
+      # normally between two scrapes, so the warning tier is not required
+      # there; the critical tier is.
+      - alert: OracleProcessesSaturation
+        expr: |
+          WITH (
+            r = max by (service.instance.id, obenhub.cluster.name) (oracledb.processes.usage)
+              / on(service.instance.id, obenhub.cluster.name)
+            max by (service.instance.id, obenhub.cluster.name) (oracledb.processes.limit),
+            x = min_over_time(r[90s:30s]),
+            n = count_over_time(r[90s:30s])
+          )
+          ((x > 0.85) unless (x >= 0.95)) and (n >= 3)
+        labels:
+          severity: warning
+        annotations:
+          summary: 'Oracle instance {{ (index $labels "service.instance.id") }} uses more than 85% of its PROCESSES limit'
+
+      - alert: OracleProcessesSaturation
+        expr: |
+          WITH (
+            r = max by (service.instance.id, obenhub.cluster.name) (oracledb.processes.usage)
+              / on(service.instance.id, obenhub.cluster.name)
+            max by (service.instance.id, obenhub.cluster.name) (oracledb.processes.limit),
+            x = min_over_time(r[90s:30s]),
+            n = count_over_time(r[90s:30s])
+          )
+          (x >= 0.95) and (n >= 3)
+        labels:
+          severity: critical
+        annotations:
+          summary: 'Oracle instance {{ (index $labels "service.instance.id") }} uses 95% or more of its PROCESSES limit: new logins fail with ORA-00020'

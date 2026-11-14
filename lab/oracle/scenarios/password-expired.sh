@@ -19,24 +19,6 @@ LOGIN_INJECT="" LOGIN_DURING="" LOGIN_AFTER=""
 SESS_EXPIRE="null" SESS_DURING="null"
 STATUS_BEFORE="" STATUS_DURING="" STATUS_AFTER="" STBY_READ=""
 
-# mon_pw: the 30 characters Oracle uses (provision.sh); only ever piped, never
-# put on a command line or printed
-mon_pw() { ( set -a; . "$LAB_DIR/.env"; printf '%s' "${ORA_MON_PASSWORD:0:30}" ); }
-pw_ok() { local p; p=$(mon_pw) && [ "${#p}" -eq 30 ] && [[ $p =~ ^[0-9a-f]+$ ]]; }
-# mon_login MODE: a fresh login as C##OBENHUB_MON to the primary from the
-# observer VM; prints "ok" or the first ORA code, never the output. MODE full
-# runs a query after the connect (the account must be OPEN: with an expired one
-# SQL*Plus would read the query lines as the new password); MODE connect sends
-# the connect line only.
-mon_login() {
-  local pw out q=""
-  pw=$(mon_pw) || return 1
-  [ "$1" != full ] || q=$'set head off feedback off pages 0\nselect \'login-ok\' from dual;\nexit\n'
-  out=$(printf 'whenever sqlerror exit failure\nconnect "%s"/"%s"@%s\n%s' "$MON_USER" "$pw" "$PRIMARY_HOST.$DOMAIN:$LISTENER_PORT/$PRIMARY_SID" "$q" \
-    | timeout --foreground "$REMOTE_TIMEOUT" ssh "${SSH_OPTS[@]}" "$OBSERVER_HOST" "sudo -u oracle env ORACLE_HOME=$OBSERVER_ORACLE_HOME $OBSERVER_ORACLE_HOME/bin/sqlplus -s -L /nolog" 2>&1)
-  if grep -q 'login-ok' <<<"$out"; then echo ok
-  else grep -o -m1 'ORA-[0-9]*' <<<"$out" || echo failed; fi
-}
 # acct_status USER: ACCOUNT_STATUS from the root's DBA_USERS on the primary
 acct_status() { ora_sql "$PRIMARY_SID" <<<"SELECT account_status FROM dba_users WHERE username = '$1';"; }
 # accounts_state: "MON=<status> DG=<status>"

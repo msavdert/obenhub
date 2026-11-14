@@ -159,4 +159,5 @@ checked against existing upstream issues before work starts.
 - [ ] a login probe per check for Oracle (candidate, pending evidence):
       the gap and its sources are in ADR 0008 decision 7. Evidence to
       collect first: the decision 8 scenarios listener stopped, monitoring
-      password expired and ORA-00020
+      password expired and ORA-00020 (all three have run once or twice
+      outside a suite, results in ADR 0008 decision 7)

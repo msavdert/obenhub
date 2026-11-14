@@ -8,7 +8,8 @@
 # defined here; no Oracle scenario calls them.
 #
 # Databases are reached as the oracle OS user with operating-system
-# authentication (sqlplus / as sysdba, dgmgrl /); only password-expired.sh
+# authentication (sqlplus / as sysdba, dgmgrl /); only mon_login (fresh logins
+# as C##OBENHUB_MON, used by password-expired.sh and processes-exhausted.sh)
 # reads a password (lab/oracle/.env, sent on stdin). ORACLE_HOME comes from /etc/oratab on the host. The broker
 # configuration is the one of the pair, CDB19 and CDB19_STBY (the VMs also hold
 # CDB19B and CDB26, which no scenario touches).
@@ -199,4 +200,33 @@ collector_errors() {
   n=$(timeout --foreground "$REMOTE_TIMEOUT" ssh -n "${SSH_OPTS[@]}" "$OBSERVER_HOST" "sudo journalctl -u otelcol-contrib --since @$1 --until @$2 --no-pager -o cat | grep -c -P '\\terror\\t'") || [ "$n" = 0 ] || return 1
   printf '%s\n' "$codes" | sed -E 's/^ *([0-9]+) (.*)$/\1\t\2/' \
     | jq -R -s -c --argjson lines "${n:-0}" 'split("\n") | map(select(length > 0) | split("\t") | {(.[1]): (.[0] | tonumber)}) | add // {} | . + {"error_level_lines": $lines}'
+}
+
+# mon_pw: the 30 characters Oracle uses (provision.sh); only ever piped, never
+# put on a command line or printed
+mon_pw() { ( set -a; . "$LAB_DIR/.env"; printf '%s' "${ORA_MON_PASSWORD:0:30}" ); }
+pw_ok() { local p; p=$(mon_pw) && [ "${#p}" -eq 30 ] && [[ $p =~ ^[0-9a-f]+$ ]]; }
+# mon_login MODE: a fresh login as C##OBENHUB_MON to the primary through the
+# listener, from the observer VM; prints "ok" or the first ORA or TNS code,
+# never the output. MODE full runs a query after the connect (the account must
+# be OPEN: with an expired one SQL*Plus would read the query lines as the new
+# password); MODE connect sends the connect line only (for a login that is
+# expected to fail).
+mon_login() {
+  local pw out q=""
+  pw=$(mon_pw) || return 1
+  [ "$1" != full ] || q=$'set head off feedback off pages 0\nselect \'login-ok\' from dual;\nexit\n'
+  out=$(printf 'whenever sqlerror exit failure\nconnect "%s"/"%s"@%s\n%s' "$MON_USER" "$pw" "$PRIMARY_HOST.$DOMAIN:$LISTENER_PORT/$PRIMARY_SID" "$q" \
+    | timeout --foreground "$REMOTE_TIMEOUT" ssh "${SSH_OPTS[@]}" "$OBSERVER_HOST" "sudo -u oracle env ORACLE_HOME=$OBSERVER_ORACLE_HOME $OBSERVER_ORACLE_HOME/bin/sqlplus -s -L /nolog" 2>&1)
+  if grep -q 'login-ok' <<<"$out"; then echo ok
+  else out=$(grep -E -o 'ORA-[0-9]+|TNS-[0-9]+' <<<"$out" | head -n1); echo "${out:-failed}"; fi
+}
+# severity_seen ALERTNAME INSTANCE SINCE SEVERITY: succeeds when a delivered
+# notification since SINCE held a firing alert with that severity. A tiered
+# rule (one alertname, one tier per series) needs it because EXPECT matches
+# alertname and instance only. Same query as lab/slice1/scenarios/lib.sh (read
+# there why commonLabels.severity is no use); not moved to lib-core.sh so that
+# the evidence of the other labs does not go stale.
+severity_seen() {
+  [ -n "$(vl "_time:>$3 status:=firing commonLabels.alertname:=$1 commonLabels.service_instance_id:=$2 alerts:~\"firing[^{}]*.[^{}]*severity.{1,6}$4\" | limit 1 | fields _time" | head -n1)" ]
 }

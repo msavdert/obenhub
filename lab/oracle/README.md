@@ -214,7 +214,7 @@ by the scenarios below. Grafana provisions the shared host dashboard and "Oracle
 ([oracle-dg.json](../packs/oracledb-dg/dashboards/oracle-dg.json)): lag and
 data age, apply state, fast-start failover, protection level and redo
 destination, heartbeat and the observer Collector, and the firing alerts, plus
-the panels "RMAN backup age" and "RMAN last job failed", and "Listener TCP
+the panels "RMAN backup age" and "RMAN last job failed", "Processes in use and limit", and "Listener TCP
 connect" and "Listener connect time" (the `tcpcheck` probe of both listeners,
 ADR 0008 decision 7; a connect only, no login; the failing-listener path
 ran in scenario `listener-stopped` (run started 2026-11-14T17:57:45Z: firing
@@ -270,6 +270,7 @@ mise run lab:oracle:scenario observer-stopped # stop the CDB19 FSFO observer
 mise run lab:oracle:scenario transport-cut    # broker TRANSPORT-OFF on the primary
 mise run lab:oracle:scenario listener-stopped # lsnrctl stop on the primary VM, then start
 mise run lab:oracle:scenario password-expired # C##OBENHUB_MON password expired on CDB19, then restored
+mise run lab:oracle:scenario processes-exhausted # holder sessions fill PROCESSES of CDB19 (ORA-00020 for new logins), then stopped
 mise run lab:oracle:scenarios                 # the list in scenarios/suite.txt as one suite
 ```
 
@@ -279,13 +280,15 @@ the Collector (`lab:oracle:collector`) running, the pair healthy (broker
 pre-flight checks. The scenarios ssh to the VMs as the invoking user and run
 `sudo -u oracle` there (passwordless sudo, see the prerequisites), with
 operating-system authentication (`sqlplus / as sysdba`, `dgmgrl /`). Only
-`password-expired` uses a password: it reads `ORA_MON_PASSWORD` from
-`lab/oracle/.env` for the fresh-login checks and the restore, sends it to
-`sqlplus` on stdin only, and refuses to start unless a login with it works
+`password-expired` and `processes-exhausted` use a password: they read `ORA_MON_PASSWORD` from
+`lab/oracle/.env` for the fresh-login checks (and `password-expired` for the restore), send it to
+`sqlplus` on stdin only, and refuse to start unless a login with it works
 (the `.env` value must be the one the database holds). Every remote command is bounded by `REMOTE_TIMEOUT`
 (180 s), and each revert step is tried three times. The observer runs as the systemd unit
 `dg-observer@cdb19` on `ora-dg-obs` (`/home/oracle/scripts/observer.sh`,
 owner-provided and not in this repository).
+`processes-exhausted` starts up to about 250 holder sessions (one bequeath `sqlplus` and its server process each, about 10 MB per holder) in the transient systemd unit `obenhub-processes-exhausted` on `ora-au-lab`, so that stopping the unit removes them; it refuses to start with less than 4.5 GB `MemAvailable` there, and the holders end by themselves after 900 s. While the limit is reached the scenario's own bequeath logins fail too.
+
 Only the `CDB19` configuration is touched, never `CDB19B` or `CDB26`, with one exception: `listener-stopped` stops the listener of `ora-au-lab`, which all three databases share, so their new connections fail during the outage (about 3 minutes). That includes the fast-start failover pair `CDB19B` (its own configuration and observer, Shutdown Primary TRUE): the scenario refuses to start unless `CDB19B` is SYNCHRONIZED with a SUCCESS configuration, guards it like `CDB19` (a role change, or two failed reads in a row, restarts the listener at once and fails the run) and records its states in `extra`. The listener is restarted with the `TNS_ADMIN` of the running one; without it a started listener reads no `listener.ora` and lacks the static `*_DGMGRL` services (found in the first trial, 2026-11-14T17:50Z, recorded as a failed run). Both trials read `TNS_ADMIN` from a listener the scenario or a manual repair had started, not from one started by `oracle-db.service` (`start_all.sh` exports it, so it is expected to work).
 
 There is no switchover or failover scenario: the `oracledb` receiver reads

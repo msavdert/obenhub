@@ -28,7 +28,7 @@ and the firing alerts; `lab/oracle/mon` mounts it into Grafana.
 
 ## Alert rules
 
-`rules.yml` holds 15 rules (group `oracledb-dg`), unit-tested in `tests/`
+`rules.yml` holds 17 rules, 16 alert names (group `oracledb-dg`; `OracleProcessesSaturation` has a warning and a critical tier, as `PostgresConnectionSaturation`), unit-tested in `tests/`
 (`mise run lab:oracle:rules-test`). Each rule comment names the lab/oracle
 scenario that exercised it, or says that none has; the thresholds are lab
 thresholds.
@@ -43,3 +43,5 @@ connect only; ADR 0008 decision 7 records that no login is probed per check.
 `OracleMonitoringAccountNotOpen` reads `oracledb.user.open` from
 `queries-primary.yaml`: the receivers hold pooled sessions, so an expired
 account is not seen by them while the pool lives (scenario `password-expired`).
+
+`OracleProcessesSaturation` reads `oracledb.processes.usage` and `oracledb.processes.limit` of the `oracledb` receiver (30 s), which keeps working at the limit through its pooled session while new logins fail (scenario `processes-exhausted`).
