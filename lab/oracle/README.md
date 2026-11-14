@@ -75,7 +75,11 @@ VictoriaLogs, vmalert, Alertmanager and Grafana services of
 Collector and the two databases), the shared Collector pack and the Data Guard pack rules
 ([lab/packs/oracledb-dg](../packs/oracledb-dg/rules.yml)); the rules are
 unit-tested (`mise run lab:oracle:rules-test`) and six of them are exercised by
-the scenarios below. There are no dashboards yet.
+the scenarios below. Grafana provisions one dashboard, "Oracle Data Guard"
+([oracle-dg.json](../packs/oracledb-dg/dashboards/oracle-dg.json)): lag and
+data age, apply state, fast-start failover, protection level and redo
+destination, heartbeat and the observer Collector, and the firing alerts.
+`mise run lab:oracle:panels` runs its queries against the running Grafana.
 
 ```sh
 mise run lab:oracle:pki      # CA, gateway certificate, client certificate (lab/oracle/pki, gitignored)
