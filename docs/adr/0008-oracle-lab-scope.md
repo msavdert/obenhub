@@ -120,9 +120,9 @@ produced that metric and marks the connection reuse as an assumption); the recei
    Collector logged only the 11 error-level lines of the probe, all
    `connection refused` (the count covers error level only). Only
    the new-connection probe saw the outage (two passing runs, 17:57:45Z and
-   18:16:39Z, Oracle 19.33, existing sessions only). No custom probe code is written; an upstream proposal waits
-   for lab evidence from the remaining decision 8 scenarios (ORA-00020);
-   listener stopped has run as two passing trials, no suite yet. Monitoring
+   18:16:39Z, Oracle 19.33, existing sessions only). No custom probe code is written; no upstream proposal
+   is written yet; its lab evidence is the three scenarios in this
+   paragraph (no suite yet). Listener stopped has run as two passing trials. Monitoring
    password expired (scenario `password-expired`, one passing trial started
    2026-11-14T18:44:44Z, Oracle 19.33) shows the same for an account: with
    `C##OBENHUB_MON` expired for 169 s the `oracledb` receiver kept its one
@@ -130,6 +130,18 @@ produced that metric and marks the connection reuse as an assumption); the recei
    expected samples and logged no error-level line, while a fresh login got
    ORA-28001. The alert `OracleMonitoringAccountNotOpen` reads the account
    state through the other account's session (`queries-primary.yaml`).
+   Processes exhausted (scenario `processes-exhausted`, one passing trial
+   started 2026-11-14T20:16:57Z, Oracle 19.33) shows the same for the
+   instance: 252 holder sessions were started against PROCESSES (320) (242
+   client processes still alive at the end of the ramp, an approximate
+   count); for 175 s fresh logins got ORA-00020 on a bequeath connection and
+   ORA-12537 through the listener. In that window the `oracledb` receiver
+   delivered 6 samples of each of its series (usage maximum 319 over 6
+   samples), the `sql_query` heartbeat 12, `tcpcheck.status` 12 samples with
+   minimum and maximum 1, and the Collector logged no error-level line. The
+   alert `OracleProcessesSaturation` fired 125 s after the ramp ended (first
+   delivery of either tier; the critical tier was delivered too, its time is
+   not recorded).
 8. **First scenarios**, each with a control run: archiver stuck (recovery area
    limit lowered under the archive volume), transport cut and apply stopped
    (lag and gap alerts), fast-start failover after the primary is aborted
