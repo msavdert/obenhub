@@ -191,11 +191,15 @@ SUITE_ID=${SUITE_ID:-}   # set by run-suite.sh; empty = single scenario run
 EXPECT=()          # entries "AlertName:instance" (instance may be empty)
 ALLOW=()           # delivered alerts that are a known consequence of the fault; not waited for, not unexpected
 
+# Nothing to revert before inject() started (a failed pre-flight leaves the
+# lab as it found it). REVERTED is set only after revert() returned, so a
+# revert interrupted by a signal runs again from on_exit.
 do_revert() {
   [ "$REVERTED" = 1 ] && return 0
-  REVERTED=1
+  if [ -z "$T_INJECT" ]; then REVERTED=1; log "no fault injected, no revert"; return 0; fi
   log "revert"
   revert || FAILS+=("revert failed")
+  REVERTED=1
 }
 
 # window_alerts SINCE UNTIL -> TSV: alertname instance status count, no Watchdog
@@ -262,7 +266,11 @@ write_result() {
 
 on_exit() {
   local rc=$?
-  trap - EXIT INT TERM
+  # INT, TERM and HUP are ignored from here on: a second Ctrl-C or a closed
+  # terminal must not cut the revert short and leave the fault in place
+  # (SIGKILL still stops it)
+  trap - EXIT
+  trap '' INT TERM HUP
   do_revert
   [ -n "$T_START" ] || T_START=$(now_ts)
   [ "$rc" -ne 0 ] && [ "${#FAILS[@]}" -eq 0 ] && FAILS+=("script aborted with status $rc")

@@ -13,8 +13,8 @@ contrib v0.164.0).
 
 Tested on 19.33 only (the `CDB19` pair, 2026-11-13), as SQL*Plus statements
 and through the Collector. Not run on 26ai. That the managed recovery process
-disappears when apply is stopped is expected, not yet observed; the
-apply-stopped scenario is meant to confirm it.
+disappears when apply is stopped was observed in the apply-stopped trial runs
+of 2026-11-14 (`lab/oracle/results/runs.jsonl`).
 
 ## Alert rules
 
