@@ -1,17 +1,22 @@
-# Oracle lab inventory: the Collector and the databases this lab expects (the
-# observer Collector on ora-dg-obs, which reads both databases of the CDB19
-# Data Guard pair). The rules that read these series are the pack
+# Oracle lab inventory: the Collectors and the databases this lab expects (one
+# Collector per VM, ADR 0008 decision 2: host metrics and journal on each, the
+# alert log of the CDB19 pair on ora-au-lab and ora-dg-stby, and on ora-dg-obs
+# the database receivers that read both databases of the pair). The rules that read these series are the pack
 # lab/packs/oracledb-dg. Same record names and shapes as lab/pgha's inventory.
 groups:
   - name: inventory
     interval: 15s
     rules:
-      # The Collector this lab expects, by its self-telemetry
-      # service.instance.id. The gateway is not listed: assumption, its own
-      # self-metrics are not part of this lab's checks yet.
+      # The Collectors this lab expects, by their self-telemetry
+      # service.instance.id (otelcol-<ssh alias>). The gateway is not listed:
+      # assumption, its own self-metrics are not part of this lab's checks yet.
       - record: obenhub.expected_collector
         expr: |
-          label_set(vector(1), "service.namespace", "obenhub-lab", "service.instance.id", "otelcol-ora-dg-obs")
+          union(
+            label_set(vector(1), "service.namespace", "obenhub-lab", "service.instance.id", "otelcol-ora-au-lab"),
+            label_set(vector(1), "service.namespace", "obenhub-lab", "service.instance.id", "otelcol-ora-dg-stby"),
+            label_set(vector(1), "service.namespace", "obenhub-lab", "service.instance.id", "otelcol-ora-dg-obs")
+          )
 
       # The databases: service.instance.id is the db_unique_name, and the
       # obenhub.collector label names the Collector that collects them (the one

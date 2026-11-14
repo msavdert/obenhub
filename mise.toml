@@ -305,7 +305,7 @@ description = "show the pgha backend containers"
 run = "docker compose -p obenhub-pgha -f lab/pgha/mon/compose.yaml ps"
 
 [tasks."lab:oracle:pki"]
-description = "create the Oracle lab CA, gateway certificate and the ora-dg-obs client certificate in lab/oracle/pki (gitignored; existing files are kept)"
+description = "create the Oracle lab CA, gateway certificate and the three VMs client certificates in lab/oracle/pki (gitignored; existing files are kept)"
 run = "lab/oracle/scripts/pki.sh"
 
 [tasks."lab:oracle:mon:up"]
@@ -317,7 +317,7 @@ docker compose -p obenhub-oracle -f lab/oracle/mon/compose.yaml up -d --wait
 """
 
 [tasks."lab:oracle:collector"]
-description = "install or converge otelcol-contrib on ora-dg-obs over ssh (rpm pinned by lab/pgha/versions.sh, config, pack, client certificate, environment file); restarts only on change; needs lab/oracle/.env and the PKI of lab:oracle:mon:up"
+description = "install or converge otelcol-contrib on the three Oracle VMs over ssh (rpm pinned by lab/pgha/versions.sh, host + per-VM config, client certificate, environment file, alert log ACL); restarts only on change; needs lab/oracle/.env and the PKI of lab:oracle:mon:up"
 run = "lab/oracle/scripts/collector.sh"
 
 [tasks."lab:oracle:scenario"]

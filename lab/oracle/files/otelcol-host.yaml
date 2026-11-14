@@ -1,0 +1,114 @@
+# Collector base shared by the three Oracle VMs (otelcol-contrib 0.164.0): host
+# metrics, the journal, the exporter to the gateway and the self-metrics, ADR
+# 0008 decision 2. It is loaded together with one per-VM file
+# (otelcol-db.yaml on the database VMs, otelcol-obs.yaml on ora-dg-obs): the
+# unit starts `otelcol-contrib --config=config.yaml --config=host.yaml` (see
+# scripts/collector.sh), and the Collector merges the two (maps merge by key,
+# so the per-VM file adds receivers, processors and pipelines of its own).
+# Shape and scrapers as lab/pgha/files/otelcol.yaml.tmpl; component keys:
+# receiver/{hostmetricsreceiver,journaldreceiver} and processor/
+# resourcedetectionprocessor READMEs at contrib v0.164.0.
+# OBENHUB_NODE (ssh alias, for example ora-au-lab) and
+# OBENHUB_GATEWAY_ENDPOINT come from the root-only environment file systemd
+# reads (scripts/collector.sh); nothing secret is written here.
+extensions:
+  # journald cursors and filelog offsets survive a restart
+  file_storage:
+    directory: /var/lib/otelcol-contrib/file_storage
+    create_directory: true
+
+receivers:
+  host_metrics:
+    collection_interval: 15s
+    scrapers:
+      cpu: {}
+      load: {}
+      # system.linux.memory.available and system.memory.limit are off by
+      # default; HostMemoryAvailableLow reads them (as lab/pgha).
+      memory:
+        metrics:
+          system.linux.memory.available:
+            enabled: true
+          system.memory.limit:
+            enabled: true
+      paging: {}
+      filesystem: {}
+      disk: {}
+      network: {}
+      processes: {}
+      # system.uptime, read by HostRebooted
+      system: {}
+
+  # Multiple filter options are combined with AND (journaldreceiver README), so units and
+  # the kernel ring buffer are two receivers. The service user reads the
+  # journal through SupplementaryGroups=systemd-journal (systemd drop-in).
+  # oracle-db is the oneshot unit that starts the listener and the databases
+  # on the database VMs; a VM without the unit matches nothing.
+  journald/units:
+    units: [oracle-db, otelcol-contrib]
+    storage: file_storage
+    convert_to_semantic_conventions: true
+  journald/kernel:
+    dmesg: true
+    storage: file_storage
+    convert_to_semantic_conventions: true
+
+processors:
+  memory_limiter:
+    check_interval: 1s
+    limit_mib: 256
+  # Operating-system telemetry of the VM: hostmetrics and the journal.
+  resource/host:
+    attributes:
+      - {key: service.namespace, value: obenhub-lab, action: upsert}
+      - {key: service.name, value: host, action: upsert}
+      - {key: service.instance.id, value: "${env:OBENHUB_NODE}", action: upsert}
+      - {key: obenhub.cluster.name, value: cdb19, action: upsert}
+  # host.name from the OS; override false keeps the journal's own host.name
+  resource_detection/system:
+    detectors: [system]
+    system:
+      hostname_sources: [os]
+    override: false
+  batch: {}
+
+exporters:
+  otlp_http/gateway:
+    endpoint: ${env:OBENHUB_GATEWAY_ENDPOINT}
+    tls:
+      ca_file: /etc/otelcol-contrib/tls/ca.crt
+      cert_file: /etc/otelcol-contrib/tls/otelcol.crt
+      key_file: /etc/otelcol-contrib/tls/otelcol.key
+
+service:
+  extensions: [file_storage]
+  telemetry:
+    resource:
+      attributes:
+        - {name: service.namespace, value: obenhub-lab}
+        - {name: service.name, value: otelcol}
+        - {name: service.instance.id, value: "otelcol-${env:OBENHUB_NODE}"}
+    # Self-metrics to the gateway (as lab/pgha): CollectorAbsent and the
+    # Collector gate of OracleTargetAbsent read otelcol_process_uptime with
+    # this service.instance.id.
+    metrics:
+      level: normal
+      readers:
+        - periodic:
+            interval: 15000
+            exporter:
+              otlp:
+                protocol: http/protobuf
+                endpoint: ${env:OBENHUB_GATEWAY_ENDPOINT}/v1/metrics
+                certificate: /etc/otelcol-contrib/tls/ca.crt
+                client_certificate: /etc/otelcol-contrib/tls/otelcol.crt
+                client_key: /etc/otelcol-contrib/tls/otelcol.key
+  pipelines:
+    metrics/host:
+      receivers: [host_metrics]
+      processors: [memory_limiter, resource_detection/system, resource/host, batch]
+      exporters: [otlp_http/gateway]
+    logs/host:
+      receivers: [journald/units, journald/kernel]
+      processors: [memory_limiter, resource_detection/system, resource/host, batch]
+      exporters: [otlp_http/gateway]

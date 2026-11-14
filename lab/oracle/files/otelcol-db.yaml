@@ -1,0 +1,104 @@
+# Collector on a database VM (ora-au-lab, ora-dg-stby), on top of
+# otelcol-host.yaml (host metrics, journal, exporter, self-metrics): the text
+# alert log of the CDB19 pair's instance on that VM, ADR 0008 decision 2. The
+# VM's other instances (CDB26, CDB19B on ora-au-lab; CDB19B_STBY on
+# ora-dg-stby) are not read: the first slice is the CDB19 pair.
+# From the environment file (scripts/collector.sh):
+#   OBENHUB_ALERT_LOG        absolute path of the instance's alert_<SID>.log
+#   OBENHUB_DB_UNIQUE_NAME   its db_unique_name (CDB19, CDB19_STBY)
+#   OBENHUB_NODE             the ssh alias (host.name comes from the OS)
+# An alert log entry is an ISO 8601 timestamp line followed by one or more
+# message lines (19.33, read on ora-au-lab 2026-11-14):
+#   2026-11-14T05:39:43.403142+00:00
+#   Recovery of Online Redo Log: Thread 1 Group 5 Seq 291 Reading mem 0
+# The recombine, timestamp and ORA- code operators and the severity statements
+# are from the alert log receiver of the owner's predecessor dbsight
+# (collector/oracle.yaml at ad450d7, Apache-2.0, LICENSE read), without its PDB,
+# trace-file, ORA-01555 and alert.category parsing.
+receivers:
+  file_log/oracle_alert:
+    include: ["${env:OBENHUB_ALERT_LOG}"]
+    storage: file_storage
+    # assumption: history is not wanted, only entries written after the
+    # Collector starts (the file holds about 800 KB of old entries)
+    start_at: end
+    include_file_path: true
+    include_file_name: false
+    operators:
+      - type: recombine
+        combine_field: body
+        combine_with: "\n"
+        is_first_entry: body matches "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}"
+        # the newest entry waits for the next timestamp line, at most this long
+        force_flush_period: 2s
+        source_identifier: attributes["log.file.path"]
+      - type: regex_parser
+        regex: '^(?P<alert_time>\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2}))\n?(?P<message>(?s).*)$'
+        on_error: send_quiet
+        timestamp:
+          parse_from: attributes.alert_time
+          layout_type: gotime
+          layout: '2006-01-02T15:04:05.999999999Z07:00'
+      - type: move
+        from: attributes.message
+        to: body
+        on_error: send_quiet
+      - type: remove
+        field: attributes.alert_time
+        on_error: send_quiet
+      # Number of the first ORA- code of the entry (later ones, such as the
+      # ORA-00312 lines after an ORA-00313, stay in the body). Live alert logs
+      # write some codes unpadded (ORA-3136, ORA-1109, read on ora-au-lab
+      # 2026-11-14) and some padded (ORA-00313), so one to five digits match and
+      # transform/oracle_alert pads the number to five.
+      # Copied from dbsight collector/oracle.yaml at ad450d7, Apache-2.0
+      # (its LICENSE read 2026-11-14): this operator, and the pad and WARN
+      # statements of transform/oracle_alert below.
+      - type: regex_parser
+        if: body matches "\\bORA-\\d{1,5}\\b"
+        regex: '\bORA-(?P<ora_number>\d{1,5})\b'
+
+processors:
+  # db.response.status_code is ORA- plus the number padded to five digits
+  # (ORA-3136 becomes ORA-03136). Assumption: that is the fitting semantic-
+  # conventions name (the status code the DBMS returned); not checked against
+  # the registry. An entry has no level: with a code it is ERROR, except the
+  # codes that report a client or application event and need no DBA action,
+  # which are WARN (ORA-00060 deadlock, 00028 killed session, 01013 user
+  # cancelled, 02396 idle time limit, 03136 inbound connection timed out);
+  # an entry without a code is INFO. Statements copied from dbsight
+  # collector/oracle.yaml at ad450d7 (Apache-2.0, LICENSE read), with the
+  # attribute renamed from error_code and the alert.category rules left out.
+  transform/oracle_alert:
+    error_mode: ignore
+    log_statements:
+      - context: log
+        statements:
+          - set(log.attributes["db.response.status_code"], Format("ORA-%05d", [Int(log.attributes["ora_number"])])) where log.attributes["ora_number"] != nil
+          - delete_key(log.attributes, "ora_number")
+          - set(log.severity_number, SEVERITY_NUMBER_ERROR) where log.attributes["db.response.status_code"] != nil
+          - set(log.severity_text, "ERROR") where log.attributes["db.response.status_code"] != nil
+          - set(log.severity_number, SEVERITY_NUMBER_WARN) where IsMatch(log.attributes["db.response.status_code"], "^ORA-(00060|00028|01013|02396|03136)$")
+          - set(log.severity_text, "WARN") where IsMatch(log.attributes["db.response.status_code"], "^ORA-(00060|00028|01013|02396|03136)$")
+          - set(log.severity_number, SEVERITY_NUMBER_INFO) where log.attributes["db.response.status_code"] == nil
+          - set(log.severity_text, "INFO") where log.attributes["db.response.status_code"] == nil
+  # oracledb.database.unique_name is the attribute the oracledb-dg pack uses
+  # for the same database; service.instance.id equals it, as for the database
+  # metrics of the observer Collector.
+  resource/oracle_alert:
+    attributes:
+      - {key: service.namespace, value: obenhub-lab, action: upsert}
+      - {key: service.name, value: oracledb, action: upsert}
+      - {key: service.instance.id, value: "${env:OBENHUB_DB_UNIQUE_NAME}", action: upsert}
+      - {key: oracledb.database.unique_name, value: "${env:OBENHUB_DB_UNIQUE_NAME}", action: upsert}
+      - {key: server.address, value: "${env:OBENHUB_NODE}", action: upsert}
+      - {key: server.port, value: '1521', action: upsert}
+      - {key: db.system.name, value: oracle.db, action: upsert}
+      - {key: obenhub.cluster.name, value: cdb19, action: upsert}
+
+service:
+  pipelines:
+    logs/oracle_alert:
+      receivers: [file_log/oracle_alert]
+      processors: [memory_limiter, transform/oracle_alert, resource_detection/system, resource/oracle_alert, batch]
+      exporters: [otlp_http/gateway]
