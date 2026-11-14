@@ -8,12 +8,18 @@
 #                       oracledb-backup pack (RMAN job state), same two
 #                       connections; the queries return rows on the primary
 #                       only, so the pair keeps reporting after a role change
+#   tcp_check/primary, tcp_check/standby
+#                       TCP connect to each listener (ADR 0008 decision 7); a
+#                       connect only, no login, no pool
 # The two sql_query receivers read the same pack on both databases on every
 # collection, so roles are read again after a switchover or failover; the
 # oracledb receiver detects role and open mode once at start (contrib
 # v0.164.0) and stays pointed at the VM that was primary when it started.
-# Component keys: receiver/{oracledbreceiver,sqlqueryreceiver} READMEs at
-# contrib v0.164.0. The data source option "DBA PRIVILEGE" is parsed by go-ora
+# Component keys: receiver/{oracledbreceiver,sqlqueryreceiver,tcpcheckreceiver}
+# READMEs and config.go at contrib v0.164.0. The tcpcheck receiver (alpha) is
+# registered as tcp_check there; tcpcheck is its deprecated alias. Its metric
+# names stay tcpcheck.status, tcpcheck.duration and tcpcheck.error.
+# The data source option "DBA PRIVILEGE" is parsed by go-ora
 # v2.9.0 (v2/configurations/connect_config.go); "#" in the user name is
 # percent-encoded in the URL.
 # Passwords and the gateway endpoint come from the environment (ORA_*_PASSWORD
@@ -46,6 +52,21 @@ receivers:
     datasource: "oracle://C%23%23OBENHUB_DG:${env:ORA_DG_PASSWORD}@ora-dg-stby.lab.local:1521/CDB19_STBY?DBA%20PRIVILEGE=SYSDG"
     collection_interval: 60s
     queries: ${file:/etc/otelcol-contrib/packs/oracledb-backup/queries.yaml}
+  # Listener probes, one receiver per listener so that each gets its own
+  # resource attributes below. tcpcheck.status is 1 when the connect succeeded,
+  # else 0; the dialer timeout stays under the 15s interval.
+  tcp_check/primary:
+    collection_interval: 15s
+    targets:
+      - endpoint: ora-au-lab.lab.local:1521
+        dialer:
+          timeout: 5s
+  tcp_check/standby:
+    collection_interval: 15s
+    targets:
+      - endpoint: ora-dg-stby.lab.local:1521
+        dialer:
+          timeout: 5s
   # The FSFO observers (units of /home/oracle/scripts/observer.sh, owner
   # provided); a template instance is named with its configuration.
   journald/observer:
@@ -85,10 +106,10 @@ service:
       processors: [memory_limiter, resource_detection/system, resource/host, batch]
       exporters: [otlp_http/gateway]
     metrics/primary:
-      receivers: [oracledb, sql_query/primary, sql_query/primary_backup]
+      receivers: [oracledb, sql_query/primary, sql_query/primary_backup, tcp_check/primary]
       processors: [memory_limiter, resource/primary, batch]
       exporters: [otlp_http/gateway]
     metrics/standby:
-      receivers: [sql_query/standby, sql_query/standby_backup]
+      receivers: [sql_query/standby, sql_query/standby_backup, tcp_check/standby]
       processors: [memory_limiter, resource/standby, batch]
       exporters: [otlp_http/gateway]

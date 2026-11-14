@@ -36,8 +36,9 @@ and 0.165.1 is unchecked.
 
 From the private predecessor dbsight (Oracle in containers, never
 on these VMs): the receiver reads role and open mode once at start, so they go
-stale after a switchover; `oracledb_up` stays 1 with a stopped listener
-because pooled sessions survive; the receiver's query samples cost about
+stale after a switchover; its `oracledb_up` stayed 1 with a stopped
+listener (scenario ORA-LSNR-01; the record does not say which component
+produced that metric and marks the connection reuse as an assumption); the receiver's query samples cost about
 300 ms CPU per run against under 1 ms for a `V$SESSION` query through the
 `sql_query` receiver; no Data Guard metric was ever built.
 
@@ -94,9 +95,26 @@ because pooled sessions survive; the receiver's query samples cost about
    without the packs. Session sampling, when added, reads `V$SESSION`; that
    neither pack lists `V$SESSION` is a reading of the Licensing Information
    User Manual by omission, not a statement in it.
-7. **Availability from outside the pool.** Listener and service
-   availability is probed with a new connection per check, not inferred from
-   the receiver's `up` metric.
+7. **Availability from outside the pool.** The intent is to probe listener
+   availability with a new connection per check rather than through pooled
+   sessions, which can survive a stopped listener. What runs (amended
+   2026-11-14): the `tcpcheck` receiver (alpha, registered as `tcp_check` in
+   contrib v0.164.0) on the observer's Collector makes a TCP connect to both
+   listeners every 15s (`tcpcheck.status`, alert `OracleListenerUnreachable`),
+   so the intent is met for the listener only, with no login; the failing
+   path has not run in the lab yet (only in an isolated container against a
+   closed port). Recorded gap: none of `sqlquery`, `oracledb` and `tcpcheck`
+   at v0.164.0 does a login per check; other components were not surveyed.
+   `sqlqueryreceiver` builds a pool (`receiver.go:56`, `internal.NewPool`
+   with `max_open_conn`) and `oracledbreceiver` holds a `*sql.DB`
+   (`scraper.go`, field `db`); `oracledbreceiver/metadata.yaml` lists no
+   up-style metric (searched, not read line by line). A listener that
+   accepts connections while an account is expired or sessions are exhausted
+   therefore looks healthy to the probe; whether a pooled session then keeps
+   the database metrics flowing is unverified in this lab. No custom probe
+   code is written; an upstream proposal waits for lab evidence from the
+   decision 8 scenarios (listener stopped, monitoring password expired,
+   ORA-00020).
 8. **First scenarios**, each with a control run: archiver stuck (recovery area
    limit lowered under the archive volume), transport cut and apply stopped
    (lag and gap alerts), fast-start failover after the primary is aborted

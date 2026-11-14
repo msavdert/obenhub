@@ -2291,3 +2291,120 @@ tests:
         groupname: oracledb-dg
         alertname: OracleRedoDestinationInvalid
         exp_alerts: []
+
+  # Listener probe (tcpcheck receiver on ora-dg-obs). Series carry the labels
+  # read from the Oracle lab VictoriaMetrics on 2026-11-14 (resource
+  # attributes of the pipeline plus tcpcheck.endpoint); the failing value 0 is
+  # from the receiver source (scraper.go) and an isolated container, not yet
+  # from a lab scenario.
+
+  - name: "listener probe: both connect, quiet"
+    interval: 15s
+    input_series:
+      - series: 'tcpcheck.status{db.system.name="oracle.db",obenhub.cluster.name="cdb19",server.address="ora-au-lab",server.port="1521",service.instance.id="CDB19",service.name="oracledb",service.namespace="obenhub-lab",tcpcheck.endpoint="ora-au-lab.lab.local:1521"}'
+        values: '1x60'
+      - series: 'tcpcheck.status{db.system.name="oracle.db",obenhub.cluster.name="cdb19",server.address="ora-dg-stby",server.port="1521",service.instance.id="CDB19_STBY",service.name="oracledb",service.namespace="obenhub-lab",tcpcheck.endpoint="ora-dg-stby.lab.local:1521"}'
+        values: '1x60'
+    alert_rule_test:
+      - eval_time: 10m
+        groupname: oracledb-dg
+        alertname: OracleListenerUnreachable
+        exp_alerts: []
+
+  - name: "listener probe: standby listener refuses from minute 2 to 8, fires after the hold, resolves"
+    interval: 15s
+    input_series:
+      - series: 'tcpcheck.status{db.system.name="oracle.db",obenhub.cluster.name="cdb19",server.address="ora-au-lab",server.port="1521",service.instance.id="CDB19",service.name="oracledb",service.namespace="obenhub-lab",tcpcheck.endpoint="ora-au-lab.lab.local:1521"}'
+        values: '1x60'
+      - series: 'tcpcheck.status{db.system.name="oracle.db",obenhub.cluster.name="cdb19",server.address="ora-dg-stby",server.port="1521",service.instance.id="CDB19_STBY",service.name="oracledb",service.namespace="obenhub-lab",tcpcheck.endpoint="ora-dg-stby.lab.local:1521"}'
+        values: '1x8 0x24 1x28'
+    alert_rule_test:
+      - eval_time: 2m45s
+        groupname: oracledb-dg
+        alertname: OracleListenerUnreachable
+        exp_alerts: []
+      - eval_time: 4m
+        groupname: oracledb-dg
+        alertname: OracleListenerUnreachable
+        exp_alerts:
+          - exp_labels: {db.system.name: oracle.db, obenhub.cluster.name: cdb19, server.address: ora-dg-stby, server.port: 1521, service.instance.id: CDB19_STBY, service.name: oracledb, service.namespace: obenhub-lab, tcpcheck.endpoint: ora-dg-stby.lab.local:1521, severity: critical}
+            exp_annotations:
+              summary: "Oracle listener ora-dg-stby.lab.local:1521 does not accept TCP connections"
+      - eval_time: 9m
+        groupname: oracledb-dg
+        alertname: OracleListenerUnreachable
+        exp_alerts: []
+
+  - name: "listener probe: one failed collection does not fire"
+    interval: 15s
+    input_series:
+      - series: 'tcpcheck.status{db.system.name="oracle.db",obenhub.cluster.name="cdb19",server.address="ora-au-lab",server.port="1521",service.instance.id="CDB19",service.name="oracledb",service.namespace="obenhub-lab",tcpcheck.endpoint="ora-au-lab.lab.local:1521"}'
+        values: '1x8 0 1x51'
+    alert_rule_test:
+      - eval_time: 5m
+        groupname: oracledb-dg
+        alertname: OracleListenerUnreachable
+        exp_alerts: []
+
+  - name: "listener probe: Collector dies after 4 failed collections (down since 2m00, last sample 2m45): the last 0 completes the hold, the alert fires at 3m00 and the condition is gone at 3m15"
+    interval: 15s
+    input_series:
+      - series: 'tcpcheck.status{db.system.name="oracle.db",obenhub.cluster.name="cdb19",server.address="ora-au-lab",server.port="1521",service.instance.id="CDB19",service.name="oracledb",service.namespace="obenhub-lab",tcpcheck.endpoint="ora-au-lab.lab.local:1521"}'
+        values: '1x7 0x3 _x52'
+    alert_rule_test:
+      - eval_time: 2m45s
+        groupname: oracledb-dg
+        alertname: OracleListenerUnreachable
+        exp_alerts: []
+      - eval_time: 3m
+        groupname: oracledb-dg
+        alertname: OracleListenerUnreachable
+        exp_alerts:
+          - exp_labels: {db.system.name: oracle.db, obenhub.cluster.name: cdb19, server.address: ora-au-lab, server.port: 1521, service.instance.id: CDB19, service.name: oracledb, service.namespace: obenhub-lab, tcpcheck.endpoint: ora-au-lab.lab.local:1521, severity: critical}
+            exp_annotations:
+              summary: "Oracle listener ora-au-lab.lab.local:1521 does not accept TCP connections"
+      - eval_time: 5m
+        groupname: oracledb-dg
+        alertname: OracleListenerUnreachable
+        exp_alerts: []
+    # vmalert keeps a resolved alert listed for 1m, so the end is read from
+    # the condition: non-empty at 3m00, empty at 3m15. The expression below
+    # is a copy of the rule's, so it does not guard the rule's window width.
+    metricsql_expr_test:
+      - expr: last_over_time(tcpcheck.status[30s]) == 0
+        eval_time: 3m
+        exp_samples:
+          - labels: '{__name__="tcpcheck.status",db.system.name="oracle.db",obenhub.cluster.name="cdb19",server.address="ora-au-lab",server.port="1521",service.instance.id="CDB19",service.name="oracledb",service.namespace="obenhub-lab",tcpcheck.endpoint="ora-au-lab.lab.local:1521"}'
+            value: 0
+      - expr: last_over_time(tcpcheck.status[30s]) == 0
+        eval_time: 3m15s
+        exp_samples: []
+
+  - name: "listener probe: Collector dies while the alert fires, the condition ends within 30s of the last sample"
+    interval: 15s
+    input_series:
+      - series: 'tcpcheck.status{db.system.name="oracle.db",obenhub.cluster.name="cdb19",server.address="ora-dg-stby",server.port="1521",service.instance.id="CDB19_STBY",service.name="oracledb",service.namespace="obenhub-lab",tcpcheck.endpoint="ora-dg-stby.lab.local:1521"}'
+        values: '1x7 0x39 _x12'
+    alert_rule_test:
+      - eval_time: 11m45s
+        groupname: oracledb-dg
+        alertname: OracleListenerUnreachable
+        exp_alerts:
+          - exp_labels: {db.system.name: oracle.db, obenhub.cluster.name: cdb19, server.address: ora-dg-stby, server.port: 1521, service.instance.id: CDB19_STBY, service.name: oracledb, service.namespace: obenhub-lab, tcpcheck.endpoint: ora-dg-stby.lab.local:1521, severity: critical}
+            exp_annotations:
+              summary: "Oracle listener ora-dg-stby.lab.local:1521 does not accept TCP connections"
+      - eval_time: 13m
+        groupname: oracledb-dg
+        alertname: OracleListenerUnreachable
+        exp_alerts: []
+    # vmalert keeps a resolved alert listed for 1m, so the 15s resolution is
+    # read from the condition itself: empty at 12m15, 30s after the last sample.
+    metricsql_expr_test:
+      - expr: last_over_time(tcpcheck.status[30s]) == 0
+        eval_time: 11m45s
+        exp_samples:
+          - labels: '{__name__="tcpcheck.status",db.system.name="oracle.db",obenhub.cluster.name="cdb19",server.address="ora-dg-stby",server.port="1521",service.instance.id="CDB19_STBY",service.name="oracledb",service.namespace="obenhub-lab",tcpcheck.endpoint="ora-dg-stby.lab.local:1521"}'
+            value: 0
+      - expr: last_over_time(tcpcheck.status[30s]) == 0
+        eval_time: 12m15s
+        exp_samples: []

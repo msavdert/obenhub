@@ -23,8 +23,13 @@ and the firing alerts; `lab/oracle/mon` mounts it into Grafana.
 
 ## Alert rules
 
-`rules.yml` holds 13 rules (group `oracledb-dg`), unit-tested in `tests/`
+`rules.yml` holds 14 rules (group `oracledb-dg`), unit-tested in `tests/`
 (`mise run lab:oracle:rules-test`). No lab scenario has exercised them yet;
 every rule says so in its comment, and the thresholds are lab thresholds.
 `OracleTargetAbsent` reads `obenhub.expected_target` from the lab's
 inventory (`lab/oracle/mon/vmalert/inventory.yml`).
+
+`OracleListenerUnreachable` reads `tcpcheck.status` from the `tcpcheck`
+receiver (alpha, contrib v0.164.0), configured in
+`lab/oracle/files/otelcol-obs.yaml`, not from this pack's queries. It is a TCP
+connect only; ADR 0008 decision 7 records that no login is probed per check.

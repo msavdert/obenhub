@@ -35,7 +35,9 @@ groups:
       # before the 2m heartbeat window, so a stopped Collector raises only the
       # Collector alert (the shared collector pack), not one per database.
       # oracledb.collection.heartbeat is a SELECT 1 through the SYSDG
-      # connection, so it also stops when the listener or the instance is down.
+      # connection, so it also stops when the instance is down; whether a
+      # pooled session keeps it alive with the listener stopped is not yet
+      # verified (ADR 0008 decision 7).
       # Quiet when the Collector is dead or when the heartbeat is present.
       # Scenario: not yet run.
       - alert: OracleTargetAbsent
@@ -298,3 +300,37 @@ groups:
           severity: critical
         annotations:
           summary: 'Redo destination {{ (index $labels "oracledb.archive_dest.destination") }} of primary {{ (index $labels "service.instance.id") }} is {{ (index $labels "oracledb.archive_dest.status") }}'
+
+      # A listener whose TCP connect failed (tcpcheck.status 0 from the
+      # tcpcheck receiver on ora-dg-obs, alpha, contrib v0.164.0, a connect
+      # only: no login, no service lookup; the receiver records 0 on any dial
+      # error, scraper.go scrapeEndpoint) on every evaluation for 1m. The
+      # status is read as last_over_time(...[30s]), two collections of 15s, so
+      # a series that stops reporting leaves the rule 30s after its last
+      # sample. The alert never starts from a missing Collector alone: a pending
+      # alert needs 0 samples. But when the listener has already failed about 4
+      # consecutive collections (45s) and the Collector then stops, the last 0
+      # can complete the hold, and the alert stays for at most about 30s
+      # before the series leaves the window. That is a real outage the probe
+      # saw, not a false alert. The Collector's own failure is CollectorAbsent's.
+      # A count of two samples in the window was tried and dropped: sample
+      # spacing is 15000 +/- 2 ms on the lab, and that condition was false at
+      # 15 one-second instants in 50 minutes, which would reset a hold during a
+      # real outage. The probe runs from the observer, so it also fails when
+      # the network path to the VM is down, not only the listener. An open
+      # port does not mean a working login. The heartbeat
+      # (oracledb.collection.heartbeat) comes from the sql_query receivers
+      # through C##OBENHUB_DG as SYSDG, so OracleTargetAbsent sees that
+      # account expire or the instance stop, not C##OBENHUB_MON (the oracledb
+      # receiver's account, whose failures show as missing oracledb.* series);
+      # whether a pooled sql_query session keeps the heartbeat alive with the
+      # listener stopped is not known for this lab. Quiet while the connect
+      # succeeds (1) and when the series is absent.
+      # Scenario: not yet run (listener stopped is in ADR 0008 decision 8).
+      - alert: OracleListenerUnreachable
+        expr: last_over_time(tcpcheck.status[30s]) == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: 'Oracle listener {{ (index $labels "tcpcheck.endpoint") }} does not accept TCP connections'
