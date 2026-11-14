@@ -269,6 +269,7 @@ mise run lab:oracle:scenario apply-stopped    # broker APPLY-OFF on CDB19_STBY
 mise run lab:oracle:scenario observer-stopped # stop the CDB19 FSFO observer
 mise run lab:oracle:scenario transport-cut    # broker TRANSPORT-OFF on the primary
 mise run lab:oracle:scenario listener-stopped # lsnrctl stop on the primary VM, then start
+mise run lab:oracle:scenario password-expired # C##OBENHUB_MON password expired on CDB19, then restored
 mise run lab:oracle:scenarios                 # the list in scenarios/suite.txt as one suite
 ```
 
@@ -277,8 +278,11 @@ the Collector (`lab:oracle:collector`) running, the pair healthy (broker
 `SUCCESS`, fast-start failover enabled, observer present, lag 0), which the
 pre-flight checks. The scenarios ssh to the VMs as the invoking user and run
 `sudo -u oracle` there (passwordless sudo, see the prerequisites), with
-operating-system authentication (`sqlplus / as sysdba`, `dgmgrl /`); no
-password is involved. Every remote command is bounded by `REMOTE_TIMEOUT`
+operating-system authentication (`sqlplus / as sysdba`, `dgmgrl /`). Only
+`password-expired` uses a password: it reads `ORA_MON_PASSWORD` from
+`lab/oracle/.env` for the fresh-login checks and the restore, sends it to
+`sqlplus` on stdin only, and refuses to start unless a login with it works
+(the `.env` value must be the one the database holds). Every remote command is bounded by `REMOTE_TIMEOUT`
 (180 s), and each revert step is tried three times. The observer runs as the systemd unit
 `dg-observer@cdb19` on `ora-dg-obs` (`/home/oracle/scripts/observer.sh`,
 owner-provided and not in this repository).

@@ -1,0 +1,32 @@
+# Oracle Data Guard pack, primary-only queries: read by one sql_query receiver
+# that connects to the primary only (sql_query/primary_account in
+# lab/oracle/files/otelcol-obs.yaml), through the SYSDG-only user like the
+# queries of queries.yaml. They are a separate file because they read a view
+# that a mounted standby does not serve: SELECT FROM DBA_USERS as SYSDG on the
+# mounted CDB19_STBY fails with ORA-01219 (read 2026-11-14), and a query that
+# fails would log an error on every collection of the standby receiver. Like
+# the oracledb receiver, this receiver stays pointed at the VM that was primary
+# when the Collector started; after a failover its query fails on the old
+# primary until pair.sh is edited and the Collector restarted.
+# Why it exists: the oracledb receiver (C##OBENHUB_MON) and the sql_query
+# receivers hold pooled sessions, so an expired or locked monitoring account
+# is invisible while the pool lives and the Collector keeps scraping
+# (scenario password-expired, lab/oracle/results/runs.jsonl). The account
+# state is read through the other account's session (C##OBENHUB_DG), which is
+# not the one that expires. DBA_USERS read from the CDB root lists the root's
+# rows only, which is where the oracledb receiver connects (service CDB19).
+# Names follow ADR 0006 under the receiver's namespace oracledb.*. Aliases are
+# quoted so that go-ora returns them in lower case.
+# ACCOUNT_STATUS is OPEN, EXPIRED, EXPIRED(GRACE), LOCKED, LOCKED(TIMED) or
+# a combination such as EXPIRED & LOCKED; everything but OPEN is value 0. The
+# status is a label, so the old series lingers until staleness after a change.
+- sql: |
+    SELECT
+      d.db_unique_name AS "oracledb.database.unique_name",
+      u.username AS "oracledb.user.name",
+      u.account_status AS "oracledb.user.status",
+      CASE WHEN u.account_status = 'OPEN' THEN 1 ELSE 0 END AS "open"
+    FROM dba_users u CROSS JOIN v$database d
+    WHERE u.username LIKE 'C##OBENHUB\_%' ESCAPE '\'
+  metrics:
+    - {metric_name: oracledb.user.open, value_column: open, attribute_columns: ["oracledb.database.unique_name", "oracledb.user.name", "oracledb.user.status"], value_type: int, data_type: gauge, unit: "1", description: "1 when the account status of a project monitoring account is OPEN, 0 when it is expired, in grace or locked"}

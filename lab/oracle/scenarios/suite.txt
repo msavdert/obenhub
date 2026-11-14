@@ -2,4 +2,5 @@ apply-stopped
 observer-stopped
 transport-cut
 listener-stopped
+password-expired
 control

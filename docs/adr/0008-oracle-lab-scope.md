@@ -121,9 +121,15 @@ produced that metric and marks the connection reuse as an assumption); the recei
    `connection refused` (the count covers error level only). Only
    the new-connection probe saw the outage (two passing runs, 17:57:45Z and
    18:16:39Z, Oracle 19.33, existing sessions only). No custom probe code is written; an upstream proposal waits
-   for lab evidence from the remaining decision 8 scenarios (monitoring
-   password expired, ORA-00020); listener stopped has run as two passing
-   trials, no suite yet.
+   for lab evidence from the remaining decision 8 scenarios (ORA-00020);
+   listener stopped has run as two passing trials, no suite yet. Monitoring
+   password expired (scenario `password-expired`, one passing trial started
+   2026-11-14T18:44:44Z, Oracle 19.33) shows the same for an account: with
+   `C##OBENHUB_MON` expired for 169 s the `oracledb` receiver kept its one
+   pooled session (V$SESSION logon age grew with the clock), delivered 5 of 5
+   expected samples and logged no error-level line, while a fresh login got
+   ORA-28001. The alert `OracleMonitoringAccountNotOpen` reads the account
+   state through the other account's session (`queries-primary.yaml`).
 8. **First scenarios**, each with a control run: archiver stuck (recovery area
    limit lowered under the archive volume), transport cut and apply stopped
    (lag and gap alerts), fast-start failover after the primary is aborted

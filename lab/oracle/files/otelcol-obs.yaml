@@ -4,6 +4,10 @@
 #   oracledb            C##OBENHUB_MON on the primary's CDB root
 #   sql_query/primary   oracledb-dg pack, C##OBENHUB_DG as SYSDG on CDB19
 #   sql_query/standby   oracledb-dg pack, C##OBENHUB_DG as SYSDG on CDB19_STBY
+#   sql_query/primary_account
+#                       oracledb-dg pack, queries-primary.yaml (state of the
+#                       C##OBENHUB_* accounts from DBA_USERS), primary only:
+#                       a mounted standby cannot read that view
 #   sql_query/primary_backup, sql_query/standby_backup
 #                       oracledb-backup pack (RMAN job state), same two
 #                       connections; the queries return rows on the primary
@@ -42,6 +46,11 @@ receivers:
     datasource: "oracle://C%23%23OBENHUB_DG:${env:ORA_DG_PASSWORD}@ora-dg-stby.lab.local:1521/CDB19_STBY?DBA%20PRIVILEGE=SYSDG"
     collection_interval: 15s
     queries: ${file:/etc/otelcol-contrib/packs/oracledb-dg/queries.yaml}
+  sql_query/primary_account:
+    driver: oracle
+    datasource: "oracle://C%23%23OBENHUB_DG:${env:ORA_DG_PASSWORD}@ora-au-lab.lab.local:1521/CDB19?DBA%20PRIVILEGE=SYSDG"
+    collection_interval: 15s
+    queries: ${file:/etc/otelcol-contrib/packs/oracledb-dg/queries-primary.yaml}
   sql_query/primary_backup:
     driver: oracle
     datasource: "oracle://C%23%23OBENHUB_DG:${env:ORA_DG_PASSWORD}@ora-au-lab.lab.local:1521/CDB19?DBA%20PRIVILEGE=SYSDG"
@@ -106,7 +115,7 @@ service:
       processors: [memory_limiter, resource_detection/system, resource/host, batch]
       exporters: [otlp_http/gateway]
     metrics/primary:
-      receivers: [oracledb, sql_query/primary, sql_query/primary_backup, tcp_check/primary]
+      receivers: [oracledb, sql_query/primary, sql_query/primary_account, sql_query/primary_backup, tcp_check/primary]
       processors: [memory_limiter, resource/primary, batch]
       exporters: [otlp_http/gateway]
     metrics/standby:
