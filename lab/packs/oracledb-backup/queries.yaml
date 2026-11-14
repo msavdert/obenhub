@@ -1,0 +1,80 @@
+# Oracle RMAN backup pack: the sql_query list that reads the backup state from
+# V$RMAN_BACKUP_JOB_DETAILS (ADR 0008 decision 9; the pgBackRest counterpart is
+# ADR 0007). Read on both databases of a Data Guard pair through the SYSDG-only
+# user, like the oracledb-dg pack, so the pair keeps reporting after a role
+# change.
+# Primary only: every query joins V$DATABASE and keeps DATABASE_ROLE =
+# 'PRIMARY'. RMAN job history is in the controlfile of the database that was
+# backed up; a standby has none of the primary's jobs (backups run only on the
+# primary, lab/oracle/files/rman-backup.sh), so a standby returns no rows
+# instead of a misleading "no backup", and after a switchover the new primary
+# reports once it has run its own first job.
+# Jobs: V$RMAN_BACKUP_JOB_DETAILS has one row per RMAN job with INPUT_TYPE
+# 'DB FULL', 'DB INCR' or 'ARCHIVELOG', seen on the lab databases on
+# 2026-11-14. A level 0 shows as DB INCR on CDB19 (its first backup) and as
+# DB FULL on CDB26 (a first full backup), so the type does not tell the level;
+# both count as a database backup. A level 0 or level 1 run "plus archivelog" is one
+# row; its archived logs are backed up in the same job (rman-backup.sh), so
+# for the age of the last archived log backup (observed: the first CDB19 level 0 is
+# one job row with the archived log pieces in it) a DB job counts too.
+# The kind attribute: database = INPUT_TYPE 'DB FULL' or 'DB INCR'; archivelog
+# = 'ARCHIVELOG' (and, for the age only, the database jobs). Other input types
+# (a manual controlfile or datafile backup) are not read.
+# Status: age counts COMPLETED and COMPLETED WITH WARNINGS. The warning is the
+# normal result of "delete all input" on a Data Guard primary: the first CDB19
+# level 0 on 2026-11-14 ended COMPLETED WITH WARNINGS because of RMAN-08120
+# (archived log not deleted, not yet applied by standby), so a COMPLETED-only
+# age would never reset. Failed is 1 for FAILED and COMPLETED WITH ERRORS. A job
+# still RUNNING is left out, so a long backup does not hide the result of the
+# one before it.
+# Aliases are quoted so that go-ora returns them in lower case.
+- sql: |
+    SELECT
+      d.db_unique_name AS "oracledb.database.unique_name",
+      k.kind AS "oracledb.backup.kind",
+      ROUND((SYSDATE - MAX(j.end_time)) * 86400) AS "age"
+    FROM v$database d
+    CROSS JOIN (SELECT 'database' AS kind FROM dual UNION ALL SELECT 'archivelog' FROM dual) k
+    JOIN v$rman_backup_job_details j
+      ON j.status IN ('COMPLETED', 'COMPLETED WITH WARNINGS')
+      AND ((k.kind = 'database' AND j.input_type IN ('DB FULL', 'DB INCR'))
+        OR (k.kind = 'archivelog' AND j.input_type IN ('ARCHIVELOG', 'DB FULL', 'DB INCR')))
+    WHERE d.database_role = 'PRIMARY'
+    GROUP BY d.db_unique_name, k.kind
+  metrics:
+    - {metric_name: oracledb.backup.age, value_column: age, attribute_columns: ["oracledb.database.unique_name", "oracledb.backup.kind"], value_type: int, data_type: gauge, unit: s, description: "Time since the last completed (also with warnings) RMAN backup of that kind ended (V$RMAN_BACKUP_JOB_DETAILS), on the primary; no series before the first completed backup"}
+- sql: |
+    SELECT
+      d.db_unique_name AS "oracledb.database.unique_name",
+      r.kind AS "oracledb.backup.kind",
+      CASE WHEN r.status LIKE 'FAILED%' OR r.status = 'COMPLETED WITH ERRORS' THEN 1 ELSE 0 END AS "failed"
+    FROM (
+      SELECT
+        CASE WHEN input_type IN ('DB FULL', 'DB INCR') THEN 'database' ELSE 'archivelog' END AS kind,
+        status,
+        ROW_NUMBER() OVER (
+          PARTITION BY CASE WHEN input_type IN ('DB FULL', 'DB INCR') THEN 'database' ELSE 'archivelog' END
+          ORDER BY start_time DESC) AS rn
+      FROM v$rman_backup_job_details
+      WHERE input_type IN ('DB FULL', 'DB INCR', 'ARCHIVELOG') AND status NOT LIKE 'RUNNING%'
+    ) r
+    CROSS JOIN v$database d
+    WHERE r.rn = 1 AND d.database_role = 'PRIMARY'
+  metrics:
+    - {metric_name: oracledb.backup.failed, value_column: failed, attribute_columns: ["oracledb.database.unique_name", "oracledb.backup.kind"], value_type: int, data_type: gauge, unit: "1", description: "1 when the most recent finished RMAN job of that kind (database or archivelog) FAILED or COMPLETED WITH ERRORS, on the primary"}
+# Recovery area (FRA) fullness on both databases, standby included: backups,
+# archived logs and flashback logs share it, and a full area stops archiving.
+# Reclaimable space is what Oracle deletes by itself when it needs room, so the
+# rule reads usage minus reclaimable against the limit. V$RECOVERY_FILE_DEST
+# is empty when no recovery area is configured.
+- sql: |
+    SELECT
+      d.db_unique_name AS "oracledb.database.unique_name",
+      r.space_limit AS "limit",
+      r.space_used AS "usage",
+      r.space_reclaimable AS "reclaimable"
+    FROM v$recovery_file_dest r CROSS JOIN v$database d
+  metrics:
+    - {metric_name: oracledb.recovery_area.limit, value_column: limit, attribute_columns: ["oracledb.database.unique_name"], value_type: int, data_type: gauge, unit: By, description: "Size limit of the recovery area (V$RECOVERY_FILE_DEST.SPACE_LIMIT)"}
+    - {metric_name: oracledb.recovery_area.usage, value_column: usage, attribute_columns: ["oracledb.database.unique_name"], value_type: int, data_type: gauge, unit: By, description: "Space used in the recovery area, reclaimable space included (SPACE_USED)"}
+    - {metric_name: oracledb.recovery_area.reclaimable, value_column: reclaimable, attribute_columns: ["oracledb.database.unique_name"], value_type: int, data_type: gauge, unit: By, description: "Space in the recovery area that Oracle may delete when it needs room (SPACE_RECLAIMABLE)"}

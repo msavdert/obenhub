@@ -854,6 +854,104 @@
           "mode": "multi"
         }
       }
+    },
+    {
+      "id": 15,
+      "title": "RMAN backup age",
+      "type": "timeseries",
+      "datasource": {
+        "type": "victoriametrics-metrics-datasource",
+        "uid": "vm"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 36,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "vm"
+          },
+          "expr": "oracledb.backup.age",
+          "refId": "A",
+          "range": true,
+          "instant": false,
+          "legendFormat": "{{oracledb.database.unique_name}} {{oracledb.backup.kind}}"
+        }
+      ],
+      "description": "Time since the last completed RMAN backup (oracledb-backup pack), reported by the primary only. Alert limits: 26 h for database backups, 5 h for archived logs. No data before the first completed backup.",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 10,
+            "showPoints": "never"
+          },
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
+    },
+    {
+      "id": 16,
+      "title": "RMAN last job failed",
+      "type": "timeseries",
+      "datasource": {
+        "type": "victoriametrics-metrics-datasource",
+        "uid": "vm"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 36,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "vm"
+          },
+          "expr": "oracledb.backup.failed",
+          "refId": "A",
+          "range": true,
+          "instant": false,
+          "legendFormat": "{{oracledb.database.unique_name}} {{oracledb.backup.kind}}"
+        }
+      ],
+      "description": "1 when the most recent finished RMAN job of that kind failed (oracledb-backup pack), reported by the primary only.",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 10,
+            "showPoints": "never"
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
     }
   ]
 }

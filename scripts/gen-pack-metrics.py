@@ -13,7 +13,11 @@ from packmetrics import parse_metrics
 
 ROOT = Path(__file__).resolve().parent.parent
 # (pack directory under lab/packs, page title)
-PACKS = (("postgresql", "PostgreSQL pack metrics"), ("oracledb-dg", "Oracle Data Guard pack metrics"))
+PACKS = (
+    ("postgresql", "PostgreSQL pack metrics"),
+    ("oracledb-dg", "Oracle Data Guard pack metrics"),
+    ("oracledb-backup", "Oracle RMAN backup pack metrics"),
+)
 
 
 def cell(text):

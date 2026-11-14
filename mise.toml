@@ -119,8 +119,8 @@ description = "unit-test the shared Collector pack rules (lab/packs/collector, v
 run = "scripts/vmalert-unittest.sh lab/packs/collector/tests"
 
 [tasks."lab:oracle:rules-test"]
-description = "unit-test the Oracle Data Guard pack rules and Collector liveness in the Oracle inventory (vmalert-tool); needs docker"
-run = "scripts/vmalert-unittest.sh lab/packs/oracledb-dg/tests lab/oracle/mon/vmalert/tests"
+description = "unit-test the Oracle Data Guard and RMAN backup pack rules and Collector liveness in the Oracle inventory (vmalert-tool); needs docker"
+run = "scripts/vmalert-unittest.sh lab/packs/oracledb-dg/tests lab/packs/oracledb-backup/tests lab/oracle/mon/vmalert/tests"
 
 [tasks."lab:host:rules-test"]
 description = "unit-test the shared host pack rules (lab/packs/host, vmalert-tool); needs docker"
@@ -225,6 +225,7 @@ depends = [
   "lab:k8s-pack:rules-test",
   "lab:pgbackrest:rules-test",
   "lab:oracle:rules-test",
+  "lab:oracle:rman-test",
   "docs:build",
 ]
 
@@ -319,6 +320,14 @@ docker compose -p obenhub-oracle -f lab/oracle/mon/compose.yaml up -d --wait
 [tasks."lab:oracle:collector"]
 description = "install or converge otelcol-contrib on the three Oracle VMs over ssh (rpm pinned by lab/pgha/versions.sh, host + per-VM config, client certificate, environment file, alert log ACL); restarts only on change; needs lab/oracle/.env and the PKI of lab:oracle:mon:up"
 run = "lab/oracle/scripts/collector.sh"
+
+[tasks."lab:oracle:rman"]
+description = "converge RMAN backups of the CDB19 pair over ssh: rman-backup.sh, oracle crontab lines, RMAN configuration by role, block change tracking; prints every change; starts no backup, restarts nothing"
+run = "lab/oracle/scripts/rman.sh"
+
+[tasks."lab:oracle:rman-test"]
+description = "stub tests of lab/oracle/files/rman-backup.sh and lab/oracle/scripts/rman.sh (no VM, no database)"
+run = "lab/oracle/scripts/rman-test.sh"
 
 [tasks."lab:oracle:scenario"]
 description = "run one fault scenario against the CDB19 Data Guard pair (lab/oracle/scenarios/<name>.sh); appends to lab/oracle/results/runs.jsonl"

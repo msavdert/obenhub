@@ -1,0 +1,88 @@
+# Oracle RMAN backup rules (queries: queries.yaml next to this file), ADR 0008
+# decision 9. Names follow the naming contract (ADR 0006); the shape is the
+# pgBackRest pack's (lab/packs/pgbackrest/rules.yml).
+# oracledb.backup.* are reported for the primary only (see queries.yaml), so
+# the age and failure rules need no role join and stay quiet on a standby.
+# A primary without any such series (never backed up, newly promoted, the
+# backup query failing, cron or the script missing) is OracleBackupMissing,
+# which joins the role of the Data Guard pack (oracledb.database.primary).
+# The tolerated age of the last backup is a per-lab parameter: the series
+# obenhub.backup_age.limit{oracledb.backup.kind=...} (seconds), recorded by the
+# lab's rules (lab/oracle/mon/vmalert/inventory.yml). Without it the defaults
+# below apply, sized from the lab schedule (lab/oracle/README.md, Backups): a
+# daily database backup plus 2 h (26 h = 93600 s), and an archived log backup
+# every 4 h plus 1 h (5 h = 18000 s). They are assumptions for that schedule,
+# not measured values.
+# Scenario: not yet run (a stale-backup scenario is not part of this pack).
+groups:
+  - name: oracledb-backup
+    interval: 15s
+    rules:
+      # No completed backup of that kind for longer than the tolerated age. The
+      # comparison joins on no label: the limit of a kind is one series, or the
+      # default takes its place.
+      - alert: OracleBackupStale
+        expr: |
+          (
+            oracledb.backup.age{oracledb.backup.kind="database"}
+              > on() group_left()
+            (obenhub.backup_age.limit{oracledb.backup.kind="database"} or on() vector(93600))
+          )
+            or
+          (
+            oracledb.backup.age{oracledb.backup.kind="archivelog"}
+              > on() group_left()
+            (obenhub.backup_age.limit{oracledb.backup.kind="archivelog"} or on() vector(18000))
+          )
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'No completed RMAN {{ (index $labels "oracledb.backup.kind") }} backup of {{ (index $labels "service.instance.id") }} for {{ $value | printf "%.0f" }} s'
+
+      # The most recent finished RMAN job of a kind failed. It stays until the
+      # next job of that kind succeeds (archived logs every 4 h, database
+      # daily).
+      - alert: OracleBackupFailed
+        expr: oracledb.backup.failed == 1
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: 'The last RMAN {{ (index $labels "oracledb.backup.kind") }} backup of {{ (index $labels "service.instance.id") }} failed'
+
+      # A database that is primary according to the Data Guard pack has no
+      # completed database backup series. It fires on a fresh primary until its
+      # first database backup, and on a newly promoted primary until it has run
+      # its own (by design: backups of the two sites are not visible to each
+      # other). The window of 1m reads the role the way the Data Guard pack
+      # does; the hold of 30m lets a first run after a promotion finish. The
+      # age series appears with the first COMPLETED job, so this also catches
+      # a backup query that fails or a cron that never ran.
+      - alert: OracleBackupMissing
+        expr: |
+          max by (oracledb.database.unique_name, service.instance.id, obenhub.cluster.name) (
+            last_over_time(oracledb.database.primary[1m])
+          ) == 1
+            unless on(oracledb.database.unique_name)
+          oracledb.backup.age{oracledb.backup.kind="database"}
+        for: 30m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'Primary {{ (index $labels "service.instance.id") }} has no completed RMAN database backup on record'
+
+      # The recovery area is nearly full, counting what Oracle can delete by
+      # itself (reclaimable) as free. Both databases of the pair. A full area
+      # stops archiving on the primary and the redo apply path on the standby.
+      # The 85% and 10m are lab values, not recommendations.
+      - alert: OracleRecoveryAreaFull
+        expr: |
+          (oracledb.recovery_area.usage - oracledb.recovery_area.reclaimable)
+            / oracledb.recovery_area.limit
+            > 0.85
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'Recovery area of {{ (index $labels "service.instance.id") }} is {{ $value | humanizePercentage }} full of space that cannot be reclaimed'

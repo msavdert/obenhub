@@ -27,3 +27,17 @@ groups:
             label_set(vector(1), "service.namespace", "obenhub-lab", "service.name", "oracledb", "obenhub.cluster.name", "cdb19", "service.instance.id", "CDB19", "obenhub.collector", "otelcol-ora-dg-obs"),
             label_set(vector(1), "service.namespace", "obenhub-lab", "service.name", "oracledb", "obenhub.cluster.name", "cdb19", "service.instance.id", "CDB19_STBY", "obenhub.collector", "otelcol-ora-dg-obs")
           )
+
+  # Parameters of the oracledb-backup pack (lab/packs/oracledb-backup/rules.yml):
+  # the tolerated age of the last completed RMAN backup per kind, in seconds,
+  # from the schedule in lab/oracle/README.md (Backups). Database: daily level
+  # 0 or 1 at 01:45 plus 2 h = 26 h. Archived logs: every 4 h at :45 plus 1 h
+  # = 5 h. The same numbers as the pack's defaults, recorded so the lab's
+  # values are visible; lab values, not measured.
+  - name: backup-parameters
+    interval: 15s
+    rules:
+      - record: obenhub.backup_age.limit
+        expr: label_set(vector(93600), "oracledb.backup.kind", "database")
+      - record: obenhub.backup_age.limit
+        expr: label_set(vector(18000), "oracledb.backup.kind", "archivelog")

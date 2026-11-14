@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 """Check the names project metrics use against ADR 0006. No network.
 
-For the pack query files (lab/packs/postgresql, lab/packs/oracledb-dg) and
+For the pack query files (lab/packs/postgresql, oracledb-dg, oracledb-backup) and
 the pgbouncer queries of lab/slice1/otelcol/config.yaml:
     - every metric has a unit;
     - no metric name ends in a unit word (_seconds, _bytes, _ms, _us, _total);
@@ -24,6 +24,7 @@ ROOT = Path(__file__).resolve().parent.parent
 PACKS = (
     (ROOT / "lab/packs/postgresql", "postgresql.", "postgresqlreceiver"),
     (ROOT / "lab/packs/oracledb-dg", "oracledb.", "oracledbreceiver"),
+    (ROOT / "lab/packs/oracledb-backup", "oracledb.", "oracledbreceiver"),
 )
 PGBOUNCER = ROOT / "lab/slice1/otelcol/config.yaml"
 UNIT_WORDS = ("_seconds", "_bytes", "_ms", "_us", "_total")
