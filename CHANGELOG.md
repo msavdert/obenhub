@@ -1,5 +1,28 @@
 # Changelog
 
+## [0.15.0](https://github.com/msavdert/obenhub/compare/v0.14.0...v0.15.0) (2026-11-14)
+
+
+### Features
+
+* **lab:** alert rules for the Oracle Data Guard pack ([#63](https://github.com/msavdert/obenhub/issues/63)) ([b44cb75](https://github.com/msavdert/obenhub/commit/b44cb75844d679234844c3f6b4a09850082cf78a))
+* **lab:** Collector on ora-dg-obs and the oracledb role-staleness record ([#61](https://github.com/msavdert/obenhub/issues/61)) ([ea721e2](https://github.com/msavdert/obenhub/commit/ea721e26c80517c6ce3be57512645ec891e74ba5))
+* **lab:** first Oracle fault scenarios on the CDB19 Data Guard pair ([#64](https://github.com/msavdert/obenhub/issues/64)) ([421c06b](https://github.com/msavdert/obenhub/commit/421c06b161ebe39c5276f96696bd4a34a6a7c55f))
+* **lab:** Oracle Data Guard dashboard ([#65](https://github.com/msavdert/obenhub/issues/65)) ([285b034](https://github.com/msavdert/obenhub/commit/285b0343d0776d9ed12352daed62fa99d2def020))
+* **lab:** Oracle first slice - monitoring users, Collector config and Data Guard pack ([#58](https://github.com/msavdert/obenhub/issues/58)) ([4527b28](https://github.com/msavdert/obenhub/commit/4527b28a876cd123be8f34ae61f23c6f0aac2688))
+* **lab:** Oracle monitoring backend with a shared mutual-TLS gateway ([#60](https://github.com/msavdert/obenhub/issues/60)) ([c250baa](https://github.com/msavdert/obenhub/commit/c250baae83bce302b0154bd8d077a2ff2f3c4e19))
+* **lab:** pg_basebackup comparison scenario in slice1 ([#54](https://github.com/msavdert/obenhub/issues/54)) ([1172594](https://github.com/msavdert/obenhub/commit/1172594d242168a75d4bbade550d8c8062f8f125))
+* **lab:** pgBackRest in slice1 with backup alerts, stale and PITR scenarios ([#51](https://github.com/msavdert/obenhub/issues/51)) ([b9bea94](https://github.com/msavdert/obenhub/commit/b9bea942a0edababead5ac5d3379fe7084c37ce6))
+
+
+### Documentation
+
+* **adr:** 0008 Oracle lab scope, topology and first slice ([#55](https://github.com/msavdert/obenhub/issues/55)) ([192789d](https://github.com/msavdert/obenhub/commit/192789d57a0e7c7ed0d430698d7dc6d422c76699))
+* recheck Oracle receiver facts, add managed Oracle and operator items ([#59](https://github.com/msavdert/obenhub/issues/59)) ([08aaa8e](https://github.com/msavdert/obenhub/commit/08aaa8e234e4b575069fcd097f8db41b93412b19))
+* **roadmap:** run Oracle in parallel with the PostgreSQL items ([#53](https://github.com/msavdert/obenhub/issues/53)) ([846bf5c](https://github.com/msavdert/obenhub/commit/846bf5c23bff163076738ddd7ab7d93439c4bebe))
+* **roadmap:** track upstream issue contrib[#53105](https://github.com/msavdert/obenhub/issues/53105) and the oracledb role candidate ([#57](https://github.com/msavdert/obenhub/issues/57)) ([fd41361](https://github.com/msavdert/obenhub/commit/fd41361c9651e833a3c876c51e29d1ec4bae05c9))
+* **roadmap:** version drift item for every engine ([#56](https://github.com/msavdert/obenhub/issues/56)) ([d0202f5](https://github.com/msavdert/obenhub/commit/d0202f57e071c302863507c3717060a51bf6d5f6))
+
 ## [0.14.0](https://github.com/msavdert/obenhub/compare/v0.13.0...v0.14.0) (2026-11-13)
 
 
