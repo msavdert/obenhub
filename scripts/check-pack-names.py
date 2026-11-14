@@ -43,9 +43,12 @@ def read_upstream(path):
 
 
 def main():
+    # queries-primary.yaml: queries read by a receiver on the primary only
     targets = [
-        (d / "queries.yaml", read_upstream(d / "upstream-receiver-metrics.txt"), prefix, receiver)
+        (d / name, read_upstream(d / "upstream-receiver-metrics.txt"), prefix, receiver)
         for d, prefix, receiver in PACKS
+        for name in ("queries.yaml", "queries-primary.yaml")
+        if (d / name).exists()
     ]
     targets.append((PGBOUNCER, None, "pgbouncer.", None))
     errors = []

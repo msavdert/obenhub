@@ -8,8 +8,8 @@
 # defined here; no Oracle scenario calls them.
 #
 # Databases are reached as the oracle OS user with operating-system
-# authentication (sqlplus / as sysdba, dgmgrl /): no password is read, stored
-# or passed. ORACLE_HOME comes from /etc/oratab on the host. The broker
+# authentication (sqlplus / as sysdba, dgmgrl /); only password-expired.sh
+# reads a password (lab/oracle/.env, sent on stdin). ORACLE_HOME comes from /etc/oratab on the host. The broker
 # configuration is the one of the pair, CDB19 and CDB19_STBY (the VMs also hold
 # CDB19B and CDB26, which no scenario touches).
 #
@@ -177,4 +177,26 @@ lab_precondition() {
   wait_until 60 "transport and apply lag at most 10s" lag_small || { PRE_ERR="lag on $STANDBY_SID is not small: $(lag_pair)"; return 1; }
   [ "$(rn "$OBSERVER_HOST" systemctl is-active otelcol-contrib)" = active ] || { PRE_ERR="otelcol-contrib is not active on $OBSERVER_HOST"; return 1; }
   [ "$(vm_query 'count(last_over_time(oracledb.collection.heartbeat[1m]))')" = 2 ] || { PRE_ERR="VictoriaMetrics does not hold both Oracle targets (heartbeat)"; return 1; }
+}
+
+# series_stats SELECTOR START END INTERVAL: sample times of all matching series
+# together in the window, from the export API, as JSON
+series_stats() {
+  curl -fsS "$VM/api/v1/export" --data-urlencode "match[]=$1" --data-urlencode "start=$2" --data-urlencode "end=$3" \
+    | jq -s -c --argjson a "$2" --argjson b "$3" --argjson iv "$4" '
+        ([.[].timestamps[]] | unique | map(. / 1000)) as $t
+        | {samples: ($t | length), expected: (($b - $a) / $iv | floor),
+           first_after_stop_s: (if ($t | length) > 0 then ($t[0] - $a | floor) else null end),
+           last_before_start_s: (if ($t | length) > 0 then ($b - $t[-1] | floor) else null end),
+           max_gap_s: (if ($t | length) > 1 then ([range(1; $t | length) | $t[.] - $t[. - 1]] | max | floor) else null end),
+           series: length}'
+}
+# collector_errors START END: counts of error codes and of error-level lines in
+# the Collector's journal in the window (no log text is kept)
+collector_errors() {
+  local codes n
+  codes=$(timeout --foreground "$REMOTE_TIMEOUT" ssh -n "${SSH_OPTS[@]}" "$OBSERVER_HOST" "sudo journalctl -u otelcol-contrib --since @$1 --until @$2 --no-pager -o cat | grep -E -o 'ORA-[0-9]+|TNS-[0-9]+|connection refused|i/o timeout' | sort | uniq -c") || return 1
+  n=$(timeout --foreground "$REMOTE_TIMEOUT" ssh -n "${SSH_OPTS[@]}" "$OBSERVER_HOST" "sudo journalctl -u otelcol-contrib --since @$1 --until @$2 --no-pager -o cat | grep -c -P '\\terror\\t'") || [ "$n" = 0 ] || return 1
+  printf '%s\n' "$codes" | sed -E 's/^ *([0-9]+) (.*)$/\1\t\2/' \
+    | jq -R -s -c --argjson lines "${n:-0}" 'split("\n") | map(select(length > 0) | split("\t") | {(.[1]): (.[0] | tonumber)}) | add // {} | . + {"error_level_lines": $lines}'
 }

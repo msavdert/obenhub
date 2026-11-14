@@ -2408,3 +2408,73 @@ tests:
       - expr: last_over_time(tcpcheck.status[30s]) == 0
         eval_time: 12m15s
         exp_samples: []
+
+  - name: "monitoring accounts: both OPEN, quiet"
+    interval: 15s
+    input_series:
+      - series: 'oracledb.user.open{obenhub.cluster.name="cdb19",oracledb.database.unique_name="CDB19",service.instance.id="CDB19",service.name="oracledb",service.namespace="obenhub-lab",oracledb.user.name="C##OBENHUB_MON",oracledb.user.status="OPEN"}'
+        values: '1x60'
+      - series: 'oracledb.user.open{obenhub.cluster.name="cdb19",oracledb.database.unique_name="CDB19",service.instance.id="CDB19",service.name="oracledb",service.namespace="obenhub-lab",oracledb.user.name="C##OBENHUB_DG",oracledb.user.status="OPEN"}'
+        values: '1x60'
+    alert_rule_test:
+      - eval_time: 10m
+        groupname: oracledb-dg
+        alertname: OracleMonitoringAccountNotOpen
+        exp_alerts: []
+
+  - name: "monitoring accounts: C##OBENHUB_MON expires at 2m15 and is restored at 8m30, fires after the hold, resolves"
+    interval: 15s
+    input_series:
+      - series: 'oracledb.user.open{obenhub.cluster.name="cdb19",oracledb.database.unique_name="CDB19",service.instance.id="CDB19",service.name="oracledb",service.namespace="obenhub-lab",oracledb.user.name="C##OBENHUB_MON",oracledb.user.status="OPEN"}'
+        values: '1x8 _x24 1x20'
+      - series: 'oracledb.user.open{obenhub.cluster.name="cdb19",oracledb.database.unique_name="CDB19",service.instance.id="CDB19",service.name="oracledb",service.namespace="obenhub-lab",oracledb.user.name="C##OBENHUB_MON",oracledb.user.status="EXPIRED"}'
+        values: '_x8 0x24'
+      - series: 'oracledb.user.open{obenhub.cluster.name="cdb19",oracledb.database.unique_name="CDB19",service.instance.id="CDB19",service.name="oracledb",service.namespace="obenhub-lab",oracledb.user.name="C##OBENHUB_DG",oracledb.user.status="OPEN"}'
+        values: '1x60'
+    alert_rule_test:
+      - eval_time: 2m45s
+        groupname: oracledb-dg
+        alertname: OracleMonitoringAccountNotOpen
+        exp_alerts: []
+      - eval_time: 3m30s
+        groupname: oracledb-dg
+        alertname: OracleMonitoringAccountNotOpen
+        exp_alerts:
+          - exp_labels: {obenhub.cluster.name: cdb19, oracledb.database.unique_name: CDB19, oracledb.user.name: "C##OBENHUB_MON", oracledb.user.status: "EXPIRED", service.instance.id: CDB19, service.name: oracledb, service.namespace: obenhub-lab, severity: critical}
+            exp_annotations:
+              summary: "Monitoring account C##OBENHUB_MON on CDB19 is EXPIRED"
+      - eval_time: 11m
+        groupname: oracledb-dg
+        alertname: OracleMonitoringAccountNotOpen
+        exp_alerts: []
+
+  - name: "monitoring accounts: C##OBENHUB_DG locked for the rest of the run, fires after the hold"
+    interval: 15s
+    input_series:
+      - series: 'oracledb.user.open{obenhub.cluster.name="cdb19",oracledb.database.unique_name="CDB19",service.instance.id="CDB19",service.name="oracledb",service.namespace="obenhub-lab",oracledb.user.name="C##OBENHUB_MON",oracledb.user.status="OPEN"}'
+        values: '1x60'
+      - series: 'oracledb.user.open{obenhub.cluster.name="cdb19",oracledb.database.unique_name="CDB19",service.instance.id="CDB19",service.name="oracledb",service.namespace="obenhub-lab",oracledb.user.name="C##OBENHUB_DG",oracledb.user.status="OPEN"}'
+        values: '1x8 _x52'
+      - series: 'oracledb.user.open{obenhub.cluster.name="cdb19",oracledb.database.unique_name="CDB19",service.instance.id="CDB19",service.name="oracledb",service.namespace="obenhub-lab",oracledb.user.name="C##OBENHUB_DG",oracledb.user.status="LOCKED(TIMED)"}'
+        values: '_x8 0x52'
+    alert_rule_test:
+      - eval_time: 3m30s
+        groupname: oracledb-dg
+        alertname: OracleMonitoringAccountNotOpen
+        exp_alerts:
+          - exp_labels: {obenhub.cluster.name: cdb19, oracledb.database.unique_name: CDB19, oracledb.user.name: "C##OBENHUB_DG", oracledb.user.status: "LOCKED(TIMED)", service.instance.id: CDB19, service.name: oracledb, service.namespace: obenhub-lab, severity: critical}
+            exp_annotations:
+              summary: "Monitoring account C##OBENHUB_DG on CDB19 is LOCKED(TIMED)"
+
+  - name: "monitoring accounts: one collection with 0 does not fire"
+    interval: 15s
+    input_series:
+      - series: 'oracledb.user.open{obenhub.cluster.name="cdb19",oracledb.database.unique_name="CDB19",service.instance.id="CDB19",service.name="oracledb",service.namespace="obenhub-lab",oracledb.user.name="C##OBENHUB_MON",oracledb.user.status="OPEN"}'
+        values: '1x8 0 1x51'
+      - series: 'oracledb.user.open{obenhub.cluster.name="cdb19",oracledb.database.unique_name="CDB19",service.instance.id="CDB19",service.name="oracledb",service.namespace="obenhub-lab",oracledb.user.name="C##OBENHUB_DG",oracledb.user.status="OPEN"}'
+        values: '1x60'
+    alert_rule_test:
+      - eval_time: 5m
+        groupname: oracledb-dg
+        alertname: OracleMonitoringAccountNotOpen
+        exp_alerts: []

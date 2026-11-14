@@ -9,7 +9,7 @@
 #     plus one per-VM file as the configuration, started as two --config
 #     arguments by a systemd drop-in: files/otelcol-obs.yaml on the observer
 #     (database receivers, the oracledb-dg and oracledb-backup packs'
-#     queries.yaml, the two passwords) or files/otelcol-db.yaml on a database
+#     queries.yaml and queries-primary.yaml, the two passwords) or files/otelcol-db.yaml on a database
 #     VM (the CDB19 pair instance's alert log);
 #   - the client certificate of that VM for the gateway (lab/oracle/pki, made
 #     by scripts/pki.sh);
@@ -55,7 +55,8 @@ for f in "$dir/.env" "$pki/ca.crt" "$pki/otelcol.crt" "$pki/otelcol.key" \
   "$pki/$PRIMARY_HOST/otelcol.crt" "$pki/$PRIMARY_HOST/otelcol.key" \
   "$pki/$STANDBY_HOST/otelcol.crt" "$pki/$STANDBY_HOST/otelcol.key" \
   "$dir/files/otelcol-host.yaml" "$dir/files/otelcol-db.yaml" "$dir/files/otelcol-obs.yaml" \
-  "$dir/../packs/oracledb-dg/queries.yaml" "$dir/../packs/oracledb-backup/queries.yaml"; do
+  "$dir/../packs/oracledb-dg/queries.yaml" "$dir/../packs/oracledb-dg/queries-primary.yaml" \
+  "$dir/../packs/oracledb-backup/queries.yaml"; do
   [ -s "$f" ] || { echo "collector: $f is missing (provision.sh, pki.sh)" >&2; exit 1; }
 done
 set -a
@@ -162,6 +163,7 @@ converge() {
   putf /etc/otelcol-contrib/host.yaml 640 root:otelcol-contrib "$dir/files/otelcol-host.yaml"
   if [ "$role" = obs ]; then
     putf /etc/otelcol-contrib/packs/oracledb-dg/queries.yaml 640 root:otelcol-contrib "$dir/../packs/oracledb-dg/queries.yaml"
+    putf /etc/otelcol-contrib/packs/oracledb-dg/queries-primary.yaml 640 root:otelcol-contrib "$dir/../packs/oracledb-dg/queries-primary.yaml"
     putf /etc/otelcol-contrib/packs/oracledb-backup/queries.yaml 640 root:otelcol-contrib "$dir/../packs/oracledb-backup/queries.yaml"
     putf /etc/otelcol-contrib/config.yaml 640 root:otelcol-contrib "$dir/files/otelcol-obs.yaml"
     put /etc/otelcol-contrib/obenhub.env 600 root:root <<ENV

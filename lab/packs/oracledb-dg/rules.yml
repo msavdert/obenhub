@@ -324,9 +324,11 @@ groups:
       # the network path to the VM is down, not only the listener. An open
       # port does not mean a working login. The heartbeat
       # (oracledb.collection.heartbeat) comes from the sql_query receivers
-      # through C##OBENHUB_DG as SYSDG, so OracleTargetAbsent sees that
-      # account expire or the instance stop, not C##OBENHUB_MON (the oracledb
-      # receiver's account, whose failures show as missing oracledb.* series).
+      # through C##OBENHUB_DG as SYSDG, so OracleTargetAbsent sees the
+      # instance stop; an expiry of that account is expected to stay unseen
+      # while its pooled session lives (not run), and C##OBENHUB_MON (the oracledb
+      # receiver's account, which keeps its pooled session after an expiry:
+      # OracleMonitoringAccountNotOpen reads that account's status).
       # With the listener stopped, the pooled sql_query heartbeat and the
       # oracledb receiver's series kept arriving, so in that run this probe was
       # the only signal of the stopped listener (run listener-stopped 2026-11-14T17:57:45Z: firing at
@@ -342,3 +344,34 @@ groups:
           severity: critical
         annotations:
           summary: 'Oracle listener {{ (index $labels "tcpcheck.endpoint") }} does not accept TCP connections'
+
+      # A project monitoring account (C##OBENHUB_*, oracledb.user.open from
+      # queries-primary.yaml, read through the SYSDG session of
+      # C##OBENHUB_DG) whose DBA_USERS status is not OPEN: expired, in grace,
+      # or locked. Why it is a rule of its own: an expired password stops only
+      # new logins. In the run below C##OBENHUB_MON was expired for 169 s and
+      # the oracledb receiver kept its one pooled session (V$SESSION logon age
+      # 338 s at the expiry, 460 s 122 s later, the same session), delivered 5
+      # of 5 expected samples of oracledb.sessions.usage, processes.usage and
+      # cpu_time, and the Collector logged no error-level line, while a fresh
+      # login returned ORA-28001. The sql_query heartbeat (another account)
+      # kept arriving, 11 of 11 samples, and no other alert fired.
+      # What happens to the receivers on a restart or a dropped session is not
+      # tested.
+      # The status is a label, so the old OPEN series lingers for up to 30s
+      # next to the new one; the 0 of the new one fires. 1m: the status does
+      # not flap, the hold only absorbs the lingering series. Measured: firing
+      # delivered 117.6 s after the ALTER USER, resolved 68.9 s after the
+      # restore started.
+      # Quiet while every account is OPEN and when the series is absent (the
+      # primary-only receiver reports an error after a failover, see
+      # queries-primary.yaml; the heartbeat rule covers a dead Collector).
+      # Scenario: password-expired (lab/oracle, single trial run
+      # 2026-11-14T18:44:44Z, Oracle 19.33, no suite yet).
+      - alert: OracleMonitoringAccountNotOpen
+        expr: last_over_time(oracledb.user.open[30s]) == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: 'Monitoring account {{ (index $labels "oracledb.user.name") }} on {{ (index $labels "service.instance.id") }} is {{ (index $labels "oracledb.user.status") }}'

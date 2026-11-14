@@ -175,27 +175,6 @@ revert() {
   return "$rc"
 }
 
-# series_stats SELECTOR START END INTERVAL: sample times of all matching series
-# together in the window, from the export API, as JSON
-series_stats() {
-  curl -fsS "$VM/api/v1/export" --data-urlencode "match[]=$1" --data-urlencode "start=$2" --data-urlencode "end=$3" \
-    | jq -s -c --argjson a "$2" --argjson b "$3" --argjson iv "$4" '
-        ([.[].timestamps[]] | unique | map(. / 1000)) as $t
-        | {samples: ($t | length), expected: (($b - $a) / $iv | floor),
-           first_after_stop_s: (if ($t | length) > 0 then ($t[0] - $a | floor) else null end),
-           last_before_start_s: (if ($t | length) > 0 then ($b - $t[-1] | floor) else null end),
-           max_gap_s: (if ($t | length) > 1 then ([range(1; $t | length) | $t[.] - $t[. - 1]] | max | floor) else null end),
-           series: length}'
-}
-# collector_errors START END: counts of error codes and of error-level lines in
-# the Collector's journal in the window (no log text is kept)
-collector_errors() {
-  local codes n
-  codes=$(timeout --foreground "$REMOTE_TIMEOUT" ssh -n "${SSH_OPTS[@]}" "$OBSERVER_HOST" "sudo journalctl -u otelcol-contrib --since @$1 --until @$2 --no-pager -o cat | grep -E -o 'ORA-[0-9]+|TNS-[0-9]+|connection refused|i/o timeout' | sort | uniq -c") || return 1
-  n=$(timeout --foreground "$REMOTE_TIMEOUT" ssh -n "${SSH_OPTS[@]}" "$OBSERVER_HOST" "sudo journalctl -u otelcol-contrib --since @$1 --until @$2 --no-pager -o cat | grep -c -P '\\terror\\t'") || [ "$n" = 0 ] || return 1
-  printf '%s\n' "$codes" | sed -E 's/^ *([0-9]+) (.*)$/\1\t\2/' \
-    | jq -R -s -c --argjson lines "${n:-0}" 'split("\n") | map(select(length > 0) | split("\t") | {(.[1]): (.[0] | tonumber)}) | add // {} | . + {"error_level_lines": $lines}'
-}
 extra_checks() {
   local a=$STOP_AT b=$START_AT sess proc cpu hb hbs tc err
   [ -n "$a" ] && [ -n "$b" ] || return 0
