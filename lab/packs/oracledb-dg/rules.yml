@@ -35,11 +35,15 @@ groups:
       # before the 2m heartbeat window, so a stopped Collector raises only the
       # Collector alert (the shared collector pack), not one per database.
       # oracledb.collection.heartbeat is a SELECT 1 through the SYSDG
-      # connection, so it also stops when the instance is down; whether a
-      # pooled session keeps it alive with the listener stopped is not yet
-      # verified (ADR 0008 decision 7).
+      # connection, so it also stops when the instance is down. With the
+      # listener of the primary stopped for 166 s the heartbeat kept arriving
+      # every 15 s (11 of 11 samples; pooled sessions survive; run listener-stopped 2026-11-14T17:57:45Z
+      # in lab/oracle/results/runs.jsonl; two passing runs, 166 s and 171 s, Oracle 19.33, existing sessions only), so a stopped
+      # listener did not raise this alert there. That an instance that is down
+      # does is expected from the query, not yet run.
       # Quiet when the Collector is dead or when the heartbeat is present.
-      # Scenario: not yet run.
+      # Scenario: listener-stopped (alert stayed quiet); no scenario
+      # exercises the firing path yet.
       - alert: OracleTargetAbsent
         expr: |
           obenhub.expected_target{service.name="oracledb"}
@@ -322,11 +326,15 @@ groups:
       # (oracledb.collection.heartbeat) comes from the sql_query receivers
       # through C##OBENHUB_DG as SYSDG, so OracleTargetAbsent sees that
       # account expire or the instance stop, not C##OBENHUB_MON (the oracledb
-      # receiver's account, whose failures show as missing oracledb.* series);
-      # whether a pooled sql_query session keeps the heartbeat alive with the
-      # listener stopped is not known for this lab. Quiet while the connect
-      # succeeds (1) and when the series is absent.
-      # Scenario: not yet run (listener stopped is in ADR 0008 decision 8).
+      # receiver's account, whose failures show as missing oracledb.* series).
+      # With the listener stopped, the pooled sql_query heartbeat and the
+      # oracledb receiver's series kept arriving, so in that run this probe was
+      # the only signal of the stopped listener (run listener-stopped 2026-11-14T17:57:45Z: firing at
+      # +73 s, delivered at +115 s, resolved 54 s after the start;
+      # startsAt-to-delivery 42 s for every alert on the stack, cause not yet
+      # found; two passing runs, 166 s and 171 s, Oracle 19.33, existing sessions only). Quiet while the connect succeeds (1) and
+      # when the series is absent.
+      # Scenario: listener-stopped (lab/oracle, single trial runs 2026-11-14, no suite yet).
       - alert: OracleListenerUnreachable
         expr: last_over_time(tcpcheck.status[30s]) == 0
         for: 1m

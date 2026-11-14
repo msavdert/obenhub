@@ -102,19 +102,28 @@ produced that metric and marks the connection reuse as an assumption); the recei
    contrib v0.164.0) on the observer's Collector makes a TCP connect to both
    listeners every 15s (`tcpcheck.status`, alert `OracleListenerUnreachable`),
    so the intent is met for the listener only, with no login; the failing
-   path has not run in the lab yet (only in an isolated container against a
-   closed port). Recorded gap: none of `sqlquery`, `oracledb` and `tcpcheck`
+   path ran in scenario `listener-stopped` (run started 2026-11-14T17:57:45Z,
+   `lab/oracle/results/runs.jsonl`): firing at +73 s, delivered at +115 s;
+   startsAt-to-delivery 42 s for every alert on the stack, cause not yet
+   found; resolved 54 s after the start. Recorded gap: none of `sqlquery`, `oracledb` and `tcpcheck`
    at v0.164.0 does a login per check; other components were not surveyed.
    `sqlqueryreceiver` builds a pool (`receiver.go:56`, `internal.NewPool`
    with `max_open_conn`) and `oracledbreceiver` holds a `*sql.DB`
    (`scraper.go`, field `db`); `oracledbreceiver/metadata.yaml` lists no
    up-style metric (searched, not read line by line). A listener that
    accepts connections while an account is expired or sessions are exhausted
-   therefore looks healthy to the probe; whether a pooled session then keeps
-   the database metrics flowing is unverified in this lab. No custom probe
-   code is written; an upstream proposal waits for lab evidence from the
-   decision 8 scenarios (listener stopped, monitoring password expired,
-   ORA-00020).
+   therefore looks healthy to the probe. Conversely, a pooled session does
+   keep the database metrics flowing with the listener stopped: during the
+   166 s outage of that run the `oracledb` receiver (30 s) delivered 5 of 5
+   expected samples of `oracledb.sessions.usage`, `oracledb.processes.usage`
+   and `oracledb.cpu_time`, the `sql_query` heartbeat (15 s) 11 of 11, and the
+   Collector logged only the 11 error-level lines of the probe, all
+   `connection refused` (the count covers error level only). Only
+   the new-connection probe saw the outage (two passing runs, 17:57:45Z and
+   18:16:39Z, Oracle 19.33, existing sessions only). No custom probe code is written; an upstream proposal waits
+   for lab evidence from the remaining decision 8 scenarios (monitoring
+   password expired, ORA-00020); listener stopped has run as two passing
+   trials, no suite yet.
 8. **First scenarios**, each with a control run: archiver stuck (recovery area
    limit lowered under the archive volume), transport cut and apply stopped
    (lag and gap alerts), fast-start failover after the primary is aborted

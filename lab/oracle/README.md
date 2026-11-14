@@ -209,7 +209,7 @@ the Data Guard pack rules
 pack rules ([lab/packs/oracledb-backup](../packs/oracledb-backup/rules.yml):
 `OracleBackupStale`, `OracleBackupFailed`, `OracleBackupMissing`,
 `OracleRecoveryAreaFull`); the rules are unit-tested
-(`mise run lab:oracle:rules-test`) and six of the Data Guard ones are exercised
+(`mise run lab:oracle:rules-test`) and seven of the Data Guard ones are exercised
 by the scenarios below. Grafana provisions the shared host dashboard and "Oracle Data Guard"
 ([oracle-dg.json](../packs/oracledb-dg/dashboards/oracle-dg.json)): lag and
 data age, apply state, fast-start failover, protection level and redo
@@ -217,8 +217,9 @@ destination, heartbeat and the observer Collector, and the firing alerts, plus
 the panels "RMAN backup age" and "RMAN last job failed", and "Listener TCP
 connect" and "Listener connect time" (the `tcpcheck` probe of both listeners,
 ADR 0008 decision 7; a connect only, no login; the failing-listener path
-has not run in the lab yet, only in an isolated container against a closed port;
-each failed collection logs a multi-line error with a stack trace on the
+ran in scenario `listener-stopped` (run started 2026-11-14T17:57:45Z: firing
+at +73 s, delivered at +115 s; startsAt-to-delivery 42 s for every alert on
+the stack, cause not yet found; two passing runs (17:57:45Z 166 s, 18:16:39Z 171 s, same result), Oracle 19.33, existing sessions only); each failed collection logs a multi-line error with a stack trace on the
 observer).
 `mise run lab:oracle:panels` runs its queries against the running Grafana.
 
@@ -267,6 +268,7 @@ mise run lab:oracle:scenario control          # CONTROL_SECONDS (default 600), n
 mise run lab:oracle:scenario apply-stopped    # broker APPLY-OFF on CDB19_STBY
 mise run lab:oracle:scenario observer-stopped # stop the CDB19 FSFO observer
 mise run lab:oracle:scenario transport-cut    # broker TRANSPORT-OFF on the primary
+mise run lab:oracle:scenario listener-stopped # lsnrctl stop on the primary VM, then start
 mise run lab:oracle:scenarios                 # the list in scenarios/suite.txt as one suite
 ```
 
@@ -280,7 +282,7 @@ password is involved. Every remote command is bounded by `REMOTE_TIMEOUT`
 (180 s), and each revert step is tried three times. The observer runs as the systemd unit
 `dg-observer@cdb19` on `ora-dg-obs` (`/home/oracle/scripts/observer.sh`,
 owner-provided and not in this repository).
-Only the `CDB19` configuration is touched, never `CDB19B` or `CDB26`.
+Only the `CDB19` configuration is touched, never `CDB19B` or `CDB26`, with one exception: `listener-stopped` stops the listener of `ora-au-lab`, which all three databases share, so their new connections fail during the outage (about 3 minutes). That includes the fast-start failover pair `CDB19B` (its own configuration and observer, Shutdown Primary TRUE): the scenario refuses to start unless `CDB19B` is SYNCHRONIZED with a SUCCESS configuration, guards it like `CDB19` (a role change, or two failed reads in a row, restarts the listener at once and fails the run) and records its states in `extra`. The listener is restarted with the `TNS_ADMIN` of the running one; without it a started listener reads no `listener.ora` and lacks the static `*_DGMGRL` services (found in the first trial, 2026-11-14T17:50Z, recorded as a failed run). Both trials read `TNS_ADMIN` from a listener the scenario or a manual repair had started, not from one started by `oracle-db.service` (`start_all.sh` exports it, so it is expected to work).
 
 There is no switchover or failover scenario: the `oracledb` receiver reads
 the database role and open mode only when the Collector starts
