@@ -43,7 +43,27 @@ again.
 the exporter replaced by `debug` and `file`: the receiver's 25 default
 metrics from `CDB19` and every pack metric that applies to each role (lag,
 apply and gap from the standby, the redo destination from the primary)
-arrived. It is not installed on `ora-dg-obs` yet.
+arrived.
+
+```sh
+mise run lab:oracle:collector   # scripts/collector.sh, from this box over ssh
+```
+
+The script installs the otelcol-contrib `.rpm` of `OTELCOL_VERSION`
+(`lab/pgha/versions.sh`, the pin all labs share) from the
+opentelemetry-collector-releases release after checking its `.sha256` file,
+then writes the configuration, the `oracledb-dg` pack's `queries.yaml`, the
+client certificate from `pki/` and a root-only environment file
+(`/etc/otelcol-contrib/obenhub.env`, read by systemd through a drop-in) with
+the two passwords and the gateway endpoint. It restarts the service only when
+the package or a file changed and fails unless the service stays active. It
+needs `.env` (from `provision.sh`) and `pki/` (from `lab:oracle:mon:up` or
+`lab:oracle:pki`). On 2026-11-13 the first run installed 0.164.0 on
+`ora-dg-obs` (Oracle Linux 9.8) and started it; a second run changed nothing
+and did not restart it. After three minutes the journal showed only the two
+`CDB_PROCEDURES` fallback warnings the receiver logs at start, and
+VictoriaMetrics held `oracledb.*` series from `CDB19` and `CDB19_STBY` whose
+first samples are the Collector's first scrape.
 
 ## Backend
 

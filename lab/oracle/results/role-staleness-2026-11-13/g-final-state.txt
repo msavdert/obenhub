@@ -1,0 +1,52 @@
+### 2026-11-13T19:31:20Z
+Connected to "CDB19"
+
+Configuration - dgconfig
+
+  Protection Mode: MaxAvailability
+  Members:
+  cdb19      - Primary database
+    cdb19_stby - (*) Physical standby database
+
+Fast-Start Failover: Enabled in Zero Data Loss Mode
+
+Configuration Status:
+SUCCESS   (status updated 28 seconds ago)
+
+
+Database - cdb19
+
+  Role:               PRIMARY
+  Intended State:     TRANSPORT-ON
+  Instance(s):
+    CDB19
+
+Database Status:
+SUCCESS
+
+
+Database - cdb19_stby
+
+  Role:               PHYSICAL STANDBY
+  Intended State:     APPLY-ON
+  Transport Lag:      0 seconds (computed 1 second ago)
+  Apply Lag:          0 seconds (computed 1 second ago)
+  Average Apply Rate: 228.00 KByte/s
+  Real Time Query:    OFF
+  Instance(s):
+    CDB19_STBY
+
+Database Status:
+SUCCESS
+
+--- v$database on ora-au-lab
+ora-au-lab CDB19 CDB19 role=PRIMARY open_mode=READ WRITE switchover_status=TO ST
+ANDBY
+
+fsfo=SYNCHRONIZED
+--- v$database on ora-dg-stby
+ora-dg-stby CDB19 CDB19_STBY role=PHYSICAL STANDBY open_mode=MOUNTED switchover_
+status=NOT ALLOWED
+
+fsfo=SYNCHRONIZED
+apply: MRP0 APPLYING_LOG

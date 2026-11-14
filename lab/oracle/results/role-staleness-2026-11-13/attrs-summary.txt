@@ -1,0 +1,48 @@
+== 0.164.0
+ before 19:18:00-19:19:15
+   primary         role='PRIMARY' open_mode='READ WRITE' metrics=25  x7
+   primary_sysdg   role='PRIMARY' open_mode='READ WRITE' metrics=25  x7
+   standby_sysdg   role='PHYSICAL STANDBY' open_mode='MOUNTED' metrics=23  x7
+ switchover running 19:19:15-19:20:12
+   primary         role='PRIMARY' open_mode='READ WRITE' metrics=25  x1
+   primary_sysdg   role='PRIMARY' open_mode='READ WRITE' metrics=12  x1
+   primary_sysdg   role='PRIMARY' open_mode='READ WRITE' metrics=23  x2
+   primary_sysdg   role='PRIMARY' open_mode='READ WRITE' metrics=25  x1
+   standby         role=None open_mode=None metrics=23  x3
+   standby_sysdg   role='PHYSICAL STANDBY' open_mode='MOUNTED' metrics=23  x2
+   standby_sysdg   role='PHYSICAL STANDBY' open_mode='MOUNTED' metrics=25  x3
+ after, same process 19:20:12-19:24:58
+   primary_sysdg   role='PRIMARY' open_mode='READ WRITE' metrics=23  x26
+   standby         role=None open_mode=None metrics=23  x21
+   standby         role=None open_mode=None metrics=25  x5
+   standby_sysdg   role='PHYSICAL STANDBY' open_mode='MOUNTED' metrics=25  x26
+ after restart 19:24:58-19:26:00
+   primary_sysdg   role='PHYSICAL STANDBY' open_mode='MOUNTED' metrics=23  x5
+   standby         role='PRIMARY' open_mode='READ WRITE' metrics=25  x5
+   standby_sysdg   role='PRIMARY' open_mode='READ WRITE' metrics=25  x5
+ primary receiver emissions: first 19:18:14 last-before-gap/last 19:19:24 total 8
+ standby receiver emissions: first 19:19:44 last-before-gap/last 19:25:42 total 34
+== 0.165.0
+ before switch-back 19:25:40-19:26:22
+   primary_sysdg   role='PHYSICAL STANDBY' open_mode='MOUNTED' metrics=23  x4
+   standby         role='PRIMARY' open_mode='READ WRITE' metrics=25  x4
+   standby_sysdg   role='PRIMARY' open_mode='READ WRITE' metrics=25  x4
+ switch-back running 19:26:22-19:27:16
+   primary         role=None open_mode=None metrics=23  x2
+   primary         role=None open_mode=None metrics=25  x2
+   primary_sysdg   role='PHYSICAL STANDBY' open_mode='MOUNTED' metrics=23  x2
+   primary_sysdg   role='PHYSICAL STANDBY' open_mode='MOUNTED' metrics=25  x3
+   standby         role='PRIMARY' open_mode='READ WRITE' metrics=25  x1
+   standby_sysdg   role='PRIMARY' open_mode='READ WRITE' metrics=12  x1
+   standby_sysdg   role='PRIMARY' open_mode='READ WRITE' metrics=23  x1
+   standby_sysdg   role='PRIMARY' open_mode='READ WRITE' metrics=25  x1
+ after, same process 19:27:16-19:30:31
+   primary         role=None open_mode=None metrics=25  x19
+   primary_sysdg   role='PHYSICAL STANDBY' open_mode='MOUNTED' metrics=25  x19
+   standby_sysdg   role='PRIMARY' open_mode='READ WRITE' metrics=23  x19
+ after restart 19:30:31-19:31:30
+   primary         role='PRIMARY' open_mode='READ WRITE' metrics=25  x5
+   primary_sysdg   role='PRIMARY' open_mode='READ WRITE' metrics=25  x5
+   standby_sysdg   role='PHYSICAL STANDBY' open_mode='MOUNTED' metrics=23  x5
+ primary receiver emissions: first 19:26:37 last-before-gap/last 19:31:14 total 28
+ standby receiver emissions: first 19:25:47 last-before-gap/last 19:26:27 total 5

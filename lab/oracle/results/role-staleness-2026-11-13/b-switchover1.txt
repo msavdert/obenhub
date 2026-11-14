@@ -1,0 +1,29 @@
+2026-11-13T19:18:45Z
+Connected to "CDB19"
+Performing switchover NOW, please wait...
+Operation requires a connection to database "cdb19_stby"
+Connecting ...
+ORA-01017: invalid username/password; logon denied
+
+Warning: You are no longer connected to ORACLE.
+
+    connect to instance "CDB19_STBY" of database "cdb19_stby"
+
+2026-11-13T19:18:50Z
+--- attempt 2, logged on as C##OBENHUB_DG AS SYSDG (attempt 1 used OS authentication, failed ORA-01017 when the broker connected to the standby; nothing changed)
+start 2026-11-13T19:19:15Z
+Connected to "CDB19"
+Performing switchover NOW, please wait...
+Operation requires a connection to database "cdb19_stby"
+Connecting ...
+Connected to "CDB19_STBY"
+Connected as SYSDG.
+New primary database "cdb19_stby" is opening...
+Operation requires start up of instance "CDB19" on database "cdb19"
+Starting instance "CDB19"...
+Connected to an idle instance.
+ORACLE instance started.
+Connected to "CDB19"
+Database mounted.
+Switchover succeeded, new primary is "cdb19_stby"
+end 2026-11-13T19:20:11Z

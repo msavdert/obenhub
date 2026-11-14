@@ -1,0 +1,49 @@
+# Test Collector for the role/open_mode evidence. No secret in this file.
+# oracledb/primary and oracledb/standby: same endpoints, services and user as
+# lab/oracle/files/otelcol-obs.yaml (the oracledb receiver with C##OBENHUB_MON).
+# oracledb/primary_sysdg and oracledb/standby_sysdg: the same receiver through a
+# data source with C##OBENHUB_DG as SYSDG (the login the oracledb-dg pack uses),
+# which can read a mounted standby; added to observe attributes on a database
+# that stays reachable in either role.
+receivers:
+  oracledb/primary:
+    endpoint: ora-au-lab.lab.local:1521
+    service: CDB19
+    username: C##OBENHUB_MON
+    password: ${env:ORA_MON_PASSWORD}
+    collection_interval: 10s
+  oracledb/standby:
+    endpoint: ora-dg-stby.lab.local:1521
+    service: CDB19_STBY
+    username: C##OBENHUB_MON
+    password: ${env:ORA_MON_PASSWORD}
+    collection_interval: 10s
+  oracledb/primary_sysdg:
+    datasource: "oracle://C%23%23OBENHUB_DG:${env:ORA_DG_PASSWORD}@ora-au-lab.lab.local:1521/CDB19?DBA%20PRIVILEGE=SYSDG"
+    collection_interval: 10s
+  oracledb/standby_sysdg:
+    datasource: "oracle://C%23%23OBENHUB_DG:${env:ORA_DG_PASSWORD}@ora-dg-stby.lab.local:1521/CDB19_STBY?DBA%20PRIVILEGE=SYSDG"
+    collection_interval: 10s
+exporters:
+  file/primary:
+    path: /data/primary.jsonl
+  file/standby:
+    path: /data/standby.jsonl
+  file/primary_sysdg:
+    path: /data/primary_sysdg.jsonl
+  file/standby_sysdg:
+    path: /data/standby_sysdg.jsonl
+service:
+  pipelines:
+    metrics/primary:
+      receivers: [oracledb/primary]
+      exporters: [file/primary]
+    metrics/standby:
+      receivers: [oracledb/standby]
+      exporters: [file/standby]
+    metrics/primary_sysdg:
+      receivers: [oracledb/primary_sysdg]
+      exporters: [file/primary_sysdg]
+    metrics/standby_sysdg:
+      receivers: [oracledb/standby_sysdg]
+      exporters: [file/standby_sysdg]

@@ -151,5 +151,8 @@ checked against existing upstream issues before work starts.
       opened 2026-11-13; no code before a code owner agrees on the direction
 - [ ] `oracledbreceiver`: role and open mode are read once at start
       (contrib v0.164.0, `scraper.go` `start()`), so they stay stale after a
-      switchover until the Collector restarts. Issue after the `lab/oracle`
-      fast-start failover scenario shows it; upstream not searched yet
+      switchover until the Collector restarts. Shown in the lab on
+      2026-11-13 with contrib 0.164.0 and 0.165.0 (two broker switchovers;
+      [record](https://github.com/msavdert/obenhub/blob/main/lab/oracle/results/role-staleness-2026-11-13/README.md));
+      no upstream issue found in a search that day (listings were
+      truncated, so not proof). Next: the owner opens the issue
