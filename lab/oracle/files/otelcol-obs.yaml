@@ -36,6 +36,21 @@ receivers:
     username: C##OBENHUB_MON
     password: ${env:ORA_MON_PASSWORD}
     collection_interval: 30s
+    # Tablespace size and usage are on by default (metadata.yaml, contrib
+    # v0.164.0) but carry only tablespace_name: on a CDB-root connection one
+    # data point per container is emitted and, without oracle.db.pdb, the
+    # root's SYSTEM and the PDB's SYSTEM collapse into one averaged series
+    # (read in the lab on 2026-11-14: SYSAUX 132312 blocks, the mean of the
+    # root's 196216 and PDB19's 68408). oracle.db.pdb is opt-in per metric
+    # (generated_config.go, README "Per-PDB metrics"). The limit is
+    # DBA_TABLESPACE_USAGE_METRICS.TABLESPACE_SIZE, the size the tablespace
+    # can grow to with autoextend (scraper.go tablespaceUsageCDBSQL); the
+    # separate oracledb.tablespace.limit metric is not needed.
+    metrics:
+      oracledb.tablespace_size.usage:
+        attributes: [tablespace_name, oracle.db.pdb]
+      oracledb.tablespace_size.limit:
+        attributes: [tablespace_name, oracle.db.pdb]
   sql_query/primary:
     driver: oracle
     datasource: "oracle://C%23%23OBENHUB_DG:${env:ORA_DG_PASSWORD}@ora-au-lab.lab.local:1521/CDB19?DBA%20PRIVILEGE=SYSDG"

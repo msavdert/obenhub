@@ -148,6 +148,28 @@ produced that metric and marks the connection reuse as an assumption); the recei
    (role read again, failover alert), listener stopped, processes exhausted
    (ORA-00020), blocking session, tablespace full, monitoring password
    expired, and a stale RMAN backup.
+   Tablespace full (scenario `tablespace-full`, one passing trial started
+   2026-11-14T21:53:39Z, Oracle 19.33; three earlier trials of the same day ran
+   on earlier versions of the script and their records were not kept): a 20 MB
+   tablespace without autoextend in `PDB19` was filled until ORA-01653 (9544
+   rows of 2 KB, 2 s); `OracleTablespaceUsageHigh` was delivered as critical
+   122.8 s after the start (the alert's `startsAt` 21:55:00Z), a fresh insert
+   from a new session failed with ORA-01653, and the alert resolved 57.0 s
+   after the revert began (the drop). The signal is the receiver's own
+   `oracledb.tablespace_size.usage` and `.limit` (enabled by default,
+   `metadata.yaml` at contrib v0.164.0; the limit is `TABLESPACE_SIZE` of
+   `DBA_TABLESPACE_USAGE_METRICS`, the autoextend maximum, read in
+   `scraper.go` at that tag), so no `sql_query` was added. One lab finding: on
+   a CDB-root connection the receiver emits one data point per container, but
+   `oracle.db.pdb` is opt-in per metric, so without it the root's and the
+   PDB's `SYSTEM` were averaged into one series (read 2026-11-14); the lab
+   Collector enables it for these two metrics. The view read 1.0 (2560 of 2560
+   blocks) when the table segment held 19922944 bytes, 95% of the file: it
+   counts the 1 MB Oracle reserves in a new datafile as used (an interactive
+   sqlplus observation of 2026-11-14, not a recorded measurement: 128 of 2560
+   blocks, 0.05, on an empty one). `STANDBY_FILE_MANAGEMENT` is `AUTO` on both
+   databases; the create and the drop reached the standby, the lag stayed 0 s
+   and no other alert fired.
 9. **Backups.** RMAN with a recovery window, archived logs deleted after
    backup (and, on the Data Guard primaries, after apply on the standby);
    the backup state comes from `V$RMAN_BACKUP_JOB_DETAILS` through

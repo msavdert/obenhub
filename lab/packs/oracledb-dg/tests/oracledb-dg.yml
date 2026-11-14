@@ -2560,6 +2560,34 @@ tests:
             exp_annotations:
               summary: 'Oracle instance CDB19 uses 95% or more of its PROCESSES limit: new logins fail with ORA-00020'
 
+  - name: "processes: warm-up, a new series at 0.90 stays quiet until its window is full"
+    interval: 30s
+    input_series:
+      - series: 'oracledb.processes.usage{obenhub.cluster.name="cdb19",service.name="oracledb",service.namespace="obenhub-lab",service.instance.id="CDB19"}'
+        values: '288x40'
+      - series: 'oracledb.processes.limit{obenhub.cluster.name="cdb19",service.name="oracledb",service.namespace="obenhub-lab",service.instance.id="CDB19"}'
+        values: '320x40'
+    alert_rule_test:
+      - eval_time: 15s
+        groupname: oracledb-dg
+        alertname: OracleProcessesSaturation
+        exp_alerts: []
+      - eval_time: 30s
+        groupname: oracledb-dg
+        alertname: OracleProcessesSaturation
+        exp_alerts: []
+      - eval_time: 45s
+        groupname: oracledb-dg
+        alertname: OracleProcessesSaturation
+        exp_alerts: []
+      - eval_time: 1m
+        groupname: oracledb-dg
+        alertname: OracleProcessesSaturation
+        exp_alerts:
+          - exp_labels: {obenhub.cluster.name: cdb19, service.instance.id: CDB19, severity: warning}
+            exp_annotations:
+              summary: 'Oracle instance CDB19 uses more than 85% of its PROCESSES limit'
+
   - name: "processes: one collection at the limit does not fire"
     interval: 30s
     input_series:
@@ -2794,3 +2822,229 @@ tests:
           - exp_labels: {obenhub.cluster.name: cdb19, service.instance.id: CDB19, severity: critical}
             exp_annotations:
               summary: 'Oracle instance CDB19 uses 95% or more of its PROCESSES limit: new logins fail with ORA-00020'
+
+  # OracleTablespaceUsageHigh. oracledb.tablespace_size.* come from the
+  # oracledb receiver (30s collection), in bytes; the lab Collector adds
+  # oracle.db.pdb (CDB$ROOT for the root). Labels are reduced to the ones the
+  # rule keeps. 20971520 is the 20 MB tablespace of scenario tablespace-full,
+  # 34359721984 the 32 GiB autoextend limit of the lab's root tablespaces
+  # (read 2026-11-14). The window of the rule is 90s, three points of 30s.
+
+  - name: "tablespace: healthy tablespaces, a small and an autoextend one, are quiet"
+    interval: 30s
+    input_series:
+      - series: 'oracledb.tablespace_size.usage{obenhub.cluster.name="cdb19",service.name="oracledb",service.namespace="obenhub-lab",service.instance.id="CDB19",tablespace_name="SYSTEM",oracle.db.pdb="CDB$ROOT"}'
+        values: '1560000000x40'
+      - series: 'oracledb.tablespace_size.limit{obenhub.cluster.name="cdb19",service.name="oracledb",service.namespace="obenhub-lab",service.instance.id="CDB19",tablespace_name="SYSTEM",oracle.db.pdb="CDB$ROOT"}'
+        values: '34359721984x40'
+      - series: 'oracledb.tablespace_size.usage{obenhub.cluster.name="cdb19",service.name="oracledb",service.namespace="obenhub-lab",service.instance.id="CDB19",tablespace_name="OBENHUB_FILL",oracle.db.pdb="PDB19"}'
+        values: '1048576x40'
+      - series: 'oracledb.tablespace_size.limit{obenhub.cluster.name="cdb19",service.name="oracledb",service.namespace="obenhub-lab",service.instance.id="CDB19",tablespace_name="OBENHUB_FILL",oracle.db.pdb="PDB19"}'
+        values: '20971520x40'
+    alert_rule_test:
+      - eval_time: 19m
+        groupname: oracledb-dg
+        alertname: OracleTablespaceUsageHigh
+        exp_alerts: []
+
+  # The first sample near full is at 2m30 and the critical tier is up from 4m
+  # (the window of 90s must hold three points at or above 0.95); the first
+  # sample back at 0 (the segment dropped, the tablespace still there) is at
+  # 7m and the alert is gone from 8m. SYSTEM of the same PDB stays quiet.
+  - name: "tablespace: a full tablespace fires critical for it alone and resolves when emptied"
+    interval: 30s
+    input_series:
+      - series: 'oracledb.tablespace_size.usage{obenhub.cluster.name="cdb19",service.name="oracledb",service.namespace="obenhub-lab",service.instance.id="CDB19",tablespace_name="OBENHUB_FILL",oracle.db.pdb="PDB19"}'
+        values: '1048576x5 20447232x9 0x30'
+      - series: 'oracledb.tablespace_size.limit{obenhub.cluster.name="cdb19",service.name="oracledb",service.namespace="obenhub-lab",service.instance.id="CDB19",tablespace_name="OBENHUB_FILL",oracle.db.pdb="PDB19"}'
+        values: '20971520x44'
+      - series: 'oracledb.tablespace_size.usage{obenhub.cluster.name="cdb19",service.name="oracledb",service.namespace="obenhub-lab",service.instance.id="CDB19",tablespace_name="SYSTEM",oracle.db.pdb="PDB19"}'
+        values: '830000000x44'
+      - series: 'oracledb.tablespace_size.limit{obenhub.cluster.name="cdb19",service.name="oracledb",service.namespace="obenhub-lab",service.instance.id="CDB19",tablespace_name="SYSTEM",oracle.db.pdb="PDB19"}'
+        values: '34359721984x44'
+    alert_rule_test:
+      - eval_time: 2m15s
+        groupname: oracledb-dg
+        alertname: OracleTablespaceUsageHigh
+        exp_alerts: []
+      - eval_time: 3m45s
+        groupname: oracledb-dg
+        alertname: OracleTablespaceUsageHigh
+        exp_alerts: []
+      - eval_time: 4m
+        groupname: oracledb-dg
+        alertname: OracleTablespaceUsageHigh
+        exp_alerts:
+          - exp_labels: {obenhub.cluster.name: cdb19, service.instance.id: CDB19, tablespace_name: OBENHUB_FILL, oracle.db.pdb: PDB19, severity: critical}
+            exp_annotations:
+              summary: 'Tablespace OBENHUB_FILL (PDB19) of Oracle instance CDB19 is 95% or more full of its maximum size: at 100% a segment that needs a new extent fails with ORA-01653'
+      - eval_time: 7m45s
+        groupname: oracledb-dg
+        alertname: OracleTablespaceUsageHigh
+        exp_alerts:
+          - exp_labels: {obenhub.cluster.name: cdb19, service.instance.id: CDB19, tablespace_name: OBENHUB_FILL, oracle.db.pdb: PDB19, severity: critical}
+            exp_annotations:
+              summary: 'Tablespace OBENHUB_FILL (PDB19) of Oracle instance CDB19 is 95% or more full of its maximum size: at 100% a segment that needs a new extent fails with ORA-01653'
+      - eval_time: 8m
+        groupname: oracledb-dg
+        alertname: OracleTablespaceUsageHigh
+        exp_alerts: []
+
+  # The same tablespace name in the root and in a PDB is two series (with
+  # oracle.db.pdb); only the full one alerts.
+  - name: "tablespace: the same name in the root and in a PDB, only the full one alerts"
+    interval: 30s
+    input_series:
+      - series: 'oracledb.tablespace_size.usage{obenhub.cluster.name="cdb19",service.name="oracledb",service.namespace="obenhub-lab",service.instance.id="CDB19",tablespace_name="USERS",oracle.db.pdb="CDB$ROOT"}'
+        values: '2800000x40'
+      - series: 'oracledb.tablespace_size.limit{obenhub.cluster.name="cdb19",service.name="oracledb",service.namespace="obenhub-lab",service.instance.id="CDB19",tablespace_name="USERS",oracle.db.pdb="CDB$ROOT"}'
+        values: '34359721984x40'
+      - series: 'oracledb.tablespace_size.usage{obenhub.cluster.name="cdb19",service.name="oracledb",service.namespace="obenhub-lab",service.instance.id="CDB19",tablespace_name="USERS",oracle.db.pdb="PDB19"}'
+        values: '33000000000x40'
+      - series: 'oracledb.tablespace_size.limit{obenhub.cluster.name="cdb19",service.name="oracledb",service.namespace="obenhub-lab",service.instance.id="CDB19",tablespace_name="USERS",oracle.db.pdb="PDB19"}'
+        values: '34359721984x40'
+    alert_rule_test:
+      - eval_time: 5m
+        groupname: oracledb-dg
+        alertname: OracleTablespaceUsageHigh
+        exp_alerts:
+          - exp_labels: {obenhub.cluster.name: cdb19, service.instance.id: CDB19, tablespace_name: USERS, oracle.db.pdb: PDB19, severity: critical}
+            exp_annotations:
+              summary: 'Tablespace USERS (PDB19) of Oracle instance CDB19 is 95% or more full of its maximum size: at 100% a segment that needs a new extent fails with ORA-01653'
+
+  # Tier boundaries on 20 MB (20971520 bytes): 0.85 is 17825792 (stays quiet,
+  # the warning is strictly above), one block of 8 KiB more is warning, 0.95
+  # is 19922944 (critical), one block less is warning; an unlimited
+  # tablespace (-1) gives a negative ratio and is quiet.
+  - name: "tablespace: tier boundaries, 0.85 is quiet, 0.95 is critical, limit -1 is quiet"
+    interval: 30s
+    input_series:
+      - series: 'oracledb.tablespace_size.usage{obenhub.cluster.name="cdb19",service.name="oracledb",service.namespace="obenhub-lab",service.instance.id="CDB19",tablespace_name="T_085",oracle.db.pdb="PDB19"}'
+        values: '17825792x40'
+      - series: 'oracledb.tablespace_size.limit{obenhub.cluster.name="cdb19",service.name="oracledb",service.namespace="obenhub-lab",service.instance.id="CDB19",tablespace_name="T_085",oracle.db.pdb="PDB19"}'
+        values: '20971520x40'
+      - series: 'oracledb.tablespace_size.usage{obenhub.cluster.name="cdb19",service.name="oracledb",service.namespace="obenhub-lab",service.instance.id="CDB19",tablespace_name="T_085_PLUS",oracle.db.pdb="PDB19"}'
+        values: '17833984x40'
+      - series: 'oracledb.tablespace_size.limit{obenhub.cluster.name="cdb19",service.name="oracledb",service.namespace="obenhub-lab",service.instance.id="CDB19",tablespace_name="T_085_PLUS",oracle.db.pdb="PDB19"}'
+        values: '20971520x40'
+      - series: 'oracledb.tablespace_size.usage{obenhub.cluster.name="cdb19",service.name="oracledb",service.namespace="obenhub-lab",service.instance.id="CDB19",tablespace_name="T_095_MINUS",oracle.db.pdb="PDB19"}'
+        values: '19914752x40'
+      - series: 'oracledb.tablespace_size.limit{obenhub.cluster.name="cdb19",service.name="oracledb",service.namespace="obenhub-lab",service.instance.id="CDB19",tablespace_name="T_095_MINUS",oracle.db.pdb="PDB19"}'
+        values: '20971520x40'
+      - series: 'oracledb.tablespace_size.usage{obenhub.cluster.name="cdb19",service.name="oracledb",service.namespace="obenhub-lab",service.instance.id="CDB19",tablespace_name="T_095",oracle.db.pdb="PDB19"}'
+        values: '19922944x40'
+      - series: 'oracledb.tablespace_size.limit{obenhub.cluster.name="cdb19",service.name="oracledb",service.namespace="obenhub-lab",service.instance.id="CDB19",tablespace_name="T_095",oracle.db.pdb="PDB19"}'
+        values: '20971520x40'
+      - series: 'oracledb.tablespace_size.usage{obenhub.cluster.name="cdb19",service.name="oracledb",service.namespace="obenhub-lab",service.instance.id="CDB19",tablespace_name="T_UNLIMITED",oracle.db.pdb="PDB19"}'
+        values: '900000000x40'
+      - series: 'oracledb.tablespace_size.limit{obenhub.cluster.name="cdb19",service.name="oracledb",service.namespace="obenhub-lab",service.instance.id="CDB19",tablespace_name="T_UNLIMITED",oracle.db.pdb="PDB19"}'
+        values: '-1x40'
+    alert_rule_test:
+      - eval_time: 5m
+        groupname: oracledb-dg
+        alertname: OracleTablespaceUsageHigh
+        exp_alerts:
+          - exp_labels: {obenhub.cluster.name: cdb19, service.instance.id: CDB19, tablespace_name: T_085_PLUS, oracle.db.pdb: PDB19, severity: warning}
+            exp_annotations:
+              summary: 'Tablespace T_085_PLUS (PDB19) of Oracle instance CDB19 is more than 85% full of its maximum size'
+          - exp_labels: {obenhub.cluster.name: cdb19, service.instance.id: CDB19, tablespace_name: T_095_MINUS, oracle.db.pdb: PDB19, severity: warning}
+            exp_annotations:
+              summary: 'Tablespace T_095_MINUS (PDB19) of Oracle instance CDB19 is more than 85% full of its maximum size'
+          - exp_labels: {obenhub.cluster.name: cdb19, service.instance.id: CDB19, tablespace_name: T_095, oracle.db.pdb: PDB19, severity: critical}
+            exp_annotations:
+              summary: 'Tablespace T_095 (PDB19) of Oracle instance CDB19 is 95% or more full of its maximum size: at 100% a segment that needs a new extent fails with ORA-01653'
+
+  # The series starts full (a new tablespace, or a restarted Collector): the
+  # window of 90s holds one point at 15s, two at 30s and 45s, three at 1m, and
+  # the alert waits for the third (the guard n >= 3 of the rule).
+  - name: "tablespace: warm-up, a new series at 0.99 stays quiet until its window is full"
+    interval: 30s
+    input_series:
+      - series: 'oracledb.tablespace_size.usage{obenhub.cluster.name="cdb19",service.name="oracledb",service.namespace="obenhub-lab",service.instance.id="CDB19",tablespace_name="OBENHUB_FILL",oracle.db.pdb="PDB19"}'
+        values: '20762000x40'
+      - series: 'oracledb.tablespace_size.limit{obenhub.cluster.name="cdb19",service.name="oracledb",service.namespace="obenhub-lab",service.instance.id="CDB19",tablespace_name="OBENHUB_FILL",oracle.db.pdb="PDB19"}'
+        values: '20971520x40'
+    alert_rule_test:
+      - eval_time: 15s
+        groupname: oracledb-dg
+        alertname: OracleTablespaceUsageHigh
+        exp_alerts: []
+      - eval_time: 30s
+        groupname: oracledb-dg
+        alertname: OracleTablespaceUsageHigh
+        exp_alerts: []
+      - eval_time: 45s
+        groupname: oracledb-dg
+        alertname: OracleTablespaceUsageHigh
+        exp_alerts: []
+      - eval_time: 1m
+        groupname: oracledb-dg
+        alertname: OracleTablespaceUsageHigh
+        exp_alerts:
+          - exp_labels: {obenhub.cluster.name: cdb19, service.instance.id: CDB19, tablespace_name: OBENHUB_FILL, oracle.db.pdb: PDB19, severity: critical}
+            exp_annotations:
+              summary: 'Tablespace OBENHUB_FILL (PDB19) of Oracle instance CDB19 is 95% or more full of its maximum size: at 100% a segment that needs a new extent fails with ORA-01653'
+
+  - name: "tablespace: warm-up, a new series at 0.90 stays quiet until its window is full"
+    interval: 30s
+    input_series:
+      - series: 'oracledb.tablespace_size.usage{obenhub.cluster.name="cdb19",service.name="oracledb",service.namespace="obenhub-lab",service.instance.id="CDB19",tablespace_name="OBENHUB_FILL",oracle.db.pdb="PDB19"}'
+        values: '18874368x40'
+      - series: 'oracledb.tablespace_size.limit{obenhub.cluster.name="cdb19",service.name="oracledb",service.namespace="obenhub-lab",service.instance.id="CDB19",tablespace_name="OBENHUB_FILL",oracle.db.pdb="PDB19"}'
+        values: '20971520x40'
+    alert_rule_test:
+      - eval_time: 15s
+        groupname: oracledb-dg
+        alertname: OracleTablespaceUsageHigh
+        exp_alerts: []
+      - eval_time: 30s
+        groupname: oracledb-dg
+        alertname: OracleTablespaceUsageHigh
+        exp_alerts: []
+      - eval_time: 45s
+        groupname: oracledb-dg
+        alertname: OracleTablespaceUsageHigh
+        exp_alerts: []
+      - eval_time: 1m
+        groupname: oracledb-dg
+        alertname: OracleTablespaceUsageHigh
+        exp_alerts:
+          - exp_labels: {obenhub.cluster.name: cdb19, service.instance.id: CDB19, tablespace_name: OBENHUB_FILL, oracle.db.pdb: PDB19, severity: warning}
+            exp_annotations:
+              summary: 'Tablespace OBENHUB_FILL (PDB19) of Oracle instance CDB19 is more than 85% full of its maximum size'
+
+  # One collection near full does not fire: the window needs three points.
+  - name: "tablespace: one collection near full does not fire"
+    interval: 30s
+    input_series:
+      - series: 'oracledb.tablespace_size.usage{obenhub.cluster.name="cdb19",service.name="oracledb",service.namespace="obenhub-lab",service.instance.id="CDB19",tablespace_name="OBENHUB_FILL",oracle.db.pdb="PDB19"}'
+        values: '1048576x5 20447232 1048576x34'
+      - series: 'oracledb.tablespace_size.limit{obenhub.cluster.name="cdb19",service.name="oracledb",service.namespace="obenhub-lab",service.instance.id="CDB19",tablespace_name="OBENHUB_FILL",oracle.db.pdb="PDB19"}'
+        values: '20971520x40'
+    alert_rule_test:
+      - eval_time: 2m30s
+        groupname: oracledb-dg
+        alertname: OracleTablespaceUsageHigh
+        exp_alerts: []
+      - eval_time: 3m
+        groupname: oracledb-dg
+        alertname: OracleTablespaceUsageHigh
+        exp_alerts: []
+      - eval_time: 4m
+        groupname: oracledb-dg
+        alertname: OracleTablespaceUsageHigh
+        exp_alerts: []
+
+  # A tablespace that has usage and no limit series (or the reverse) is quiet.
+  - name: "tablespace: usage without a limit series, or a limit without usage, is quiet"
+    interval: 30s
+    input_series:
+      - series: 'oracledb.tablespace_size.usage{obenhub.cluster.name="cdb19",service.name="oracledb",service.namespace="obenhub-lab",service.instance.id="CDB19",tablespace_name="ONLY_USAGE",oracle.db.pdb="PDB19"}'
+        values: '20971520x40'
+      - series: 'oracledb.tablespace_size.limit{obenhub.cluster.name="cdb19",service.name="oracledb",service.namespace="obenhub-lab",service.instance.id="CDB19",tablespace_name="ONLY_LIMIT",oracle.db.pdb="PDB19"}'
+        values: '20971520x40'
+    alert_rule_test:
+      - eval_time: 5m
+        groupname: oracledb-dg
+        alertname: OracleTablespaceUsageHigh
+        exp_alerts: []
