@@ -118,6 +118,10 @@ run = "scripts/vmalert-unittest.sh lab/packs/pgbackrest/tests"
 description = "unit-test the shared Collector pack rules (lab/packs/collector, vmalert-tool); needs docker"
 run = "scripts/vmalert-unittest.sh lab/packs/collector/tests"
 
+[tasks."lab:oracle:rules-test"]
+description = "unit-test the Oracle Data Guard pack rules and Collector liveness in the Oracle inventory (vmalert-tool); needs docker"
+run = "scripts/vmalert-unittest.sh lab/packs/oracledb-dg/tests lab/oracle/mon/vmalert/tests"
+
 [tasks."lab:host:rules-test"]
 description = "unit-test the shared host pack rules (lab/packs/host, vmalert-tool); needs docker"
 run = "scripts/vmalert-unittest.sh lab/packs/host/tests"
@@ -216,6 +220,7 @@ depends = [
   "lab:cnpg:rules-test",
   "lab:k8s-pack:rules-test",
   "lab:pgbackrest:rules-test",
+  "lab:oracle:rules-test",
   "docs:build",
 ]
 

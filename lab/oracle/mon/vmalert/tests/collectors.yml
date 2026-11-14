@@ -1,0 +1,86 @@
+# Collector liveness in the Oracle lab: the observer Collector otelcol-ora-dg-obs
+# reads both databases (inventory: lab/oracle/mon/vmalert/inventory.yml), the
+# shared Collector pack and the Data Guard pack read the inventory. Samples are
+# 15 s apart; self-metrics stop after 2 m (8 samples) and the heartbeats of a
+# stopped Collector may outlive its last self-metric by 30 s (the last batch can
+# arrive late). CollectorAbsent: the 2 m window empties at 3m45s, firing after
+# for: 1m. Series labels reduced to the ones the rules use.
+rule_files:
+  - ../inventory.yml
+  - ../../../../packs/collector/rules.yml
+  - ../../../../packs/oracledb-dg/rules.yml
+evaluation_interval: 15s
+
+tests:
+  - name: "the observer Collector stops: CollectorAbsent fires, OracleTargetAbsent does not"
+    interval: 15s
+    input_series:
+      - series: 'otelcol_process_uptime{service.name="otelcol",service.instance.id="otelcol-ora-dg-obs"}'
+        values: '1x8 _x52'
+      - series: 'oracledb.collection.heartbeat{service.name="oracledb",service.instance.id="CDB19"}'
+        values: '1x10 _x50'
+      - series: 'oracledb.collection.heartbeat{service.name="oracledb",service.instance.id="CDB19_STBY"}'
+        values: '1x10 _x50'
+    alert_rule_test:
+      - eval_time: 3m
+        groupname: collector
+        alertname: CollectorAbsent
+        exp_alerts: []
+      - eval_time: 6m
+        groupname: collector
+        alertname: CollectorAbsent
+        exp_alerts:
+          - exp_labels: {severity: critical, service.namespace: obenhub-lab, service.instance.id: otelcol-ora-dg-obs}
+            exp_annotations:
+              summary: Collector otelcol-ora-dg-obs reports no self-metrics
+      - eval_time: 3m
+        groupname: oracledb-dg
+        alertname: OracleTargetAbsent
+        exp_alerts: []
+      - eval_time: 4m
+        groupname: oracledb-dg
+        alertname: OracleTargetAbsent
+        exp_alerts: []
+      - eval_time: 5m
+        groupname: oracledb-dg
+        alertname: OracleTargetAbsent
+        exp_alerts: []
+      - eval_time: 6m
+        groupname: oracledb-dg
+        alertname: OracleTargetAbsent
+        exp_alerts: []
+      - eval_time: 9m
+        groupname: oracledb-dg
+        alertname: OracleTargetAbsent
+        exp_alerts: []
+
+  - name: "the observer Collector is alive: CollectorAbsent and CollectorUnknown are quiet on the inventory as written"
+    interval: 15s
+    input_series:
+      - series: 'otelcol_process_uptime{service.name="otelcol",service.instance.id="otelcol-ora-dg-obs"}'
+        values: '1x60'
+      - series: 'oracledb.collection.heartbeat{service.name="oracledb",service.instance.id="CDB19"}'
+        values: '1x60'
+      - series: 'oracledb.collection.heartbeat{service.name="oracledb",service.instance.id="CDB19_STBY"}'
+        values: '1x60'
+    alert_rule_test:
+      - eval_time: 5m
+        groupname: collector
+        alertname: CollectorAbsent
+        exp_alerts: []
+      - eval_time: 14m
+        groupname: collector
+        alertname: CollectorAbsent
+        exp_alerts: []
+      - eval_time: 5m
+        groupname: collector
+        alertname: CollectorUnknown
+        exp_alerts: []
+      - eval_time: 14m
+        groupname: collector
+        alertname: CollectorUnknown
+        exp_alerts: []
+      - eval_time: 14m
+        groupname: oracledb-dg
+        alertname: OracleTargetAbsent
+        exp_alerts: []

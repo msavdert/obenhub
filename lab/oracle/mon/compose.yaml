@@ -3,7 +3,7 @@
 # only. The five backend services extend lab/mon/compose.base.yaml (images,
 # versions, flags, Alertmanager config, Grafana provisioning); this file adds
 # ports, names and rule files. The gateway config is shared with lab/pgha.
-# No alert rules or dashboards yet.
+# Alert rules: the shared Collector pack and the Data Guard pack. No dashboards yet.
 # Start with: mise run lab:oracle:mon:up (generates .env and the certificates).
 name: obenhub-oracle
 
@@ -57,6 +57,8 @@ services:
       - "127.0.0.1:58880:8880"
     volumes:
       - ./vmalert/inventory.yml:/etc/vmalert/inventory.yml:ro
+      - ../../packs/collector/rules.yml:/etc/vmalert/pack/collector.yml:ro
+      - ../../packs/oracledb-dg/rules.yml:/etc/vmalert/pack/oracledb-dg.yml:ro
 
   alertmanager:
     extends:

@@ -1,0 +1,300 @@
+# Oracle Data Guard pack rules, for lab/oracle (queries: queries.yaml next to
+# this file). The lab defines obenhub.expected_target{service.name="oracledb"}
+# in its inventory (lab/oracle/mon/vmalert/inventory.yml); OracleTargetAbsent
+# reads it. Names follow the naming contract (ADR 0006). Every threshold and
+# hold below is a lab threshold, chosen for a 15s collection interval, not a
+# recommendation. No scenario has exercised these rules yet; each says so.
+#
+# Labels, read from the VictoriaMetrics of the Oracle lab on 2026-11-13 (a
+# healthy CDB19 / CDB19_STBY pair): every oracledb.* series carries
+# service.instance.id (the db_unique_name) and obenhub.cluster.name (cdb19, the
+# Data Guard configuration), the sql_query series also
+# oracledb.database.unique_name. A cluster is identified by obenhub.cluster.name.
+#
+# Label-valued state: oracledb.database.role, open_mode, protection_level and
+# fast_start_failover.status are labels, so when the value changes the old
+# series stays readable until staleness (about 5 minutes) next to the new one.
+# What follows from that: flags that name a state are read as
+# max by (service.instance.id, obenhub.cluster.name) (last_over_time(...[1m]))
+# or last_over_time(...[30s]) (30s is two collections), never as an instant
+# selector. A series that stopped reporting (a role that no longer applies, a
+# promoted standby's lag) leaves the rule after the window, not after 5m. A
+# state that recovers is seen as recovered at once, but an old bad series may
+# keep an alert for up to the window longer. The old primary's series (value 1)
+# is still inside a 1m window for up to 45s after a switchover, next to its new
+# standby series (0). Every rule below except OraclePrimaryChanged has a hold
+# (for:) of at least 1m, which absorbs that; OraclePrimaryChanged has none, and
+# there the extra hit is the same cluster-level alert.
+groups:
+  - name: oracledb-dg
+    interval: 15s
+    rules:
+      # An expected Oracle target (inventory) whose heartbeat has been absent
+      # for 2m while the Collector that collects it is alive. Same shape as
+      # PostgresTargetAbsent: the Collector's 1m self-metrics window empties
+      # before the 2m heartbeat window, so a stopped Collector raises only the
+      # Collector alert (the shared collector pack), not one per database.
+      # oracledb.collection.heartbeat is a SELECT 1 through the SYSDG
+      # connection, so it also stops when the listener or the instance is down.
+      # Quiet when the Collector is dead or when the heartbeat is present.
+      # Scenario: not yet run.
+      - alert: OracleTargetAbsent
+        expr: |
+          obenhub.expected_target{service.name="oracledb"}
+            unless on(service.instance.id)
+          present_over_time(oracledb.collection.heartbeat[2m])
+            and on(obenhub.collector)
+          label_replace(present_over_time(otelcol_process_uptime[1m]), "obenhub.collector", "$1", "service.instance.id", "(.+)")
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: 'No heartbeat from Oracle database {{ (index $labels "service.instance.id") }}'
+
+      # A database that reported primary == 0 within the last 3 minutes is now
+      # the current primary: a standby was promoted, by switchover or failover
+      # (this signal cannot tell them apart; the broker log can). One firing per
+      # change, cluster level: the role label is aggregated away and the alert
+      # holds for 3 minutes after the promotion, until the last 0 leaves the
+      # window. Adapted from CNPGPrimaryChanged with the sense inverted (here
+      # 1 is primary). Both sides aggregate over all series of a database, old role
+      # label included. After a switchover the demoted database also matches for
+      # up to 45s (its old 1 is in the 1m window, its new 0 in the 3m one); that
+      # lands in the same cluster-level alert, so it is not a second firing.
+      # Quiet at steady state, when a primary restarts (it never reported 0),
+      # and when the old primary is gone (no standby sample to promote).
+      # Accepted miss: a promoted database silent for the whole window around
+      # the promotion.
+      # Scenario: not yet run.
+      - alert: OraclePrimaryChanged
+        expr: |
+          max by (obenhub.cluster.name) (
+            (
+              max by (service.instance.id, obenhub.cluster.name) (last_over_time(oracledb.database.primary[1m])) == 1
+            )
+              and on(service.instance.id, obenhub.cluster.name)
+            (min by (service.instance.id, obenhub.cluster.name) (min_over_time(oracledb.database.primary[3m])) == 0)
+          )
+        labels:
+          severity: warning
+        annotations:
+          summary: 'A standby of Data Guard cluster {{ (index $labels "obenhub.cluster.name") }} was promoted to primary'
+
+      # More than one database of one cluster is the current primary
+      # (primary 1 in the last minute) for 1m: two primaries, split brain (the
+      # broker normally prevents it; a failover with the old primary still open
+      # is how it happens). A switchover shows two 1s for at most 45s (see the
+      # top), so the 1m hold keeps it quiet.
+      # Quiet with one primary, with none, and across a switchover.
+      # Scenario: not yet run.
+      - alert: OracleMultiplePrimaries
+        expr: |
+          count by (obenhub.cluster.name) (
+            max by (service.instance.id, obenhub.cluster.name) (last_over_time(oracledb.database.primary[1m])) == 1
+          ) > 1
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: 'Data Guard cluster {{ (index $labels "obenhub.cluster.name") }} has {{ $value | printf "%.0f" }} primary databases'
+
+      # A cluster with at least one database reporting its heartbeat in the last
+      # minute and none reporting primary 1 in that minute, for 1m: a failover that
+      # has not completed, or a primary lost with the standby still waiting.
+      # Gated on the heartbeat so that a whole cluster that sends nothing is
+      # OracleTargetAbsent, not this. The 1m hold covers the seconds between
+      # the two roles of a switchover.
+      # Quiet while any database is primary, and when nothing reports.
+      # Scenario: not yet run.
+      - alert: OracleNoPrimary
+        expr: |
+          max by (obenhub.cluster.name) (present_over_time(oracledb.collection.heartbeat[1m]))
+            unless on(obenhub.cluster.name)
+          max by (obenhub.cluster.name) (
+            max by (service.instance.id, obenhub.cluster.name) (last_over_time(oracledb.database.primary[1m])) == 1
+          )
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: 'Data Guard cluster {{ (index $labels "obenhub.cluster.name") }} reports no primary database'
+
+      # The primary's protection level is below its protection mode (for
+      # example MAXIMUM AVAILABILITY running as RESYNCHRONIZATION or
+      # MAXIMUM PERFORMANCE because the standby is unreachable or behind): the
+      # configuration no longer gives the zero-data-loss guarantee it was set
+      # up for. Read as seen by the current primary: a standby also reports
+      # the query, but the level that matters is the primary's, so the join on
+      # service.instance.id keeps only it.
+      # Quiet on the healthy pair (degraded 0), and when the flag comes from a
+      # standby only.
+      # Scenario: not yet run.
+      - alert: OracleProtectionDegraded
+        expr: |
+          (last_over_time(oracledb.dataguard.protection.degraded[30s]) == 1)
+            and on(service.instance.id, obenhub.cluster.name)
+          (
+            max by (service.instance.id, obenhub.cluster.name) (last_over_time(oracledb.database.primary[1m])) == 1
+          )
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'Protection level of primary {{ (index $labels "service.instance.id") }} is {{ (index $labels "oracledb.dataguard.protection_level") }}, below {{ (index $labels "oracledb.dataguard.protection_mode") }}'
+
+      # Fast-start failover is enabled (status not DISABLED) but the primary
+      # reports it is not SYNCHRONIZED (status UNSYNCHRONIZED, LAGGING and so
+      # on): the broker will not fail over automatically, because it could lose
+      # data. Primary side only, as the broker acts on the primary's view; the
+      # enabled flag gates the rule so a configuration without fast-start
+      # failover is silent (the DISABLED value is unverified, see
+      # queries.yaml). 2m hold: the status moves through short non-synchronized
+      # moments after a switchover.
+      # Quiet when synchronized, when disabled, and when the flags come from a
+      # standby.
+      # Scenario: not yet run.
+      - alert: OracleFastStartFailoverNotSynchronized
+        expr: |
+          (last_over_time(oracledb.fast_start_failover.synchronized[30s]) == 0)
+            and on(service.instance.id, obenhub.cluster.name)
+          (last_over_time(oracledb.fast_start_failover.enabled[30s]) == 1)
+            and on(service.instance.id, obenhub.cluster.name)
+          (
+            max by (service.instance.id, obenhub.cluster.name) (last_over_time(oracledb.database.primary[1m])) == 1
+          )
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'Fast-start failover on primary {{ (index $labels "service.instance.id") }} is {{ (index $labels "oracledb.fast_start_failover.status") }}, not synchronized'
+
+      # Fast-start failover is enabled but the primary sees no observer: with
+      # no observer the broker cannot fail over automatically. Primary side
+      # only (the standby reports its own view, which a network split makes
+      # differ), same gating as above, 2m hold.
+      # Quiet with an observer, with fast-start failover disabled, and when
+      # the flags come from a standby.
+      # Scenario: not yet run.
+      - alert: OracleFastStartFailoverObserverMissing
+        expr: |
+          (last_over_time(oracledb.fast_start_failover.observer_present[30s]) == 0)
+            and on(service.instance.id, obenhub.cluster.name)
+          (last_over_time(oracledb.fast_start_failover.enabled[30s]) == 1)
+            and on(service.instance.id, obenhub.cluster.name)
+          (
+            max by (service.instance.id, obenhub.cluster.name) (last_over_time(oracledb.database.primary[1m])) == 1
+          )
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'Primary {{ (index $labels "service.instance.id") }} sees no fast-start failover observer'
+
+      # A standby whose managed recovery process is gone (the query counts
+      # V$DATAGUARD_PROCESS rows of role managed recovery): redo is received but
+      # no longer applied, so the lag will grow. The series exists only on a
+      # standby; the 30s last_over_time makes a promoted standby leave the rule
+      # 30s after its last sample, which a 2.5m run of 0 followed by a promotion
+      # relies on. That MRP0 disappears with APPLY-OFF is an expectation, not an
+      # observation (queries.yaml): the scenario is meant to confirm it.
+      # The hold is 3m because a new standby starts apply late after a
+      # switchover: on the two switchovers of 2026-11-13 (19:19:30 and 19:26:45
+      # UTC) the new standby reported apply.running 0 for 60-75 s (5 samples),
+      # then 1. A 1m hold fired a false critical on a planned switchover.
+      # Quiet while apply runs, on a primary (no series), for the post-switchover
+      # delay and for a 0 shorter than 3m.
+      # Scenario: not yet run.
+      - alert: OracleStandbyApplyStopped
+        expr: last_over_time(oracledb.dataguard.apply.running[30s]) == 0
+        for: 3m
+        labels:
+          severity: critical
+        annotations:
+          summary: 'Redo apply on standby {{ (index $labels "service.instance.id") }} is not running'
+
+      # Transport or apply lag above 60 seconds on a standby, per lag.type, for
+      # 2m. V$DATAGUARD_STATS gives the lag as an interval, the query turns it
+      # into seconds. Lab threshold: the healthy pair reads 0.
+      # Quiet at 0, for a spike shorter than 2m, and when the lag row is gone
+      # (value NULL: that is OracleStandbyLagUnknown).
+      # Scenario: not yet run.
+      - alert: OracleStandbyLag
+        expr: last_over_time(oracledb.dataguard.lag[30s]) > 60
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: '{{ (index $labels "oracledb.dataguard.lag.type") }} lag on standby {{ (index $labels "service.instance.id") }} is {{ $value | printf "%.0f" }}s (lab threshold 60s)'
+
+      # The lag value on a standby is stale: lag.data_age is the time since the
+      # standby last received the data the lag is computed from (DATUM_TIME), so
+      # it grows when redo stops arriving while the lag itself may stay low.
+      # Above 60 seconds for 2m. Lab threshold: the healthy pair reads 1.
+      # Quiet at small values and when the series is gone.
+      # Scenario: not yet run.
+      - alert: OracleStandbyDataStale
+        expr: last_over_time(oracledb.dataguard.lag.data_age[30s]) > 60
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'Lag data of type {{ (index $labels "oracledb.dataguard.lag.type") }} on standby {{ (index $labels "service.instance.id") }} is {{ $value | printf "%.0f" }}s old (lab threshold 60s)'
+
+      # A reporting standby (apply.running seen in the last 30s) with fewer
+      # than the two lag series (apply and transport; the pack emits exactly
+      # these types) in the last 2m: V$DATAGUARD_STATS.VALUE is NULL, so the
+      # query returns no row and OracleStandbyLag cannot fire. One alert per
+      # standby, whichever type is missing. The 2m window ends at the same
+      # sample as the running one when a standby is promoted, so a promotion
+      # does not fire it. The 1m hold is for a new standby after a switchover:
+      # its apply.running appears about 30 s before its lag rows (observed
+      # 2026-11-13: 19:19:30 against 19:20:00, and 19:27:00 against 19:27:15).
+      # Quiet with both types present, on a primary (no apply.running), for a
+      # gap shorter than 2m and for that post-switchover lead of under 1m.
+      # Scenario: not yet run.
+      - alert: OracleStandbyLagUnknown
+        expr: |
+          max by (service.instance.id, obenhub.cluster.name, oracledb.database.unique_name) (present_over_time(oracledb.dataguard.apply.running[30s]))
+            unless on(service.instance.id)
+          (count by (service.instance.id) (present_over_time(oracledb.dataguard.lag[2m])) == 2)
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'Standby {{ (index $labels "service.instance.id") }} reports no transport or apply lag (value NULL in V$DATAGUARD_STATS)'
+
+      # Redo is missing: a standby reports archived logs it lacks
+      # (missing_log.count > 0, V$ARCHIVE_GAP) or the primary reports a
+      # destination with a gap (archive_dest.gapped == 1). One rule with `or`:
+      # the two sides carry different labels (the destination ones only on the
+      # primary side), so neither hides the other, and every result keeps
+      # service.instance.id and oracledb.database.unique_name to name the
+      # database. 1m hold; a gap that Data Guard closes by itself within a minute
+      # is not reported.
+      # Quiet on the healthy pair (0 and 0).
+      # Scenario: not yet run.
+      - alert: OracleRedoGap
+        expr: |
+          (last_over_time(oracledb.dataguard.missing_log.count[30s]) > 0)
+            or
+          (last_over_time(oracledb.archive_dest.gapped[30s]) == 1)
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'Redo gap on {{ (index $labels "service.instance.id") }}'
+
+      # A remote redo destination whose status is not VALID (ERROR, DEFERRED,
+      # BAD PARAM and so on; an INACTIVE one is not listed by the query), for
+      # 1m: the primary can no longer ship redo to that standby. The status is
+      # a label, so the old VALID series lingers for 30s after the change; the
+      # value 0 of the new one is what fires.
+      # Quiet while VALID (1) and when the destination is not listed.
+      # Scenario: not yet run.
+      - alert: OracleRedoDestinationInvalid
+        expr: last_over_time(oracledb.archive_dest.valid[30s]) == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: 'Redo destination {{ (index $labels "oracledb.archive_dest.destination") }} of primary {{ (index $labels "service.instance.id") }} is {{ (index $labels "oracledb.archive_dest.status") }}'

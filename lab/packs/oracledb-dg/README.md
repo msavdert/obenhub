@@ -16,4 +16,10 @@ and through the Collector. Not run on 26ai. That the managed recovery process
 disappears when apply is stopped is expected, not yet observed; the
 apply-stopped scenario is meant to confirm it.
 
-There are no alert rules yet.
+## Alert rules
+
+`rules.yml` holds 13 rules (group `oracledb-dg`), unit-tested in `tests/`
+(`mise run lab:oracle:rules-test`). No lab scenario has exercised them yet;
+every rule says so in its comment, and the thresholds are lab thresholds.
+`OracleTargetAbsent` reads `obenhub.expected_target` from the lab's
+inventory (`lab/oracle/mon/vmalert/inventory.yml`).
