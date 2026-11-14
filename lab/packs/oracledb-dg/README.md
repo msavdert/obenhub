@@ -16,6 +16,11 @@ and through the Collector. Not run on 26ai. That the managed recovery process
 disappears when apply is stopped was observed in the apply-stopped trial runs
 of 2026-11-14 (`lab/oracle/results/runs.jsonl`).
 
+## Dashboard
+
+`dashboards/oracle-dg.json` (uid `obenhub-oracle-dg`) shows the pack's metrics
+and the firing alerts; `lab/oracle/mon` mounts it into Grafana.
+
 ## Alert rules
 
 `rules.yml` holds 13 rules (group `oracledb-dg`), unit-tested in `tests/`

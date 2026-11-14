@@ -165,6 +165,10 @@ scripts/check-panels.sh lab/packs/host/dashboards/host.json $g $e
 scripts/check-panels.sh lab/slice1/grafana/dashboards/postgresql.json $g $e pgha-1
 """
 
+[tasks."lab:oracle:panels"]
+description = "run the panel queries of the Oracle Data Guard dashboard against the running oracle Grafana (scripts/check-panels.sh); needs the lab, not part of check"
+run = "scripts/check-panels.sh lab/packs/oracledb-dg/dashboards/oracle-dg.json http://127.0.0.1:53000 lab/oracle/mon/.env"
+
 [tasks."lab:k8s:panels"]
 description = "run the panel queries of the CloudNativePG/Kubernetes and PostgreSQL dashboards against the running k8s Grafana (scripts/check-panels.sh); needs the lab, not part of check"
 run = """

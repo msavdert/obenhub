@@ -3,7 +3,8 @@
 # only. The five backend services extend lab/mon/compose.base.yaml (images,
 # versions, flags, Alertmanager config, Grafana provisioning); this file adds
 # ports, names and rule files. The gateway config is shared with lab/pgha.
-# Alert rules: the shared Collector pack and the Data Guard pack. No dashboards yet.
+# Alert rules: the shared Collector pack and the Data Guard pack. Dashboard: the
+# Data Guard pack's (the lab ships no host metrics, so no host dashboard).
 # Start with: mise run lab:oracle:mon:up (generates .env and the certificates).
 name: obenhub-oracle
 
@@ -77,6 +78,8 @@ services:
       GF_SECURITY_ADMIN_PASSWORD: "${GRAFANA_ADMIN_PASSWORD:?run: mise run lab:oracle:mon:up (it generates lab/oracle/mon/.env)}"
     ports:
       - "127.0.0.1:53000:3000"
+    volumes:
+      - ../../packs/oracledb-dg/dashboards:/var/lib/obenhub/dashboards/oracle-dg:ro
 
 networks:
   mon: {}
