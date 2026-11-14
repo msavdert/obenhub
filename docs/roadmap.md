@@ -156,3 +156,7 @@ checked against existing upstream issues before work starts.
       [record](https://github.com/msavdert/obenhub/blob/main/lab/oracle/results/role-staleness-2026-11-13/README.md));
       no upstream issue found in a search that day (listings were
       truncated, so not proof). Next: the owner opens the issue
+- [ ] a login probe per check for Oracle (candidate, pending evidence):
+      the gap and its sources are in ADR 0008 decision 7. Evidence to
+      collect first: the decision 8 scenarios listener stopped, monitoring
+      password expired and ORA-00020

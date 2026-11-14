@@ -214,7 +214,12 @@ by the scenarios below. Grafana provisions the shared host dashboard and "Oracle
 ([oracle-dg.json](../packs/oracledb-dg/dashboards/oracle-dg.json)): lag and
 data age, apply state, fast-start failover, protection level and redo
 destination, heartbeat and the observer Collector, and the firing alerts, plus
-the panels "RMAN backup age" and "RMAN last job failed".
+the panels "RMAN backup age" and "RMAN last job failed", and "Listener TCP
+connect" and "Listener connect time" (the `tcpcheck` probe of both listeners,
+ADR 0008 decision 7; a connect only, no login; the failing-listener path
+has not run in the lab yet, only in an isolated container against a closed port;
+each failed collection logs a multi-line error with a stack trace on the
+observer).
 `mise run lab:oracle:panels` runs its queries against the running Grafana.
 
 ```sh
