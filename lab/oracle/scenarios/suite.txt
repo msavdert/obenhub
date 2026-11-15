@@ -7,4 +7,5 @@ processes-exhausted
 tablespace-full
 blocking-session
 archiver-stuck
+backup-failed
 control
