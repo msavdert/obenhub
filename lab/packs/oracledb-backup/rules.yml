@@ -13,7 +13,10 @@
 # daily database backup plus 2 h (26 h = 93600 s), and an archived log backup
 # every 4 h plus 1 h (5 h = 18000 s). They are assumptions for that schedule,
 # not measured values.
-# Scenario: not yet run (a stale-backup scenario is not part of this pack).
+# Scenario: none of the four rules has been delivered in a scenario run:
+# archiver-stuck (lab/oracle) makes the condition of OracleRecoveryAreaFull
+# true but ends before its 10 minute hold (a stale-backup scenario is not part
+# of this pack).
 groups:
   - name: oracledb-backup
     interval: 15s
@@ -75,7 +78,13 @@ groups:
       # The recovery area is nearly full, counting what Oracle can delete by
       # itself (reclaimable) as free. Both databases of the pair. A full area
       # stops archiving on the primary and the redo apply path on the standby.
-      # The 85% and 10m are lab values, not recommendations.
+      # The 85% and 10m are lab values, not recommendations. It fires on the
+      # cause (the area), not on the archiver: a local archive destination that
+      # went to ERROR is OracleRedoDestinationInvalid's (oracledb-dg pack,
+      # destination 1), which fires within about 2 minutes where this rule
+      # needs 10.
+      # Scenario: archiver-stuck makes the condition true but ends before the
+      # hold, so the alert is allowed there, not expected.
       - alert: OracleRecoveryAreaFull
         expr: |
           (oracledb.recovery_area.usage - oracledb.recovery_area.reclaimable)

@@ -198,6 +198,46 @@ produced that metric and marks the connection reuse as an assumption); the recei
    trial) and for `C##OBENHUB_MON` (a manual probe on 2026-11-15 UTC, not a
    recorded run), without a `CONTAINER_DATA` change. The lag stayed 0 s, the
    Collector logged no error-level line and no other alert fired.
+   Archiver stuck (scenario `archiver-stuck`, one passing trial started
+   2026-11-15T04:02:36Z, Oracle 19.33; earlier draft trials of other versions
+   of the script were not kept): `DB_RECOVERY_FILE_DEST_SIZE` of the `CDB19`
+   primary was lowered with `SCOPE=MEMORY` from 21474836480 to 3998220288
+   bytes, 90% of 4442524160 (8429985280 used - 1470878720 reclaimable -
+   2516582400 bytes of flashback logs), and log switches were run. Seven
+   seconds after the switch unit started `V$ARCHIVE_DEST` destination 1 read
+   `ERROR` with ORA-19809 and two online groups waited for archiving; the
+   alert log held ORA-19809 twice, ORA-19804, ORA-19815 and ORA-16038 once
+   each. The third log switch waited in `switch logfile command` (two of six
+   had returned). Oracle deleted nothing: the space used, the reclaimable space
+   and the flashback logs (12 files, 2516582400 bytes) were unchanged for the
+   whole fault of 147 s, although 1470878720 bytes counted as reclaimable; that
+   the limit was below what could be freed is the reading of ORA-19804, not
+   checked in the documentation. The signal is the local destination itself:
+   the `oracledb.archive_dest.*` query of the Data Guard pack listed remote
+   destinations only, and now also lists `TYPE LOCAL`. `GAP_STATUS` is empty
+   for a local row, so it reads as no gap, and at rest both databases show
+   their local destination `VALID` (read 2026-11-15 UTC; the standby's
+   `TYPE UNKNOWN` destination 32 stays out). `OracleRedoDestinationInvalid`
+   (existing rule, reworded for "archive destination") was delivered 110.6 s
+   after the start for destination 1 (named in the notification; the
+   receiver's series read `ERROR` = 0 and `V$ARCHIVE_DEST_STATUS` read
+   `LOCAL ERROR`); its `startsAt` was 61 s after the archiver was seen stuck
+   and the delivery 42.1 s after that. It resolved 67.4 s after the revert
+   began; ARCH resumed 1 s after the limit was restored and
+   `ALTER SYSTEM ARCHIVE LOG ALL` was not needed. `OracleRecoveryAreaFull` was
+   not delivered: the fault lasted 147 s and the rule holds for 10 minutes
+   ((usage - reclaimable) / limit read 1.741 at the alert; the receiver of the
+   oracledb-backup pack collects every 60 s, sample times read 2026-11-15, and
+   showed the lowered limit). While the archiver was stuck a SYSDBA `SELECT`
+   and `dgmgrl show configuration` (`SUCCESS`) worked, the `sql_query`
+   heartbeat of both targets kept 10 samples against 9 expected with no gap
+   above 15 s, the Collector logged no error-level line, and a fresh login as
+   `C##OBENHUB_MON` failed with ORA-00257. The lag stayed 0 s. After the
+   restore a log switch succeeded, the standby reported no gap and
+   `FLASHBACK_ON` stayed `YES`. Before the run the broker showed the health
+   condition Stuck Archiver as `NO` and no Oracle error condition (read
+   2026-11-15; a stuck archiver could otherwise be a failover trigger);
+   fast-start failover did not act.
 9. **Backups.** RMAN with a recovery window, archived logs deleted after
    backup (and, on the Data Guard primaries, after apply on the standby);
    the backup state comes from `V$RMAN_BACKUP_JOB_DETAILS` through

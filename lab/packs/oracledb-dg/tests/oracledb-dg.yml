@@ -2230,7 +2230,7 @@ tests:
         exp_alerts:
           - exp_labels: {obenhub.cluster.name: cdb19, service.instance.id: CDB19, service.name: oracledb, service.namespace: obenhub-lab, oracledb.database.unique_name: CDB19, oracledb.archive_dest.id: 2, oracledb.archive_dest.destination: cdb19_stby, oracledb.archive_dest.status: ERROR, severity: critical}
             exp_annotations:
-              summary: "Redo destination cdb19_stby of primary CDB19 is ERROR"
+              summary: "Archive destination 2 (cdb19_stby) of CDB19 is ERROR"
 
   - name: "a recovered destination resolves OracleRedoDestinationInvalid"
     interval: 15s
@@ -2286,10 +2286,71 @@ tests:
         exp_alerts:
           - exp_labels: {obenhub.cluster.name: cdb19, service.instance.id: CDB19, service.name: oracledb, service.namespace: obenhub-lab, oracledb.database.unique_name: CDB19, oracledb.archive_dest.id: 2, oracledb.archive_dest.destination: cdb19_stby, oracledb.archive_dest.status: ERROR, severity: critical}
             exp_annotations:
-              summary: "Redo destination cdb19_stby of primary CDB19 is ERROR"
+              summary: "Archive destination 2 (cdb19_stby) of CDB19 is ERROR"
       - eval_time: 7m
         groupname: oracledb-dg
         alertname: OracleRedoDestinationInvalid
+        exp_alerts: []
+
+  # The local archive destination (destination 1, TYPE LOCAL), listed by the
+  # query since the archiver-stuck scenario. Labels as read from the lab on
+  # 2026-11-15 UTC: the destination is the archive directory, GAP_STATUS is
+  # empty (NONE, gap 0). Only the series the two rules read are given.
+  - name: "a local archive destination in ERROR fires OracleRedoDestinationInvalid on that database only"
+    interval: 15s
+    input_series:
+      # CDB19 (primary): local destination VALID for 1 minute, then ERROR; the remote one stays VALID
+      - series: 'oracledb.archive_dest.valid{service.instance.id="CDB19",oracledb.database.unique_name="CDB19",oracledb.archive_dest.id="1",oracledb.archive_dest.destination="/u01/app/oracle/product/19.0.0/dbhome_2/dbs/arch",oracledb.archive_dest.status="VALID"}'
+        values: '1x4 _x60'
+      - series: 'oracledb.archive_dest.valid{service.instance.id="CDB19",oracledb.database.unique_name="CDB19",oracledb.archive_dest.id="1",oracledb.archive_dest.destination="/u01/app/oracle/product/19.0.0/dbhome_2/dbs/arch",oracledb.archive_dest.status="ERROR"}'
+        values: '_x4 0x60'
+      - series: 'oracledb.archive_dest.gapped{service.instance.id="CDB19",oracledb.database.unique_name="CDB19",oracledb.archive_dest.id="1",oracledb.archive_dest.destination="/u01/app/oracle/product/19.0.0/dbhome_2/dbs/arch",oracledb.archive_dest.gap_status="NONE"}'
+        values: '0x64'
+      - series: 'oracledb.archive_dest.valid{service.instance.id="CDB19",oracledb.database.unique_name="CDB19",oracledb.archive_dest.id="2",oracledb.archive_dest.destination="cdb19_stby",oracledb.archive_dest.status="VALID"}'
+        values: '1x64'
+      - series: 'oracledb.archive_dest.gapped{service.instance.id="CDB19",oracledb.database.unique_name="CDB19",oracledb.archive_dest.id="2",oracledb.archive_dest.destination="cdb19_stby",oracledb.archive_dest.gap_status="NO GAP"}'
+        values: '0x64'
+      # CDB19_STBY (mounted standby): its own local destination stays VALID
+      - series: 'oracledb.archive_dest.valid{service.instance.id="CDB19_STBY",oracledb.database.unique_name="CDB19_STBY",oracledb.archive_dest.id="1",oracledb.archive_dest.destination="/u01/app/oracle/product/19.0.0/dbhome_2/dbs/arch",oracledb.archive_dest.status="VALID"}'
+        values: '1x64'
+      - series: 'oracledb.archive_dest.gapped{service.instance.id="CDB19_STBY",oracledb.database.unique_name="CDB19_STBY",oracledb.archive_dest.id="1",oracledb.archive_dest.destination="/u01/app/oracle/product/19.0.0/dbhome_2/dbs/arch",oracledb.archive_dest.gap_status="NONE"}'
+        values: '0x64'
+    alert_rule_test:
+      - eval_time: 45s   # all destinations VALID or just changed: quiet
+        groupname: oracledb-dg
+        alertname: OracleRedoDestinationInvalid
+        exp_alerts: []
+      - eval_time: 5m
+        groupname: oracledb-dg
+        alertname: OracleRedoDestinationInvalid
+        exp_alerts:
+          - exp_labels: {service.instance.id: CDB19, oracledb.database.unique_name: CDB19, oracledb.archive_dest.id: 1, oracledb.archive_dest.destination: /u01/app/oracle/product/19.0.0/dbhome_2/dbs/arch, oracledb.archive_dest.status: ERROR, severity: critical}
+            exp_annotations:
+              summary: "Archive destination 1 (/u01/app/oracle/product/19.0.0/dbhome_2/dbs/arch) of CDB19 is ERROR"
+      - eval_time: 5m   # a local row with no gap status is no gap
+        groupname: oracledb-dg
+        alertname: OracleRedoGap
+        exp_alerts: []
+
+  - name: "local destinations VALID on both databases leave both destination rules quiet"
+    interval: 15s
+    input_series:
+      - series: 'oracledb.archive_dest.valid{service.instance.id="CDB19",oracledb.database.unique_name="CDB19",oracledb.archive_dest.id="1",oracledb.archive_dest.destination="/u01/app/oracle/product/19.0.0/dbhome_2/dbs/arch",oracledb.archive_dest.status="VALID"}'
+        values: '1x60'
+      - series: 'oracledb.archive_dest.gapped{service.instance.id="CDB19",oracledb.database.unique_name="CDB19",oracledb.archive_dest.id="1",oracledb.archive_dest.destination="/u01/app/oracle/product/19.0.0/dbhome_2/dbs/arch",oracledb.archive_dest.gap_status="NONE"}'
+        values: '0x60'
+      - series: 'oracledb.archive_dest.valid{service.instance.id="CDB19_STBY",oracledb.database.unique_name="CDB19_STBY",oracledb.archive_dest.id="1",oracledb.archive_dest.destination="/u01/app/oracle/product/19.0.0/dbhome_2/dbs/arch",oracledb.archive_dest.status="VALID"}'
+        values: '1x60'
+      - series: 'oracledb.archive_dest.gapped{service.instance.id="CDB19_STBY",oracledb.database.unique_name="CDB19_STBY",oracledb.archive_dest.id="1",oracledb.archive_dest.destination="/u01/app/oracle/product/19.0.0/dbhome_2/dbs/arch",oracledb.archive_dest.gap_status="NONE"}'
+        values: '0x60'
+    alert_rule_test:
+      - eval_time: 10m
+        groupname: oracledb-dg
+        alertname: OracleRedoDestinationInvalid
+        exp_alerts: []
+      - eval_time: 10m
+        groupname: oracledb-dg
+        alertname: OracleRedoGap
         exp_alerts: []
 
   # Listener probe (tcpcheck receiver on ora-dg-obs). Series carry the labels

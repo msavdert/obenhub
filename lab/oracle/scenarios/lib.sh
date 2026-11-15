@@ -9,7 +9,8 @@
 #
 # Databases are reached as the oracle OS user with operating-system
 # authentication (sqlplus / as sysdba, dgmgrl /); only mon_login (fresh logins
-# as C##OBENHUB_MON, used by password-expired.sh and processes-exhausted.sh)
+# as C##OBENHUB_MON, used by password-expired.sh and processes-exhausted.sh,
+# and as a probe by archiver-stuck.sh)
 # reads a password (lab/oracle/.env, sent on stdin). ORACLE_HOME comes from /etc/oratab on the host. The broker
 # configuration is the one of the pair, CDB19 and CDB19_STBY (the VMs also hold
 # CDB19B and CDB26, which no scenario touches).

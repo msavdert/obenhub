@@ -717,7 +717,7 @@
           "refId": "B",
           "range": true,
           "instant": false,
-          "legendFormat": "dest valid {{oracledb.archive_dest.destination}} ({{oracledb.archive_dest.status}})"
+          "legendFormat": "dest valid {{service.instance.id}} {{oracledb.archive_dest.destination}} ({{oracledb.archive_dest.status}})"
         },
         {
           "datasource": {
@@ -728,10 +728,10 @@
           "refId": "C",
           "range": true,
           "instant": false,
-          "legendFormat": "dest gap {{oracledb.archive_dest.destination}} ({{oracledb.archive_dest.gap_status}})"
+          "legendFormat": "dest gap {{service.instance.id}} {{oracledb.archive_dest.destination}} ({{oracledb.archive_dest.gap_status}})"
         }
       ],
-      "description": "Protection level below the configured mode (degraded 1) and a remote destination leaving VALID (valid 0) in the transport-cut scenario. The gap series stays 0 there.",
+      "description": "Protection level below the configured mode (degraded 1) and archive destinations leaving VALID (valid 0): the remote destination of the primary in the transport-cut scenario, the local destination 1 of the primary in the archiver-stuck scenario. One valid and one gap series per destination and per database (the primary lists its local and remote destinations, the standby its local one). The gap series stays 0 in both scenarios.",
       "fieldConfig": {
         "defaults": {
           "custom": {
