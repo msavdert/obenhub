@@ -86,8 +86,17 @@
   metrics:
     - {metric_name: oracledb.dataguard.apply.running, value_column: running, attribute_columns: ["oracledb.database.unique_name"], value_type: int, data_type: gauge, unit: "1", description: "1 when a managed recovery process exists on the standby"}
     - {metric_name: oracledb.dataguard.missing_log.count, value_column: missing_log, attribute_columns: ["oracledb.database.unique_name"], value_type: int, data_type: gauge, unit: "{log}", description: "Archived logs the standby is missing (V$ARCHIVE_GAP)"}
-# Remote redo destinations in use, normally on the primary. TYPE UNKNOWN is
-# left out: the standby lists an unused destination with that type.
+# Archive destinations in use: the local one (TYPE LOCAL, destination 1, the
+# recovery area or the archive directory) and the remote redo destinations of
+# the primary. A local destination goes to ERROR when the archiver cannot write
+# (ORA-19809 with a full recovery area: scenario archiver-stuck). GAP_STATUS is
+# empty for a LOCAL row on both databases of the lab pair (read 2026-11-15 UTC),
+# so it reads as no gap (gap 0). The standby lists its own local destination
+# (VALID) and a TYPE UNKNOWN destination 32 that is left out: it is an unused
+# one. INACTIVE destinations are left out too. No offline test pins this filter
+# (the unit tests feed hand-written series); the pre-flight of archiver-stuck
+# (destination 1 VALID on both databases in the receiver) and the control run
+# cover it against the live pair.
 - sql: |
     SELECT
       d.db_unique_name AS "oracledb.database.unique_name",
@@ -98,7 +107,7 @@
       CASE WHEN a.status = 'VALID' THEN 1 ELSE 0 END AS "valid",
       CASE WHEN a.gap_status IS NULL OR a.gap_status = 'NO GAP' THEN 0 ELSE 1 END AS "gap"
     FROM v$archive_dest_status a CROSS JOIN v$database d
-    WHERE a.status <> 'INACTIVE' AND a.type NOT IN ('LOCAL', 'UNKNOWN')
+    WHERE a.status <> 'INACTIVE' AND a.type <> 'UNKNOWN'
   metrics:
-    - {metric_name: oracledb.archive_dest.valid, value_column: valid, attribute_columns: ["oracledb.database.unique_name", "oracledb.archive_dest.id", "oracledb.archive_dest.destination", "oracledb.archive_dest.status"], value_type: int, data_type: gauge, unit: "1", description: "1 when the remote redo destination status is VALID"}
+    - {metric_name: oracledb.archive_dest.valid, value_column: valid, attribute_columns: ["oracledb.database.unique_name", "oracledb.archive_dest.id", "oracledb.archive_dest.destination", "oracledb.archive_dest.status"], value_type: int, data_type: gauge, unit: "1", description: "1 when the archive destination status is VALID (the local destination, or a remote redo destination on the primary)"}
     - {metric_name: oracledb.archive_dest.gapped, value_column: gap, attribute_columns: ["oracledb.database.unique_name", "oracledb.archive_dest.id", "oracledb.archive_dest.destination", "oracledb.archive_dest.gap_status"], value_type: int, data_type: gauge, unit: "1", description: "1 when the destination reports a redo gap (GAP_STATUS other than NO GAP)"}

@@ -253,3 +253,31 @@ tests:
               oracledb.database.unique_name: CDB19_STBY
             exp_annotations:
               summary: 'Recovery area of CDB19_STBY is 95% full of space that cannot be reclaimed'
+
+  - name: recovery area limit lowered under the usage fires after 10m (archiver-stuck scenario)
+    interval: 1m
+    input_series:
+      # the shape of the archiver-stuck scenario (lab/oracle/scenarios/archiver-stuck.sh): illustrative values close to the
+      # CDB19 primary's recovery area (not a kept record), the limit lowered at minute 5 from 20 GiB to 4000000000 bytes, below what cannot be reclaimed.
+      # The scenario ends before this rule's hold; this test shows what a fault of 10 minutes or more fires.
+      - series: 'oracledb.recovery_area.limit{service.instance.id="CDB19",oracledb.database.unique_name="CDB19"}'
+        values: '21474836480x4 4000000000x35'
+      - series: 'oracledb.recovery_area.usage{service.instance.id="CDB19",oracledb.database.unique_name="CDB19"}'
+        values: '8428404224x40'
+      - series: 'oracledb.recovery_area.reclaimable{service.instance.id="CDB19",oracledb.database.unique_name="CDB19"}'
+        values: '1470878720x40'
+    alert_rule_test:
+      - eval_time: 12m   # the condition has held for 7 minutes
+        groupname: oracledb-backup
+        alertname: OracleRecoveryAreaFull
+        exp_alerts: []
+      - eval_time: 20m
+        groupname: oracledb-backup
+        alertname: OracleRecoveryAreaFull
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              service.instance.id: CDB19
+              oracledb.database.unique_name: CDB19
+            exp_annotations:
+              summary: 'Recovery area of CDB19 is 173.9% full of space that cannot be reclaimed'

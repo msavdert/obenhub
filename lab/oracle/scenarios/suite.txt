@@ -6,4 +6,5 @@ password-expired
 processes-exhausted
 tablespace-full
 blocking-session
+archiver-stuck
 control
