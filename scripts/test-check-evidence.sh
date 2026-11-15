@@ -142,6 +142,12 @@ rm lab/x/scenarios/c.sh
 printf 'a\nb\nd\n' >lab/x/scenarios/suite.txt
 expect "suite.txt name without script" 1 "> d" x
 git checkout -q lab/x/scenarios/suite.txt
+touch lab/x/scenarios/c.sh lab/x/scenarios/lib-more.sh
+printf 'c\n' >lab/x/scenarios/long.txt
+expect "long.txt scenario and lib-*.sh helper are not suite members" 0 "suite s1 ($head) is current" --strict x
+printf 'a\n' >lab/x/scenarios/long.txt
+expect "script not in suite.txt nor long.txt" 1 "< c" x
+rm lab/x/scenarios/c.sh lab/x/scenarios/lib-more.sh lab/x/scenarios/long.txt
 
 # prose and cross-lab mounts, on a lab named pgha
 mkdir -p lab/pgha/results lab/pgha/scenarios lab/stage3/grafana/dashboards lab/slice1/grafana/dashboards

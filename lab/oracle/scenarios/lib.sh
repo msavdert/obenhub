@@ -33,10 +33,11 @@ AM_C=obenhub-oracle-alertmanager
 VM=${VM:-http://127.0.0.1:58428}
 NODES=("$PRIMARY_SID" "$STANDBY_SID")
 ETCD_MEMBERS=()
-# the order of the mounts in lab/oracle/mon/compose.yaml
-CONFIG_FILES=("$LAB_DIR/mon/vmalert/inventory.yml" "$LAB_DIR/../packs/collector/rules.yml" "$LAB_DIR/../packs/oracledb-dg/rules.yml" "$LAB_DIR/../mon/alertmanager.yml")
-# pack files sort by name inside the container: collector.yml, oracledb-dg.yml
-VMALERT_LOADED_CAT="cat /etc/vmalert/inventory.yml /etc/vmalert/pack/collector.yml /etc/vmalert/pack/oracledb-dg.yml"
+# the repository's alerting files in the order the containers read them: vmalert
+# reads pack/*.yml sorted by name (collector, host, oracledb-backup, oracledb-dg;
+# the mounts are in lab/oracle/mon/compose.yaml, in another order)
+CONFIG_FILES=("$LAB_DIR/mon/vmalert/inventory.yml" "$LAB_DIR/../packs/collector/rules.yml" "$LAB_DIR/../packs/host/rules.yml" "$LAB_DIR/../packs/oracledb-backup/rules.yml" "$LAB_DIR/../packs/oracledb-dg/rules.yml" "$LAB_DIR/../mon/alertmanager.yml")
+VMALERT_LOADED_CAT="cat /etc/vmalert/inventory.yml /etc/vmalert/pack/collector.yml /etc/vmalert/pack/host.yml /etc/vmalert/pack/oracledb-backup.yml /etc/vmalert/pack/oracledb-dg.yml"
 
 # shellcheck source=lab/scenarios/lib-core.sh
 . "$SC_DIR/../../scenarios/lib-core.sh"

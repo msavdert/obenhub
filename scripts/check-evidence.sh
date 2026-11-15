@@ -93,10 +93,13 @@ stale=0
 broken=0
 for lab in "${labs[@]}"; do
   runs=lab/$lab/results/runs.jsonl
-  # scenario scripts vs suite.txt (run-suite.sh resolves NAME to NAME.sh; lib.sh is the helper)
+  # scenario scripts vs suite.txt (run-suite.sh resolves NAME to NAME.sh; lib.sh and lib-*.sh are
+  # helpers; the names in an optional long.txt are scenarios kept out of the suite on purpose)
   if [ -f "lab/$lab/scenarios/suite.txt" ]; then
     d=lab/$lab/scenarios
-    mism=$(diff <(for f in "$d"/*.sh; do b=${f##*/}; [ "$b" = lib.sh ] || echo "${b%.sh}"; done | sort -u) \
+    long=/dev/null
+    [ ! -f "$d/long.txt" ] || long="$d/long.txt"
+    mism=$(diff <(for f in "$d"/*.sh; do b=${f##*/}; case "$b" in lib.sh | lib-*.sh) ;; *) grep -qxF "${b%.sh}" "$long" || echo "${b%.sh}" ;; esac; done | sort -u) \
                 <(grep -v '^$' "$d/suite.txt" | sort -u) || true)
     if [ -n "$mism" ]; then
       echo "$lab: $d differs from suite.txt (< script only, > suite.txt only):"

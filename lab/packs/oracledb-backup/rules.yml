@@ -13,10 +13,11 @@
 # daily database backup plus 2 h (26 h = 93600 s), and an archived log backup
 # every 4 h plus 1 h (5 h = 18000 s). They are assumptions for that schedule,
 # not measured values.
-# Scenario: none of the four rules has been delivered in a scenario run:
-# archiver-stuck (lab/oracle) makes the condition of OracleRecoveryAreaFull
-# true but ends before its 10 minute hold (a stale-backup scenario is not part
-# of this pack).
+# Scenarios (lab/oracle/scenarios): backup-failed has delivered OracleBackupFailed
+# in trial runs; backup-stale is written for OracleBackupStale but only its
+# trial mode (no alert) has run, the real path has not; archiver-stuck makes
+# the condition of OracleRecoveryAreaFull true but ends before its 10 minute
+# hold. OracleBackupMissing has unit tests only.
 groups:
   - name: oracledb-backup
     interval: 15s
