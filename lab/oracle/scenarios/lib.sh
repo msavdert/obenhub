@@ -73,6 +73,10 @@ whenever sqlerror exit 1
 $(cat)
 EOF'
 }
+# in_pdb: SQL from stdin, run as sysdba in the pluggable database named by $PDB
+# on the primary (ALTER SESSION SET CONTAINER; errors stop the script, status
+# 1); used by tablespace-full.sh and blocking-session.sh, which set PDB
+in_pdb() { { printf 'ALTER SESSION SET CONTAINER = %s;\nset serveroutput on\n' "$PDB"; cat; } | ora_sql "$PRIMARY_SID"; }
 # dg SID COMMAND: one dgmgrl command through OS authentication on that
 # database's host
 dg() { ora_sh "$1" "dgmgrl -silent / $(printf '%q' "$2")" </dev/null; }

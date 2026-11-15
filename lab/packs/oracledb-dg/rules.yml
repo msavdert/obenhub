@@ -488,3 +488,32 @@ groups:
           severity: critical
         annotations:
           summary: 'Tablespace {{ (index $labels "tablespace_name") }} ({{ (index $labels "oracle.db.pdb") }}) of Oracle instance {{ (index $labels "service.instance.id") }} is 95% or more full of its maximum size: at 100% a segment that needs a new extent fails with ORA-01653'
+
+      # A session has waited for a lock held by another session:
+      # oracledb.lock.oldest_wait_age (queries-primary.yaml: V$SESSION, wait
+      # class Application, all containers, 15s collection, 0 when none). One
+      # tier, as PostgresBlockedSessions in lab/packs/postgresql/rules.yml: a
+      # wait is a symptom whose blocker the pack does not name. The lab
+      # threshold of 30 s is that rule's, assumed, not tuned to Oracle. Its
+      # 30s hold is written as the window of PostgresIdleInTransaction:
+      # x = min_over_time over 45s is the lowest of three 15s points, so the
+      # oldest wait was above 30 s at each of them (the wait began more than
+      # 60 s before the alert fires), and n >= 3 keeps a series with fewer
+      # points (a new Collector, a new series) quiet. max by (service.instance.id,
+      # obenhub.cluster.name): the series also carries
+      # oracledb.database.unique_name.
+      # Scenario: blocking-session (lab/oracle): a row lock held by one session
+      # of PDB19 and awaited by another; the numbers are in
+      # lab/oracle/results/runs.jsonl, not here.
+      - alert: OracleBlockedSessions
+        expr: |
+          WITH (
+            r = max by (service.instance.id, obenhub.cluster.name) (oracledb.lock.oldest_wait_age),
+            x = min_over_time(r[45s:15s]),
+            n = count_over_time(r[45s:15s])
+          )
+          (x > 30) and (n >= 3)
+        labels:
+          severity: warning
+        annotations:
+          summary: 'A session on Oracle instance {{ (index $labels "service.instance.id") }} has waited {{ $value | humanizeDuration }} for a lock held by another session (lab threshold)'

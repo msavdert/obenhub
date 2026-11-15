@@ -28,8 +28,6 @@ STBY_FILE_DURING="" STBY_FILE_AFTER="" PRIM_FILE_AFTER=""
 LAG_BEFORE="" LAG_DURING="" LAG_AFTER=""
 RETRY_CODE="" SEV_CRIT=false
 
-# in_pdb: SQL from stdin, run as sysdba in PDB19 on the primary (errors stop the script, status 1)
-in_pdb() { { printf 'ALTER SESSION SET CONTAINER = %s;\nset serveroutput on\n' "$PDB"; cat; } | ora_sql "$PRIMARY_SID"; }
 param() { ora_sql "$1" <<<"SELECT value FROM v\$parameter WHERE name = 'standby_file_management';" | tr -d '[:space:]'; }
 # exists_count: how many of tablespace, user and (primary and standby) datafile entries exist
 ts_count() { in_pdb <<<"SELECT COUNT(*) FROM dba_tablespaces WHERE tablespace_name = '$TS';" | tr -d '[:space:]'; }

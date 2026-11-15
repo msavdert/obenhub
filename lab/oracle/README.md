@@ -272,6 +272,7 @@ mise run lab:oracle:scenario listener-stopped # lsnrctl stop on the primary VM, 
 mise run lab:oracle:scenario password-expired # C##OBENHUB_MON password expired on CDB19, then restored
 mise run lab:oracle:scenario processes-exhausted # holder sessions fill PROCESSES of CDB19 (ORA-00020 for new logins), then stopped
 mise run lab:oracle:scenario tablespace-full     # a 20 MB tablespace of PDB19 filled to ORA-01653, then dropped
+mise run lab:oracle:scenario blocking-session    # one session of PDB19 waits for a row lock another holds, then both are stopped
 mise run lab:oracle:scenarios                 # the list in scenarios/suite.txt as one suite
 ```
 
@@ -289,6 +290,8 @@ operating-system authentication (`sqlplus / as sysdba`, `dgmgrl /`). Only
 `dg-observer@cdb19` on `ora-dg-obs` (`/home/oracle/scripts/observer.sh`,
 owner-provided and not in this repository).
 `tablespace-full` creates the tablespace `OBENHUB_FILL` (one 20 MB datafile, no autoextend) and the user `OBENHUB_FILL_OWNER` in `PDB19` of the CDB19 primary, fills its one table until the insert fails with ORA-01653, and drops both with the datafile; it refuses to start unless `STANDBY_FILE_MANAGEMENT` is `AUTO` on both databases (the create and the drop reach the standby by redo apply) and the Collector already reports the tablespace series with `oracle.db.pdb` (`lab:oracle:collector`). No existing tablespace is touched.
+
+`blocking-session` creates the user `OBENHUB_BLOCK` (quota 1 MB) with a one-row table in `PDB19` of the CDB19 primary and starts two `sqlplus` sessions in the transient systemd unit `obenhub-blocking-session` on `ora-au-lab`: one updates the row and holds the transaction, the other updates the same row and waits (`enq: TX - row lock contention`). It first requires V$SESSION to show the waiter blocked, then waits for `OracleBlockedSessions` (the signal is `oracledb.lock.oldest_wait_age`, a primary-only `sql_query` of [queries-primary.yaml](../packs/oracledb-dg/queries-primary.yaml); upstream has no such metric). The revert stops the unit and drops the user; it refuses to start when `OBENHUB_BLOCK` exists, a session is already waiting on a lock, or the Collector does not yet report the series (`lab:oracle:collector`). Nothing else is touched.
 
 `processes-exhausted` starts up to about 250 holder sessions (one bequeath `sqlplus` and its server process each, about 10 MB per holder) in the transient systemd unit `obenhub-processes-exhausted` on `ora-au-lab`, so that stopping the unit removes them; it refuses to start with less than 4.5 GB `MemAvailable` there, and the holders end by themselves after 900 s. While the limit is reached the scenario's own bequeath logins fail too.
 

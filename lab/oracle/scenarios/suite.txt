@@ -5,4 +5,5 @@ listener-stopped
 password-expired
 processes-exhausted
 tablespace-full
+blocking-session
 control
