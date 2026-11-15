@@ -40,9 +40,12 @@ groups:
       # every 15 s (11 of 11 samples; pooled sessions survive; run listener-stopped 2026-11-14T17:57:45Z
       # in lab/oracle/results/runs.jsonl; two passing runs, 166 s and 171 s, Oracle 19.33, existing sessions only), so a stopped
       # listener did not raise this alert there. That an instance that is down
-      # does is expected from the query, not yet run.
+      # does is expected from the query. In fsfo-failover the aborted primary's
+      # heartbeat was absent for about 140 to 150 s until the revert mounted it, shorter
+      # than the 2m window plus 1m hold, so it stayed quiet there (the firing
+      # path is still not exercised).
       # Quiet when the Collector is dead or when the heartbeat is present.
-      # Scenario: listener-stopped (alert stayed quiet); no scenario
+      # Scenario: listener-stopped and fsfo-failover (alert stayed quiet); no scenario
       # exercises the firing path yet.
       - alert: OracleTargetAbsent
         expr: |
@@ -71,7 +74,11 @@ groups:
       # and when the old primary is gone (no standby sample to promote).
       # Accepted miss: a promoted database silent for the whole window around
       # the promotion.
-      # Scenario: not yet run.
+      # Scenario: fsfo-failover (lab/oracle; delivered about 95 to 105 s after
+      # SHUTDOWN ABORT of the primary in the trials of 2026-11-15 (runs.jsonl),
+      # the promoted standby seen as primary 35 to 40 s after the abort; the
+      # observer's failover and the switchback each promote a database, so it
+      # fires twice in some runs).
       - alert: OraclePrimaryChanged
         expr: |
           max by (obenhub.cluster.name) (
@@ -86,17 +93,28 @@ groups:
         annotations:
           summary: 'A standby of Data Guard cluster {{ (index $labels "obenhub.cluster.name") }} was promoted to primary'
 
-      # More than one database of one cluster is the current primary
-      # (primary 1 in the last minute) for 1m: two primaries, split brain (the
-      # broker normally prevents it; a failover with the old primary still open
-      # is how it happens). A switchover shows two 1s for at most 45s (see the
-      # top), so the 1m hold keeps it quiet.
-      # Quiet with one primary, with none, and across a switchover.
-      # Scenario: not yet run.
+      # More than one database of one cluster is the current primary and open
+      # (role PRIMARY with oracledb.database.open 1, both in the last minute)
+      # for 1m: two primaries, split brain (the broker normally prevents it; a
+      # failover with the old primary still open is how it happens). The open
+      # flag is a separate metric of the same query as the role flag
+      # (queries.yaml), joined on service.instance.id: a failed-over old
+      # primary that was aborted and then mounted still reports role PRIMARY
+      # (its control file) until the observer has reinstated it, about 50 s in
+      # fsfo-failover, and the role flag alone fired this rule for it; a mounted
+      # database is no split brain. A switchover shows two such databases for at
+      # most 45s (see the top), so the 1m hold keeps it quiet.
+      # Quiet with one primary, with none, across a switchover and for a mounted
+      # old primary.
+      # Scenario: fsfo-failover (lab/oracle). The role-only version of this rule
+      # fired there in every trial that ran it (mounted old primary, about
+      # 50 s); with the open gate it stayed quiet in the trials since.
       - alert: OracleMultiplePrimaries
         expr: |
           count by (obenhub.cluster.name) (
-            max by (service.instance.id, obenhub.cluster.name) (last_over_time(oracledb.database.primary[1m])) == 1
+            (max by (service.instance.id, obenhub.cluster.name) (last_over_time(oracledb.database.primary[1m])) == 1)
+              and on(service.instance.id, obenhub.cluster.name)
+            (max by (service.instance.id, obenhub.cluster.name) (last_over_time(oracledb.database.open[1m])) == 1)
           ) > 1
         for: 1m
         labels:
@@ -105,19 +123,25 @@ groups:
           summary: 'Data Guard cluster {{ (index $labels "obenhub.cluster.name") }} has {{ $value | printf "%.0f" }} primary databases'
 
       # A cluster with at least one database reporting its heartbeat in the last
-      # minute and none reporting primary 1 in that minute, for 1m: a failover that
-      # has not completed, or a primary lost with the standby still waiting.
+      # minute and none reporting role PRIMARY and open (oracledb.database.open 1,
+      # same gate as OracleMultiplePrimaries) in that minute, for 1m: a failover
+      # that has not completed, or a primary lost with the standby still waiting,
+      # or an old primary that is only mounted.
       # Gated on the heartbeat so that a whole cluster that sends nothing is
       # OracleTargetAbsent, not this. The 1m hold covers the seconds between
       # the two roles of a switchover.
       # Quiet while any database is primary, and when nothing reports.
-      # Scenario: not yet run.
+      # Scenario: fsfo-failover (alert stayed quiet through a failover and its
+      # switchback in every trial, also while the old primary was only
+      # mounted; no scenario exercises the firing path yet).
       - alert: OracleNoPrimary
         expr: |
           max by (obenhub.cluster.name) (present_over_time(oracledb.collection.heartbeat[1m]))
             unless on(obenhub.cluster.name)
           max by (obenhub.cluster.name) (
-            max by (service.instance.id, obenhub.cluster.name) (last_over_time(oracledb.database.primary[1m])) == 1
+            (max by (service.instance.id, obenhub.cluster.name) (last_over_time(oracledb.database.primary[1m])) == 1)
+              and on(service.instance.id, obenhub.cluster.name)
+            (max by (service.instance.id, obenhub.cluster.name) (last_over_time(oracledb.database.open[1m])) == 1)
           )
         for: 1m
         labels:
@@ -134,7 +158,9 @@ groups:
       # service.instance.id keeps only it.
       # Quiet on the healthy pair (degraded 0), and when the flag comes from a
       # standby only.
-      # Scenario: transport-cut (lab/oracle; single trial runs 2026-11-14, no suite yet).
+      # Scenario: transport-cut and fsfo-failover (lab/oracle; single trial runs 2026-11-14
+      # and 2026-11-15, no suite yet; in fsfo-failover it fired for the new primary,
+      # and in one run for the original primary after the switchback).
       - alert: OracleProtectionDegraded
         expr: |
           (last_over_time(oracledb.dataguard.protection.degraded[30s]) == 1)
@@ -158,7 +184,9 @@ groups:
       # moments after a switchover.
       # Quiet when synchronized, when disabled, and when the flags come from a
       # standby.
-      # Scenario: not yet run.
+      # Scenario: fsfo-failover (fired for the new primary CDB19_STBY while the
+      # old primary was down or being reinstated; no scenario holds the
+      # unsynchronized state on a standing primary).
       - alert: OracleFastStartFailoverNotSynchronized
         expr: |
           (last_over_time(oracledb.fast_start_failover.synchronized[30s]) == 0)
@@ -278,7 +306,9 @@ groups:
       # database. 1m hold; a gap that Data Guard closes by itself within a minute
       # is not reported.
       # Quiet on the healthy pair (0 and 0).
-      # Scenario: not yet run.
+      # Scenario: fsfo-failover (fired for the new primary's destination to the
+      # reinstated old primary, gap status RESOLVABLE GAP, in some of the trials (runs.jsonl);
+      # no scenario produces a gap on purpose).
       - alert: OracleRedoGap
         expr: |
           (last_over_time(oracledb.dataguard.missing_log.count[30s]) > 0)
