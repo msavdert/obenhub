@@ -238,6 +238,57 @@ produced that metric and marks the connection reuse as an assumption); the recei
    condition Stuck Archiver as `NO` and no Oracle error condition (read
    2026-11-15; a stuck archiver could otherwise be a failover trigger);
    fast-start failover did not act.
+   Fast-start failover (scenario `fsfo-failover`, eight trials on
+   2026-11-15, Oracle 19.33, all rows in `runs.jsonl`; trials 1, 3 and 4
+   failed on alerts that were not yet allowed, the evidence row is the eighth,
+   started 17:01:13Z). The broker showed fast-start failover enabled in
+   zero-data-loss mode, MaxAvailability, threshold 30 s, active target
+   `cdb19_stby`, Shutdown Primary TRUE, Auto-reinstate TRUE (`dgmgrl`,
+   asserted before every run). `SHUTDOWN ABORT` of `CDB19` (abort at +0):
+   `CDB19_STBY` was seen `PRIMARY` and open read write at +40 s (35 to 40 s
+   across the eight trials, polled every 2 s), the observer's log read
+   "Failover succeeded" at +47 s, and the `OraclePrimaryChanged` notification
+   was delivered 103.5 s after the start of the injection (the seven other
+   trials: 93.7 to 106.0 s). The sql_query pack read the role again on every
+   collection: `CDB19_STBY` flag 1, no sample of `CDB19` for the whole outage;
+   the `oracledb` receiver's series of `CDB19` kept the labels
+   `PRIMARY`/`READ WRITE` and its newest sample was 118 s old (no new sample
+   while the instance was down or mounted; 101 times ORA-01034 and ORA-27101,
+   13 ORA-01033 in the Collector's journal). After the switchback its labels
+   were correct (`PRIMARY`/`READ WRITE`, newest sample 43 s old) and the
+   Collector was not restarted. That is no test of the stale-label gap of the
+   2026-11-13 record: the receiver started as primary and the pair ended with
+   the same roles. The revert mounted `CDB19` at +151 s (the heartbeat of
+   `CDB19` was absent from the abort until then: first sample 139 to 151 s
+   after the abort across the eight trials). The observer reinstated it by
+   itself in every trial (the manual command never ran): "Issuing REINSTATE"
+   17 s after the mount, "Successfully reinstated" at +221 s, 70 s after the
+   mount; `CDB19` was seen as a physical standby at +188 s, `switchover to
+   cdb19` ran at +228 s, roles were restored at +299 s and the pair was
+   healthy at +327 s; the run took 7 min 56 s. The switchover must be run
+   logged on as `C##OBENHUB_DG` AS SYSDG: with operating-system authentication
+   the broker refuses it with ORA-01017 (as on 2026-11-13, and in the first
+   trial here). A mounted old primary reports role `PRIMARY` until it is
+   reinstated (about 50 s): `OracleMultiplePrimaries` fired for it in all five
+   trials that read the role only, so the rule (and `OracleNoPrimary`) now
+   also requires `oracledb.database.open` 1, a separate metric of the same
+   query, and it stayed quiet in the last three trials. In the eighth trial
+   `OracleProtectionDegraded` and `OracleFastStartFailoverNotSynchronized`
+   fired for the new primary and resolved, and `OracleProtectionDegraded` for
+   `CDB19` fired after the switchback (also in trial 4, so 2 of 8);
+   `OracleRedoGap` for `CDB19_STBY` (destination 2, "RESOLVABLE GAP") fired in
+   2 of the 8 trials, not in the eighth. `OracleNoPrimary`, `OracleTargetAbsent`
+   (the heartbeat gap is shorter than the 3 minutes the rule needs; the
+   margin is about 30 s, so a detection slower than about 130 s would fail the
+   run on it) and the standby rules stayed quiet. `OraclePrimaryChanged` fired
+   at the failover (17:02:57Z) and resolved once, at 17:08:42Z, 150 s after the
+   roles were restored (17:06:12Z; 313.4 s from the start of the revert); in
+   some other trials it resolved 3 minutes after the failover and fired again
+   at the switchback. A transient user timer on the box
+   (`obenhub-fsfo-restore`, 4650 s, computed from the scenario's own bounds) is
+   armed before the abort to run `lab/oracle/scripts/restore-roles.sh` if the
+   scenario's shell dies, and was cancelled after the revert; it does not
+   survive a reboot of the box.
 9. **Backups.** RMAN with a recovery window, archived logs deleted after
    backup (and, on the Data Guard primaries, after apply on the standby);
    the backup state comes from `V$RMAN_BACKUP_JOB_DETAILS` through

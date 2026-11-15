@@ -278,6 +278,7 @@ mise run lab:oracle:scenario tablespace-full     # a 20 MB tablespace of PDB19 f
 mise run lab:oracle:scenario blocking-session    # one session of PDB19 waits for a row lock another holds, then both are stopped
 mise run lab:oracle:scenario archiver-stuck     # recovery area limit of the CDB19 primary lowered under its usage until ARCH fails (ORA-19809), then restored
 mise run lab:oracle:scenario backup-failed      # one RMAN archived log job of the CDB19 primary fails (nonexistent backup piece directory), then one succeeds
+mise run lab:oracle:scenario fsfo-failover     # SHUTDOWN ABORT of the CDB19 primary, the observer fails over to CDB19_STBY, then reinstate and switchover back
 mise run lab:oracle:scenario backup-stale       # LONG, not in the suite: the archived log backup cron line is paused until OracleBackupStale fires (about 5 h), then restored
 mise run lab:oracle:scenarios                 # the list in scenarios/suite.txt as one suite
 ```
@@ -307,9 +308,13 @@ owner-provided and not in this repository).
 
 `processes-exhausted` starts up to about 250 holder sessions (one bequeath `sqlplus` and its server process each, about 10 MB per holder) in the transient systemd unit `obenhub-processes-exhausted` on `ora-au-lab`, so that stopping the unit removes them; it refuses to start with less than 4.5 GB `MemAvailable` there, and the holders end by themselves after 900 s. While the limit is reached the scenario's own bequeath logins fail too.
 
+`fsfo-failover` aborts the `CDB19` primary (`SHUTDOWN ABORT`) and is the one scenario that swaps the roles of the pair: the observer fails over to `CDB19_STBY`, and the revert mounts `CDB19`, lets the observer reinstate it (the command is run when it does not within 180 s) and switches over back. [scripts/restore-roles.sh](scripts/restore-roles.sh) is that revert as a script that is safe to rerun by hand from any intermediate state (old primary down, mounted and not yet reinstated, reinstated, roles swapped); `restore-roles.sh status` only prints the states. The switchover and a manual reinstate are run logged on as `C##OBENHUB_DG` AS SYSDG (password from `.env`, on stdin only): with operating-system authentication the broker refuses a switchover (ORA-01017). It refuses to touch two databases that are both open read write as primary, and run by hand it takes the lab lock, so it cannot start in the middle of a scenario or suite. Before the abort the scenario arms a transient user timer (`obenhub-fsfo-restore`, about 78 minutes, computed from the scenario's own timeouts) that runs the script if the scenario's shell is killed; it is stopped after a good revert and does not survive a reboot of the box. The scenario refuses to start while a managed backup cron job is due within its window, and it restarts the Collector on `ora-dg-obs` after the switchback only if the `oracledb` receiver's role labels differ from the database.
+
 Only the `CDB19` configuration is touched, never `CDB19B` or `CDB26`, with one exception: `listener-stopped` stops the listener of `ora-au-lab`, which all three databases share, so their new connections fail during the outage (about 3 minutes). That includes the fast-start failover pair `CDB19B` (its own configuration and observer, Shutdown Primary TRUE): the scenario refuses to start unless `CDB19B` is SYNCHRONIZED with a SUCCESS configuration, guards it like `CDB19` (a role change, or two failed reads in a row, restarts the listener at once and fails the run) and records its states in `extra`. The listener is restarted with the `TNS_ADMIN` of the running one; without it a started listener reads no `listener.ora` and lacks the static `*_DGMGRL` services (found in the first trial, 2026-11-14T17:50Z, recorded as a failed run). Both trials read `TNS_ADMIN` from a listener the scenario or a manual repair had started, not from one started by `oracle-db.service` (`start_all.sh` exports it, so it is expected to work).
 
-There is no switchover or failover scenario: the `oracledb` receiver reads
-the database role and open mode only when the Collector starts
-([role-staleness-2026-11-13](results/role-staleness-2026-11-13)), so the
-role-based rules cannot be exercised that way yet.
+`fsfo-failover` is the only scenario that changes roles; there is none for a
+planned switchover. The `oracledb` receiver reads the database role and open mode only when the
+Collector starts ([role-staleness-2026-11-13](results/role-staleness-2026-11-13)), so its
+`oracle.db.role` labels cannot be trusted after a role change: the scenario records what the receiver and the
+`sql_query` pack (role read again on every collection) report after the failover and after the
+switchback, and restarts the Collector only if the receiver's labels then differ from the database.

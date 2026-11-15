@@ -8,4 +8,5 @@ tablespace-full
 blocking-session
 archiver-stuck
 backup-failed
+fsfo-failover
 control
