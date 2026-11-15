@@ -30,3 +30,45 @@
     WHERE u.username LIKE 'C##OBENHUB\_%' ESCAPE '\'
   metrics:
     - {metric_name: oracledb.user.open, value_column: open, attribute_columns: ["oracledb.database.unique_name", "oracledb.user.name", "oracledb.user.status"], value_type: int, data_type: gauge, unit: "1", description: "1 when the account status of a project monitoring account is OPEN, 0 when it is expired, in grace or locked"}
+# Oldest lock wait: the longest time a session has been waiting on another
+# session, in seconds, 0 when none; the Oracle counterpart of
+# postgresql.lock.oldest_wait_age. Why a query: oracledbreceiver (contrib
+# v0.164.0) has no such metric (metadata.yaml at that tag, read 2026-11-15 UTC:
+# oracledb.lock.time is a cumulative sum of the "transaction lock foreground
+# wait time" statistic, off by default; oracledb.dml_locks.* and
+# oracledb.enqueue_* count usage and deadlocks; the blocking attributes belong
+# to the disabled db.server.query_sample log event, not to a metric).
+# V$SESSION, Oracle Database 19c Database Reference, 9.17 V$SESSION
+# (https://docs.oracle.com/en/database/oracle/oracle-database/19/refrn/V-SESSION.html,
+# fetched 2026-11-15 UTC): BLOCKING_SESSION is the session identifier of the
+# blocking session; WAIT_TIME_MICRO is "if the session is currently waiting,
+# then the value is the time spent in the current wait"; SECONDS_IN_WAIT "has
+# been deprecated in favor of the columns WAIT_TIME_MICRO and
+# TIME_SINCE_LAST_WAIT_MICRO"; STATE WAITING means the session is currently
+# waiting. WAIT_CLASS 'Application' is the class seen live for the lock wait
+# (enq: TX - row lock contention); that it covers row and table lock waits
+# generally, and that other classes carry a blocker only for short internal
+# contention (buffer busy waits, library cache locks, ITL allocation), is
+# unconfirmed: from memory, not read in the Reference. Only the row lock wait
+# was exercised. In a manual probe on 2026-11-15 UTC (not a recorded run) the
+# value kept growing across the 3 s timeouts of the enqueue wait (20 s after
+# 25 s of holding).
+# Read from the CDB root: V$SESSION lists the sessions of every container
+# there (CON_ID 3, PDB19, seen as C##OBENHUB_DG with SYSDG and as
+# C##OBENHUB_MON in that manual probe, which is not a recorded run; the
+# scenario's runs read it as C##OBENHUB_DG only through the Collector), so no
+# CONTAINER_DATA setting is changed.
+# One row and one value for the whole CDB; the container of the waiter is not
+# a label. Primary only, like the account query above: the scenario and the
+# rule are about the primary.
+- sql: |
+    SELECT
+      d.db_unique_name AS "oracledb.database.unique_name",
+      (SELECT NVL(MAX(s.wait_time_micro) / 1000000, 0)
+        FROM v$session s
+        WHERE s.blocking_session IS NOT NULL
+          AND s.state = 'WAITING'
+          AND s.wait_class = 'Application') AS "oldest_wait_age"
+    FROM v$database d
+  metrics:
+    - {metric_name: oracledb.lock.oldest_wait_age, value_column: oldest_wait_age, attribute_columns: ["oracledb.database.unique_name"], value_type: double, data_type: gauge, unit: s, description: "Longest current wait of a session for a lock held by another session (V$SESSION, wait class Application, all containers), 0 when none"}

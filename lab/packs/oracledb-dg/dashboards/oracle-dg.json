@@ -1188,6 +1188,56 @@
           "mode": "multi"
         }
       }
+    },
+    {
+      "id": 21,
+      "title": "Oldest lock wait",
+      "type": "timeseries",
+      "datasource": {
+        "type": "victoriametrics-metrics-datasource",
+        "uid": "vm"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 65,
+        "w": 24,
+        "h": 8
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "vm"
+          },
+          "expr": "max by (service.instance.id) (oracledb.lock.oldest_wait_age)",
+          "refId": "A",
+          "range": true,
+          "instant": false,
+          "legendFormat": "{{service.instance.id}}"
+        }
+      ],
+      "description": "Longest current wait of a session for a lock held by another session (V$SESSION, wait class Application, all containers of the primary), from the primary-only sql_query of the oracledb-dg pack, 15 s; 0 when none. Alert: OracleBlockedSessions (warning when the wait has been above 30 s for 30 s).",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 10,
+            "showPoints": "never"
+          },
+          "unit": "s",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
     }
   ]
 }

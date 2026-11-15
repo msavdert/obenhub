@@ -170,6 +170,34 @@ produced that metric and marks the connection reuse as an assumption); the recei
    blocks, 0.05, on an empty one). `STANDBY_FILE_MANAGEMENT` is `AUTO` on both
    databases; the create and the drop reached the standby, the lag stayed 0 s
    and no other alert fired.
+   Blocking session (scenario `blocking-session`, one passing trial started
+   2026-11-15T01:39:52Z, Oracle 19.33; an earlier trial and control run of the
+   same day ran on earlier versions of the script and their records were not
+   kept): in `PDB19` one session held a row lock and a second waited for it
+   (`enq: TX - row lock contention`, class Application, on the scenario's own
+   table, read in `V$SESSION` before the alert was waited for).
+   `OracleBlockedSessions` was delivered 124.8 s after the start, 42.1 s after
+   the `startsAt` of the alert (77 s after the waiter was seen blocked), and
+   resolved 86.3 s after the revert began (the unit stopped and the user
+   dropped). oracledbreceiver (contrib v0.164.0) has no metric for a lock wait
+   (`oracledb.lock.time` is a cumulative statistic, off by default; the
+   blocking attributes are on a disabled log event; `metadata.yaml` read
+   2026-11-15 UTC), so one primary-only `sql_query`,
+   `oracledb.lock.oldest_wait_age` (`WAIT_TIME_MICRO` of the longest waiter
+   with a blocker, class Application), reads it from the CDB root. The 19c
+   Database Reference for `V$SESSION`
+   (<https://docs.oracle.com/en/database/oracle/oracle-database/19/refrn/V-SESSION.html>,
+   read 2026-11-15 UTC) gives `WAIT_TIME_MICRO` as the time spent in the
+   current wait while the session is waiting and marks `SECONDS_IN_WAIT`
+   deprecated in its favour. In the trial the series held 10 of 10 expected
+   samples from the start of the unit to the release, the first positive one
+   4.8 s (4 s after the waiter was seen blocked) and the maximum 139.8 s, with
+   0 in the 120 s before the start and from 45 s after the release; the 3 s timeouts of the
+   enqueue wait did not reset it. `V$SESSION` at the root lists the sessions
+   of `PDB19` for `C##OBENHUB_DG` (`SYSDG`, through the Collector in the
+   trial) and for `C##OBENHUB_MON` (a manual probe on 2026-11-15 UTC, not a
+   recorded run), without a `CONTAINER_DATA` change. The lag stayed 0 s, the
+   Collector logged no error-level line and no other alert fired.
 9. **Backups.** RMAN with a recovery window, archived logs deleted after
    backup (and, on the Data Guard primaries, after apply on the standby);
    the backup state comes from `V$RMAN_BACKUP_JOB_DETAILS` through

@@ -28,7 +28,7 @@ and the firing alerts; `lab/oracle/mon` mounts it into Grafana.
 
 ## Alert rules
 
-`rules.yml` holds 19 rules, 17 alert names (group `oracledb-dg`; `OracleProcessesSaturation` and `OracleTablespaceUsageHigh` have a warning and a critical tier, as `PostgresConnectionSaturation`), unit-tested in `tests/`
+`rules.yml` holds 20 rules, 18 alert names (group `oracledb-dg`; `OracleProcessesSaturation` and `OracleTablespaceUsageHigh` have a warning and a critical tier, as `PostgresConnectionSaturation`), unit-tested in `tests/`
 (`mise run lab:oracle:rules-test`). Each rule comment names the lab/oracle
 scenario that exercised it, or says that none has; the thresholds are lab
 thresholds.
@@ -47,3 +47,5 @@ account is not seen by them while the pool lives (scenario `password-expired`).
 `OracleProcessesSaturation` reads `oracledb.processes.usage` and `oracledb.processes.limit` of the `oracledb` receiver (30 s), which keeps working at the limit through its pooled session while new logins fail (scenario `processes-exhausted`).
 
 `OracleTablespaceUsageHigh` reads `oracledb.tablespace_size.usage` and `oracledb.tablespace_size.limit` of the `oracledb` receiver (30 s), enabled by default upstream; the limit is the size a tablespace can grow to with autoextend. The lab Collector adds `oracle.db.pdb` to both metrics, otherwise a tablespace of the root and of a PDB with the same name are averaged into one series (scenario `tablespace-full`).
+
+`OracleBlockedSessions` reads `oracledb.lock.oldest_wait_age` from `queries-primary.yaml`, the longest wait of a session for a lock held by another session (`V$SESSION`, wait class Application, read at the CDB root); oracledbreceiver has no metric for it (`metadata.yaml` at contrib v0.164.0). One warning tier, lab threshold 30 s (scenario `blocking-session`).
