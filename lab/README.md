@@ -19,13 +19,15 @@ labs whose latest complete passing suite predates their code.
 | [stage3](stage3) | Three etcd members and three PostgreSQL 18 nodes under Patroni; one Collector | Docker Compose on the host | `mise run lab:stage3:scenarios` | [results](stage3/results) |
 | [pgha](pgha) | The same Patroni cluster on three Debian VMs; a Collector per node and a gateway | Three VMs plus Compose backend on the host | `mise run lab:pgha:scenarios` | [results](pgha/results) |
 | [k8s](k8s) | CloudNativePG `Cluster` of three PostgreSQL 18 instances on kind; Collector DaemonSet and Deployment | kind on the host | `mise run lab:k8s:scenarios` | [results](k8s/results) |
+| [oracle](oracle) | Oracle 19.33 Data Guard pair `CDB19` with fast-start failover and RMAN backups; a Collector per VM and a gateway | Three Oracle VMs, databases not built from this repository, plus Compose backend on the host | `mise run lab:oracle:scenarios` | [results](oracle/results) |
 
 Shared parts:
 
 - [packs](packs): queries and alert rules with unit tests, one directory per
-  component (postgresql, patroni, etcd, cnpg, host, k8s).
+  component (postgresql, patroni, etcd, cnpg, pgbackrest, host, k8s,
+  collector, oracledb-dg, oracledb-backup).
 - [scenarios/lib-core.sh](scenarios/lib-core.sh): the scenario harness used by
-  slice1, stage3, pgha and k8s.
+  slice1, stage3, pgha, k8s and oracle.
 - [scenarios/patroni](scenarios/patroni): the Patroni scenarios stage3 and pgha
   share; each lab links them from its `scenarios/` and supplies the adapter
   functions in its `lib.sh` (`etcd_stop`, `etcd_start`, `ptl`, ...).

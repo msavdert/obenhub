@@ -25,8 +25,8 @@ decision 2026-11-08):
       `PostgresTransactionIdWraparound` (the dashboard panels and the
       `PostgresReplicationSlotRetainingWAL` scenario are done)
 - [ ] First Learn and Guides pages on the docs site, only for things that run
-- [ ] Oracle first slice (ADR 0008), in parallel with the PostgreSQL items
-      above (owner decision 2026-11-13)
+- [ ] `CDB26` (26ai) as the second major version in `lab/oracle` (ADR 0008
+      decision 3; deferred when the first slice closed on 2026-11-16)
 - [ ] Version drift, every engine (owner decision 2026-11-13): a generated
       catalog diff between two versions of an engine (PostgreSQL majors;
       Oracle release updates and 19c against 26ai) that lists new and changed
@@ -104,8 +104,8 @@ when the Collector has to use a pooled endpoint instead of a direct one.
 
 ## Managed Oracle and Oracle on Kubernetes
 
-Waits until the Oracle first slice (ADR 0008) and its scenarios are done on
-`main`; checked against ADR 0001 before it starts. Managed comes first. Read
+Follows the Oracle first slice (ADR 0008, closed on `main` 2026-11-16);
+checked against ADR 0001 before it starts. Managed comes first. Read
 2026-11-13; the items marked unverified are open until a run settles them.
 
 - [ ] Autonomous Database as a target for `oracledbreceiver`: one Always

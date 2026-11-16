@@ -2,9 +2,10 @@
 
 obenhub (OBservability ENgineering hub) is a learning platform for
 OpenTelemetry-centred database and operating-system monitoring, fully open
-source under Apache 2.0. PostgreSQL first, Oracle later.
+source under Apache 2.0. PostgreSQL first, then Oracle.
 
-Four labs run PostgreSQL topologies with fault scenarios and alerting; see
+Five labs, four PostgreSQL topologies and one Oracle Data Guard pair, run
+fault scenarios and alerting; see
 [lab/README.md](lab/README.md) for what runs and where its evidence is. The
 decisions are in [docs/adr](docs/adr):
 

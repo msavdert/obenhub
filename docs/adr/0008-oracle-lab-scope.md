@@ -57,7 +57,9 @@ produced that metric and marks the connection reuse as an assumption); the recei
    scenarios need.
 3. **First slice: the `CDB19` Data Guard pair.** Then `CDB26` as a second
    major version in the same lab. `CDB19B` stays out until a scenario needs a
-   second configuration (for example rolling patching).
+   second configuration (for example rolling patching). (Amended 2026-11-16:
+   the first slice closed with the `CDB19` pair only; `CDB26` is not
+   monitored and is deferred.)
 4. **Monitoring user.** One common user per CDB with single-view grants, no
    `SELECT_CATALOG_ROLE` and no `SELECT ANY`, with `CONTAINER_DATA` for the
    PDB metrics, and a profile whose password never expires (an expired
@@ -122,7 +124,8 @@ produced that metric and marks the connection reuse as an assumption); the recei
    the new-connection probe saw the outage (two passing runs, 17:57:45Z and
    18:16:39Z, Oracle 19.33, existing sessions only). No custom probe code is written; no upstream proposal
    is written yet; its lab evidence is the three scenarios in this
-   paragraph (no suite yet). Listener stopped has run as two passing trials. Monitoring
+   paragraph (the trials recorded here; all three passed again in the suite of decision 8,
+   amended 2026-11-16). Listener stopped has run as two passing trials. Monitoring
    password expired (scenario `password-expired`, one passing trial started
    2026-11-14T18:44:44Z, Oracle 19.33) shows the same for an account: with
    `C##OBENHUB_MON` expired for 169 s the `oracledb` receiver kept its one
@@ -147,7 +150,14 @@ produced that metric and marks the connection reuse as an assumption); the recei
    (lag and gap alerts), fast-start failover after the primary is aborted
    (role read again, failover alert), listener stopped, processes exhausted
    (ORA-00020), blocking session, tablespace full, monitoring password
-   expired, and a stale RMAN backup.
+   expired, a failed RMAN job (`backup-failed`), and a stale RMAN backup
+   (`backup-stale`, long, outside the suite).
+   Amended 2026-11-16: all but `backup-stale` run as one suite
+   (`lab/oracle/scenarios/suite.txt`, control last); the suite
+   `oracle-20261116T190454Z-971f256` (commit `971f256`) passed 12 of 12 on
+   2026-11-16, and `backup-stale` (`lab/oracle/scenarios/long.txt`) passed in
+   a single run on 2026-11-15, both in `lab/oracle/results/runs.jsonl`. The
+   trial records below predate the suite.
    Tablespace full (scenario `tablespace-full`, one passing trial started
    2026-11-14T21:53:39Z, Oracle 19.33; three earlier trials of the same day ran
    on earlier versions of the script and their records were not kept): a 20 MB
@@ -299,8 +309,6 @@ produced that metric and marks the connection reuse as an assumption); the recei
 - The Oracle lab cannot be rebuilt from the repository alone; a reader
   without these VMs gets the monitoring parts, not the databases. Oracle
   Database Free in a container stays a possible later variant for readers.
-- The Collector version is checked against the oracledb changelog between
-  0.164.0 and the pinned version before the first slice merges.
 - Queries copied from `oracle/oracle-db-appdev-monitoring` (MIT and UPL-1.0)
   or from dbsight record source, licence and commit (ADR 0004).
 - Pack views stay unused even though these instances could answer them; a
