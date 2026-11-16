@@ -2,12 +2,13 @@
 
 obenhub (OBservability ENgineering hub) is a learning platform for
 OpenTelemetry-centred database and operating-system monitoring, fully open
-source under Apache 2.0. PostgreSQL first, Oracle later.
+source under Apache 2.0. PostgreSQL first, then Oracle.
 
 ## Status
 
-Four labs run PostgreSQL topologies (Compose, Patroni on Compose and on VMs,
-CloudNativePG on kind) with fault scenarios and alerting. The list of labs and
+Five labs run fault scenarios and alerting: four PostgreSQL topologies
+(Compose, Patroni on Compose and on VMs, CloudNativePG on kind) and one Oracle
+Data Guard pair on VMs. The list of labs and
 their evidence is in
 [lab/README.md](https://github.com/msavdert/obenhub/blob/main/lab/README.md).
 Pages on this site are added as the work behind them is done; the kinds of

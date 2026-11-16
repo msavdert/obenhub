@@ -1,10 +1,11 @@
 # lab/oracle
 
 The Oracle lab of [ADR 0008](../../docs/adr/0008-oracle-lab-scope.md). What
-runs so far is the database side of the first slice, the `CDB19` Data Guard
-pair, its Collector configuration and the backend the Collector pushes to.
-The first fault scenarios are in `scenarios/` (below); there is no suite
-evidence yet, so the lab is not in the [lab table](../README.md).
+runs is the database side of the first slice, the `CDB19` Data Guard pair,
+its Collector configuration, the backend the Collector pushes to and the fault
+scenarios in `scenarios/` (below). The full suite
+`oracle-20261116T190454Z-971f256` (commit `971f256`) passed 12 of 12 on
+2026-11-16; its records are in [results/runs.jsonl](results/runs.jsonl).
 
 ## Prerequisites
 
@@ -20,6 +21,17 @@ The scripts expect, as `pair.sh` names them:
 - a 19c Oracle home on `ora-dg-obs` (the observers'), used to check logins;
 - Docker on this box for the backend, and `ora-dg-obs` able to reach this box
   at `10.0.0.11` (assumption: the lab LAN address; `gateway.sh` holds it).
+
+What the repository sets up, in this order, before the scenarios:
+
+1. `scripts/provision.sh` (below): the common users `C##OBENHUB_MON` and
+   `C##OBENHUB_DG` on `CDB19` and the gitignored `lab/oracle/.env` with
+   `ORA_MON_PASSWORD` and `ORA_DG_PASSWORD` (random values from
+   `lab/scripts/gen-env.sh`, not 1Password references);
+2. `mise run lab:oracle:mon:up`, the backend and the PKI;
+3. `mise run lab:oracle:collector`, otelcol-contrib 0.164.0 on the three VMs
+   (`OTELCOL_VERSION` in `lab/pgha/versions.sh`);
+4. `mise run lab:oracle:rman`, the RMAN jobs the backup alerts read.
 
 ## Provision
 
@@ -188,10 +200,10 @@ database is primary (Data Guard pack) and has no database backup series for
 85% of the limit for 10 minutes. `OracleBackupMissing` fires on a fresh primary
 until its first database backup, and on a newly promoted primary until it has
 run its own, by design. All four rules have unit tests. The scenario
-`backup-failed` (below) has delivered `OracleBackupFailed` in trial runs;
-`backup-stale` is written for `OracleBackupStale` but only its trial mode (no
-alert) has run; `archiver-stuck` makes the condition of `OracleRecoveryAreaFull`
-true but ends before its 10 minute hold.
+`backup-failed` (below) delivered `OracleBackupFailed` in the suite;
+`backup-stale` delivered `OracleBackupStale` in a single run on 2026-11-15
+(`seconds_to_detect` 17221.6); `archiver-stuck` makes the condition of
+`OracleRecoveryAreaFull` true but ends before its 10 minute hold.
 
 Check by hand on a database VM (as `oracle`): `rman target /` then `list backup
 summary;`, `show all;`. Revert: remove the crontab lines tagged `# obenhub:` for
@@ -212,8 +224,10 @@ the Data Guard pack rules
 pack rules ([lab/packs/oracledb-backup](../packs/oracledb-backup/rules.yml):
 `OracleBackupStale`, `OracleBackupFailed`, `OracleBackupMissing`,
 `OracleRecoveryAreaFull`); the rules are unit-tested
-(`mise run lab:oracle:rules-test`) and seven of the Data Guard ones are exercised
-by the scenarios below. Grafana provisions the shared host dashboard and "Oracle Data Guard"
+(`mise run lab:oracle:rules-test`). The suite waits for 12 of the 18 Data
+Guard pack alerts (20 rules: `OracleProcessesSaturation` and
+`OracleTablespaceUsageHigh` have two tiers each) and for `OracleBackupFailed`;
+the unit-tested-only ones are listed under Scenarios. Grafana provisions the shared host dashboard and "Oracle Data Guard"
 ([oracle-dg.json](../packs/oracledb-dg/dashboards/oracle-dg.json)): lag and
 data age, apply state, fast-start failover, protection level and redo
 destination, heartbeat and the observer Collector, and the firing alerts, plus
@@ -266,7 +280,16 @@ the Oracle adapter. Each scenario injects one fault, waits for the alerts it
 expects from the [Data Guard pack](../packs/oracledb-dg/rules.yml), reverts,
 waits for them to resolve and fails on any other alert. The header of each
 script gives its expectation and why. Results are appended to
-`results/runs.jsonl`.
+`results/runs.jsonl`; the suite of record is the one named at the top, and
+`scripts/check-evidence.sh --strict oracle` checks that it is current.
+
+Unit-tested only (no scenario waits for them): `OracleTargetAbsent`,
+`OracleMultiplePrimaries`, `OracleNoPrimary`, `OracleStandbyLagUnknown`,
+`OracleRedoGap`, `OracleFastStartFailoverNotSynchronized`,
+`OracleBackupMissing` and `OracleRecoveryAreaFull`. `fsfo-failover` allows
+`OracleRedoGap` and `OracleFastStartFailoverNotSynchronized` (the second fired
+and resolved in the suite run, `extra.alerts_seen`), and `archiver-stuck`
+allows `OracleRecoveryAreaFull` (not delivered, see below).
 
 ```sh
 mise run lab:oracle:scenario control          # CONTROL_SECONDS (default 600), no fault
