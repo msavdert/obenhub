@@ -47,4 +47,4 @@ OTEL_CHART_REPO=https://open-telemetry.github.io/opentelemetry-helm-charts
 # set explicitly). The digest is the multi-arch index digest, read from the
 # registry with `docker buildx imagetools inspect` on 2026-11-10.
 # renovate: datasource=docker
-OTELCOL_IMAGE=otel/opentelemetry-collector-contrib:0.164.0@sha256:340c9ca6a36617084c6661bdc4f0fe92b7cda5a805d61673ec8db375fddc522b
+OTELCOL_IMAGE=otel/opentelemetry-collector-contrib:0.165.0@sha256:e40d61f10c9a617cca1ffd1be4d7e2b3a4b0f0001798ff07e58cabe82e618cea

@@ -25,7 +25,7 @@ set -euo pipefail
 HOST="${PGLAB_HOST:-pg-lab}"
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # renovate: datasource=github-releases depName=open-telemetry/opentelemetry-collector-releases extractVersion=^v(?<version>.+)$
-VERSION=0.164.0
+VERSION=0.165.0
 SCALE="${SCALE:-100}"
 
 scp -q "$HERE/otelcol.yaml" "$HOST:/tmp/obenhub-otelcol.yaml"
