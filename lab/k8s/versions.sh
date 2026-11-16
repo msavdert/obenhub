@@ -33,7 +33,7 @@ CNPG_MANIFEST_SHA256=37237f145d8138256ea25ae830f87759255665ff08f8d552fdd8224a5ec
 # The digest is the multi-arch index digest, read from the registry with
 # `docker buildx imagetools inspect` on 2026-11-12.
 # renovate: datasource=docker
-PG_IMAGE=ghcr.io/cloudnative-pg/postgresql:18.7-system-trixie@sha256:5a5dfbde88d5909fd4938189c141f53fb153f53c519f14907dce9e7c04baa153
+PG_IMAGE=ghcr.io/cloudnative-pg/postgresql:18.7-system-trixie@sha256:13f5dc1b42c5d96233724be976740df031136ca013f98a56a2877a62b362b453
 
 # Collector Helm chart opentelemetry-collector, release tag
 # opentelemetry-collector-<version> of open-telemetry/opentelemetry-helm-charts
