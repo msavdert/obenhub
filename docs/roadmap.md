@@ -21,10 +21,9 @@ decision 2026-11-08):
       18 in slice1: the same suite on both majors, the pack's queries tested
       on both. Before it starts, check 19 support in the `postgresql`
       receiver, pgBackRest and the official image
-- [ ] Monitoring gaps in slice1: dashboard panels for transaction-id age,
-      idle-in-transaction, locks, deadlocks and checkpoints; a scenario for
-      `PostgresTransactionIdWraparound` and one for
-      `PostgresReplicationSlotRetainingWAL` outside k8s
+- [ ] Monitoring gaps in slice1: a scenario for
+      `PostgresTransactionIdWraparound` (the dashboard panels and the
+      `PostgresReplicationSlotRetainingWAL` scenario are done)
 - [ ] First Learn and Guides pages on the docs site, only for things that run
 - [ ] Oracle first slice (ADR 0008), in parallel with the PostgreSQL items
       above (owner decision 2026-11-13)

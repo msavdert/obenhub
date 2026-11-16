@@ -365,7 +365,7 @@ groups:
       # (the replica consumed the WAL). The scratch table must not be left to
       # autovacuum: that doubled the WAL in the first run and the slot passed
       # the guard (status unreserved).
-      # Lab scenario: lab/k8s/scenarios/slot-retaining-wal.sh.
+      # Lab scenarios: lab/k8s/scenarios/slot-retaining-wal.sh, lab/slice1/scenarios/slot-retaining-wal.sh.
       - alert: PostgresReplicationSlotRetainingWAL
         expr: |
           (
