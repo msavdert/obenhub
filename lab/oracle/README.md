@@ -217,7 +217,9 @@ by the scenarios below. Grafana provisions the shared host dashboard and "Oracle
 ([oracle-dg.json](../packs/oracledb-dg/dashboards/oracle-dg.json)): lag and
 data age, apply state, fast-start failover, protection level and redo
 destination, heartbeat and the observer Collector, and the firing alerts, plus
-the panels "RMAN backup age" and "RMAN last job failed", "Processes in use and limit", "Tablespace usage against its maximum size", and "Listener TCP
+the panels "RMAN backup age" and "RMAN last job failed", "Processes in use and limit", "Tablespace usage against its maximum size",
+"Oldest lock wait", "Monitoring accounts open", "Recovery area used, reclaimable
+counted as free", and "Listener TCP
 connect" and "Listener connect time" (the `tcpcheck` probe of both listeners,
 ADR 0008 decision 7; a connect only, no login; the failing-listener path
 ran in scenario `listener-stopped` (run started 2026-11-14T17:57:45Z: firing

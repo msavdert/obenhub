@@ -1238,6 +1238,124 @@
           "mode": "multi"
         }
       }
+    },
+    {
+      "id": 22,
+      "title": "Monitoring accounts open",
+      "type": "timeseries",
+      "datasource": {
+        "type": "victoriametrics-metrics-datasource",
+        "uid": "vm"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 73,
+        "w": 24,
+        "h": 8
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "vm"
+          },
+          "expr": "max by (service.instance.id, oracledb.user.name, oracledb.user.status) (oracledb.user.open)",
+          "refId": "A",
+          "range": true,
+          "instant": false,
+          "legendFormat": "{{oracledb.user.name}} {{oracledb.user.status}} ({{service.instance.id}})"
+        }
+      ],
+      "description": "1 when a project monitoring account (C##OBENHUB_*) has DBA_USERS status OPEN, 0 when it is expired, in grace or locked; the status is a label. From the primary-only sql_query of the oracledb-dg pack. An expired password stops only new logins, so the receivers keep sending. Alert: OracleMonitoringAccountNotOpen (critical when 0 for 1m).",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 10,
+            "showPoints": "never"
+          },
+          "min": 0,
+          "max": 1,
+          "decimals": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
+    },
+    {
+      "id": 23,
+      "title": "Recovery area used, reclaimable counted as free",
+      "type": "timeseries",
+      "datasource": {
+        "type": "victoriametrics-metrics-datasource",
+        "uid": "vm"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 81,
+        "w": 24,
+        "h": 8
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "vm"
+          },
+          "expr": "(oracledb.recovery_area.usage - oracledb.recovery_area.reclaimable) / oracledb.recovery_area.limit",
+          "refId": "A",
+          "range": true,
+          "instant": false,
+          "legendFormat": "{{service.instance.id}}"
+        }
+      ],
+      "description": "Share of the recovery area limit in use after subtracting what Oracle can delete by itself, both databases of the pair; the same expression as OracleRecoveryAreaFull (oracledb-backup pack, warning above 0.85 for 10m). The 85% is a lab value.",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 10,
+            "showPoints": "never",
+            "thresholdsStyle": {
+              "mode": "line"
+            }
+          },
+          "unit": "percentunit",
+          "min": 0,
+          "max": 1,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 0.85
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
     }
   ]
 }
