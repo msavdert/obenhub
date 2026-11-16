@@ -1,5 +1,26 @@
 # Changelog
 
+## [0.16.0](https://github.com/msavdert/obenhub/compare/v0.15.0...v0.16.0) (2026-11-16)
+
+
+### Features
+
+* **lab:** Oracle backup-failed and backup-stale scenarios (ADR 0008 decision 8) ([#81](https://github.com/msavdert/obenhub/issues/81)) ([b3bc7f1](https://github.com/msavdert/obenhub/commit/b3bc7f112c3ff95cf17bce858095c1dc80633145))
+* **lab:** Oracle dashboard panels for the password-expired and archiver-stuck signals ([#87](https://github.com/msavdert/obenhub/issues/87)) ([396a67f](https://github.com/msavdert/obenhub/commit/396a67fca4f1e04951bffb0068bfb97a73c8fd9d))
+* **lab:** Oracle fsfo-failover scenario, open-mode gate on primary-count rules (ADR 0008 decision 8) ([#84](https://github.com/msavdert/obenhub/issues/84)) ([36d7054](https://github.com/msavdert/obenhub/commit/36d7054ccd73c87a22cd76ffe2f4fe4532846afd))
+* **lab:** slice1 dashboard panels for xid age, idle transactions, locks, deadlocks, checkpoints and a slot-retaining-wal scenario ([#88](https://github.com/msavdert/obenhub/issues/88)) ([ecbc813](https://github.com/msavdert/obenhub/commit/ecbc813a6a8ce0ad95a0ee5c5f41c181b76910df))
+
+
+### Bug fixes
+
+* **lab:** Oracle fsfo-failover allows OracleBackupStale for the promoted standby ([#90](https://github.com/msavdert/obenhub/issues/90)) ([971f256](https://github.com/msavdert/obenhub/commit/971f2565d96ac9833f97ae47a2881d22693cd7c8))
+* **lab:** Oracle restore-roles restores missing archived logs when reinstatement fails (ORA-38761) ([#89](https://github.com/msavdert/obenhub/issues/89)) ([8b89246](https://github.com/msavdert/obenhub/commit/8b892462bd54ad4bff9c34d155ae830a9b93ef02))
+
+
+### Documentation
+
+* close the Oracle first slice (ADR 0008) ([#92](https://github.com/msavdert/obenhub/issues/92)) ([c308d7c](https://github.com/msavdert/obenhub/commit/c308d7c2196020fc2df753f95f5223227e677387))
+
 ## [0.15.0](https://github.com/msavdert/obenhub/compare/v0.14.0...v0.15.0) (2026-11-15)
 
 
