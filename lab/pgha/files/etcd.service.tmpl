@@ -1,8 +1,8 @@
-# Rendered per node by scripts/provision.sh. Flags follow the etcd 3.6
+# Rendered per node by scripts/provision.sh. Flags follow the etcd 3.7
 # security docs (transport security: client-cert-auth, peer-client-cert-auth)
 # and the clustering guide (static bootstrap with --initial-cluster).
 # --listen-metrics-urls: a loopback-only plain HTTP listener for /metrics, so the
-# node Collector scrapes without a client certificate (`etcd --help`, 3.6.16).
+# node Collector scrapes without a client certificate (`etcd --help`, 3.7.3).
 [Unit]
 Description=etcd (pgha lab)
 After=network-online.target

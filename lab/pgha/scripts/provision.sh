@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Provision the pgha VMs from this box over ssh: etcd 3.6 (TLS), PostgreSQL
+# Provision the pgha VMs from this box over ssh: etcd (TLS), PostgreSQL
 # 18 and Patroni 4 (PGDG packages), and the per-node otelcol-contrib that
 # pushes to the gateway of lab/pgha/mon, plus the fault-scenario support
 # (nftables, client load unit).
@@ -8,7 +8,9 @@
 # (pki.sh, run every time; it only adds missing files). Idempotent: files are
 # replaced only when their content, mode or owner differ, packages and
 # binaries only when the pinned version is not installed, and a service is
-# restarted/reloaded only when its own config changed. A rerun on a healthy cluster therefore touches nothing.
+# restarted/reloaded only when its own config or its binary changed (etcd:
+# rolling restart; PostgreSQL: patronictl restart --pg-version, replicas first).
+# A rerun on a healthy cluster therefore touches nothing.
 # Fail closed: all three templates are rendered for every node before anything is
 # written; put refuses empty or truncated input. Converge: a file that needs an
 # etcd restart or a Patroni reload leaves a marker on the node (MARK_DIR) that
@@ -203,6 +205,10 @@ SRC
   # SHA256SUMS (same origin as the tarball: protects against corruption, not
   # against a compromised release)
   if [ "$(rn "$n" sh -c "/usr/local/bin/etcd --version 2>/dev/null | sed -n 's/^etcd Version: //p'")" != "$ETCD_VERSION" ]; then
+    # a running member keeps the old binary until it restarts: leave the
+    # restart marker first (before the swap, so an interrupted run still
+    # restarts), the rolling restart below acts on it
+    rn "$n" sh -c 'install -d -m 0700 -o root -g root "$1" && touch "$2"' sh "$MARK_DIR" "$ETCD_MARK"
     rn "$n" sh -euc '
       v=$1; t=etcd-v$v-linux-amd64.tar.gz; b=https://github.com/etcd-io/etcd/releases/download/v$v
       d=$(mktemp -d); trap "rm -rf \"\${d:?}\"" EXIT; cd "$d"
@@ -210,7 +216,7 @@ SRC
       grep " $t\$" SHA256SUMS | sha256sum -c - >/dev/null
       tar -xzf "$t" --strip-components=1 "etcd-v$v-linux-amd64/etcd" "etcd-v$v-linux-amd64/etcdctl" "etcd-v$v-linux-amd64/etcdutl"
       install -m 0755 etcd etcdctl etcdutl /usr/local/bin/' sh "$ETCD_VERSION"
-    log "$n" "installed etcd $ETCD_VERSION"
+    log "$n" "installed etcd $ETCD_VERSION (restart pending)"
   fi
 
   # otelcol-contrib: .deb checked against the release's .sha256 file; the
@@ -330,7 +336,7 @@ for n in $want; do
     wait_etcd "$n" --cluster
     rn "$n" systemctl daemon-reload
     rn "$n" systemctl restart etcd
-    log "$n" "etcd restarted (config changed)"
+    log "$n" "etcd restarted (config or binary changed)"
     wait_etcd "$n" --cluster
     rn "$n" rm -f "$ETCD_MARK"
   fi
@@ -471,21 +477,52 @@ if sorted(x["Member"] for x in m) == sorted(sys.argv[2:]) and len(leaders) == 1 
     print(leaders[0])
     sys.exit(0)
 sys.exit(1)'
-leader=""
-out=""
-deadline=$((SECONDS + 240))
-while [ "$SECONDS" -lt "$deadline" ]; do
-  out=$(rn "$first" sudo -u postgres patronictl -c /etc/patroni/config.yml list -f json 2>/dev/null || true)
-  if leader=$(python3 -I -c "$check_cluster" "$n_nodes" "${node_names[@]}" <<<"$out" 2>/dev/null); then break; fi
+# wait_cluster: sets leader, exits 1 after 240 s
+wait_cluster() {
+  local out="" deadline=$((SECONDS + 240))
   leader=""
-  sleep 3
-done
-if [ -z "$leader" ]; then
+  while [ "$SECONDS" -lt "$deadline" ]; do
+    out=$(rn "$first" sudo -u postgres patronictl -c /etc/patroni/config.yml list -f json 2>/dev/null || true)
+    if leader=$(python3 -I -c "$check_cluster" "$n_nodes" "${node_names[@]}" <<<"$out" 2>/dev/null); then return 0; fi
+    leader=""
+    sleep 3
+  done
   echo "cluster not healthy after 240 s: want $n_nodes members, one running Leader and $((n_nodes - 1)) streaming Replicas/Sync Standbys; last patronictl list:" >&2
   rn "$first" sudo -u postgres patronictl -c /etc/patroni/config.yml list >&2 || printf '%s\n' "$out" >&2
   exit 1
-fi
+}
+wait_cluster
 for n in $PATRONI_DONE; do rn "$n" rm -f "$PATRONI_MARK"; done
+
+# PostgreSQL minor upgrade: the package replaces the binaries, the running
+# server keeps the old ones until it restarts (the Patroni data directory is
+# not a Debian cluster, so the package does not restart it). patronictl restart
+# --pg-version restarts a member only while its running server is older than
+# the pin, so a rerun or an interrupted run converges. Replicas first, the
+# leader last (an in-place restart that keeps the leader key: a short write
+# outage, no failover), each one followed by the cluster check. Members are
+# named after the nodes. patronictl exits 0 also when a restart is refused
+# (HTTP 503), so the running version is checked afterwards.
+pg_version="${PG_PACKAGE_VERSION%%-*}"
+pg_restart() {
+  rn "$first" sudo -u postgres patronictl -c /etc/patroni/config.yml restart pgha "$1" --pg-version "$pg_version" --force >/dev/null
+  wait_cluster
+}
+# wait_cluster updates $leader; a failover during the loop must not skip the
+# old leader (a repeated call on a member already restarted is a no-op)
+old_leader="$leader"
+for n in $want; do
+  if [ "$n" != "$old_leader" ]; then pg_restart "$n"; fi
+done
+case " $want " in *" $old_leader "*) pg_restart "$old_leader" ;; esac
+for n in $want; do
+  running="$(rn "$n" sudo -u postgres /usr/lib/postgresql/"$PG_MAJOR"/bin/psql -X -qAt -c 'show server_version' | cut -d' ' -f1)" ||
+    { echo "[$n] cannot read server_version" >&2; exit 1; }
+  if [ "$running" != "$pg_version" ]; then
+    echo "[$n] PostgreSQL runs $running, want $pg_version (restart refused or failed; see patronictl list)" >&2
+    exit 1
+  fi
+done
 rn "$first" sudo -u postgres patronictl -c /etc/patroni/config.yml list
 
 # The client load runs as the non-superuser role app, which post-bootstrap.sh
