@@ -153,7 +153,7 @@ services:
   # its argument. The image is multi-arch (amd64, arm64). It has no metrics
   # endpoint: the Collector queries the admin console (database pgbouncer).
   pgbouncer:
-    image: ghcr.io/cloudnative-pg/pgbouncer:1.26.1@sha256:3164c7e929c05deef00175c0bb81f3446a59f7254715b43a865ec8cdb83f869e
+    image: ghcr.io/cloudnative-pg/pgbouncer:1.26.1@sha256:6c91fd7383b8b098bc0c3b71dba4e98bd568c0d301b9fc66027fbc23259c6a7d
     container_name: obenhub-slice1-pgbouncer
     mem_limit: 64m
     restart: unless-stopped
