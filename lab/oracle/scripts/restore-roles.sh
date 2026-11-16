@@ -18,6 +18,15 @@
 #      old primary): the observer reinstates it as a physical standby once it
 #      is mounted (auto-reinstate TRUE). Wait REINSTATE_WAIT seconds for that,
 #      then run "reinstate database cdb19" from the new primary.
+#      When that fails because flashback needs archived logs that are gone from
+#      disk (ORA-38761, the lab finding of 2026-11-16: a managed archived log
+#      backup with DELETE INPUT ran shortly before the abort), the needed
+#      sequence is read from the broker log of CDB19, the logs are restored
+#      on CDB19 with RMAN from the backup and the reinstate is retried at once
+#      (at most RR_ARCH_RESTORE_MAX attempts and never past the deadline; only broker
+#      log lines written since the old primary was first seen mounted, or since the
+#      last restore, count; the needed sequence can
+#      move back between rounds). RMAN is never run against CDB19_STBY.
 #   3. CDB19 is a physical standby and CDB19_STBY the primary (roles swapped):
 #      "switchover to cdb19" from CDB19_STBY, retried each round until the
 #      broker accepts it (it refuses while apply is behind or the standby has
@@ -41,6 +50,16 @@ RR_MOUNT_AT="" RR_REINSTATE_SEEN_AT="" RR_REINSTATE_CMD_AT="" RR_STANDBY_AT="" R
 # "yes" when the observer did not reinstate within REINSTATE_WAIT and the command was needed
 RR_REINSTATE_MANUAL=no
 RR_LAST_ERR=""
+# archived log restore for a reinstate that fails with ORA-38761 (see rr_restore_archivelogs):
+# the most rounds per restore_roles run, how far below the needed sequence a round starts
+RR_ARCH_RESTORE_MAX=${RR_ARCH_RESTORE_MAX:-4}
+RR_ARCH_RESTORE_MARGIN=${RR_ARCH_RESTORE_MARGIN:-10}
+# rounds run, and the "thread:from-sequence" of each, space separated
+RR_ARCH_RESTORE_ROUNDS=0 RR_ARCH_RESTORE_SEQS="" RR_ARCH_RESTORE_FAILED=0
+# line count of the broker log of CDB19 when the old primary was first seen mounted or after
+# the last restore, "" when unreadable (retried before the reinstate command);
+# "sequence:thread" of the last restore attempt (a repeat is not tried again)
+RR_MARK="" RR_LAST_KEY=""
 
 rr_log() { log "restore-roles: $*"; }
 
@@ -101,6 +120,69 @@ dg_sysdg() {
 # (grep without -q: under pipefail an early grep exit would make the pipe fail with 141)
 fsfo_enabled() { dg_up 'show fast_start failover' | grep '^Fast-Start Failover: Enabled' >/dev/null; }
 
+# rr_parse_38761: from stdin, the ORA-38761 lines ("ORA-38761: redo log
+# sequence N in thread T") as "N T": the thread of the newest line and the lowest
+# sequence of that thread among the lines (one failed reinstate lists the
+# sequences it misses, the oldest is the one the restore must start at);
+# prints nothing when there is no line
+rr_parse_38761() {
+  sed -n 's/.*ORA-38761: redo log sequence \([0-9][0-9]*\) in thread \([0-9][0-9]*\).*/\1 \2/p' \
+    | awk '{ n++; q[n] = $1; t[n] = $2 } END { if (n) { m = ""; for (i = 1; i <= n; i++) if (t[i] == t[n] && (m == "" || q[i] + 0 < m + 0)) m = q[i]; print m, t[n] } }'
+}
+
+# rr_drc_log: path of the broker log of CDB19 (the trace directory is in v$diag_info)
+rr_drc_log() {
+  local dir
+  dir=$(ora_sql "$PRIMARY_SID" <<<"select value from v\$diag_info where name = 'Diag Trace';" 2>/dev/null | tr -d '\r' | head -n 1)
+  [[ $dir =~ ^/[A-Za-z0-9_/.-]+$ ]] || return 1
+  printf '%s/drc%s.log\n' "$dir" "$PRIMARY_SID"
+}
+
+# rr_mark: remember how many lines the broker log has now (RR_MARK; empty when it cannot be read): called when the
+# old primary is first seen mounted and after each restore round, so only newer lines count
+rr_mark() {
+  local f n
+  RR_MARK=""
+  f=$(rr_drc_log) || return 0
+  n=$(ora_sh "$PRIMARY_SID" "wc -l < $f" 2>/dev/null | tr -d '[:space:]')
+  [[ $n =~ ^[0-9]+$ ]] && RR_MARK=$n
+  return 0
+}
+
+# rr_restore_archivelogs: RMAN restore of the archived logs that the reinstate
+# since rr_mark asked for, on CDB19 (mounted) only. Returns 0 when RMAN
+# finished the restore (logs already on disk count: it prints "Finished
+# restore" too), 1 to fall back (no mark, no new ORA-38761 line, same
+# sequence and thread as the last attempt, RMAN failed or has no backup). A
+# round is counted only after RMAN succeeded, a failed attempt in
+# RR_ARCH_RESTORE_FAILED.
+rr_restore_archivelogs() {
+  local f need seq tid from out key
+  [ -n "$RR_MARK" ] || { rr_log "arch restore: broker log position unknown, not restoring"; return 1; }
+  f=$(rr_drc_log) || { rr_log "arch restore: cannot read the trace directory of $PRIMARY_SID"; return 1; }
+  need=$(ora_sh "$PRIMARY_SID" "tail -n +$((RR_MARK + 1)) $f | grep 'ORA-38761'" 2>/dev/null | rr_parse_38761)
+  [ -n "$need" ] || { rr_log "arch restore: no new ORA-38761 line in the broker log of $PRIMARY_SID"; return 1; }
+  read -r seq tid <<<"$need"
+  key="$seq:$tid"
+  [ "$key" != "$RR_LAST_KEY" ] || { rr_log "arch restore: sequence $seq thread $tid was tried already, not again"; return 1; }
+  RR_LAST_KEY=$key
+  from=$((seq > RR_ARCH_RESTORE_MARGIN ? seq - RR_ARCH_RESTORE_MARGIN : 1))
+  rr_log "arch restore: flashback needs sequence $seq thread $tid; rman restore archivelog from sequence $from thread $tid on $PRIMARY_SID"
+  out=$(REMOTE_TIMEOUT=900 ora_sh "$PRIMARY_SID" "rman target / <<EOF
+restore archivelog from sequence $from thread $tid;
+EOF" 2>&1) || true
+  rr_log "arch restore: $(grep -E 'RMAN-|ORA-|restored|Finished restore|already on disk' <<<"$out" | tail -n 4 | tr '\n' ' ' | cut -c1-300)"
+  # RMAN-08591 is a warning about the deletion policy and is printed on success; an error
+  # stack (RMAN-00569, RMAN-03002, RMAN-06025/06026 no backup, RMAN-20242, any ORA-) is a failure
+  if grep -E 'RMAN-00569|RMAN-03002|RMAN-0602[56]|RMAN-20242|ORA-[0-9]+' <<<"$out" >/dev/null || ! grep 'Finished restore' <<<"$out" >/dev/null; then
+    RR_ARCH_RESTORE_FAILED=$((RR_ARCH_RESTORE_FAILED + 1))
+    return 1
+  fi
+  RR_ARCH_RESTORE_ROUNDS=$((RR_ARCH_RESTORE_ROUNDS + 1))
+  RR_ARCH_RESTORE_SEQS="${RR_ARCH_RESTORE_SEQS:+$RR_ARCH_RESTORE_SEQS }$tid:$from"
+  return 0
+}
+
 rr_state_line() { printf 'CDB19=%s CDB19_STBY=%s' "$1" "$2"; }
 
 # restore_roles: converge; returns 0 when CDB19 is primary and open and
@@ -109,7 +191,7 @@ rr_state_line() { printf 'CDB19=%s CDB19_STBY=%s' "$1" "$2"; }
 restore_roles() {
   local deadline a b mounted_seen="" out unreadable=0 bounce=0 sid cmd
   deadline=$(($(date +%s) + RESTORE_TIMEOUT))
-  RR_MOUNT_AT="" RR_REINSTATE_SEEN_AT="" RR_REINSTATE_CMD_AT="" RR_STANDBY_AT="" RR_SWITCH_CMD_AT="" RR_RESTORED_AT="" RR_REINSTATE_MANUAL=no RR_LAST_ERR=""
+  RR_MOUNT_AT="" RR_REINSTATE_SEEN_AT="" RR_REINSTATE_CMD_AT="" RR_STANDBY_AT="" RR_SWITCH_CMD_AT="" RR_RESTORED_AT="" RR_REINSTATE_MANUAL=no RR_LAST_ERR="" RR_ARCH_RESTORE_ROUNDS=0 RR_ARCH_RESTORE_SEQS="" RR_ARCH_RESTORE_FAILED=0 RR_MARK="" RR_LAST_KEY=""
   while [ "$(date +%s)" -lt "$deadline" ]; do
     a=$(inst_state "$PRIMARY_SID") && b=$(inst_state "$STANDBY_SID") || {
       unreadable=$((unreadable + 1)); RR_LAST_ERR="cannot read the instance states (round $unreadable)"; rr_log "$RR_LAST_ERR"; sleep 15; continue
@@ -147,13 +229,27 @@ restore_roles() {
       fi
       if [ "$am" = MOUNTED ] && [ "$bm" = 'READ WRITE' ]; then
         # the old primary, mounted: the observer reinstates it
-        [ -n "$mounted_seen" ] || { mounted_seen=$(date +%s); RR_REINSTATE_SEEN_AT=$mounted_seen; }
+        [ -n "$mounted_seen" ] || { mounted_seen=$(date +%s); RR_REINSTATE_SEEN_AT=$mounted_seen; rr_mark; }
         if [ $(($(date +%s) - mounted_seen)) -ge "$REINSTATE_WAIT" ]; then
           rr_log "no auto-reinstate within ${REINSTATE_WAIT}s: reinstate database cdb19"
           RR_REINSTATE_MANUAL=yes
+          # the mark taken when first seen mounted may have failed (ssh blip): retry it before the command
+          [ -n "$RR_MARK" ] || rr_mark
           RR_REINSTATE_CMD_AT=$(date +%s)
           out=$(dg_sysdg "$STANDBY_SID" 'reinstate database cdb19') || out="dgmgrl did not connect"
           rr_log "reinstate: $(tr '\n' ' ' <<<"$out" | cut -c1-300)"
+          # flashback needs archived logs that are gone from disk: restore them from the backup
+          # and retry at once, instead of waiting REINSTATE_WAIT for the same failure. ORA-16653 is
+          # the command failing, ORA-16657 the observer's own attempt still in progress (a failed one
+          # lingers for minutes). The broker log is read from where it was when the old primary was
+          # first seen mounted (so the observer's failed attempt counts), then from each restore.
+          while grep -E 'ORA-1665[37]' <<<"$out" >/dev/null \
+            && [ $((RR_ARCH_RESTORE_ROUNDS + RR_ARCH_RESTORE_FAILED)) -lt "$RR_ARCH_RESTORE_MAX" ] \
+            && [ "$(date +%s)" -lt "$deadline" ] && rr_restore_archivelogs; do
+            rr_mark
+            out=$(dg_sysdg "$STANDBY_SID" 'reinstate database cdb19') || out="dgmgrl did not connect"
+            rr_log "reinstate after restore: $(tr '\n' ' ' <<<"$out" | cut -c1-300)"
+          done
           mounted_seen=$(date +%s)
         fi
         sleep 10; continue

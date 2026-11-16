@@ -226,6 +226,7 @@ depends = [
   "lab:pgbackrest:rules-test",
   "lab:oracle:rules-test",
   "lab:oracle:rman-test",
+  "lab:oracle:restore-roles-test",
   "docs:build",
 ]
 
@@ -328,6 +329,10 @@ run = "lab/oracle/scripts/rman.sh"
 [tasks."lab:oracle:rman-test"]
 description = "stub tests of lab/oracle/files/rman-backup.sh and lab/oracle/scripts/rman.sh (no VM, no database)"
 run = "lab/oracle/scripts/rman-test.sh"
+
+[tasks."lab:oracle:restore-roles-test"]
+description = "test of the ORA-38761 parser and broker log marker of lab/oracle/scripts/restore-roles.sh (no VM, no database)"
+run = "lab/oracle/scripts/restore-roles-test.sh"
 
 [tasks."lab:oracle:scenario"]
 description = "run one fault scenario against the CDB19 Data Guard pair (lab/oracle/scenarios/<name>.sh); appends to lab/oracle/results/runs.jsonl"
