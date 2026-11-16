@@ -6,7 +6,7 @@
 # manager has not yet been seen to open a pull request.
 
 # renovate: datasource=github-releases depName=etcd-io/etcd extractVersion=^v(?<version>.+)$
-ETCD_VERSION=3.6.16
+ETCD_VERSION=3.7.3
 # renovate: datasource=github-releases depName=open-telemetry/opentelemetry-collector-releases extractVersion=^v(?<version>.+)$
 OTELCOL_VERSION=0.164.0
 
