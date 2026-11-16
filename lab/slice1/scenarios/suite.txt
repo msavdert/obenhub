@@ -18,6 +18,7 @@ deadlock
 checkpoint-pressure
 physical-slot-inactive
 slot-invalidated
+slot-retaining-wal
 archiver-failing
 backup-stale
 pitr-restore

@@ -817,13 +817,377 @@
       "description": "pg_stat_archiver and the .ready files in pg_wal/archive_status. Alerts: PostgresArchivingFailing (failing = 1 for 1 minute) and PostgresArchiveBacklog (more than 8 files waiting for 2 minutes)."
     },
     {
+      "id": 111,
+      "title": "Transaction-id age (share of the wraparound limit)",
+      "type": "timeseries",
+      "datasource": {
+        "type": "victoriametrics-metrics-datasource",
+        "uid": "vm"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 36,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "vm"
+          },
+          "expr": "max(postgresql.database.xid_age{service.instance.id=\"$instance\"}) / 2147483648",
+          "refId": "A",
+          "range": true,
+          "instant": false,
+          "legendFormat": "xid, oldest database"
+        },
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "vm"
+          },
+          "expr": "max(postgresql.database.mxid_age{service.instance.id=\"$instance\"}) / 2147483648",
+          "refId": "B",
+          "range": true,
+          "instant": false,
+          "legendFormat": "mxid, oldest database"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 10,
+            "showPoints": "never",
+            "thresholdsStyle": {
+              "mode": "line"
+            }
+          },
+          "min": 0,
+          "max": 1,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 0.5
+              },
+              {
+                "color": "red",
+                "value": 0.75
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "description": "age(datfrozenxid) and mxid_age(datminmxid) of the oldest database, divided by 2^31 as PostgresTransactionIdWraparound does (the alert takes every database separately). Lines at its tiers: warning above 0.5, critical above 0.75, each held for 5 minutes, primary only. Autovacuum keeps the figure far below that in the labs."
+    },
+    {
+      "id": 112,
+      "title": "Idle in transaction: oldest session",
+      "type": "timeseries",
+      "datasource": {
+        "type": "victoriametrics-metrics-datasource",
+        "uid": "vm"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 36,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "vm"
+          },
+          "expr": "postgresql.transaction.idle_age{service.instance.id=\"$instance\"}",
+          "refId": "A",
+          "range": true,
+          "instant": false,
+          "legendFormat": "{{service.instance.id}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 10,
+            "showPoints": "never",
+            "thresholdsStyle": {
+              "mode": "line"
+            }
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 60
+              },
+              {
+                "color": "red",
+                "value": 180
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "description": "Seconds the longest-idle session has been idle in a transaction (0 when there is none). Lines at the PostgresIdleInTransaction tiers: warning above 60 s, critical above 180 s, each held for 45 s."
+    },
+    {
+      "id": 113,
+      "title": "Locks: oldest wait and waiting sessions",
+      "type": "timeseries",
+      "datasource": {
+        "type": "victoriametrics-metrics-datasource",
+        "uid": "vm"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 44,
+        "w": 8,
+        "h": 8
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "vm"
+          },
+          "expr": "postgresql.lock.oldest_wait_age{service.instance.id=\"$instance\"}",
+          "refId": "A",
+          "range": true,
+          "instant": false,
+          "legendFormat": "oldest wait (s)"
+        },
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "vm"
+          },
+          "expr": "postgresql.lock.waiting_session.count{service.instance.id=\"$instance\"}",
+          "refId": "B",
+          "range": true,
+          "instant": false,
+          "legendFormat": "waiting sessions"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 10,
+            "showPoints": "never",
+            "thresholdsStyle": {
+              "mode": "line"
+            }
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 30
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "waiting sessions"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "short"
+              },
+              {
+                "id": "custom.axisPlacement",
+                "value": "right"
+              },
+              {
+                "id": "custom.thresholdsStyle",
+                "value": {
+                  "mode": "off"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "description": "The longest wait for a lock (seconds) and the number of sessions waiting (right axis). Alert: PostgresBlockedSessions (a wait over 30 s for 30 s, line at 30). A deadlock does not show here for long: PostgreSQL aborts one session after deadlock_timeout."
+    },
+    {
+      "id": 114,
+      "title": "Deadlocks in the last 5 minutes",
+      "type": "timeseries",
+      "datasource": {
+        "type": "victoriametrics-metrics-datasource",
+        "uid": "vm"
+      },
+      "gridPos": {
+        "x": 8,
+        "y": 44,
+        "w": 8,
+        "h": 8
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "vm"
+          },
+          "expr": "last_over_time(postgresql.deadlocks{service.instance.id=\"$instance\"}[5m]) - first_over_time(postgresql.deadlocks{service.instance.id=\"$instance\"}[5m])",
+          "refId": "A",
+          "range": true,
+          "instant": false,
+          "legendFormat": "{{postgresql.database.name}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 10,
+            "showPoints": "never"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "description": "Deadlocks detected per database over a sliding 5 minutes: last minus first sample, the expression of PostgresDeadlocks (any value above 0 fires). Only the databases the Collector receiver lists are counted."
+    },
+    {
+      "id": 115,
+      "title": "Checkpoints in the last 5 minutes",
+      "type": "timeseries",
+      "datasource": {
+        "type": "victoriametrics-metrics-datasource",
+        "uid": "vm"
+      },
+      "gridPos": {
+        "x": 16,
+        "y": 44,
+        "w": 8,
+        "h": 8
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "vm"
+          },
+          "expr": "last_over_time(postgresql.bgwriter.checkpoint.count{service.instance.id=\"$instance\"}[5m]) - first_over_time(postgresql.bgwriter.checkpoint.count{service.instance.id=\"$instance\"}[5m])",
+          "refId": "A",
+          "range": true,
+          "instant": false,
+          "legendFormat": "{{type}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 10,
+            "showPoints": "never",
+            "thresholdsStyle": {
+              "mode": "line"
+            }
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 3
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "description": "Checkpoints per type over a sliding 5 minutes, as in PostgresCheckpointsRequested: more than 3 requested for 1 minute fires (line at 3). Requested ones come from WAL reaching max_wal_size, CHECKPOINT, base backups and promotion; scheduled ones from checkpoint_timeout. A standby counts restartpoints, so it stays near 0."
+    },
+    {
       "id": 101,
       "type": "row",
       "title": "Logical replication (labs with a subscriber: slice1)",
       "collapsed": true,
       "gridPos": {
         "x": 0,
-        "y": 36,
+        "y": 52,
         "w": 24,
         "h": 1
       },
@@ -838,7 +1202,7 @@
           },
           "gridPos": {
             "x": 0,
-            "y": 37,
+            "y": 53,
             "w": 12,
             "h": 8
           },
@@ -898,7 +1262,7 @@
           },
           "gridPos": {
             "x": 12,
-            "y": 37,
+            "y": 53,
             "w": 12,
             "h": 8
           },
@@ -958,7 +1322,7 @@
           },
           "gridPos": {
             "x": 0,
-            "y": 45,
+            "y": 61,
             "w": 24,
             "h": 8
           },
@@ -1029,7 +1393,7 @@
           },
           "gridPos": {
             "x": 0,
-            "y": 53,
+            "y": 69,
             "w": 12,
             "h": 8
           },
@@ -1088,7 +1452,7 @@
       "collapsed": true,
       "gridPos": {
         "x": 0,
-        "y": 37,
+        "y": 53,
         "w": 24,
         "h": 1
       },
@@ -1103,7 +1467,7 @@
           },
           "gridPos": {
             "x": 0,
-            "y": 38,
+            "y": 54,
             "w": 8,
             "h": 8
           },
@@ -1163,7 +1527,7 @@
           },
           "gridPos": {
             "x": 8,
-            "y": 38,
+            "y": 54,
             "w": 8,
             "h": 8
           },
@@ -1245,7 +1609,7 @@
           },
           "gridPos": {
             "x": 16,
-            "y": 38,
+            "y": 54,
             "w": 8,
             "h": 8
           },
@@ -1305,7 +1669,7 @@
           },
           "gridPos": {
             "x": 0,
-            "y": 46,
+            "y": 62,
             "w": 12,
             "h": 8
           },
@@ -1365,7 +1729,7 @@
           },
           "gridPos": {
             "x": 12,
-            "y": 46,
+            "y": 62,
             "w": 12,
             "h": 8
           },
@@ -1424,7 +1788,7 @@
       "collapsed": true,
       "gridPos": {
         "x": 0,
-        "y": 38,
+        "y": 54,
         "w": 24,
         "h": 1
       },
@@ -1439,7 +1803,7 @@
           },
           "gridPos": {
             "x": 0,
-            "y": 39,
+            "y": 55,
             "w": 8,
             "h": 4
           },
@@ -1501,7 +1865,7 @@
           },
           "gridPos": {
             "x": 8,
-            "y": 39,
+            "y": 55,
             "w": 8,
             "h": 4
           },
@@ -1582,7 +1946,7 @@
           },
           "gridPos": {
             "x": 16,
-            "y": 39,
+            "y": 55,
             "w": 8,
             "h": 4
           },
@@ -1665,7 +2029,7 @@
       },
       "gridPos": {
         "x": 0,
-        "y": 39,
+        "y": 55,
         "w": 24,
         "h": 9
       },
@@ -1702,7 +2066,7 @@
       },
       "gridPos": {
         "x": 0,
-        "y": 48,
+        "y": 64,
         "w": 24,
         "h": 9
       },

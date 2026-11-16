@@ -55,6 +55,9 @@ fires, zero monitoring-role errors in the server log). Notable details:
   connect.
 - `slot-invalidated` pushes a physical slot past `max_slot_wal_keep_size`,
   then checkpoints.
+- `slot-retaining-wal` holds an inactive physical slot while 640 MiB of WAL
+  is written, below `max_slot_wal_keep_size`, so the slot retains WAL without
+  being invalidated; `PostgresPhysicalSlotInactive` fires with it.
 - `archiver-failing` removes all access to the repository directory that
   holds the archived WAL (`chmod 000`) and switches WAL segments; both
   archiving alerts fire. Only the primary archives, with pgBackRest
@@ -66,7 +69,7 @@ fires, zero monitoring-role errors in the server log). Notable details:
   backup every 600 s) and expects `PgBackRestBackupStale` once the last backup
   is older than the lab's 780 s (`vmalert/rules/pgbackrest.yml`); detection
   takes about 15 minutes. The pack default is 26 h. `archiver-failing`,
-  `slot-invalidated` and `checkpoint-pressure` pause the periodic backups for
+  `slot-invalidated`, `slot-retaining-wal` and `checkpoint-pressure` pause the periodic backups for
   their run (each backup is a requested checkpoint).
 - `pitr-restore` writes marker rows, notes the time, writes more rows,
   restores with `pgbackrest restore --type=time` into a throwaway container
