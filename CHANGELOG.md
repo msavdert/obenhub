@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.16.1](https://github.com/msavdert/obenhub/compare/v0.16.0...v0.16.1) (2026-11-17)
+
+
+### Bug fixes
+
+* **lab:** pgha provision restarts etcd and PostgreSQL on a version-only change ([#102](https://github.com/msavdert/obenhub/issues/102)) ([d12e45d](https://github.com/msavdert/obenhub/commit/d12e45d5e627bce1ef31a7d26e69b16872954b2f))
+* **lab:** slot-invalidated issues a second CHECKPOINT when the first leaves the slot unreserved ([#104](https://github.com/msavdert/obenhub/issues/104)) ([0215a43](https://github.com/msavdert/obenhub/commit/0215a43c65e9d72a1d5e4cb9bc63fcb59d51ab7e))
+* **lab:** stage3 client load at 20 tps so its fsyncs do not trip EtcdHighCommitDurations ([#105](https://github.com/msavdert/obenhub/issues/105)) ([0748a86](https://github.com/msavdert/obenhub/commit/0748a86793cc17f520fa013fa8809468de442396))
+
+
+### Documentation
+
+* **lab:** record the update-wave suite chain and close the roadmap item ([#107](https://github.com/msavdert/obenhub/issues/107)) ([1b3339e](https://github.com/msavdert/obenhub/commit/1b3339efdb6bd60e15eaed0133a4fa6833e0e9c9))
+* **roadmap:** homelab as a long-running target, after the stages close ([#106](https://github.com/msavdert/obenhub/issues/106)) ([d32156d](https://github.com/msavdert/obenhub/commit/d32156d13319a9723af9dc6988e6fc6dc7267eae))
+
 ## [0.16.0](https://github.com/msavdert/obenhub/compare/v0.15.0...v0.16.0) (2026-11-16)
 
 
