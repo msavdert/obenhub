@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Scenario slot-invalidated: create a physical slot on the primary that nothing consumes, push the current LSN past its restart_lsn by more than max_slot_wal_keep_size (read from pg_settings) with WAL segment switches, then CHECKPOINT so PostgreSQL removes the WAL and invalidates the slot (wal_status lost, invalidation_reason wal_removed). The inject starts only with enough time before the next timed checkpoint, and the active slots (standby1, app_sub) are kept close to the current LSN first, so no checkpoint can invalidate them. Expect PostgresReplicationSlotInvalidated for pg-primary. The slot is inactive and retains no WAL once invalidated, so PostgresPhysicalSlotInactive must not fire; any other alert is unexpected (PostgresCheckpointsRequested is the risk, and every pgBackRest backup is one more requested checkpoint, so the periodic backups are paused for the run: WAL volume also requests checkpoints, so max_wal_size is raised for the inject and reset by revert; see extra.num_requested_delta).
+# Scenario slot-invalidated: create a physical slot on the primary that nothing consumes, push the current LSN past its restart_lsn by more than max_slot_wal_keep_size (read from pg_settings) with WAL segment switches, then CHECKPOINT (a second one when the first leaves it unreserved, see inject) so PostgreSQL removes the WAL and invalidates the slot (wal_status lost, invalidation_reason wal_removed). The inject starts only with enough time before the next timed checkpoint, and the active slots (standby1, app_sub) are kept close to the current LSN first, so no checkpoint can invalidate them. Expect PostgresReplicationSlotInvalidated for pg-primary. The slot is inactive and retains no WAL once invalidated, so PostgresPhysicalSlotInactive must not fire; any other alert is unexpected (PostgresCheckpointsRequested is the risk, and every pgBackRest backup is one more requested checkpoint, so the periodic backups are paused for the run: WAL volume also requests checkpoints, so max_wal_size is raised for the inject and reset by revert; see extra.num_requested_delta).
 # shellcheck disable=SC1091,SC2034
 set -uo pipefail
 . "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
@@ -56,7 +56,7 @@ nreq() { psql_p -c "SELECT num_requested FROM pg_stat_checkpointer"; }
 walused() { docker exec "$PRIMARY" sh -c 'du -sb "$PGDATA/pg_wal" 2>/dev/null || du -sb /var/lib/postgresql/data/pg_wal' | awk '{print $1}'; }
 
 inject() {
-  local n gap0 gap left0 left keep_mb seg target restart diff switches=0 req0 req1 wal0 wal1 st1 st2 st3 reason
+  local req_extra=0 n gap0 gap left0 left keep_mb seg target restart diff switches=0 req0 req1 wal0 wal1 st1 st2 st3 reason
   # Every pgBackRest backup is a requested checkpoint and would break the "next timed checkpoint" timing below.
   pause_backups || { FAILS+=("could not pause the pgBackRest backups"); return 1; }
   psql_p -c "SELECT pg_drop_replication_slot(slot_name) FROM pg_replication_slots WHERE slot_name = '$SLOT'" >/dev/null || return 1
@@ -69,8 +69,9 @@ inject() {
   # than 3 requested in 5 minutes. With the lab's 1GB, 67 switches counted 3
   # requested from a gap of 0 and 4 in another run (2026-11-10), so max_wal_size
   # is raised to WAL_SIZE for the inject: then 67 segments plus a gap under
-  # GAP_MAX stay below one WAL-volume checkpoint and only the CHECKPOINT below
-  # counts. A larger gap waits for the next timed checkpoint (not requested).
+  # GAP_MAX stay below one WAL-volume checkpoint and only the CHECKPOINT commands below
+  # (one, or two when the first leaves the slot unreserved) count.
+  # A larger gap waits for the next timed checkpoint (not requested).
   target=$((keep_mb * 1024 * 1024 + 2 * seg))
   LAG_MAX=$((8 * seg))
   gap0=$(redo_gap "$seg") || return 1
@@ -119,10 +120,24 @@ inject() {
   wait_until "$CATCHUP_MAX" "standby and app_sub within 8 segments of the current LSN" actives_close \
     || { FAILS+=("active slots did not catch up before the checkpoint"); return 1; }
   psql_p -c "CHECKPOINT" >/dev/null || return 1
-  # No second CHECKPOINT if the slot is not lost yet: every requested one
-  # counts toward PostgresCheckpointsRequested (see above).
+  # Until 2026-11-12 this one CHECKPOINT always invalidated the slot (lab
+  # PostgreSQL 18.6). In the 2026-11-17 suite (18.7) the slot stayed unreserved,
+  # and a lab check on the slice1 primary repeated it: unreserved after one
+  # CHECKPOINT and 5 s, lost/wal_removed right after a second. In the audit of
+  # this change (by hand, not recorded here) a throwaway 18.7 container without
+  # standby, subscriber or archiving lost the slot at the first, so the cause is
+  # not the version alone and is not traced. Hence one
+  # more CHECKPOINT on any version, and no third: every requested one counts
+  # toward PostgresCheckpointsRequested (more than 3 in 5 minutes, see above).
+  # With the backup started by pause_backups that is 3, assuming one requested
+  # checkpoint per backup; num_requested_delta does not include the backup's.
+  if ! slot_lost; then
+    log "$SLOT $(slot_field "$SLOT" wal_status) after the first CHECKPOINT; one more"
+    psql_p -c "CHECKPOINT" >/dev/null || return 1
+    req_extra=1
+  fi
   wait_until 10 "$SLOT invalidated" slot_lost \
-    || { FAILS+=("$SLOT not invalidated after checkpoint: $(psql_p -c "SELECT wal_status, coalesce(invalidation_reason,'NULL') FROM pg_replication_slots WHERE slot_name = '$SLOT'")"); return 1; }
+    || { FAILS+=("$SLOT not invalidated after $(( req_extra + 1 )) CHECKPOINT(s): $(psql_p -c "SELECT wal_status, coalesce(invalidation_reason,'NULL') FROM pg_replication_slots WHERE slot_name = '$SLOT'")"); return 1; }
   st1=$(slot_field standby1 wal_status); st2=$(slot_field "$SUBSCRIPTION" wal_status)
   st3=$(slot_field standby1 invalidation_reason); reason=$(slot_field "$SUBSCRIPTION" invalidation_reason)
   log "after checkpoint: standby1 $st1 ($st3), $SUBSCRIPTION $st2 ($reason)"
