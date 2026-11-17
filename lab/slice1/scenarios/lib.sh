@@ -157,6 +157,19 @@ resume_backups() {
   dc start "$BACKUP_SVC" >/dev/null || rc=1
   return "$rc"
 }
+# Backups and CHECKPOINT are requested checkpoints, and PostgresCheckpointsRequested
+# fires above 3 in 5 minutes (lab/packs/postgresql/rules.yml; a third run within
+# five minutes of two others tripped it, 2026-11-13). A scenario that takes
+# backups pauses the periodic ones with one backup taken first (pause_backups),
+# then waits until the primary's own window (the rule's expression, from
+# VictoriaMetrics) holds none: a checkpoint taken after the last scrape is not
+# visible yet, so one unseen plus two of the run stays at the threshold.
+checkpoint_headroom() {
+  local n
+  n=$(vm_query 'max(last_over_time({__name__="postgresql.bgwriter.checkpoint.count",type="requested","service.instance.id"="pg-primary"}[5m]) - first_over_time({__name__="postgresql.bgwriter.checkpoint.count",type="requested","service.instance.id"="pg-primary"}[5m]))')
+  [ -n "$n" ] && [ "$n" -le 0 ]
+}
+
 # the pgbackrest-backup service is running
 backup_service_running() { [ "$(docker inspect -f '{{.State.Running}}' "$BACKUP_C" 2>/dev/null)" = true ]; }
 

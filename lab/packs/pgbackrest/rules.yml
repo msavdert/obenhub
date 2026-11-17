@@ -6,10 +6,11 @@
 # output on a live lab (2026-11-13):
 # - pgbackrest_backup_since_last_completion_seconds{backup_type=...}: seconds
 #   since the last completed backup of that type. For incr the exporter counts
-#   a full, differential or incremental backup alike (assumption from the
-#   exporter's HELP text "last completed full, differential or incremental
-#   backup"; seen equal for all three types after one full backup), so
-#   backup_type="incr" is "the last backup of any kind".
+#   a full, differential or incremental backup alike (compareLastBackups in
+#   backrest/backrest_parser.go at v0.25.0: a full backup also updates the
+#   diff and incr entries, a diff one the incr entry, all fields of the entry
+#   including the error flag; read 2026-11-17), so backup_type="incr" is "the
+#   last backup of any kind" for every pgbackrest_backup_last_* series.
 # - pgbackrest_stanza_status: 0 ok. Seen live: 1 (missing stanza path) and 2
 #   (no valid backups) before the stanza and the first backup exist, and 99
 #   (error, other) with the WAL directory of the repository made unreadable
@@ -17,9 +18,21 @@
 #   exporter documentation as remembered and are not confirmed here. Any
 #   non-zero value is an error.
 # - pgbackrest_exporter_status: 1 when the exporter could run `pgbackrest info`.
-# pgbackrest_backup_error_status (page checksum errors in a backup) has no
-# alert: the lab cannot produce it, and an alert nobody has seen fire is not
-# added.
+# - pgbackrest_backup_last_error_status{backup_type=...}: 1 when the last
+#   completed backup of that type has its `error` flag set in `pgbackrest
+#   info`; incr is again the last backup of any kind. pgBackRest 2.60.0 sets
+#   the flag when any file of the backup's manifest, referenced ones from
+#   earlier backups included, has a page checksum error
+#   (src/info/infoBackup.c:448-486 at release/2.60.0). Seen live with one
+#   page of a table overwritten on disk (slice1 backup-checksum-error,
+#   2026-11-17): pgBackRest logged "invalid page checksum found", the backup
+#   command still ended "completed successfully" with exit code 0 and the
+#   flag was true. In a manual trial on slice1 the same day (not a scenario
+#   row), two further incremental backups did not read the unchanged file
+#   again (no warning logged) and still had the flag set; a backup after DROP
+#   TABLE had it false. The per-backup
+#   pgbackrest_backup_error_status is not kept: it stays 1 until retention
+#   expires that backup.
 # The tolerated age of the last backup is a per-lab parameter: the series
 # obenhub.backup_age.limit (seconds), recorded by the lab's own rules (slice1:
 # lab/slice1/vmalert/rules/pgbackrest.yml). Without that series the default of
@@ -42,6 +55,18 @@ groups:
           severity: warning
         annotations:
           summary: 'No completed pgBackRest backup of stanza {{ (index $labels "stanza") }} for {{ $value | printf "%.0f" }} s'
+
+      # The last backup found pages whose checksum does not match (data
+      # checksums on; `SHOW data_checksums` is on in slice1): damage in the data
+      # files that PostgreSQL itself only reports when it reads the page.
+      # The backup still completes, so PgBackRestBackupStale stays silent.
+      # No for: the flag stays set while the damaged file is in the backup.
+      - alert: PgBackRestBackupChecksumError
+        expr: pgbackrest_backup_last_error_status{backup_type="incr"} > 0
+        labels:
+          severity: critical
+        annotations:
+          summary: 'The last pgBackRest backup of stanza {{ (index $labels "stanza") }} found invalid page checksums'
 
       # The stanza is not healthy: missing, or without a valid backup (also
       # while the first backup of a new lab runs: about a minute in slice1,

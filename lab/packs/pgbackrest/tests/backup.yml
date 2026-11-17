@@ -1,5 +1,6 @@
 # Tests for the pgBackRest pack: PgBackRestBackupStale (lab parameter and the
-# 26 h default), PgBackRestStanzaError, PgBackRestExporterDown.
+# 26 h default), PgBackRestStanzaError, PgBackRestExporterDown,
+# PgBackRestBackupChecksumError.
 rule_files:
   - ../rules.yml
 evaluation_interval: 15s
@@ -147,3 +148,35 @@ tests:
               service.instance.id: pgbackrest
             exp_annotations:
               summary: 'pgBackRest state is not being collected (pgbackrest)'
+
+  - name: checksum error fires on the incr series (the exporter's last backup of any kind), not on full alone, clears when incr is 0
+    interval: 15s
+    input_series:
+      - series: 'pgbackrest_backup_last_error_status{backup_type="incr",block_incr="n",stanza="slice1",service.name="pgbackrest",service.instance.id="pgbackrest"}'
+        values: '0x8 1x20 0x10'
+      # full alone at 1 (an older full backup with an error, a newer clean
+      # incremental one) does not fire: only incr, the last backup, counts
+      - series: 'pgbackrest_backup_last_error_status{backup_type="full",block_incr="n",stanza="slice1",service.name="pgbackrest",service.instance.id="pgbackrest"}'
+        values: '1x8 0x32'
+    alert_rule_test:
+      - eval_time: 1m
+        groupname: pgbackrest
+        alertname: PgBackRestBackupChecksumError
+        exp_alerts: []
+      - eval_time: 3m
+        groupname: pgbackrest
+        alertname: PgBackRestBackupChecksumError
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              backup_type: incr
+              block_incr: n
+              stanza: slice1
+              service.name: pgbackrest
+              service.instance.id: pgbackrest
+            exp_annotations:
+              summary: 'The last pgBackRest backup of stanza slice1 found invalid page checksums'
+      - eval_time: 8m   # the next backup is clean from 7m
+        groupname: pgbackrest
+        alertname: PgBackRestBackupChecksumError
+        exp_alerts: []
