@@ -138,6 +138,47 @@ checked against ADR 0001 before it starts. Managed comes first. Read
       Unverified: whether it starts on kind (not in its platform list) and
       its memory needs there. Kept or dropped by an ADR after the spike.
 
+## Homelab as a long-running target
+
+Waits until the stages close, Oracle included (owner decision
+2026-11-17): the items under Next and the managed Oracle section. The
+agent tells the owner when that point is reached; the owner does not
+track it. Checked against ADR 0001 before it starts. The owner's homelab (a three-node Talos
+cluster with two CloudNativePG clusters on PostgreSQL 18, repository
+`msavdert/homelab`) runs its own monitoring and does not depend on
+obenhub (its decision D46). obenhub attaches beside it as a reader: the
+labs are reset between runs, this target is not.
+
+- [ ] An ADR first: how an external target is told apart from the labs
+      (every lab uses `service.namespace=obenhub-lab`; ADR 0006 governs
+      new attributes), and what counts as evidence. `check-evidence.sh`
+      expects injected faults and a control run; a target that is only
+      observed needs another record, for example a dated observation
+      window with the alerts that fired and why. Also where the store
+      for a window of weeks lives: the box is rolled back to a snapshot
+      and takes `~/work` with it
+- [ ] A backend and gateway for this target, separate from the lab
+      stacks, following `lab/pgha` (OTLP/HTTP with mutual TLS on the box
+      address) with its own CA
+- [ ] The Collector of `lab/k8s/otel/` in a namespace of its own on the
+      homelab cluster, sending to that gateway. The homelab provides the
+      namespace, a monitoring role (`pg_monitor`) on its clusters and the
+      network path as a phase in its own roadmap; obenhub changes nothing
+      in the homelab's monitoring
+- [ ] The `postgresql`, `cnpg` and `collector` packs against it for a few
+      weeks: which lab thresholds fire without a fault, and which rules
+      need the inventory the k8s lab leaves empty
+
+Unverified until it starts: that the box and the homelab subnet reach each
+other for this (the homelab's D21 says they route through the host); how
+the Collector verifies the homelab clusters' server certificates (the k8s
+lab skips verification for the `postgresql` receiver); whether
+the pack, tested on PostgreSQL 18 with the labs' image, finds what its
+queries need in the homelab's minimal 18 image;
+and the memory, CPU and database connections the two Collector workloads
+and their queries cost on nodes with 8 GiB and a host short of CPU, next
+to the homelab's own scraping of the same instances.
+
 ## Upstream PR candidates
 
 See [ADR 0003](adr/0003-receiver-strategy.md), decision 3. Each candidate is
