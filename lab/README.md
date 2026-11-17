@@ -42,7 +42,6 @@ One-off measurements on the `pg-lab` VM, not scenario labs:
 - [obi](obi): OpenTelemetry eBPF Instrumentation against PostgreSQL and
   PgBouncer; not adopted ([results](obi/results/results.md)).
 
-Not covered yet: backups and PITR (WAL archiving to a local directory is in
-slice1, with no restore). A backup tool is an open item in the
-[roadmap](../docs/roadmap.md). Synchronous replication is covered by pgha
-(`synchronous-standby-cut`).
+Backups are in slice1 only: pgBackRest with a point-in-time restore and
+the `pg_basebackup` comparison ([ADR 0007](../docs/adr/0007-backup-tool.md)).
+Synchronous replication is covered by pgha (`synchronous-standby-cut`).

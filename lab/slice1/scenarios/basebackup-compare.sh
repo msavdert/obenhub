@@ -72,21 +72,6 @@ bb_size_mb() {
   bb_run none 'du -sm --exclude=pg_wal "$1" | cut -f1' sh "$1"
 }
 
-# Both pg_basebackup runs are requested checkpoints, and PostgresCheckpointsRequested
-# fires above 3 in 5 minutes (lab/packs/postgresql/rules.yml; a third run within
-# five minutes of two others tripped it, 2026-11-13). The periodic pgBackRest
-# backup (also a requested checkpoint) is paused for the run with one backup
-# taken first (pause_backups), so the backup age stays below the interval and
-# revert (resume_backups) takes no further one; the run then starts only when
-# the primary's own window (the rule's expression, from VictoriaMetrics) holds
-# none: a checkpoint taken after the last scrape is not visible yet, so one
-# unseen plus the two of this run stays at the threshold.
-checkpoint_headroom() {
-  local n
-  n=$(vm_query 'max(last_over_time({__name__="postgresql.bgwriter.checkpoint.count",type="requested","service.instance.id"="pg-primary"}[5m]) - first_over_time({__name__="postgresql.bgwriter.checkpoint.count",type="requested","service.instance.id"="pg-primary"}[5m]))')
-  [ -n "$n" ] && [ "$n" -le 0 ]
-}
-
 summary() { # what pgBackRest gives for the same job, from the lab's repository, against this path
   log "comparison: pgBackRest catalogue of the same cluster (pgbackrest info): $(pgbr info --output=json | jq -r '.[0] | "stanza \(.status.message), \(.backup | length) backups listed (\(.backup[0].label) .. \(.backup[-1].label)), WAL archive \(.archive[0].min) .. \(.archive[0].max)"')"
   log "comparison: retention is configured (repo1-retention-full=$(docker exec "$PRIMARY" sed -n 's/^repo1-retention-full=//p' /etc/pgbackrest/pgbackrest.conf)); backup age is $(backup_age)s and reaches the monitoring stack as a metric (PgBackRestBackupStale)"
@@ -98,6 +83,7 @@ inject() {
   local size_full size_incr size_combined
   local sw
   pause_backups || { FAILS+=("pausing the periodic backups (stop and one backup) failed"); return 1; }
+  # both pg_basebackup runs are requested checkpoints (checkpoint_headroom in lib.sh)
   wait_until 600 "no requested checkpoint on the primary in the last 5 minutes" checkpoint_headroom || return 1
   # a volume or container left by a killed run would make the next one fail
   docker rm -f "$BB_C" >/dev/null 2>&1 || true

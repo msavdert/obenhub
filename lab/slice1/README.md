@@ -71,6 +71,15 @@ fires, zero monitoring-role errors in the server log). Notable details:
   takes about 15 minutes. The pack default is 26 h. `archiver-failing`,
   `slot-invalidated`, `slot-retaining-wal` and `checkpoint-pressure` pause the periodic backups for
   their run (each backup is a requested checkpoint).
+- `backup-checksum-error` overwrites 16 bytes inside one page of a table on
+  the primary's disk and takes a backup. pgBackRest logs an invalid page
+  checksum, still ends the backup with exit code 0, and flags the backup;
+  `PgBackRestBackupChecksumError` fires while `PgBackRestBackupStale` stays
+  silent. The revert drops the table and takes a clean backup, which clears
+  the flag; the damaged backup stays until retention expires it. Its time
+  to detect includes the wait for checkpoint headroom before the damage
+  (`inject_seconds`, limit 600 s); `damaged_backup_done` in the result row is
+  when the damaged backup ended.
 - `pitr-restore` writes marker rows, notes the time, writes more rows,
   restores with `pgbackrest restore --type=time` into a throwaway container
   and volume without network, and checks that only the earlier rows exist.

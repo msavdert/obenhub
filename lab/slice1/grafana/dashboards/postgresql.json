@@ -1804,7 +1804,7 @@
           "gridPos": {
             "x": 0,
             "y": 55,
-            "w": 8,
+            "w": 6,
             "h": 4
           },
           "targets": [
@@ -1864,9 +1864,9 @@
             "uid": "vm"
           },
           "gridPos": {
-            "x": 8,
+            "x": 6,
             "y": 55,
-            "w": 8,
+            "w": 6,
             "h": 4
           },
           "targets": [
@@ -1945,9 +1945,9 @@
             "uid": "vm"
           },
           "gridPos": {
-            "x": 16,
+            "x": 12,
             "y": 55,
-            "w": 8,
+            "w": 6,
             "h": 4
           },
           "targets": [
@@ -2016,6 +2016,87 @@
             "textMode": "value"
           },
           "description": "pgbackrest_repo_status: 0 is ok, any other value is an error for that repository (the lab has repo 1). Shown only; PgBackRestStanzaError covers the same failures."
+        },
+        {
+          "id": 116,
+          "title": "Last backup page checksums",
+          "type": "stat",
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "vm"
+          },
+          "gridPos": {
+            "x": 18,
+            "y": 55,
+            "w": 6,
+            "h": 4
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "victoriametrics-metrics-datasource",
+                "uid": "vm"
+              },
+              "expr": "pgbackrest_backup_last_error_status{backup_type=\"incr\"}",
+              "refId": "A",
+              "range": true,
+              "instant": false
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "thresholds"
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              },
+              "mappings": [
+                {
+                  "type": "value",
+                  "options": {
+                    "0": {
+                      "text": "ok",
+                      "color": "green",
+                      "index": 0
+                    }
+                  }
+                },
+                {
+                  "type": "range",
+                  "options": {
+                    "from": 1,
+                    "to": 1000,
+                    "result": {
+                      "text": "invalid",
+                      "color": "red",
+                      "index": 1
+                    }
+                  }
+                }
+              ]
+            },
+            "overrides": []
+          },
+          "options": {
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
+            },
+            "colorMode": "background",
+            "graphMode": "none",
+            "textMode": "value"
+          },
+          "description": "pgbackrest_backup_last_error_status{backup_type=\"incr\"}: 1 when the last backup of any kind found invalid page checksums in the data files (the backup still completes); it stays 1 while a damaged file is part of the last backup, also when later incremental backups only reference it. Alert: PgBackRestBackupChecksumError (scenario backup-checksum-error)."
         }
       ]
     },
