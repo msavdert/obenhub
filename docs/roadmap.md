@@ -140,10 +140,10 @@ checked against ADR 0001 before it starts. Managed comes first. Read
 
 ## Homelab as a long-running target
 
-Waits until the stages close (owner decision 2026-11-17), read here as
-the items under Next; whether Stage 5 and the managed Oracle section
-also come first is the owner's call then. Checked against ADR 0001
-before it starts. The owner's homelab (a three-node Talos
+Waits until the stages close, Oracle included (owner decision
+2026-11-17): the items under Next and the managed Oracle section. The
+agent tells the owner when that point is reached; the owner does not
+track it. Checked against ADR 0001 before it starts. The owner's homelab (a three-node Talos
 cluster with two CloudNativePG clusters on PostgreSQL 18, repository
 `msavdert/homelab`) runs its own monitoring and does not depend on
 obenhub (its decision D46). obenhub attaches beside it as a reader: the
