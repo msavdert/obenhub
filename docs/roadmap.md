@@ -12,9 +12,6 @@ it. Order decided by the owner on 2026-11-12 (ADR 0001, depth before
 breadth), Oracle moved up on 2026-11-13; Stage 5 is not next (owner
 decision 2026-11-08):
 
-- [ ] Update wave: PostgreSQL 18.7 in every lab, etcd 3.7.3 if the stage3
-      run passes (PR #8), and the pending Collector, VictoriaMetrics and
-      Alertmanager updates; then one full suite chain on `main`
 - [ ] Backup tool with a restore scenario in slice1, building on its WAL
       archive (see Backups)
 - [ ] PostgreSQL 19 (release 2026-11-19, owner decision 2026-11-12) next to
