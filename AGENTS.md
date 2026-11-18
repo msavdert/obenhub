@@ -29,12 +29,18 @@ scenarios and alerting; `lab/README.md` lists them.
 - A release is a closed milestone (a stage's closing criterion met), not a
   session. release-please keeps its PR open and accumulates the changelog;
   only the owner merges it. An agent never merges a release PR; it says when
-  one is ready.
-- A stage or roadmap item is done only when: its full suite passed on a clean
-  tree at a commit on `main` and the results are committed
-  (`scripts/check-evidence.sh --strict <lab>` passes), the control run
+  one is ready, and only after `scripts/check-evidence.sh --strict --full`
+  passes for every lab.
+- A stage or roadmap item is done only when `scripts/check-evidence.sh
+  --strict <lab>` passes (a full suite plus targeted suites of the scenarios
+  the later changes affect, all on `main`, results committed), the control run
   used the same rules, its dashboard shows the scenarios, and its README states
-  the prerequisites.
+  the prerequisites. After an ordinary PR only the affected scenarios run:
+  `mise run lab:affected <lab>` lists them, `mise run lab:scenarios:affected`
+  (slice1) and `lab:<lab>:scenarios:affected` run them. A release, and the end
+  of a dependency update batch, need `--strict --full` on every lab (a full
+  suite with no change that affects the lab since); CI checks it on
+  release-please PRs.
 - Documents describe what runs. Plans go only in `docs/roadmap.md`.
 - Depth before breadth (ADR 0001): finish the first PostgreSQL slice before a
   second engine or topology. Check breadth requests against the ADR.
