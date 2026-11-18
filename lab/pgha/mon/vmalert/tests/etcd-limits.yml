@@ -1,0 +1,93 @@
+# EtcdHighFsyncDurations and EtcdHighCommitDurations with the pgha lab override
+# (obenhub.etcd.*.limit = 1.0 s, lab/pgha/mon/vmalert/inventory.yml). Same cases
+# as lab/packs/etcd/tests/etcd-lab-override.yml (stage3); the member ids here
+# are the pgha ones.
+rule_files:
+  - ../inventory.yml
+  - ../../../../packs/etcd/rules.yml
+evaluation_interval: 15s
+
+tests:
+  - name: EtcdHighFsyncDurations with the lab override 1.0 s does not fire at p99 0.75 s and 0.583 s
+    interval: 15s
+    input_series:
+      - series: 'etcd_disk_wal_fsync_duration_seconds_bucket{le="0.5",service.name="etcd",service.instance.id="pgha-1"}'
+        values: '0+98x100'
+      - series: 'etcd_disk_wal_fsync_duration_seconds_bucket{le="1",service.name="etcd",service.instance.id="pgha-1"}'
+        values: '0+100x100'
+      - series: 'etcd_disk_wal_fsync_duration_seconds_bucket{le="+Inf",service.name="etcd",service.instance.id="pgha-1"}'
+        values: '0+100x100'
+      - series: 'etcd_disk_wal_fsync_duration_seconds_bucket{le="0.5",service.name="etcd",service.instance.id="pgha-2"}'
+        values: '0+988x100'
+      - series: 'etcd_disk_wal_fsync_duration_seconds_bucket{le="1",service.name="etcd",service.instance.id="pgha-2"}'
+        values: '0+1000x100'
+      - series: 'etcd_disk_wal_fsync_duration_seconds_bucket{le="+Inf",service.name="etcd",service.instance.id="pgha-2"}'
+        values: '0+1000x100'
+    alert_rule_test:
+      - eval_time: 16m
+        groupname: etcd
+        alertname: EtcdHighFsyncDurations
+        exp_alerts: []
+
+  - name: EtcdHighFsyncDurations with the lab override 1.0 s fires at p99 1.5 s
+    interval: 15s
+    input_series:
+      - series: 'etcd_disk_wal_fsync_duration_seconds_bucket{le="1",service.name="etcd",service.instance.id="pgha-1"}'
+        values: '0+98x100'
+      - series: 'etcd_disk_wal_fsync_duration_seconds_bucket{le="2",service.name="etcd",service.instance.id="pgha-1"}'
+        values: '0+100x100'
+      - series: 'etcd_disk_wal_fsync_duration_seconds_bucket{le="+Inf",service.name="etcd",service.instance.id="pgha-1"}'
+        values: '0+100x100'
+    alert_rule_test:
+      - eval_time: 16m
+        groupname: etcd
+        alertname: EtcdHighFsyncDurations
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              service.instance.id: pgha-1
+              service.name: etcd
+            exp_annotations:
+              summary: etcd member pgha-1 WAL fsync p99 is 1.5s
+
+  - name: EtcdHighCommitDurations with the lab override 1.0 s does not fire at p99 0.75 s and 0.583 s
+    interval: 15s
+    input_series:
+      - series: 'etcd_disk_backend_commit_duration_seconds_bucket{le="0.5",service.name="etcd",service.instance.id="pgha-1"}'
+        values: '0+98x100'
+      - series: 'etcd_disk_backend_commit_duration_seconds_bucket{le="1",service.name="etcd",service.instance.id="pgha-1"}'
+        values: '0+100x100'
+      - series: 'etcd_disk_backend_commit_duration_seconds_bucket{le="+Inf",service.name="etcd",service.instance.id="pgha-1"}'
+        values: '0+100x100'
+      - series: 'etcd_disk_backend_commit_duration_seconds_bucket{le="0.5",service.name="etcd",service.instance.id="pgha-2"}'
+        values: '0+988x100'
+      - series: 'etcd_disk_backend_commit_duration_seconds_bucket{le="1",service.name="etcd",service.instance.id="pgha-2"}'
+        values: '0+1000x100'
+      - series: 'etcd_disk_backend_commit_duration_seconds_bucket{le="+Inf",service.name="etcd",service.instance.id="pgha-2"}'
+        values: '0+1000x100'
+    alert_rule_test:
+      - eval_time: 16m
+        groupname: etcd
+        alertname: EtcdHighCommitDurations
+        exp_alerts: []
+
+  - name: EtcdHighCommitDurations with the lab override 1.0 s fires at p99 1.5 s
+    interval: 15s
+    input_series:
+      - series: 'etcd_disk_backend_commit_duration_seconds_bucket{le="1",service.name="etcd",service.instance.id="pgha-1"}'
+        values: '0+98x100'
+      - series: 'etcd_disk_backend_commit_duration_seconds_bucket{le="2",service.name="etcd",service.instance.id="pgha-1"}'
+        values: '0+100x100'
+      - series: 'etcd_disk_backend_commit_duration_seconds_bucket{le="+Inf",service.name="etcd",service.instance.id="pgha-1"}'
+        values: '0+100x100'
+    alert_rule_test:
+      - eval_time: 16m
+        groupname: etcd
+        alertname: EtcdHighCommitDurations
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              service.instance.id: pgha-1
+              service.name: etcd
+            exp_annotations:
+              summary: etcd member pgha-1 backend commit p99 is 1.5s
