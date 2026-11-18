@@ -66,7 +66,10 @@ groups:
   # 15:08 UTC, when the owner was installing a Kubernetes cluster on the same
   # Proxmox host (and stage3's pgbench ran at -R 100, 5x its current load); this
   # lab's own load in that period was not checked (assumption: it shares the host
-  # effect). An alert in such a period is legitimate even in the lab.
+  # effect). An alert in such a period is legitimate even in the lab. A recheck
+  # about 14 minutes later with a 15 s subquery step read 24 h commit 0.356 and
+  # 48 h fsync 0.360 (a pgha suite had run 17:08 to 18:52 UTC); the values
+  # depend on the step.
   - name: etcd-parameters
     interval: 15s
     rules:

@@ -912,7 +912,7 @@
           "legendFormat": "{{service.instance.id}}"
         }
       ],
-      "description": "p99 of etcd_disk_wal_fsync_duration_seconds per member. EtcdHighFsyncDurations fires above 0.5 s for 10 m (5 m rate window in the rule).",
+      "description": "p99 of etcd_disk_wal_fsync_duration_seconds per member. EtcdHighFsyncDurations fires above 0.5 s by default and 1.0 s in this lab (vmalert/inventory.yml) for 10 m (5 m rate window in the rule).",
       "fieldConfig": {
         "defaults": {
           "custom": {
@@ -961,7 +961,7 @@
           "legendFormat": "{{service.instance.id}}"
         }
       ],
-      "description": "p99 of etcd_disk_backend_commit_duration_seconds per member. EtcdHighCommitDurations fires above 0.25 s for 10 m (5 m rate window in the rule).",
+      "description": "p99 of etcd_disk_backend_commit_duration_seconds per member. EtcdHighCommitDurations fires above 0.25 s by default and 1.0 s in this lab (vmalert/inventory.yml) for 10 m (5 m rate window in the rule).",
       "fieldConfig": {
         "defaults": {
           "custom": {
