@@ -281,7 +281,7 @@ expects from the [Data Guard pack](../packs/oracledb-dg/rules.yml), reverts,
 waits for them to resolve and fails on any other alert. The header of each
 script gives its expectation and why. Results are appended to
 `results/runs.jsonl`; the suite of record is the one named at the top, and
-`scripts/check-evidence.sh --strict oracle` checks that it is current.
+`scripts/check-evidence.sh --strict oracle` checks that it, with any targeted suites after it, is current.
 
 Unit-tested only (no scenario waits for them): `OracleTargetAbsent`,
 `OracleMultiplePrimaries`, `OracleNoPrimary`, `OracleStandbyLagUnknown`,

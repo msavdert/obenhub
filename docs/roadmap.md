@@ -8,8 +8,8 @@ decided in [ADR 0001](adr/0001-goal-and-scope.md).
 
 Every lab has a full suite recorded on `main`; the evidence is in each lab's
 `results/runs.jsonl` and `scripts/check-evidence.sh --strict <lab>` verifies
-it. Order decided by the owner on 2026-11-12 (ADR 0001, depth before
-breadth), Oracle moved up on 2026-11-13; Stage 5 is not next (owner
+it (`--full` for a release). Order decided by the owner on 2026-11-12 (ADR
+0001, depth before breadth), Oracle moved up on 2026-11-13; Stage 5 is not next (owner
 decision 2026-11-08):
 
 - [ ] Backup tool with a restore scenario in slice1, building on its WAL

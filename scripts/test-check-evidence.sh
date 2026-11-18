@@ -5,7 +5,7 @@ set -euo pipefail
 
 script="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/check-evidence.sh"
 tmp=$(mktemp -d)
-trap 'rm -rf "$tmp"' EXIT
+trap 'rm -rf "${tmp:?}"' EXIT
 cd "$tmp"
 git init -q -b main .
 git config user.email t@example.invalid
@@ -58,6 +58,7 @@ expect() {
   fi
 }
 fixture() { cat >lab/x/results/runs.jsonl; }
+fixture_pgha() { cat >lab/pgha/results/runs.jsonl; }
 
 pair s1 "$head" $t1 | fixture
 expect "complete passing suite" 0 "suite s1 ($head) is current" --strict x
@@ -175,12 +176,207 @@ expect "script change fails strict" 1 "lab/pgha/scenarios/a.sh" --strict pgha
 git reset -q --hard "$p0"
 echo 2 >lab/stage3/grafana/dashboards/d.json
 git commit -q -am dash
-expect "cross-mounted dashboard marks pgha stale" 1 "lab/stage3/grafana/dashboards/d.json" --strict pgha
+expect "cross-mounted dashboard changes no scenario" 0 "suite s1 ($p0) is current" --strict pgha
+expect "cross-mounted dashboard does not force a rerun with --full" 0 "suite s1 ($p0) is current" --strict --full pgha
 git reset -q --hard "$p0"
 echo 2 >lab/slice1/grafana/dashboards/d.json
 git commit -q -am dash
-expect "second cross-mounted dashboard marks pgha stale" 1 "lab/slice1/grafana/dashboards/d.json" --strict pgha
+expect "second cross-mounted dashboard does not force a rerun with --full" 0 "suite s1 ($p0) is current" --strict --full pgha
 git reset -q --hard "$p0"
+
+# tiered evidence on pgha: full suite s1 at p0 (a, b), targeted suites after it
+echo 2 >lab/pgha/scenarios/a.sh
+git commit -q -am "change a"
+c1=$(git rev-parse --short HEAD)
+{ pair s1 "$p0" $t1; row s2 1 "$c1" false true $t2 a; } | fixture_pgha
+expect "targeted suite extends the evidence" 0 "suite s1 ($p0), targeted s2 ($c1: a) is current" --strict pgha
+expect "--full ignores targeted suites" 1 "predates changes in 1 files, needs a full suite" --strict --full pgha
+expect "--sha prints the evidence commit" 0 "$c1" --sha pgha
+pair s1 "$p0" $t1 | fixture_pgha
+expect "no targeted suite: scenario still to run" 1 "needs a:" --strict pgha
+expect "--sha without targeted suite" 0 "$p0" --sha pgha
+
+{ pair s1 "$p0" $t1; row s2 1 "$c1" false true $t2 b; } | fixture_pgha
+expect "targeted suite lacking the affected scenario" 1 "s2: not counted, lacks a" --strict pgha
+
+{ pair s1 "$p0" $t1; row s2 1 "$c1" true true $t2 a; } | fixture_pgha
+expect "dirty targeted suite" 1 "s2: not counted, ran on a dirty tree" --strict pgha
+
+git checkout -q -b side2 "$p0"
+echo 9 >lab/pgha/side
+git add lab/pgha/side
+git commit -q -m side2
+off2=$(git rev-parse --short HEAD)
+git checkout -q main
+{ pair s1 "$p0" $t1; row s2 1 "$off2" false true $t2 a; } | fixture_pgha
+expect "targeted suite off main" 1 "s2: not counted, $off2 is not on main" --strict pgha
+
+# a full suite on a commit that is off main reports that, not a scenario-set mismatch
+# ($off predates the pgha lab, so its suite.txt is empty)
+pair s2 "$off" $t2 | fixture_pgha
+expect "off-main reason wins over a scenario-set mismatch" 1 "s2: not counted, $off is not on main" --strict pgha
+{ pair s1 "$p0" $t1; } | fixture_pgha
+
+# a later full suite off main, or on an unknown commit, does not displace the earlier valid one
+{ pair s1 "$p0" $t1; pair s2 "$off2" $t2; } | fixture_pgha
+expect "later off-main full suite does not displace" 1 "suite s1 ($p0) predates" --strict pgha
+expect "later off-main full suite is reported" 0 "s2: not counted, $off2 is not on main" pgha
+{ pair s1 "$p0" $t1; pair s2 deadbeef $t2; } | fixture_pgha
+expect "later unknown-commit full suite does not displace" 1 "suite s1 ($p0) predates" --strict pgha
+expect "later unknown-commit full suite is reported" 0 "s2: not counted, ran on deadbeef, which is not in this history" pgha
+
+git reset -q --hard "$p0"
+echo 3 >lab/pgha/scenarios/lib.sh
+git commit -q -am lib
+c2=$(git rev-parse --short HEAD)
+{ pair s1 "$p0" $t1; row s2 1 "$c2" false true $t2 a; } | fixture_pgha
+expect "library change needs a full suite" 1 "needs ALL" --strict pgha
+expect "library change: targeted suite not counted" 1 "s2: not counted, changes between $p0 and $c2 need a full suite" --strict pgha
+
+{ pair s1 "$p0" $t1; pair s2 "$c2" $t2; } | fixture_pgha
+expect "a later full suite restarts the chain" 0 "suite s2 ($c2) is current" --strict pgha
+git reset -q --hard "$p0"
+
+# a targeted suite chains onto an earlier one
+echo 2 >lab/pgha/scenarios/a.sh
+git commit -q -am "change a"
+d1=$(git rev-parse --short HEAD)
+echo 2 >lab/pgha/scenarios/b.sh
+git commit -q -am "change b"
+d2=$(git rev-parse --short HEAD)
+{ pair s1 "$p0" $t1; row s2 1 "$d1" false true $t2 a; row s3 1 "$d2" false true "2026-03-01T00:00:00Z" b; } | fixture_pgha
+expect "targeted suites chain" 0 "targeted s2 ($d1: a), targeted s3 ($d2: b) is current" --strict pgha
+git reset -q --hard "$p0"
+
+# a targeted suite on main that is not a descendant of the evidence commit
+echo 2 >lab/pgha/scenarios/a.sh
+git commit -q -am "change a"
+e1=$(git rev-parse --short HEAD)
+echo 2 >lab/pgha/scenarios/b.sh
+git commit -q -am "change b"
+e2=$(git rev-parse --short HEAD)
+{ pair s1 "$e2" $t1; row s2 1 "$e1" false true $t2 b; } | fixture_pgha
+expect "targeted suite older than the evidence commit" 0 "s2: not counted, $e1 is not a descendant of the evidence commit $e2" pgha
+
+# a targeted suite that started before the full suite does not extend it
+{ pair s1 "$p0" $t2; row s0 1 "$e1" false true $t1 a; } | fixture_pgha
+expect "targeted suite older than the full suite is ignored" 1 "needs a b:" --strict pgha
+
+# a targeted suite on another configuration than the evidence
+{ pair s1 "$p0" $t1; row s2 2 "$e1" false true $t2 a | jq -c '.suite_size = 1 | .config_sha256 = "other"'; } | fixture_pgha
+expect "targeted suite with another config hash" 1 "s2: not counted, config_sha256 differs" --strict pgha
+
+# HEAD behind the evidence commit
+{ pair s1 "$e2" $t1; } | fixture_pgha
+git checkout -q --detach "$p0"
+expect "HEAD is not a descendant of the evidence" 1 "s1: not counted, $e2 is not an ancestor of HEAD" --strict pgha
+{ pair s1 "$p0" $t1; row s2 2 "$e2" false true $t2 a | jq -c '.suite_size = 2'; row s2 2 "$e2" false true $t2 b; } | fixture_pgha
+git checkout -q --detach "$e1"
+expect "targeted suite ahead of HEAD is skipped" 1 "s2: not counted, $e2 is not an ancestor of HEAD" --strict pgha
+git checkout -q main
+git reset -q --hard "$p0"
+
+# a scenario added after the full suite: its own targeted suite completes the evidence
+pair s1 "$p0" $t1 | fixture_pgha
+printf 'a\nb\nn\n' >lab/pgha/scenarios/suite.txt
+touch lab/pgha/scenarios/n.sh
+git add lab/pgha/scenarios
+git commit -q -m "add n"
+n1=$(git rev-parse --short HEAD)
+expect "new scenario: the old full suite stays the base" 1 "needs n:" --strict pgha
+{ pair s1 "$p0" $t1; row s2 1 "$n1" false true $t2 n; } | fixture_pgha
+expect "new scenario: a targeted suite of it is enough" 0 "targeted s2 ($n1: n) is current" --strict pgha
+git reset -q --hard "$p0"
+
+# lab-affected.sh: what to run against the current evidence
+la="$(cd "$(dirname "$script")" && pwd)/lab-affected.sh"
+expectla() {
+  local name=$1 want=$2 pat=$3 out rc=0
+  shift 3
+  out=$(bash "$la" "$@" 2>&1) || rc=$?
+  if [ "$rc" = "$want" ] && grep -q -F -- "$pat" <<<"$out"; then
+    echo "ok   $name"
+  else
+    echo "FAIL $name: exit $rc (want $want), pattern '$pat'" >&2
+    printf '%s\n' "$out" >&2
+    fail=1
+  fi
+}
+pair s1 "$p0" $t1 | fixture_pgha
+expectla "lab-affected: nothing to run" 0 "nothing to run" pgha
+echo 2 >lab/pgha/scenarios/a.sh
+git commit -q -am "change a"
+expectla "lab-affected: one scenario" 0 "a" pgha
+git reset -q --hard "$p0"
+echo 3 >lab/pgha/scenarios/lib.sh
+git commit -q -am lib
+out=$(bash "$la" pgha)
+if [ "$out" = "$(printf 'a\nb')" ]; then echo "ok   lab-affected: ALL lists suite.txt"; else echo "FAIL lab-affected ALL: $out" >&2; fail=1; fi
+git reset -q --hard "$p0"
+# ALL puts control last
+mkdir -p lab/z/scenarios
+printf 'control\na\nb\n' >lab/z/scenarios/suite.txt
+touch lab/z/scenarios/control.sh lab/z/scenarios/a.sh lab/z/scenarios/b.sh
+git add lab/z
+git commit -q -m z
+out=$(bash "$la" z 2>/dev/null)
+if [ "$out" = "$(printf 'a\nb\ncontrol')" ]; then echo "ok   lab-affected: control last when ALL"; else echo "FAIL lab-affected control: $out" >&2; fail=1; fi
+git reset -q --hard "$p0"
+# a repository inconsistency fails, it never reads as "nothing to run"
+touch lab/pgha/scenarios/c.sh
+expectla "lab-affected: inconsistency fails" 1 "check-evidence.sh failed" pgha
+rm lab/pgha/scenarios/c.sh
+expectla "lab-affected: bad lab" 2 "no lab/nolab/scenarios/suite.txt" nolab
+
+# packs: a change to a pack the lab does not use is current under --full, a used one is not
+mkdir -p lab/packs/pk lab/packs/qk
+echo 1 >lab/packs/pk/rules.yml
+echo 1 >lab/packs/qk/rules.yml
+echo '../packs/pk/rules.yml' >lab/pgha/mon.yaml
+git add lab/packs lab/pgha/mon.yaml
+git commit -q -m packs
+q0=$(git rev-parse --short HEAD)
+pair s1 "$q0" $t1 | fixture_pgha
+echo 2 >lab/packs/qk/rules.yml
+git commit -q -am "unused pack"
+expect "unused pack change is current with --full" 0 "suite s1 ($q0) is current" --strict --full pgha
+git reset -q --hard "$q0"
+echo 2 >lab/packs/pk/rules.yml
+git commit -q -am "used pack"
+expect "used pack change is stale with --full" 1 "needs a full suite" --strict --full pgha
+git reset -q --hard "$p0"
+
+# a link target counts as one changed file, whatever number of lines say so
+git reset -q --hard "$p0"
+rm lab/pgha/scenarios/b.sh
+ln -s a.sh lab/pgha/scenarios/b.sh
+git add lab/pgha/scenarios
+git commit -q -m "b links a"
+r0=$(git rev-parse --short HEAD)
+pair s1 "$r0" $t1 | fixture_pgha
+echo 2 >lab/pgha/scenarios/a.sh
+git commit -q -am "change a"
+expect "one file, two mapping lines, counted once" 1 "predates changes in 1 files, needs a b" --strict pgha
+git reset -q --hard "$p0"
+
+# affected-scenarios.sh failing for a targeted suite: skipped, not stale
+tools="$tmp/tools"
+mkdir -p "$tools"
+cp "$(dirname "$script")"/*.sh "$tools/"
+cat >"$tools/affected-scenarios.sh" <<STUB
+#!/usr/bin/env bash
+if [ "\$1" = -v ]; then exec bash "$(dirname "$script")/affected-scenarios.sh" "\$@"; fi
+exit 1
+STUB
+{ pair s1 "$p0" $t1; row s2 1 "$p0" false true $t2 a; } | fixture_pgha
+out=$(bash "$tools/check-evidence.sh" --strict pgha 2>&1) && rc=0 || rc=$?
+if [ "$rc" = 0 ] && grep -q "s2: not counted, affected-scenarios.sh failed" <<<"$out" && grep -q "suite s1 ($p0) is current" <<<"$out"; then
+  echo "ok   failing affected-scenarios.sh skips the targeted suite"
+else
+  echo "FAIL failing affected-scenarios.sh: exit $rc" >&2
+  printf '%s\n' "$out" >&2
+  fail=1
+fi
 
 expect "missing lab" 1 "no lab/y/results/runs.jsonl" --strict y
 

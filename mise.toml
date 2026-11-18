@@ -68,8 +68,17 @@ description = "otelcol-contrib validate on every tracked Collector config (pgha 
 run = "scripts/lint-otelcol.sh"
 
 [tasks."lab:evidence"]
-description = "per lab: is the latest complete passing suite newer than the lab's code? warns; pass --strict [LAB...] to fail (before a release)"
+description = "per lab: do the latest full suite and the targeted suites after it cover the lab's code? warns; --strict fails, --full counts only a full suite (before a release and after a dependency update batch)"
 run = "scripts/check-evidence.sh"
+
+[tasks."lab:affected"]
+description = "which scenarios of a lab need a run against its current evidence (scripts/lab-affected.sh): suite.txt order, control last, ALL, or nothing"
+usage = 'arg "<lab>" help "slice1, stage3, pgha, k8s or oracle"'
+run = 'scripts/lab-affected.sh "$usage_lab"'
+
+[tasks."lab:affected-test"]
+description = "test affected-scenarios.sh on a fake lab in a throwaway git repository; no docker"
+run = "scripts/test-affected-scenarios.sh"
 
 [tasks."lab:evidence-test"]
 description = "test check-evidence.sh on fixture runs.jsonl files in a throwaway git repository; no docker"
@@ -208,6 +217,7 @@ depends = [
   "lab:guard-test",
   "lab:k8s:tools-test",
   "lab:evidence-test",
+  "lab:affected-test",
   "lab:evidence",
   "lint:pack-names",
   "lint:series-vanished",
@@ -265,11 +275,19 @@ run = '''
 exec lab/scenarios/run-suite.sh slice1 $(cat lab/slice1/scenarios/suite.txt)
 '''
 
+[tasks."lab:scenarios:affected"]
+description = "run only the slice 1 scenarios affected by the changes since slice1's evidence (scripts/lab-affected.sh --run: the affected ones, control last; all of suite.txt when ALL; nothing when none); one suite, same guards as the full run"
+run = "exec scripts/lab-affected.sh --run slice1"
+
 [tasks."lab:k8s:scenarios"]
 description = "run all k8s fault scenarios, control last, as one suite (lab/scenarios/run-suite.sh: clean tree, host-wide lock, SUITE_ID; the list is lab/<lab>/scenarios/suite.txt); stops at the first failure"
 run = '''
 MISE_ENV=k8s exec mise exec -- lab/scenarios/run-suite.sh k8s $(cat lab/k8s/scenarios/suite.txt)
 '''
+
+[tasks."lab:k8s:scenarios:affected"]
+description = "run only the k8s scenarios affected by the changes since k8s's evidence (scripts/lab-affected.sh --run: the affected ones, control last; all of suite.txt when ALL; nothing when none); one suite, same guards as the full run"
+run = "exec scripts/lab-affected.sh --run k8s"
 
 [tasks."lab:stage3:up"]
 description = "start the stage 3 lab (three etcd members, three Patroni nodes, load client, collector, VictoriaMetrics/Logs)"
@@ -350,6 +368,10 @@ run = '''
 exec lab/scenarios/run-suite.sh oracle $(cat lab/oracle/scenarios/suite.txt)
 '''
 
+[tasks."lab:oracle:scenarios:affected"]
+description = "run only the oracle scenarios affected by the changes since oracle's evidence (scripts/lab-affected.sh --run: the affected ones, control last; all of suite.txt when ALL; nothing when none); one suite, same guards as the full run"
+run = "exec scripts/lab-affected.sh --run oracle"
+
 [tasks."lab:oracle:mon:down"]
 description = "stop the Oracle backend and delete its volumes"
 run = "docker compose -p obenhub-oracle -f lab/oracle/mon/compose.yaml down -v"
@@ -382,6 +404,10 @@ run = '''
 exec lab/scenarios/run-suite.sh pgha $(cat lab/pgha/scenarios/suite.txt)
 '''
 
+[tasks."lab:pgha:scenarios:affected"]
+description = "run only the pgha scenarios affected by the changes since pgha's evidence (scripts/lab-affected.sh --run: the affected ones, control last; all of suite.txt when ALL; nothing when none); one suite, same guards as the full run"
+run = "exec scripts/lab-affected.sh --run pgha"
+
 [tasks."lab:stage3:scenario"]
 description = "run one stage 3 fault scenario against the running lab (lab/stage3/scenarios/<name>.sh); appends to lab/stage3/results/runs.jsonl"
 usage = 'arg "<name>" help "scenario name, e.g. leader-killed"'
@@ -397,3 +423,7 @@ description = "run all stage 3 fault scenarios, control last, as one suite (lab/
 run = '''
 exec lab/scenarios/run-suite.sh stage3 $(cat lab/stage3/scenarios/suite.txt)
 '''
+
+[tasks."lab:stage3:scenarios:affected"]
+description = "run only the stage3 scenarios affected by the changes since stage3's evidence (scripts/lab-affected.sh --run: the affected ones, control last; all of suite.txt when ALL; nothing when none); one suite, same guards as the full run"
+run = "exec scripts/lab-affected.sh --run stage3"
