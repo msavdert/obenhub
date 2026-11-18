@@ -59,6 +59,10 @@ inject() {
   local req_extra=0 n gap0 gap left0 left keep_mb seg target restart diff switches=0 req0 req1 wal0 wal1 st1 st2 st3 reason
   # Every pgBackRest backup is a requested checkpoint and would break the "next timed checkpoint" timing below.
   pause_backups || { FAILS+=("could not pause the pgBackRest backups"); return 1; }
+  # A periodic backup just before the pause plus the pause's own backup plus the
+  # two CHECKPOINT commands below made 4 requested in 5 minutes (suite of 2026-11-18,
+  # backups at 01:14:15 and 01:15:54): start only with an empty window.
+  wait_until 600 "no requested checkpoint on the primary in the last 5 minutes" checkpoint_headroom || return 1
   psql_p -c "SELECT pg_drop_replication_slot(slot_name) FROM pg_replication_slots WHERE slot_name = '$SLOT'" >/dev/null || return 1
   keep_mb=$(psql_p -c "SELECT setting FROM pg_settings WHERE name = 'max_slot_wal_keep_size'") || return 1
   seg=$(psql_p -c "SELECT setting FROM pg_settings WHERE name = 'wal_segment_size'") || return 1
