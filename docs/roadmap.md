@@ -12,8 +12,6 @@ it (`--full` for a release). Order decided by the owner on 2026-11-12 (ADR
 0001, depth before breadth), Oracle moved up on 2026-11-13; Stage 5 is not next (owner
 decision 2026-11-08):
 
-- [ ] Backup tool with a restore scenario in slice1, building on its WAL
-      archive (see Backups)
 - [ ] PostgreSQL 19 (release 2026-11-19, owner decision 2026-11-12) next to
       18 in slice1: the same suite on both majors, the pack's queries tested
       on both. Before it starts, check 19 support in the `postgresql`
@@ -31,20 +29,6 @@ decision 2026-11-08):
       a new version; queries in the packs carry the versions they support,
       and the pack tests run on every supported version. First use: the
       PostgreSQL 19 item above
-
-## Backups
-
-Not covered yet: backups and point-in-time recovery (PITR). WAL archiving is
-in slice1 (scenario `archiver-failing`) with no restore. A backup tool is a
-stage of its own, because it brings a component, storage and a restore
-scenario.
-
-pgBackRest, with a `pg_basebackup` comparison scenario
-([ADR 0007](adr/0007-backup-tool.md)).
-
-- [ ] pgBackRest in slice1, backup age and verification monitored, an alert
-      for a stale or failed backup, and a restore scenario with evidence
-- [ ] The `pg_basebackup` scenario of ADR 0007 decision 3
 
 ## Known gaps, accepted for now
 
