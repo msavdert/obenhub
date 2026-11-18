@@ -1,0 +1,157 @@
+# EtcdHighFsyncDurations and EtcdHighCommitDurations with the pack defaults
+# (the etcd-mixin v3.7.3 thresholds, 0.5 s and 0.25 s): no lab inventory is
+# loaded, so no obenhub.etcd.*.limit series exists. The lab overrides are in
+# etcd-lab-override.yml. The lab cannot inject disk latency cleanly (see
+# packs/etcd/rules.yml), so these are unit tests only.
+rule_files:
+  - ../rules.yml
+evaluation_interval: 15s
+
+tests:
+  # Histogram series: 10 observations per 15 s sample. Slow = every one of
+  # them between 0.5 s and 1 s (p99 about 0.995 s); fast = at most 32 ms.
+  - name: WAL fsync p99 above 0.5 s for 10 m fires for the slow member only
+    interval: 15s
+    input_series:
+      - series: 'etcd_disk_wal_fsync_duration_seconds_bucket{le="0.032",service.name="etcd",service.instance.id="etcd-1"}'
+        values: '0+10x100'
+      - series: 'etcd_disk_wal_fsync_duration_seconds_bucket{le="0.5",service.name="etcd",service.instance.id="etcd-1"}'
+        values: '0+10x100'
+      - series: 'etcd_disk_wal_fsync_duration_seconds_bucket{le="1",service.name="etcd",service.instance.id="etcd-1"}'
+        values: '0+10x100'
+      - series: 'etcd_disk_wal_fsync_duration_seconds_bucket{le="+Inf",service.name="etcd",service.instance.id="etcd-1"}'
+        values: '0+10x100'
+      - series: 'etcd_disk_wal_fsync_duration_seconds_bucket{le="0.032",service.name="etcd",service.instance.id="etcd-2"}'
+        values: '0x100'
+      - series: 'etcd_disk_wal_fsync_duration_seconds_bucket{le="0.5",service.name="etcd",service.instance.id="etcd-2"}'
+        values: '0x100'
+      - series: 'etcd_disk_wal_fsync_duration_seconds_bucket{le="1",service.name="etcd",service.instance.id="etcd-2"}'
+        values: '0+10x100'
+      - series: 'etcd_disk_wal_fsync_duration_seconds_bucket{le="+Inf",service.name="etcd",service.instance.id="etcd-2"}'
+        values: '0+10x100'
+    alert_rule_test:
+      - eval_time: 8m   # slow for 8 m, below the 10 m hold
+        groupname: etcd
+        alertname: EtcdHighFsyncDurations
+        exp_alerts: []
+      - eval_time: 16m
+        groupname: etcd
+        alertname: EtcdHighFsyncDurations
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              service.instance.id: etcd-2
+              service.name: etcd
+            exp_annotations:
+              summary: etcd member etcd-2 WAL fsync p99 is 995ms
+
+  - name: backend commit p99 above 0.25 s for 10 m fires; 0.2 s p99 does not
+    interval: 15s
+    input_series:
+      # etcd-1: all in (0.25, 0.5]; etcd-2: all in (0.128, 0.25] (p99 < 0.25)
+      - series: 'etcd_disk_backend_commit_duration_seconds_bucket{le="0.25",service.name="etcd",service.instance.id="etcd-1"}'
+        values: '0x100'
+      - series: 'etcd_disk_backend_commit_duration_seconds_bucket{le="0.5",service.name="etcd",service.instance.id="etcd-1"}'
+        values: '0+10x100'
+      - series: 'etcd_disk_backend_commit_duration_seconds_bucket{le="+Inf",service.name="etcd",service.instance.id="etcd-1"}'
+        values: '0+10x100'
+      - series: 'etcd_disk_backend_commit_duration_seconds_bucket{le="0.128",service.name="etcd",service.instance.id="etcd-2"}'
+        values: '0x100'
+      - series: 'etcd_disk_backend_commit_duration_seconds_bucket{le="0.25",service.name="etcd",service.instance.id="etcd-2"}'
+        values: '0+10x100'
+      - series: 'etcd_disk_backend_commit_duration_seconds_bucket{le="+Inf",service.name="etcd",service.instance.id="etcd-2"}'
+        values: '0+10x100'
+    alert_rule_test:
+      - eval_time: 16m
+        groupname: etcd
+        alertname: EtcdHighCommitDurations
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              service.instance.id: etcd-1
+              service.name: etcd
+            exp_annotations:
+              summary: etcd member etcd-1 backend commit p99 is 497.5ms
+
+  # Histogram boundary: 100 observations per sample, the share above the
+  # bucket edge decides the p99. Edge le=0.5 / +Inf: 98 below -> p99 above 0.5;
+  # 99.5 below -> p99 below 0.5. Rates are per second, only ratios matter.
+  - name: fsync p99 just above 0.5 s fires, just below does not
+    interval: 15s
+    input_series:
+      - series: 'etcd_disk_wal_fsync_duration_seconds_bucket{le="0.5",service.name="etcd",service.instance.id="etcd-1"}'
+        values: '0+98x100'
+      - series: 'etcd_disk_wal_fsync_duration_seconds_bucket{le="1",service.name="etcd",service.instance.id="etcd-1"}'
+        values: '0+100x100'
+      - series: 'etcd_disk_wal_fsync_duration_seconds_bucket{le="+Inf",service.name="etcd",service.instance.id="etcd-1"}'
+        values: '0+100x100'
+      - series: 'etcd_disk_wal_fsync_duration_seconds_bucket{le="0.5",service.name="etcd",service.instance.id="etcd-2"}'
+        values: '0+995x100'
+      - series: 'etcd_disk_wal_fsync_duration_seconds_bucket{le="1",service.name="etcd",service.instance.id="etcd-2"}'
+        values: '0+1000x100'
+      - series: 'etcd_disk_wal_fsync_duration_seconds_bucket{le="+Inf",service.name="etcd",service.instance.id="etcd-2"}'
+        values: '0+1000x100'
+    alert_rule_test:
+      - eval_time: 16m
+        groupname: etcd
+        alertname: EtcdHighFsyncDurations
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              service.instance.id: etcd-1
+              service.name: etcd
+            exp_annotations:
+              summary: etcd member etcd-1 WAL fsync p99 is 750ms
+
+  - name: commit p99 just above 0.25 s fires, just below does not
+    interval: 15s
+    input_series:
+      - series: 'etcd_disk_backend_commit_duration_seconds_bucket{le="0.25",service.name="etcd",service.instance.id="etcd-1"}'
+        values: '0+98x100'
+      - series: 'etcd_disk_backend_commit_duration_seconds_bucket{le="0.5",service.name="etcd",service.instance.id="etcd-1"}'
+        values: '0+100x100'
+      - series: 'etcd_disk_backend_commit_duration_seconds_bucket{le="+Inf",service.name="etcd",service.instance.id="etcd-1"}'
+        values: '0+100x100'
+      - series: 'etcd_disk_backend_commit_duration_seconds_bucket{le="0.25",service.name="etcd",service.instance.id="etcd-2"}'
+        values: '0+995x100'
+      - series: 'etcd_disk_backend_commit_duration_seconds_bucket{le="0.5",service.name="etcd",service.instance.id="etcd-2"}'
+        values: '0+1000x100'
+      - series: 'etcd_disk_backend_commit_duration_seconds_bucket{le="+Inf",service.name="etcd",service.instance.id="etcd-2"}'
+        values: '0+1000x100'
+    alert_rule_test:
+      - eval_time: 16m
+        groupname: etcd
+        alertname: EtcdHighCommitDurations
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              service.instance.id: etcd-1
+              service.name: etcd
+            exp_annotations:
+              summary: etcd member etcd-1 backend commit p99 is 375ms
+
+  # for: 10m boundary. The condition holds from the first rate window (15 s).
+  - name: the 10 m hold - silent at 9 m, firing at 11 m
+    interval: 15s
+    input_series:
+      - series: 'etcd_disk_wal_fsync_duration_seconds_bucket{le="0.5",service.name="etcd",service.instance.id="etcd-1"}'
+        values: '0x100'
+      - series: 'etcd_disk_wal_fsync_duration_seconds_bucket{le="1",service.name="etcd",service.instance.id="etcd-1"}'
+        values: '0+10x100'
+      - series: 'etcd_disk_wal_fsync_duration_seconds_bucket{le="+Inf",service.name="etcd",service.instance.id="etcd-1"}'
+        values: '0+10x100'
+    alert_rule_test:
+      - eval_time: 9m
+        groupname: etcd
+        alertname: EtcdHighFsyncDurations
+        exp_alerts: []
+      - eval_time: 11m
+        groupname: etcd
+        alertname: EtcdHighFsyncDurations
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              service.instance.id: etcd-1
+              service.name: etcd
+            exp_annotations:
+              summary: etcd member etcd-1 WAL fsync p99 is 995ms

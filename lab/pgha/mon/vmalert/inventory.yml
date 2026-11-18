@@ -52,3 +52,25 @@ groups:
             label_set(vector(1), "service.namespace", "obenhub-lab", "service.name", "etcd", "service.instance.id", "pgha-2", "obenhub.collector", "otelcol-pgha-2"),
             label_set(vector(1), "service.namespace", "obenhub-lab", "service.name", "etcd", "service.instance.id", "pgha-3", "obenhub.collector", "otelcol-pgha-3")
           )
+
+  # Lab parameters for the shared etcd pack (lab/packs/etcd/rules.yml): the pack
+  # keeps the etcd-mixin thresholds (fsync p99 0.5 s, commit p99 0.25 s) as the
+  # production defaults; this lab raises both to 1.0 s. This is not a production
+  # value: the lab host's Proxmox storage is shared and slow, and the lab accepts
+  # that. Measurements on 2026-11-18 (~19:56 UTC) from this lab's VictoriaMetrics:
+  # worst sustained 10-minute p99 (max over members; "raw max" is the highest
+  # single p99 sample), in seconds:
+  # commit 24 h 0.278 (raw max 0.834), 48 h 0.535 (raw max 0.872);
+  # fsync 24 h 0.121 (raw max 0.469), 48 h 0.294 (raw max 0.858).
+  # Conditions: the 48 h window includes the period around 2026-11-17 14:35 to
+  # 15:08 UTC, when the owner was installing a Kubernetes cluster on the same
+  # Proxmox host (and stage3's pgbench ran at -R 100, 5x its current load); this
+  # lab's own load in that period was not checked (assumption: it shares the host
+  # effect). An alert in such a period is legitimate even in the lab.
+  - name: etcd-parameters
+    interval: 15s
+    rules:
+      - record: obenhub.etcd.commit_duration.limit
+        expr: vector(1.0)
+      - record: obenhub.etcd.fsync_duration.limit
+        expr: vector(1.0)

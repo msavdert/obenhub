@@ -21,7 +21,11 @@
 # The inventory (obenhub.expected_scrape with service.name "etcd", each with an
 # obenhub.collector label naming the Collector that scrapes it, next to
 # obenhub.expected_collector) is per lab, for example
-# lab/stage3/vmalert/inventory.yml.
+# lab/stage3/vmalert/inventory.yml. The disk latency thresholds follow the
+# etcd-mixin (0.5 s fsync, 0.25 s commit) as production defaults; a lab may
+# override them with obenhub.etcd.fsync_duration.limit and
+# obenhub.etcd.commit_duration.limit (ADR 0006, lab parameters), as stage3 and
+# pgha do because their host storage is slow.
 groups:
   - name: etcd
     interval: 15s
@@ -96,26 +100,36 @@ groups:
           summary: '{{ $value }} etcd leader changes within 5 minutes'
 
       # Mixin: histogram_quantile(0.99, rate(...[5m])) > 0.5, for 10m (warning),
-      # > 1 (critical). Lab: same threshold and "for" (the critical tier is
-      # not written). "for" stays 10m on purpose: one slow burst on the lab
+      # > 1 (critical). Here: the threshold is the mixin's 0.5 s, the production
+      # default, unless the lab's inventory records obenhub.etcd.fsync_duration.limit
+      # (seconds, one series without labels; stage3 and pgha set 1.0 s, with the
+      # reason and the measurements, in their inventory.yml). The critical tier is
+      # not written. "for" stays 10m on purpose: one slow burst on the lab
       # host moved the 5 m commit p99 to 350 ms on two members for about 5
       # minutes (2026-11-07), which a shorter "for" turned into an alert in a
-      # scenario that had nothing to do with disks. Lab baseline fsync p99 is
-      # 25 to 50 ms (measured 2026-11-07), far below 0.5. Unit tests only: no
-      # contained way to inject disk latency into one etcd container without
-      # touching host disk settings.
+      # scenario that had nothing to do with disks. Lab fsync p99 measurements
+      # are in the inventories. Unit tests only: no contained way to inject disk
+      # latency into one etcd container without touching host disk settings.
       - alert: EtcdHighFsyncDurations
-        expr: histogram_quantile(0.99, rate(etcd_disk_wal_fsync_duration_seconds_bucket[5m])) > 0.5
+        expr: |
+          histogram_quantile(0.99, rate(etcd_disk_wal_fsync_duration_seconds_bucket[5m]))
+            > on() group_left()
+          (obenhub.etcd.fsync_duration.limit or vector(0.5))
         for: 10m
         labels:
           severity: warning
         annotations:
           summary: 'etcd member {{ (index $labels "service.instance.id") }} WAL fsync p99 is {{ $value | humanizeDuration }}'
 
-      # Mixin: > 0.25, for 10m; the same here (see the fsync rule for why "for"
-      # stays long). Lab baseline p99 is 30 to 65 ms. Unit tests only.
+      # Mixin: > 0.25, for 10m; the same default here, overridable per lab with
+      # obenhub.etcd.commit_duration.limit (see the fsync rule above for the
+      # mechanism and why "for" stays long). Lab commit p99 measurements are in
+      # the inventories. Unit tests only.
       - alert: EtcdHighCommitDurations
-        expr: histogram_quantile(0.99, rate(etcd_disk_backend_commit_duration_seconds_bucket[5m])) > 0.25
+        expr: |
+          histogram_quantile(0.99, rate(etcd_disk_backend_commit_duration_seconds_bucket[5m]))
+            > on() group_left()
+          (obenhub.etcd.commit_duration.limit or vector(0.25))
         for: 10m
         labels:
           severity: warning
