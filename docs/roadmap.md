@@ -16,6 +16,14 @@ decision 2026-11-08):
       18 in slice1: the same suite on both majors, the pack's queries tested
       on both. Before it starts, check 19 support in the `postgresql`
       receiver, pgBackRest and the official image
+- [ ] Usable outside the lab (after PostgreSQL 19, owner decision
+      2026-11-18). Today the packs are wired to the lab inventories under
+      `lab/`, there is no install path or guide, and most thresholds are lab
+      values hand-copied between rules, Patroni config and dashboards. Steps:
+      move the packs out of `lab/`; every threshold a production default in
+      the pack with an optional lab override series in the lab inventory, as
+      `lab/packs/etcd/rules.yml` does since #113; one install path and its
+      guide; the homelab (section below) as the first non-lab user
 - [ ] Monitoring gaps in slice1: a scenario for
       `PostgresTransactionIdWraparound` (the dashboard panels and the
       `PostgresReplicationSlotRetainingWAL` scenario are done)
