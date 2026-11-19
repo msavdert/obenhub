@@ -3,8 +3,8 @@
 # the kind Docker network's IPv4 gateway address; everything else listens on
 # 127.0.0.1 only. The five backend services extend lab/mon/compose.base.yaml
 # (images, versions, flags, Alertmanager config, Grafana provisioning); this
-# file adds ports, names, rule files and dashboards. Dashboards: lab/k8s/grafana/dashboards
-# (CloudNativePG and Kubernetes) and the shared PostgreSQL dashboard of slice 1.
+# file adds ports, names, rule files and dashboards. Dashboards: the CloudNativePG
+# one (packs/cnpg/dashboards) and the shared PostgreSQL one (packs/postgresql/dashboards).
 # Start with: lab/k8s/scripts/up.sh (it writes .env from the running kind network).
 
 name: obenhub-k8s
@@ -78,8 +78,8 @@ services:
     ports:
       - "127.0.0.1:43000:3000"
     volumes:
-      - ../grafana/dashboards:/var/lib/obenhub/dashboards/k8s:ro
-      - ../../slice1/grafana/dashboards:/var/lib/obenhub/dashboards/postgresql:ro
+      - ../../../packs/cnpg/dashboards:/var/lib/obenhub/dashboards/k8s:ro
+      - ../../../packs/postgresql/dashboards:/var/lib/obenhub/dashboards/postgresql:ro
 
 networks:
   mon: {}

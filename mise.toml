@@ -162,11 +162,11 @@ run = "scripts/vmalert-unittest.sh packs/postgresql/tests"
 
 [tasks."lab:slice1:panels"]
 description = "run the panel queries of the slice 1 PostgreSQL dashboard against the running slice 1 Grafana (scripts/check-panels.sh); needs the lab, not part of check"
-run = "scripts/check-panels.sh --strict-rows lab/slice1/grafana/dashboards/postgresql.json http://127.0.0.1:13000 lab/slice1/.env pg-primary"
+run = "scripts/check-panels.sh --strict-rows packs/postgresql/dashboards/postgresql.json http://127.0.0.1:13000 lab/slice1/.env pg-primary"
 
 [tasks."lab:stage3:panels"]
 description = "run the panel queries of the Patroni dashboard against the running stage 3 Grafana (scripts/check-panels.sh); needs the lab, not part of check"
-run = "scripts/check-panels.sh lab/stage3/grafana/dashboards/patroni.json http://127.0.0.1:23000 lab/stage3/.env"
+run = "scripts/check-panels.sh packs/patroni/dashboards/patroni.json http://127.0.0.1:23000 lab/stage3/.env"
 
 [tasks."lab:pgha:panels"]
 description = "run the panel queries of the Patroni, host and PostgreSQL dashboards against the running pgha Grafana (scripts/check-panels.sh); needs the lab, not part of check"
@@ -174,9 +174,9 @@ run = """
 set -e
 g=http://127.0.0.1:33000
 e=lab/pgha/mon/.env
-scripts/check-panels.sh lab/stage3/grafana/dashboards/patroni.json $g $e
+scripts/check-panels.sh packs/patroni/dashboards/patroni.json $g $e
 scripts/check-panels.sh packs/host/dashboards/host.json $g $e
-scripts/check-panels.sh lab/slice1/grafana/dashboards/postgresql.json $g $e pgha-1
+scripts/check-panels.sh packs/postgresql/dashboards/postgresql.json $g $e pgha-1
 """
 
 [tasks."lab:oracle:panels"]
@@ -189,8 +189,8 @@ run = """
 set -e
 g=http://127.0.0.1:43000
 e=lab/k8s/mon/.env
-scripts/check-panels.sh lab/k8s/grafana/dashboards/cnpg.json $g $e
-scripts/check-panels.sh lab/slice1/grafana/dashboards/postgresql.json $g $e pg-1
+scripts/check-panels.sh packs/cnpg/dashboards/cnpg.json $g $e
+scripts/check-panels.sh packs/postgresql/dashboards/postgresql.json $g $e pg-1
 """
 
 [tasks."lint:pack-names"]

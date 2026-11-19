@@ -4,6 +4,7 @@
 shares; `rules.yml` and `tests/` are its alerts. The metric list is generated:
 [docs/reference/postgresql-pack-metrics.md](../../docs/reference/postgresql-pack-metrics.md).
 Names follow [ADR 0006](../../docs/adr/0006-naming-contract.md).
+`dashboards/postgresql.json` is the dashboard; slice1, pgha and k8s mount it.
 
 ## PostgreSQL version
 

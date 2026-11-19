@@ -250,7 +250,7 @@ services:
     ports:
       - "127.0.0.1:23000:3000"
     volumes:
-      - ./grafana/dashboards:/var/lib/obenhub/dashboards:ro
+      - ../../packs/patroni/dashboards:/var/lib/obenhub/dashboards:ro
 
 networks:
   # etcd and the Patroni REST API: a scenario that cuts a node here cuts it

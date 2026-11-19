@@ -334,7 +334,7 @@ services:
     ports:
       - "127.0.0.1:13000:3000"
     volumes:
-      - ./grafana/dashboards:/var/lib/obenhub/dashboards:ro
+      - ../../packs/postgresql/dashboards:/var/lib/obenhub/dashboards:ro
 
 configs:
   # Passwords in clear text: PgBouncer logs in to the servers with them. The

@@ -14,8 +14,7 @@
 
 evidence_extra_paths() {
   case "$1" in
-    pgha) echo lab/stage3/grafana/dashboards lab/slice1/grafana/dashboards ;;
-    k8s) echo lab/slice1/grafana/dashboards mise.k8s.toml ;;
+    k8s) echo mise.k8s.toml ;;
     oracle) echo lab/pgha/versions.sh ;;
   esac
 }

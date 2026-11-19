@@ -2,9 +2,9 @@
 # the gateway over mutual TLS; everything else listens on 127.0.0.1 only.
 # The five backend services extend lab/mon/compose.base.yaml (images, versions,
 # flags, Alertmanager config, Grafana provisioning); this file adds ports,
-# names, rule files and dashboards. Dashboards: the stage 3 Patroni one, the
-# shared host dashboard (packs/host/dashboards) and the shared PostgreSQL
-# dashboard of slice 1.
+# names, rule files and dashboards. Dashboards: the Patroni one
+# (packs/patroni/dashboards), the shared host dashboard (packs/host/dashboards)
+# and the shared PostgreSQL one (packs/postgresql/dashboards).
 # Start with: mise run lab:pgha:mon:up (generates .env).
 name: obenhub-pgha
 
@@ -82,9 +82,9 @@ services:
     ports:
       - "127.0.0.1:33000:3000"
     volumes:
-      - ../../stage3/grafana/dashboards:/var/lib/obenhub/dashboards/patroni:ro
+      - ../../../packs/patroni/dashboards:/var/lib/obenhub/dashboards/patroni:ro
       - ../../../packs/host/dashboards:/var/lib/obenhub/dashboards/host:ro
-      - ../../slice1/grafana/dashboards:/var/lib/obenhub/dashboards/postgresql:ro
+      - ../../../packs/postgresql/dashboards:/var/lib/obenhub/dashboards/postgresql:ro
 
 networks:
   mon: {}
