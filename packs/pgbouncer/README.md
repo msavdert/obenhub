@@ -26,4 +26,6 @@ form of the names.
 `PgbouncerClientSaturation` in two tiers, `PgbouncerWaitTime`), unit-tested in
 `tests/` (`mise run lab:pgbouncer:rules-test`). Thresholds are lab values.
 `PgbouncerTargetAbsent` reads `obenhub.expected_target` from the lab's
-inventory (`lab/slice1/vmalert/rules/postgresql.yml`).
+inventory (`lab/slice1/vmalert/rules/postgresql.yml`) and the Collector's own
+`otelcol_process_uptime` (the `collector` pack's prerequisite), matched on the
+`obenhub.collector` label.
