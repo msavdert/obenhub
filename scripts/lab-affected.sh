@@ -2,7 +2,8 @@
 # The scenarios of a lab that need a run against its current evidence.
 #   lab-affected.sh [--run] LAB
 # Evidence commit: the end of check-evidence.sh's chain (latest full suite plus
-# the targeted suites after it); no valid full suite means ALL. Prints the
+# the targeted suites after it), plus the scenarios that failed after it and
+# have not passed since; no valid full suite means ALL. Prints the
 # scenarios in suite.txt order with control last, or ALL's whole suite.txt, or
 # "nothing to run". With --run it executes them as one suite through
 # lab/scenarios/run-suite.sh (k8s through MISE_ENV=k8s mise exec --).
@@ -22,12 +23,16 @@ if ! ev=$("$here/check-evidence.sh" --sha "$lab" 2>/dev/null); then
   echo "check-evidence.sh failed for $lab (a repository inconsistency; run it to see which)" >&2
   exit 1
 fi
+# the last line is the evidence commit; "failed NAME" lines before it name
+# scenarios that failed after it and have not passed since
+failed=$(sed -n 's/^failed //p' <<<"$ev")
 ev=$(tail -n 1 <<<"$ev")
 if [ -z "$ev" ]; then
   echo "no valid full suite for $lab: everything needs a run" >&2
   need=ALL
 else
   need=$("$here/affected-scenarios.sh" "$lab" "$ev" HEAD)
+  [ "$need" = ALL ] || need=$(printf '%s\n%s\n' "$need" "$failed" | grep -v '^$' | sort -u || true)
 fi
 
 # suite.txt order, control last

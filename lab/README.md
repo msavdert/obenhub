@@ -10,7 +10,8 @@ a lab's scenarios as a suite (`lab/scenarios/run-suite.sh`: clean tree outside
 and `detected_at`, the time each expected alert first fired); a scenario run on
 its own is a smoke run and records `suite: null`. Suites run on a commit of
 `main`, and their results come back through a pull request, so that the
-recorded `git_sha` stays in the history. `mise run lab:evidence` reports, per
+recorded `git_sha` stays in the history. A suite counts only with `control`
+run last. `mise run lab:evidence` reports, per
 lab, whether its latest full suite plus the later targeted suites (subsets of
 `suite.txt`) cover the code: `scripts/affected-scenarios.sh` maps each change
 to the scenarios it can affect (a changed scenario script runs itself, a new
@@ -19,7 +20,9 @@ runs means all of them), and `mise run lab:affected <lab>` lists them
 (`mise run lab:scenarios:affected` and `lab:<lab>:scenarios:affected` run
 them). `scripts/check-evidence.sh --full` counts only a full suite with no change
 that affects the lab since, as a release and the end of a dependency update
-batch require.
+batch require. In both modes a scenario that failed in a suite after the
+counted one keeps the lab stale until it passes again, and `lab:affected` lists
+it.
 
 | Lab | Topology | Where it runs | Scenarios | Evidence |
 | --- | --- | --- | --- | --- |
