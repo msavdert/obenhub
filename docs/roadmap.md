@@ -81,10 +81,10 @@ the held dependency update batch and closes a release.
       `lab/slice1/vmalert/rules/postgresql.yml` use `increase()` without
       the counter-start handling the pack documents
       (`lab/packs/postgresql/rules.yml`, `PostgresDeadlocks`); fixed as they
-      move into the pack (C2). `KubernetesNodeNotReady` carries no
-      `service.instance.id`, so the scenario cannot tell which node fired.
-      stage3, pgha and k8s give the `postgresql` receiver only the database
-      `postgres` while the load runs in `app`
+      move into the pack (C2). `KubernetesNodeNotReady` names its node in
+      `service.instance.id`, and stage3, pgha and k8s give the `postgresql`
+      receiver the database `app` too; done when the full suites of
+      stage3, pgha and k8s pass with them
 - [ ] B3 Harness (`lab/scenarios/lib-core.sh`, `run-suite.sh`, each lab's
       `lib.sh`). The precondition fails when the running image IDs differ
       from the Compose file, and the record carries the running IDs (slice1,

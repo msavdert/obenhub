@@ -57,7 +57,7 @@ inject() {
   OLD=$(leader_name) && [ -n "$OLD" ] || return 1
   NODE=$(pod_node "$OLD") && [ -n "$NODE" ] || return 1
   TL0=$(timeline)
-  EXPECT=("CNPGPrimaryChanged:" "KubernetesNodeNotReady:" "CollectorAbsent:otelcol-agent-$NODE")
+  EXPECT=("CNPGPrimaryChanged:" "KubernetesNodeNotReady:$NODE" "CollectorAbsent:otelcol-agent-$NODE")
   log "power cut of kind node $NODE (primary $OLD, timeline $TL0): docker kill"
   T0=$(date +%s.%N)
   docker kill "$NODE" >/dev/null || return 1
