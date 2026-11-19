@@ -116,7 +116,7 @@
       "customType": "regex",
       "description": "Versions annotated with a '# renovate:' comment on the line above a NAME=version assignment in lab shell scripts",
       "managerFilePatterns": [
-        "/^lab/.+\\.sh$/"
+        "/^(lab|packs)/.+\\.sh$/"
       ],
       "matchStrings": [
         "# renovate: datasource=(?<datasource>github-releases|github-tags|docker) depName=(?<depName>\\S+)(?: extractVersion=(?<extractVersion>\\S+))?\\s+[A-Z_]+=(?<currentValue>\\S+)"
@@ -126,7 +126,7 @@
       "customType": "regex",
       "description": "Container images pinned as repository:tag@digest under a '# renovate: datasource=docker' comment in lab shell scripts",
       "managerFilePatterns": [
-        "/^lab/.+\\.sh$/"
+        "/^(lab|packs)/.+\\.sh$/"
       ],
       "matchStrings": [
         "# renovate: datasource=docker\\s+[A-Z_]+=(?<depName>[^:\\s]+):(?<currentValue>[^@\\s]+)@(?<currentDigest>sha256:[0-9a-f]{64})"
@@ -148,7 +148,7 @@
       "customType": "regex",
       "description": "Debian package pins in lab versions.sh: a '# renovate: datasource=deb depName=<package>' comment above a NAME=version line (the pgha PGDG pins). Same PGDG trixie repository as the Dockerfile manager. Unconfirmed: not yet seen to open a pull request.",
       "managerFilePatterns": [
-        "/^lab/.+/versions\\.sh$/"
+        "/^(lab/.+/|packs/)versions\\.sh$/"
       ],
       "matchStrings": [
         "# renovate: datasource=(?<datasource>deb) depName=(?<depName>\\S+)\\s+[A-Z_]+=(?<currentValue>\\S+)"

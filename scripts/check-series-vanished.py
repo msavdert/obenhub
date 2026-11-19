@@ -2,9 +2,9 @@
 # SPDX-License-Identifier: Apache-2.0
 """Fail when the PostgresSeriesVanished metric list drifts from the PostgreSQL pack.
 
-The rule (lab/packs/postgresql/rules.yml) names the metrics it watches in two
+The rule (packs/postgresql/rules.yml) names the metrics it watches in two
 `__name__` regexes. Both must expand to the same set, and that set must equal
-the metrics of lab/packs/postgresql/queries.yaml, less EXCLUDED, plus metrics
+the metrics of packs/postgresql/queries.yaml, less EXCLUDED, plus metrics
 of postgresqlreceiver (listed in upstream-receiver-metrics.txt). No network.
 """
 
@@ -15,9 +15,9 @@ from pathlib import Path
 from packmetrics import parse_metrics
 
 ROOT = Path(__file__).resolve().parent.parent
-RULES = ROOT / "lab/packs/postgresql/rules.yml"
-QUERIES = ROOT / "lab/packs/postgresql/queries.yaml"
-UPSTREAM = ROOT / "lab/packs/postgresql/upstream-receiver-metrics.txt"
+RULES = ROOT / "packs/postgresql/rules.yml"
+QUERIES = ROOT / "packs/postgresql/queries.yaml"
+UPSTREAM = ROOT / "packs/postgresql/upstream-receiver-metrics.txt"
 
 # Pack metrics the rule deliberately does not watch, with the reason.
 EXCLUDED = {

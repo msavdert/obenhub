@@ -121,12 +121,12 @@ ca_file="$(mktemp)"
 trap 'rm -f "${cnpg_manifest}" "${ca_file}"' EXIT
 k -n obenhub get secret pg-ca -o jsonpath='{.data.ca\.crt}' | base64 -d >"${ca_file}"
 k -n "${otel_ns}" create configmap obenhub-pack-postgresql \
-  --from-file=queries.yaml="${repo_root}/lab/packs/postgresql/queries.yaml" --dry-run=client -o yaml | k apply -f - >/dev/null
+  --from-file=queries.yaml="${repo_root}/packs/postgresql/queries.yaml" --dry-run=client -o yaml | k apply -f - >/dev/null
 k -n "${otel_ns}" create configmap obenhub-pg-ca \
   --from-file=ca.crt="${ca_file}" --dry-run=client -o yaml | k apply -f - >/dev/null
 # the monitoring password is read from the Secret at pod start: its hash (not
 # the value) is part of the checksum so that a new password rolls the pods
-inputs_sha="$({ cat "${repo_root}/lab/packs/postgresql/queries.yaml" "${ca_file}"
+inputs_sha="$({ cat "${repo_root}/packs/postgresql/queries.yaml" "${ca_file}"
   k -n obenhub get secret "${monitor_secret}" -o jsonpath='{.data.password}'; } | sha256sum | cut -d' ' -f1)"
 
 # OTELCOL_IMAGE is repository:tag@digest

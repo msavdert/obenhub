@@ -44,7 +44,7 @@ it.
 
 Shared parts:
 
-- [packs](packs): queries and alert rules with unit tests, one directory per
+- [packs](../packs): queries and alert rules with unit tests, one directory per
   component (postgresql, patroni, etcd, cnpg, pgbackrest, host, k8s,
   collector, oracledb-dg, oracledb-backup).
 - [scenarios/lib-core.sh](scenarios/lib-core.sh): the scenario harness used by

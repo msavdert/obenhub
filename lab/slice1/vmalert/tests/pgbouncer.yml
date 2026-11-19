@@ -2,7 +2,7 @@
 # PgbouncerClientSaturation and PgbouncerWaitTime.
 rule_files:
   - ../rules/postgresql.yml
-  - ../../../packs/postgresql/rules.yml
+  - ../../../../packs/postgresql/rules.yml
 evaluation_interval: 15s
 
 tests:

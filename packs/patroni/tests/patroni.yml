@@ -1,0 +1,625 @@
+# One test group per Patroni rule: PatroniNoWritablePrimary,
+# PatroniFailoverHappened, PatroniReplicaNotEligible, PatroniClusterPaused,
+# PatroniPendingRestart, PatroniMultiplePrimaries. Series shapes follow what
+# Patroni 4.1.5 reports:
+# timeline and xlog_location are 0 on a replica, received/replayed are 0 on
+# the leader.
+# The inventory is per lab; these tests use the stage 3 one (pg-1..3, etcd-1..3).
+rule_files:
+  - ../rules.yml
+  - ../../../lab/stage3/vmalert/inventory.yml
+evaluation_interval: 15s
+
+tests:
+  # --- no writable primary ---------------------------------------------------
+  - name: no primary for longer than the hold fires once, with the scope
+    interval: 15s
+    input_series:
+      - series: 'patroni_primary{scope="stage3",service.instance.id="pg-1"}'
+        values: '1x8 0x52'
+      - series: 'patroni_primary{scope="stage3",service.instance.id="pg-2"}'
+        values: '0x60'
+      - series: 'patroni_primary{scope="stage3",service.instance.id="pg-3"}'
+        values: '0x60'
+    alert_rule_test:
+      - eval_time: 1m
+        groupname: patroni
+        alertname: PatroniNoWritablePrimary
+        exp_alerts: []
+      - eval_time: 3m   # 60 s without a primary, below the 90 s hold
+        groupname: patroni
+        alertname: PatroniNoWritablePrimary
+        exp_alerts: []
+      - eval_time: 5m
+        groupname: patroni
+        alertname: PatroniNoWritablePrimary
+        exp_alerts:
+          - exp_labels: {severity: critical, scope: stage3}
+            exp_annotations:
+              summary: Cluster stage3 has no writable primary
+
+  - name: a failover gap shorter than the hold does not fire
+    interval: 15s
+    input_series:
+      - series: 'patroni_primary{scope="stage3",service.instance.id="pg-1"}'
+        values: '1x8 0x52'
+      - series: 'patroni_primary{scope="stage3",service.instance.id="pg-2"}'
+        values: '0x11 1x49'
+      - series: 'patroni_primary{scope="stage3",service.instance.id="pg-3"}'
+        values: '0x60'
+    alert_rule_test:
+      - eval_time: 2m30s
+        groupname: patroni
+        alertname: PatroniNoWritablePrimary
+        exp_alerts: []
+      - eval_time: 6m
+        groupname: patroni
+        alertname: PatroniNoWritablePrimary
+        exp_alerts: []
+
+  - name: no Patroni data at all does not fire
+    interval: 15s
+    input_series:
+      - series: 'patroni_primary{scope="stage3",service.instance.id="pg-1"}'
+        values: '1x8 _x52'
+    alert_rule_test:
+      - eval_time: 8m
+        groupname: patroni
+        alertname: PatroniNoWritablePrimary
+        exp_alerts: []
+
+  # --- multiple primaries ----------------------------------------------------
+  - name: two fresh primaries fire only after the 60 s hold, with the scope and the count
+    interval: 15s
+    input_series:
+      - series: 'patroni_primary{scope="stage3",service.instance.id="pg-1"}'
+        values: '1x60'
+      - series: 'patroni_primary{scope="stage3",service.instance.id="pg-2"}'
+        values: '0x8 1x52'
+      - series: 'patroni_primary{scope="stage3",service.instance.id="pg-3"}'
+        values: '0x60'
+    alert_rule_test:
+      - eval_time: 1m   # one primary
+        groupname: patroni
+        alertname: PatroniMultiplePrimaries
+        exp_alerts: []
+      - eval_time: 2m30s   # two primaries for 30 s, below the hold
+        groupname: patroni
+        alertname: PatroniMultiplePrimaries
+        exp_alerts: []
+      - eval_time: 3m   # two primaries since 2m15: 45 s, a 45 s hold would fire at 3m
+        groupname: patroni
+        alertname: PatroniMultiplePrimaries
+        exp_alerts: []
+      - eval_time: 3m15s   # 60 s: the hold completes (a 75 s hold would not fire yet)
+        groupname: patroni
+        alertname: PatroniMultiplePrimaries
+        exp_alerts:
+          - exp_labels: {severity: critical, scope: stage3}
+            exp_annotations:
+              summary: Cluster stage3 has 2 members reporting primary (split brain)
+      - eval_time: 4m
+        groupname: patroni
+        alertname: PatroniMultiplePrimaries
+        exp_alerts:
+          - exp_labels: {severity: critical, scope: stage3}
+            exp_annotations:
+              summary: Cluster stage3 has 2 members reporting primary (split brain)
+
+  - name: a single primary does not fire
+    interval: 15s
+    input_series:
+      - series: 'patroni_primary{scope="stage3",service.instance.id="pg-1"}'
+        values: '1x60'
+      - series: 'patroni_primary{scope="stage3",service.instance.id="pg-2"}'
+        values: '0x60'
+      - series: 'patroni_primary{scope="stage3",service.instance.id="pg-3"}'
+        values: '0x60'
+    alert_rule_test:
+      - eval_time: 4m
+        groupname: patroni
+        alertname: PatroniMultiplePrimaries
+        exp_alerts: []
+
+  - name: a dead leader's stale 1 next to the new primary does not fire (failover)
+    interval: 15s
+    input_series:
+      # Worst case: pg-2 reports its first 1 at 1m30, two scrapes before pg-1
+      # reports its last 1 (2m) and stops (its Collector died). The stale 1
+      # stays in a 30 s window until 2m15 only, so the overlap (1m30 to 2m15)
+      # is 45 s: one scrape (15 s) below the 60 s hold. With a 45 s window the
+      # overlap lasts to 2m30 (60 s) and the alert fires; without
+      # last_over_time (the 5 m lookback) it fires too. Both mutations fail
+      # this test (checked in a scratch copy, 2026-11-11 and again with the
+      # 60 s hold, 2026-11-12).
+      - series: 'patroni_primary{scope="stage3",service.instance.id="pg-1"}'
+        values: '1x8 _x52'
+      - series: 'patroni_primary{scope="stage3",service.instance.id="pg-2"}'
+        values: '0x5 1x55'
+      - series: 'patroni_primary{scope="stage3",service.instance.id="pg-3"}'
+        values: '0x60'
+    alert_rule_test:
+      - eval_time: 2m15s   # overlap 1m30 to 2m15 = 45 s: a 45 s hold would fire here
+        groupname: patroni
+        alertname: PatroniMultiplePrimaries
+        exp_alerts: []
+      - eval_time: 2m30s
+        groupname: patroni
+        alertname: PatroniMultiplePrimaries
+        exp_alerts: []
+      - eval_time: 2m45s
+        groupname: patroni
+        alertname: PatroniMultiplePrimaries
+        exp_alerts: []
+      - eval_time: 3m
+        groupname: patroni
+        alertname: PatroniMultiplePrimaries
+        exp_alerts: []
+      - eval_time: 5m   # the stale 1 left the window long ago
+        groupname: patroni
+        alertname: PatroniMultiplePrimaries
+        exp_alerts: []
+
+  - name: a planned switchover overlapping for one scrape does not fire
+    interval: 15s
+    input_series:
+      - series: 'patroni_primary{scope="stage3",service.instance.id="pg-1"}'
+        values: '1x8 0x52'
+      - series: 'patroni_primary{scope="stage3",service.instance.id="pg-2"}'
+        values: '0x8 1x52'
+    alert_rule_test:
+      - eval_time: 2m
+        groupname: patroni
+        alertname: PatroniMultiplePrimaries
+        exp_alerts: []
+      - eval_time: 2m30s
+        groupname: patroni
+        alertname: PatroniMultiplePrimaries
+        exp_alerts: []
+      - eval_time: 4m
+        groupname: patroni
+        alertname: PatroniMultiplePrimaries
+        exp_alerts: []
+
+  - name: one member that appears as two series counts once
+    interval: 15s
+    input_series:
+      # pg-1 reports patroni_primary with two label sets (the Collector's
+      # resource changed); it is one member, so there is one primary.
+      - series: 'patroni_primary{scope="stage3",service.instance.id="pg-1",k8s.pod.uid="a"}'
+        values: '1x60'
+      - series: 'patroni_primary{scope="stage3",service.instance.id="pg-1",k8s.pod.uid="b"}'
+        values: '1x60'
+      - series: 'patroni_primary{scope="stage3",service.instance.id="pg-2"}'
+        values: '0x60'
+    alert_rule_test:
+      - eval_time: 4m
+        groupname: patroni
+        alertname: PatroniMultiplePrimaries
+        exp_alerts: []
+
+  - name: one primary in each of two scopes does not fire
+    interval: 15s
+    input_series:
+      - series: 'patroni_primary{scope="stage3",service.instance.id="pg-1"}'
+        values: '1x60'
+      - series: 'patroni_primary{scope="other",service.instance.id="pg-1"}'
+        values: '1x60'
+      - series: 'patroni_primary{scope="other",service.instance.id="pg-2"}'
+        values: '0x60'
+    alert_rule_test:
+      - eval_time: 4m
+        groupname: patroni
+        alertname: PatroniMultiplePrimaries
+        exp_alerts: []
+
+  - name: split brain in one scope fires for that scope only
+    interval: 15s
+    input_series:
+      - series: 'patroni_primary{scope="stage3",service.instance.id="pg-1"}'
+        values: '1x60'
+      - series: 'patroni_primary{scope="other",service.instance.id="pg-1"}'
+        values: '1x60'
+      - series: 'patroni_primary{scope="other",service.instance.id="pg-2"}'
+        values: '1x60'
+    alert_rule_test:
+      - eval_time: 4m
+        groupname: patroni
+        alertname: PatroniMultiplePrimaries
+        exp_alerts:
+          - exp_labels: {severity: critical, scope: other}
+            exp_annotations:
+              summary: Cluster other has 2 members reporting primary (split brain)
+
+  # --- failover happened -----------------------------------------------------
+  - name: a timeline change fires, holds 3 m, then resolves
+    interval: 15s
+    input_series:
+      - series: 'patroni_postgres_timeline{scope="stage3",service.instance.id="pg-1"}'
+        values: '3x20 _x60'
+      - series: 'patroni_postgres_timeline{scope="stage3",service.instance.id="pg-2"}'
+        values: '0x20 4x60'
+      - series: 'patroni_postgres_timeline{scope="stage3",service.instance.id="pg-3"}'
+        values: '0x80'
+    alert_rule_test:
+      - eval_time: 4m   # still timeline 3
+        groupname: patroni
+        alertname: PatroniFailoverHappened
+        exp_alerts: []
+      - eval_time: 5m30s
+        groupname: patroni
+        alertname: PatroniFailoverHappened
+        exp_alerts:
+          - exp_labels: {severity: warning, scope: stage3}
+            exp_annotations:
+              summary: Cluster stage3 moved to timeline 4
+      - eval_time: 7m
+        groupname: patroni
+        alertname: PatroniFailoverHappened
+        exp_alerts:
+          - exp_labels: {severity: warning, scope: stage3}
+            exp_annotations:
+              summary: Cluster stage3 moved to timeline 4
+      - eval_time: 10m   # the baseline has caught up
+        groupname: patroni
+        alertname: PatroniFailoverHappened
+        exp_alerts: []
+
+  - name: a gap of zeros without a timeline change does not fire
+    interval: 15s
+    input_series:
+      - series: 'patroni_postgres_timeline{scope="stage3",service.instance.id="pg-1"}'
+        values: '3x20 0x16 3x44'
+      - series: 'patroni_postgres_timeline{scope="stage3",service.instance.id="pg-2"}'
+        values: '0x80'
+    alert_rule_test:
+      - eval_time: 6m
+        groupname: patroni
+        alertname: PatroniFailoverHappened
+        exp_alerts: []
+      - eval_time: 8m
+        groupname: patroni
+        alertname: PatroniFailoverHappened
+        exp_alerts: []
+      - eval_time: 10m
+        groupname: patroni
+        alertname: PatroniFailoverHappened
+        exp_alerts: []
+
+  # --- replica not eligible --------------------------------------------------
+  - name: a replica more than 16 MiB behind the leader fires; a close one and the leader do not
+    interval: 15s
+    input_series:
+      - series: 'patroni_xlog_location{scope="stage3",service.instance.id="pg-1"}'
+        values: '100000000x60'
+      - series: 'patroni_xlog_received_location{scope="stage3",service.instance.id="pg-1"}'
+        values: '0x60'
+      - series: 'patroni_xlog_replayed_location{scope="stage3",service.instance.id="pg-1"}'
+        values: '0x60'
+      - series: 'patroni_replica{scope="stage3",service.instance.id="pg-1"}'
+        values: '0x60'
+      - series: 'patroni_xlog_location{scope="stage3",service.instance.id="pg-2"}'
+        values: '0x60'
+      - series: 'patroni_xlog_received_location{scope="stage3",service.instance.id="pg-2"}'
+        values: '99000000x60'
+      - series: 'patroni_xlog_replayed_location{scope="stage3",service.instance.id="pg-2"}'
+        values: '98000000x60'
+      - series: 'patroni_replica{scope="stage3",service.instance.id="pg-2"}'
+        values: '1x60'
+      - series: 'patroni_xlog_location{scope="stage3",service.instance.id="pg-3"}'
+        values: '0x60'
+      - series: 'patroni_xlog_received_location{scope="stage3",service.instance.id="pg-3"}'
+        values: '50000000x60'
+      - series: 'patroni_xlog_replayed_location{scope="stage3",service.instance.id="pg-3"}'
+        values: '40000000x60'
+      - series: 'patroni_replica{scope="stage3",service.instance.id="pg-3"}'
+        values: '1x60'
+    alert_rule_test:
+      - eval_time: 30s
+        groupname: patroni
+        alertname: PatroniReplicaNotEligible
+        exp_alerts: []
+      - eval_time: 5m
+        groupname: patroni
+        alertname: PatroniReplicaNotEligible
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              scope: stage3
+              service.instance.id: pg-3
+            exp_annotations:
+              summary: pg-3 is 47.68MiB behind the leader, beyond maximum_lag_on_failover
+
+  - name: the threshold is 16 MiB - 8 MiB behind is silent, 20 MiB behind fires (a 1 MiB or 32 MiB threshold fails this)
+    interval: 15s
+    input_series:
+      - series: 'patroni_xlog_location{scope="stage3",service.instance.id="pg-1"}'
+        values: '100000000x60'
+      - series: 'patroni_xlog_received_location{scope="stage3",service.instance.id="pg-1"}'
+        values: '0x60'
+      - series: 'patroni_xlog_replayed_location{scope="stage3",service.instance.id="pg-1"}'
+        values: '0x60'
+      - series: 'patroni_replica{scope="stage3",service.instance.id="pg-1"}'
+        values: '0x60'
+      - series: 'patroni_xlog_location{scope="stage3",service.instance.id="pg-2"}'
+        values: '0x60'
+      - series: 'patroni_xlog_received_location{scope="stage3",service.instance.id="pg-2"}'
+        values: '91611392x60'   # 100000000 - 8 MiB
+      - series: 'patroni_xlog_replayed_location{scope="stage3",service.instance.id="pg-2"}'
+        values: '91611392x60'
+      - series: 'patroni_replica{scope="stage3",service.instance.id="pg-2"}'
+        values: '1x60'
+      - series: 'patroni_xlog_location{scope="stage3",service.instance.id="pg-3"}'
+        values: '0x60'
+      - series: 'patroni_xlog_received_location{scope="stage3",service.instance.id="pg-3"}'
+        values: '79028480x60'   # 100000000 - 20 MiB (20971520)
+      - series: 'patroni_xlog_replayed_location{scope="stage3",service.instance.id="pg-3"}'
+        values: '79028480x60'
+      - series: 'patroni_replica{scope="stage3",service.instance.id="pg-3"}'
+        values: '1x60'
+    alert_rule_test:
+      - eval_time: 5m
+        groupname: patroni
+        alertname: PatroniReplicaNotEligible
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              scope: stage3
+              service.instance.id: pg-3
+            exp_annotations:
+              summary: pg-3 is 20MiB behind the leader, beyond maximum_lag_on_failover
+
+  - name: a replica with paused replay but a current receive position is not flagged
+    interval: 15s
+    input_series:
+      - series: 'patroni_xlog_location{scope="stage3",service.instance.id="pg-1"}'
+        values: '100000000x60'
+      - series: 'patroni_xlog_received_location{scope="stage3",service.instance.id="pg-1"}'
+        values: '0x60'
+      - series: 'patroni_xlog_replayed_location{scope="stage3",service.instance.id="pg-1"}'
+        values: '0x60'
+      - series: 'patroni_replica{scope="stage3",service.instance.id="pg-1"}'
+        values: '0x60'
+      - series: 'patroni_xlog_location{scope="stage3",service.instance.id="pg-2"}'
+        values: '0x60'
+      - series: 'patroni_xlog_received_location{scope="stage3",service.instance.id="pg-2"}'
+        values: '100000000x60'
+      - series: 'patroni_xlog_replayed_location{scope="stage3",service.instance.id="pg-2"}'
+        values: '10000000x60'
+      - series: 'patroni_replica{scope="stage3",service.instance.id="pg-2"}'
+        values: '1x60'
+    alert_rule_test:
+      - eval_time: 8m
+        groupname: patroni
+        alertname: PatroniReplicaNotEligible
+        exp_alerts: []
+
+  - name: no leader position (gap) does not flag the replicas
+    interval: 15s
+    input_series:
+      - series: 'patroni_xlog_location{scope="stage3",service.instance.id="pg-1"}'
+        values: '0x60'
+      - series: 'patroni_xlog_received_location{scope="stage3",service.instance.id="pg-2"}'
+        values: '50000000x60'
+      - series: 'patroni_xlog_replayed_location{scope="stage3",service.instance.id="pg-2"}'
+        values: '50000000x60'
+      - series: 'patroni_replica{scope="stage3",service.instance.id="pg-2"}'
+        values: '1x60'
+    alert_rule_test:
+      - eval_time: 8m
+        groupname: patroni
+        alertname: PatroniReplicaNotEligible
+        exp_alerts: []
+
+  # --- cluster paused --------------------------------------------------------
+  - name: paused longer than 3 m fires once per cluster, not once per node
+    interval: 15s
+    input_series:
+      - series: 'patroni_is_paused{scope="stage3",service.instance.id="pg-1"}'
+        values: '0x8 1x60'
+      - series: 'patroni_is_paused{scope="stage3",service.instance.id="pg-2"}'
+        values: '0x8 1x60'
+      - series: 'patroni_is_paused{scope="stage3",service.instance.id="pg-3"}'
+        values: '0x8 1x60'
+    alert_rule_test:
+      - eval_time: 4m   # paused for 2 m
+        groupname: patroni
+        alertname: PatroniClusterPaused
+        exp_alerts: []
+      - eval_time: 6m
+        groupname: patroni
+        alertname: PatroniClusterPaused
+        exp_alerts:
+          - exp_labels: {severity: warning, scope: stage3}
+            exp_annotations:
+              summary: 'Cluster stage3 is paused: no automatic failover'
+
+  - name: a pause shorter than the window does not fire
+    interval: 15s
+    input_series:
+      - series: 'patroni_is_paused{scope="stage3",service.instance.id="pg-1"}'
+        values: '0x8 1x8 0x44'
+    alert_rule_test:
+      - eval_time: 9m
+        groupname: patroni
+        alertname: PatroniClusterPaused
+        exp_alerts: []
+
+  # --- pending restart -------------------------------------------------------
+  - name: pending restart fires per node after 2 m
+    interval: 15s
+    input_series:
+      - series: 'patroni_pending_restart{scope="stage3",service.instance.id="pg-1"}'
+        values: '0x60'
+      - series: 'patroni_pending_restart{scope="stage3",service.instance.id="pg-2"}'
+        values: '0x8 1x52'
+    alert_rule_test:
+      - eval_time: 3m
+        groupname: patroni
+        alertname: PatroniPendingRestart
+        exp_alerts: []
+      - eval_time: 5m
+        groupname: patroni
+        alertname: PatroniPendingRestart
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              scope: stage3
+              service.instance.id: pg-2
+            exp_annotations:
+              summary: pg-2 has a pending restart
+
+  # --- Patroni scrape absent -------------------------------------------------
+  # pg-2's Patroni scrape fails (up 0) from 2 m while its PostgreSQL heartbeat
+  # continues. up 0 and an absent up both count as "not scraped".
+  - name: Patroni scrape failing while PostgreSQL reports fires for that node only
+    interval: 15s
+    input_series:
+      - series: 'up{service.name="patroni",service.instance.id="pg-1"}'
+        values: '1x60'
+      - series: 'up{service.name="patroni",service.instance.id="pg-2"}'
+        values: '1x8 0x52'
+      - series: 'up{service.name="patroni",service.instance.id="pg-3"}'
+        values: '1x60'
+      - series: 'postgresql.collection.heartbeat{service.instance.id="pg-1"}'
+        values: '1x60'
+      - series: 'postgresql.collection.heartbeat{service.instance.id="pg-2"}'
+        values: '1x60'
+      - series: 'postgresql.collection.heartbeat{service.instance.id="pg-3"}'
+        values: '1x60'
+      - series: 'otelcol_process_uptime{service.name="otelcol",service.instance.id="otelcol-stage3"}'
+        values: '1x60'
+    alert_rule_test:
+      - eval_time: 3m   # failing for 1 m, the 2 m window still holds an up 1
+        groupname: patroni
+        alertname: PatroniTargetAbsent
+        exp_alerts: []
+      - eval_time: 6m
+        groupname: patroni
+        alertname: PatroniTargetAbsent
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              service.instance.id: pg-2
+              service.namespace: obenhub-lab
+              service.name: patroni
+              obenhub.cluster.name: stage3
+              obenhub.collector: otelcol-stage3
+            exp_annotations:
+              summary: Patroni on pg-2 is not scraped while PostgreSQL still reports
+
+  - name: Patroni series absent altogether fires the same way
+    interval: 15s
+    input_series:
+      - series: 'up{service.name="patroni",service.instance.id="pg-1"}'
+        values: '1x60'
+      - series: 'up{service.name="patroni",service.instance.id="pg-2"}'
+        values: '1x8 _x52'
+      - series: 'up{service.name="patroni",service.instance.id="pg-3"}'
+        values: '1x60'
+      - series: 'postgresql.collection.heartbeat{service.instance.id="pg-1"}'
+        values: '1x60'
+      - series: 'postgresql.collection.heartbeat{service.instance.id="pg-2"}'
+        values: '1x60'
+      - series: 'postgresql.collection.heartbeat{service.instance.id="pg-3"}'
+        values: '1x60'
+      - series: 'otelcol_process_uptime{service.name="otelcol",service.instance.id="otelcol-stage3"}'
+        values: '1x60'
+    alert_rule_test:
+      - eval_time: 6m
+        groupname: patroni
+        alertname: PatroniTargetAbsent
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              service.instance.id: pg-2
+              service.namespace: obenhub-lab
+              service.name: patroni
+              obenhub.cluster.name: stage3
+              obenhub.collector: otelcol-stage3
+            exp_annotations:
+              summary: Patroni on pg-2 is not scraped while PostgreSQL still reports
+
+  - name: a node that is gone entirely is PostgresTargetAbsent's case, not this one
+    interval: 15s
+    input_series:
+      - series: 'up{service.name="patroni",service.instance.id="pg-1"}'
+        values: '1x60'
+      - series: 'up{service.name="patroni",service.instance.id="pg-2"}'
+        values: '1x8 _x52'
+      - series: 'up{service.name="patroni",service.instance.id="pg-3"}'
+        values: '1x60'
+      - series: 'postgresql.collection.heartbeat{service.instance.id="pg-1"}'
+        values: '1x60'
+      - series: 'postgresql.collection.heartbeat{service.instance.id="pg-2"}'
+        values: '1x8 _x52'
+      - series: 'postgresql.collection.heartbeat{service.instance.id="pg-3"}'
+        values: '1x60'
+      - series: 'otelcol_process_uptime{service.name="otelcol",service.instance.id="otelcol-stage3"}'
+        values: '1x60'
+    alert_rule_test:
+      - eval_time: 3m
+        groupname: patroni
+        alertname: PatroniTargetAbsent
+        exp_alerts: []
+      - eval_time: 6m
+        groupname: patroni
+        alertname: PatroniTargetAbsent
+        exp_alerts: []
+      - eval_time: 10m
+        groupname: patroni
+        alertname: PatroniTargetAbsent
+        exp_alerts: []
+
+  - name: a stopped Collector raises no Patroni scrape alert
+    interval: 15s
+    input_series:
+      - series: 'up{service.name="patroni",service.instance.id="pg-1"}'
+        values: '1x8 _x52'
+      - series: 'up{service.name="patroni",service.instance.id="pg-2"}'
+        values: '1x8 _x52'
+      - series: 'up{service.name="patroni",service.instance.id="pg-3"}'
+        values: '1x8 _x52'
+      - series: 'postgresql.collection.heartbeat{service.instance.id="pg-1"}'
+        values: '1x8 _x52'
+      - series: 'postgresql.collection.heartbeat{service.instance.id="pg-2"}'
+        values: '1x8 _x52'
+      - series: 'postgresql.collection.heartbeat{service.instance.id="pg-3"}'
+        values: '1x8 _x52'
+      - series: 'otelcol_process_uptime{service.name="otelcol",service.instance.id="otelcol-stage3"}'
+        values: '1x8 _x52'
+    alert_rule_test:
+      - eval_time: 6m
+        groupname: patroni
+        alertname: PatroniTargetAbsent
+        exp_alerts: []
+
+  # --- failsafe mode (unit tests only: the lab runs with failsafe_mode off) --
+  - name: failsafe mode active for 30 s fires per node; a single sample or 0 does not
+    interval: 15s
+    input_series:
+      - series: 'patroni_failsafe_mode_is_active{scope="stage3",service.instance.id="pg-1"}'
+        values: '0x4 1x8 0x48'
+      - series: 'patroni_failsafe_mode_is_active{scope="stage3",service.instance.id="pg-2"}'
+        values: '0x4 1x1 0x55'
+      - series: 'patroni_failsafe_mode_is_active{scope="stage3",service.instance.id="pg-3"}'
+        values: '0x60'
+    alert_rule_test:
+      - eval_time: 1m   # pg-1 is still 0 at 1 m
+        groupname: patroni
+        alertname: PatroniFailsafeActive
+        exp_alerts: []
+      - eval_time: 2m   # pg-1 1 since 1 m (past 30 s); pg-2 one sample only
+        groupname: patroni
+        alertname: PatroniFailsafeActive
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              scope: stage3
+              service.instance.id: pg-1
+            exp_annotations:
+              summary: pg-1 runs in failsafe mode, the DCS is unreachable
+      - eval_time: 5m   # back to 0
+        groupname: patroni
+        alertname: PatroniFailsafeActive
+        exp_alerts: []

@@ -6,7 +6,7 @@
 ## Context
 
 ADR 0002 asks for a naming contract; it was to be written with the first
-query pack and was not. Six packs exist (`lab/packs/`), and their names have
+query pack and was not. Six packs exist (`packs/`), and their names have
 drifted: `replication_slot.inactive_seconds` and `retained_bytes` carry a unit,
 `snapshot.oldest_age` and `replay.backlog` do not; `LogicalSlotRetainingWal`
 and `ReplicationSlotRetainingWAL` differ in spelling; most PostgreSQL alerts

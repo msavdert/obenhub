@@ -33,8 +33,8 @@ validate() { # <label> <config file> [<second config file, merged>]
     -e OTEL_MONITOR_PASSWORD=dummy -e ORA_MON_PASSWORD=dummy -e ORA_DG_PASSWORD=dummy \
     -e OBENHUB_GATEWAY_ENDPOINT=https://10.0.0.2:4318 \
     -v "$2:/c.yaml:ro" \
-    -v "$PWD/lab/packs:/etc/otelcol/packs:ro" \
-    -v "$PWD/lab/packs:/etc/otelcol-contrib/packs:ro" \
+    -v "$PWD/packs:/etc/otelcol/packs:ro" \
+    -v "$PWD/packs:/etc/otelcol-contrib/packs:ro" \
     "${mount[@]}" "$image" validate --config=/c.yaml "${extra[@]}" >"$tmp/out" 2>&1; then
     echo "ok   $1"
   else

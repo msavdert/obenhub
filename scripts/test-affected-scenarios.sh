@@ -15,7 +15,7 @@ git config user.email t@example.invalid
 git config user.name t
 
 d=lab/x/scenarios
-mkdir -p $d lab/packs/p/tests lab/packs/p/dashboards lab/packs/q/dashboards lab/packs/r lab/packs/u lab/x/scripts lab/scenarios/shared $d/impl lab/x/vmalert/rules \
+mkdir -p $d packs/p/tests packs/p/dashboards packs/q/dashboards packs/r packs/u lab/x/scripts lab/scenarios/shared $d/impl lab/x/vmalert/rules \
   lab/x/vmalert/tests lab/x/grafana/dashboards lab/x/mon/vmalert/tests lab/x/results \
   lab/other lab/scenarios lab/mon lab/k8s/scenarios
 printf 'a\nb\nc\ncontrol\ns\nj\no\nh\ng\ni\nk\n' >$d/suite.txt
@@ -35,9 +35,9 @@ echo orphan >lab/scenarios/shared/orphan.sh
 ln -s ../../scenarios/shared/longonly.sh $d/ln.sh
 ln -s ../../scenarios/shared/k8sonly.sh lab/k8s/scenarios/z.sh
 echo versions >lab/x/versions.sh
-echo recv >lab/packs/p/upstream-receiver-metrics.txt
-echo d >lab/packs/q/dashboards/d.json
-cat >lab/packs/p/rules.yml <<'YML'
+echo recv >packs/p/upstream-receiver-metrics.txt
+echo d >packs/q/dashboards/d.json
+cat >packs/p/rules.yml <<'YML'
 groups:
   - name: g1
     interval: 30s
@@ -77,15 +77,15 @@ ln -sf g.sh $d/i.sh
 ln -sf ../scripts/o-impl.sh $d/o.sh
 ln -s impl/real.sh $d/m.sh
 ln -s impl/only-long.sh $d/m2.sh
-printf '      - ../packs/p:/etc/vmalert/pack:ro\n      - ./vmalert/rules:/etc/vmalert/rules:ro\n' >lab/x/compose.yaml
-echo 'cp lab/packs/r/queries.yaml /tmp' >lab/x/scripts/up.sh
-echo 'groups: []' >lab/packs/q/rules.yml
-echo 'queries' >lab/packs/r/queries.yaml
-echo 'groups: []' >lab/packs/u/rules.yml
+printf '      - ../../packs/p:/etc/vmalert/pack:ro\n      - ./vmalert/rules:/etc/vmalert/rules:ro\n' >lab/x/compose.yaml
+echo 'cp packs/r/queries.yaml /tmp' >lab/x/scripts/up.sh
+echo 'groups: []' >packs/q/rules.yml
+echo 'queries' >packs/r/queries.yaml
+echo 'groups: []' >packs/u/rules.yml
 printf 'groups:\n  - name: lg\n    interval: 15s\n    rules:\n      - alert: LabAlert\n        expr: 1\n' >lab/x/vmalert/rules/r.yml
 echo 'groups: []' >lab/x/mon/vmalert/inventory.yml
-for f in lab/packs/p/tests/t.yml lab/x/vmalert/tests/t.yml lab/x/mon/vmalert/tests/t.yml \
-  lab/packs/p/dashboards/d.json \
+for f in packs/p/tests/t.yml lab/x/vmalert/tests/t.yml lab/x/mon/vmalert/tests/t.yml \
+  packs/p/dashboards/d.json \
   lab/x/README.md lab/x/results/runs.jsonl lab/other/f lab/scenarios/guard.sh lab/mon/alertmanager.yml; do
   echo 1 >"$f"
 done
@@ -138,16 +138,16 @@ case_ "shared guard" ALL "chg lab/scenarios/guard.sh"
 case_ "suite.txt gains a name" "d" "printf 'a\nb\nc\ncontrol\ns\nj\no\nh\ng\ni\nk\nd\n' >$d/suite.txt; touch $d/d.sh"
 case_ "new scenario script and suite.txt line" "d" "printf 'a\nb\nc\ncontrol\ns\nj\no\nh\ng\ni\nk\nd\n' >$d/suite.txt; echo d >$d/d.sh"
 case_ "suite.txt loses a name" - "printf 'a\nb\ncontrol\ns\nj\no\nh\ng\ni\nk\n' >$d/suite.txt"
-case_ "rule unit test of a pack" - "chg lab/packs/p/tests/t.yml"
+case_ "rule unit test of a pack" - "chg packs/p/tests/t.yml"
 case_ "rule unit test of the lab" - "chg lab/x/vmalert/tests/t.yml"
 case_ "rule unit test under mon" - "chg lab/x/mon/vmalert/tests/t.yml"
 case_ "lab dashboard" PANELS "chg lab/x/grafana/dashboards/d.json"
-case_ "pack dashboard, pack used" PANELS "chg lab/packs/p/dashboards/d.json"
-case_ "pack dashboard, pack not used" - "chg lab/packs/q/dashboards/d.json"
-case_ "pack mounted as a directory" ALL "chg lab/packs/p/rules.yml"
-case_ "pack read by a script" ALL "chg lab/packs/r/queries.yaml"
-case_ "pack the lab does not use" - "chg lab/packs/q/rules.yml"
-case_ "pack the lab starts to use" ALL "chg lab/packs/q/rules.yml; echo ../packs/q >>lab/x/scripts/up.sh"
+case_ "pack dashboard, pack used" PANELS "chg packs/p/dashboards/d.json"
+case_ "pack dashboard, pack not used" - "chg packs/q/dashboards/d.json"
+case_ "pack mounted as a directory" ALL "chg packs/p/rules.yml"
+case_ "pack read by a script" ALL "chg packs/r/queries.yaml"
+case_ "pack the lab does not use" - "chg packs/q/rules.yml"
+case_ "pack the lab starts to use" ALL "chg packs/q/rules.yml; echo ../../packs/q >>lab/x/scripts/up.sh"
 case_ "lab rule file" ALL "chg lab/x/vmalert/rules/r.yml"
 case_ "lab inventory" ALL "chg lab/x/mon/vmalert/inventory.yml"
 case_ "unmapped file outside any scenario directory" ALL "chg lab/x/scripts/up.sh"
@@ -168,14 +168,14 @@ case_ "script in a subdirectory that no link points at" ALL "chg $d/impl/unlinke
 case_ "link chain, final target" ALL "chg $d/impl/chain-real.sh"
 case_ "link chain through a scenario link" ALL "chg $d/impl/chain2.sh"
 case_ "link chain, middle link retargeted" ALL "ln -sf real.sh $d/impl/hop.sh"
-case_ "pack used at BASE only" "ALL PANELS" "chg lab/packs/u/rules.yml; echo none >lab/x/grafana/dashboards/d.json"
-case_ "pack used at BASE and HEAD" ALL "chg lab/packs/u/rules.yml"
+case_ "pack used at BASE only" "ALL PANELS" "chg packs/u/rules.yml; echo none >lab/x/grafana/dashboards/d.json"
+case_ "pack used at BASE and HEAD" ALL "chg packs/u/rules.yml"
 case_ "scenario symlink target in the shared dir" s "chg lab/scenarios/shared/s.sh"
 case_ "scenario symlink retargeted" s "ln -sf ../../scenarios/shared/s2.sh $d/s.sh"
 # comments, formatting, versions
 case_ "versions.sh" - "chg lab/x/versions.sh"
 FLAGS=-f case_ "versions.sh, full mode" ALL "chg lab/x/versions.sh"
-case_ "upstream-receiver-metrics.txt" - "chg lab/packs/p/upstream-receiver-metrics.txt"
+case_ "upstream-receiver-metrics.txt" - "chg packs/p/upstream-receiver-metrics.txt"
 case_ "comment-only YAML" - "echo '# note' >>lab/x/otelcol.yaml"
 case_ "formatting-only YAML" - "printf 'receivers: {x: 1}\n' >lab/x/otelcol.yaml"
 case_ "YAML value changed" ALL "printf 'receivers:\n  x: 2\n' >lab/x/otelcol.yaml"
@@ -187,7 +187,7 @@ case_ "script made executable" a "chmod +x $d/a.sh"
 
 # alert rules (pack p is used by the lab; AlphaDown is named by b, c and the long l;
 # BetaHigh by c and by s through its symlink; GammaLib only in lib.sh)
-rules=lab/packs/p/rules.yml
+rules=packs/p/rules.yml
 # alert_edit SED...: edit the pack rules with sed
 # shellcheck disable=SC2329  # called from the eval in case_
 alert_edit() { sed -i "$@" "$rules"; }
@@ -210,7 +210,7 @@ case_ "alert named in lib.sh" ALL "alert_edit 's/y > 1/y > 2/'"
 case_ "unparsable rules" ALL "printf 'groups: [\n' >$rules"
 case_ "rules file deleted" ALL "git rm -q -f $rules"
 case_ "rules file added" control "printf 'groups:\n - name: n\n   rules:\n    - alert: Fresh\n      expr: 1\n' >lab/x/vmalert/rules/new.yml"
-case_ "pack rules, pack not used" - "sed -i 's/expr: .*/expr: 1/' lab/packs/q/rules.yml; printf 'groups:\n - name: g\n   rules:\n    - alert: Q\n      expr: 1\n' >lab/packs/q/rules.yml"
+case_ "pack rules, pack not used" - "sed -i 's/expr: .*/expr: 1/' packs/q/rules.yml; printf 'groups:\n - name: g\n   rules:\n    - alert: Q\n      expr: 1\n' >packs/q/rules.yml"
 case_ "lab rule file, group moved" "a control" "sed -i 's/name: lg/name: lg2/' lab/x/vmalert/rules/r.yml"
 case_ "lab rule file, alert replaced" "a control" "printf 'groups:\n - name: g\n   rules:\n    - alert: LabNew\n      expr: 1\n' >lab/x/vmalert/rules/r.yml"
 case_ "inventory, recording rule" ALL "printf 'groups:\n - name: g\n   rules:\n    - record: r\n      expr: 1\n' >lab/x/mon/vmalert/inventory.yml"
@@ -269,7 +269,7 @@ while IFS= read -r cf; do
   rel=${cf#"$repo/"}
   L=${rel#lab/}
   L=${L%%/*}
-  case "$L" in packs | mon | scenarios | scripts) continue ;; esac
+  case "$L" in mon | scenarios | scripts) continue ;; esac
   seen_lab[$L]=1
   mapfile -t extra < <(evidence_extra_paths "$L" | tr ' ' '\n' | grep -v '^$' || true)
   while IFS= read -r m; do
@@ -278,7 +278,7 @@ while IFS= read -r cf; do
     case "$p" in lab/*) ;; *) continue ;; esac
     O=${p#lab/}
     O=${O%%/*}
-    case "$O" in "$L" | packs | mon | scenarios | scripts) continue ;; esac
+    case "$O" in "$L" | mon | scenarios | scripts) continue ;; esac
     ok=0
     for e in "${extra[@]}"; do
       case "$p" in "$e" | "$e"/*) ok=1 ;; esac

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Scenario primary-deleted: kubectl delete pod of the current primary. CloudNativePG notices the missing primary, promotes a replica (failover.md, "Failover": the primary pod is deleted), and recreates the pod as a replica. Expect CNPGPrimaryChanged (lab/packs/cnpg/rules.yml). Pass also needs every row the load client had acknowledged to be on the new primary (assumption: the delete is a SIGTERM and a clean shutdown, so the WAL reaches the replicas; the run checks it, and a loss would be a finding, not a flake). The extra fields are those of switchover.sh.
+# Scenario primary-deleted: kubectl delete pod of the current primary. CloudNativePG notices the missing primary, promotes a replica (failover.md, "Failover": the primary pod is deleted), and recreates the pod as a replica. Expect CNPGPrimaryChanged (packs/cnpg/rules.yml). Pass also needs every row the load client had acknowledged to be on the new primary (assumption: the delete is a SIGTERM and a clean shutdown, so the WAL reaches the replicas; the run checks it, and a loss would be a finding, not a flake). The extra fields are those of switchover.sh.
 # shellcheck disable=SC1091,SC2034
 set -uo pipefail
 . "$(dirname "${BASH_SOURCE[0]}")/lib.sh"

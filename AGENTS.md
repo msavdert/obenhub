@@ -11,7 +11,7 @@ scenarios and alerting; `lab/README.md` lists them.
 - Plans: `docs/roadmap.md` only. Nowhere else.
 - Labs: `lab/<name>/` (slice1, stage3, pgha, k8s, oracle; overhead and obi
   are one-off measurements). Each lab keeps its evidence in `results/runs.jsonl`.
-- Shared lab code: queries and rules with unit tests in `lab/packs/<component>/`,
+- Shared lab code: queries and rules with unit tests in `packs/<component>/`,
   the scenario harness in `lab/scenarios/lib-core.sh`. A new lab reuses these
   instead of copying another lab's files.
 - Repository tooling: `mise.toml`, `scripts/`, `.github/`.

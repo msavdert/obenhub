@@ -10,11 +10,11 @@ cd "$tmp"
 git init -q -b main .
 git config user.email t@example.invalid
 git config user.name t
-mkdir -p lab/x/results lab/x/scenarios lab/packs lab/scenarios
+mkdir -p lab/x/results lab/x/scenarios packs lab/scenarios
 printf 'a\nb\n' >lab/x/scenarios/suite.txt
 touch lab/x/scenarios/a.sh lab/x/scenarios/b.sh lab/x/scenarios/lib.sh
 echo 1 >lab/x/code
-echo 1 >lab/packs/p
+echo 1 >packs/p
 echo 1 >lab/scenarios/s
 git add -A
 git commit -q -m base
@@ -396,19 +396,19 @@ rm lab/pgha/scenarios/c.sh
 expectla "lab-affected: bad lab" 2 "no lab/nolab/scenarios/suite.txt" nolab
 
 # packs: a change to a pack the lab does not use is current under --full, a used one is not
-mkdir -p lab/packs/pk lab/packs/qk
-echo 1 >lab/packs/pk/rules.yml
-echo 1 >lab/packs/qk/rules.yml
-echo '../packs/pk/rules.yml' >lab/pgha/mon.yaml
-git add lab/packs lab/pgha/mon.yaml
+mkdir -p packs/pk packs/qk
+echo 1 >packs/pk/rules.yml
+echo 1 >packs/qk/rules.yml
+echo '../../packs/pk/rules.yml' >lab/pgha/mon.yaml
+git add packs lab/pgha/mon.yaml
 git commit -q -m packs
 q0=$(git rev-parse --short HEAD)
 pair s1 "$q0" $t1 | fixture_pgha
-echo 2 >lab/packs/qk/rules.yml
+echo 2 >packs/qk/rules.yml
 git commit -q -am "unused pack"
 expect "unused pack change is current with --full" 0 "suite s1 ($q0) is current" --strict --full pgha
 git reset -q --hard "$q0"
-echo 2 >lab/packs/pk/rules.yml
+echo 2 >packs/pk/rules.yml
 git commit -q -am "used pack"
 expect "used pack change is stale with --full" 1 "needs a full suite" --strict --full pgha
 git reset -q --hard "$p0"

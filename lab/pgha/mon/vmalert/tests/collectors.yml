@@ -11,10 +11,10 @@
 # CollectorAbsent: the 2 m window empties at 3m45s, firing after for: 1m (4m45s).
 rule_files:
   - ../inventory.yml
-  - ../../../../packs/collector/rules.yml
-  - ../../../../packs/postgresql/rules.yml
-  - ../../../../packs/patroni/rules.yml
-  - ../../../../packs/etcd/rules.yml
+  - ../../../../../packs/collector/rules.yml
+  - ../../../../../packs/postgresql/rules.yml
+  - ../../../../../packs/patroni/rules.yml
+  - ../../../../../packs/etcd/rules.yml
 evaluation_interval: 15s
 
 tests:

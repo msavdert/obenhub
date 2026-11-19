@@ -13,13 +13,13 @@ The labs went past three earlier decisions without recording it:
 - ADR 0003 runs no exporter behind the `prometheus` receiver. The labs scrape
   Patroni's REST `/metrics`, every etcd member's `/metrics` and
   CloudNativePG's exporter.
-- ADR 0003 calls a pack `sqlqueryreceiver` configuration. `lab/packs/<component>/`
+- ADR 0003 calls a pack `sqlqueryreceiver` configuration. `packs/<component>/`
   now also holds alert rules and their unit tests, and five of its six
   directories have no SQL.
 
 The alert rules also use MetricsQL-only functions (`WITH` templates,
 `label_set`, `union`, `tlast_over_time`, for example
-`lab/packs/patroni/rules.yml`), which no ADR mentions.
+`packs/patroni/rules.yml`), which no ADR mentions.
 
 ## Decision
 
@@ -39,7 +39,7 @@ The alert rules also use MetricsQL-only functions (`WITH` templates,
    `cnpg_collector_*` and `cnpg_last_error` with its default queries off.
    PostgreSQL metrics never come from an exporter; the database exporters
    ADR 0003 evaluated stay out.
-3. **Pack.** `lab/packs/<component>/` holds what every lab shares for one
+3. **Pack.** `packs/<component>/` holds what every lab shares for one
    component: queries (PostgreSQL only), alert rules and their unit tests.
    What differs per lab (inventory, Collector wiring, backend) stays in the
    lab directory.

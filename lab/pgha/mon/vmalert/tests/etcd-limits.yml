@@ -1,10 +1,10 @@
 # EtcdHighFsyncDurations and EtcdHighCommitDurations with the pgha lab override
 # (obenhub.etcd.*.limit = 1.0 s, lab/pgha/mon/vmalert/inventory.yml). Same cases
-# as lab/packs/etcd/tests/etcd-lab-override.yml (stage3); the member ids here
+# as packs/etcd/tests/etcd-lab-override.yml (stage3); the member ids here
 # are the pgha ones.
 rule_files:
   - ../inventory.yml
-  - ../../../../packs/etcd/rules.yml
+  - ../../../../../packs/etcd/rules.yml
 evaluation_interval: 15s
 
 tests:

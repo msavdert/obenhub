@@ -1,9 +1,9 @@
 # The slice 1 parameter of the pgBackRest pack (rules/pgbackrest.yml records
 # obenhub.backup_age.limit = 780 s) read by PgBackRestBackupStale. The pack's own
-# behaviour is tested in lab/packs/pgbackrest/tests.
+# behaviour is tested in packs/pgbackrest/tests.
 rule_files:
   - ../rules/pgbackrest.yml
-  - ../../../packs/pgbackrest/rules.yml
+  - ../../../../packs/pgbackrest/rules.yml
 evaluation_interval: 15s
 
 tests:

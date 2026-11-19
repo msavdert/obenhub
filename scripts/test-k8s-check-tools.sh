@@ -20,7 +20,7 @@ bad() { printf 'FAIL %s\n' "$1"; FAILED=1; }
 pin() { sed -n "s/^$1 = \"\\([^\"]*\\)\"\$/\\1/p" "$repo/mise.k8s.toml"; }
 kind_v=$(pin kind) kubectl_v=$(pin kubectl) helm_v=$(pin helm)
 
-# a tree the scripts can run from: lab/k8s, mise.k8s.toml, lab/packs unused
+# a tree the scripts can run from: lab/k8s, mise.k8s.toml, packs unused
 tree=$work/tree
 mkdir -p "$tree/lab"
 cp -r "$repo/lab/k8s" "$tree/lab/k8s"

@@ -16,13 +16,13 @@
 # the evidence. A backup piece that cannot be created is an error of the BACKUP command (RMAN-03009, with
 # ORA-19504 on the piece); that this makes the job row FAILED, not COMPLETED WITH ERRORS, is an assumption
 # until a run shows it: the scenario records the job status it reads and fails when it is neither, because
-# the rule reads exactly those two (lab/packs/oracledb-backup/queries.yaml). ASSUMPTION: not read in the
+# the rule reads exactly those two (packs/oracledb-backup/queries.yaml). ASSUMPTION: not read in the
 # Oracle Database 19c Backup and Recovery Reference (BACKUP, FORMAT) or the 19c Database Reference
 # (V$RMAN_BACKUP_JOB_DETAILS); the first run is the check. Alternatives left out on purpose: making the
 # managed script's backup directory unwritable (changes the lab's files and affects cron's real jobs),
 # filling the recovery area (the archiver-stuck scenario, breaks redo transport), stopping the database.
 #
-# Expectation, from lab/packs/oracledb-backup/rules.yml: oracledb.backup.failed{kind=archivelog} is 1 from
+# Expectation, from packs/oracledb-backup/rules.yml: oracledb.backup.failed{kind=archivelog} is 1 from
 # the primary's receiver as soon as the failed job is the newest finished job of its kind, and
 # OracleBackupFailed (for: 2m) fires. Revert: the managed script's own archived log backup
 # (rman-backup.sh CDB19 arch, the cron command: the job of the same kind), which succeeds, so the newest
@@ -70,7 +70,7 @@ lab_precondition() {
   j=${JOB_BEFORE% *}
   case $j in COMPLETED | 'COMPLETED WITH WARNINGS') ;; *) PRE_ERR="the newest archived log job of $PRIMARY_SID is '$JOB_BEFORE', not completed"; return 1 ;; esac
   [ "$(vm_query "max(last_over_time(oracledb.backup.failed{oracledb.backup.kind=\"archivelog\",service.instance.id=\"$PRIMARY_SID\"}[2m]))")" = 0 ] \
-    || { PRE_ERR="the receiver does not report oracledb.backup.failed=0 for archivelog of $PRIMARY_SID (lab/packs/oracledb-backup/queries.yaml deployed? lab:oracle:collector)"; return 1; }
+    || { PRE_ERR="the receiver does not report oracledb.backup.failed=0 for archivelog of $PRIMARY_SID (packs/oracledb-backup/queries.yaml deployed? lab:oracle:collector)"; return 1; }
   log "archived log backup age $AGE_BEFORE s; newest archived log job: $JOB_BEFORE"
 }
 

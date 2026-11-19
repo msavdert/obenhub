@@ -7,8 +7,8 @@
 # the gateway itself is absent, so a stopped gateway raises one alert, not five.
 rule_files:
   - ../inventory.yml
-  - ../../../../packs/collector/rules.yml
-  - ../../../../packs/postgresql/rules.yml
+  - ../../../../../packs/collector/rules.yml
+  - ../../../../../packs/postgresql/rules.yml
 evaluation_interval: 15s
 
 tests:

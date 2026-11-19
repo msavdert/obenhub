@@ -1,4 +1,4 @@
-# Slice 1 parameter of the pgBackRest pack (lab/packs/pgbackrest/rules.yml):
+# Slice 1 parameter of the pgBackRest pack (packs/pgbackrest/rules.yml):
 # the tolerated age of the last completed backup, in seconds. Arithmetic:
 # backup interval 600 s (compose.yaml, BACKUP_INTERVAL) + the longest full
 # backup seen 53 s (pgbackrest info, 2026-11-13; an incremental took 1 to 4 s)

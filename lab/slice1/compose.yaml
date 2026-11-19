@@ -242,7 +242,7 @@ services:
       OTEL_MONITOR_PASSWORD: "${OTEL_MONITOR_PASSWORD:?run: mise run lab:up (it generates lab/slice1/.env)}"
     volumes:
       - ./otelcol/config.yaml:/etc/otelcol/config.yaml:ro
-      - ../packs/postgresql/queries.yaml:/etc/otelcol/packs/postgresql/queries.yaml:ro
+      - ../../packs/postgresql/queries.yaml:/etc/otelcol/packs/postgresql/queries.yaml:ro
       - otelcol-data:/var/lib/otelcol
       - primary-log:/var/log/pg-primary:ro
       - standby-log:/var/log/pg-standby:ro
@@ -312,9 +312,9 @@ services:
       - "127.0.0.1:18880:8880"
     volumes:
       - ./vmalert/rules:/etc/vmalert/rules:ro
-      - ../packs/collector/rules.yml:/etc/vmalert/collector/rules.yml:ro
-      - ../packs/postgresql/rules.yml:/etc/vmalert/pack/rules.yml:ro
-      - ../packs/pgbackrest/rules.yml:/etc/vmalert/pgbackrest/rules.yml:ro
+      - ../../packs/collector/rules.yml:/etc/vmalert/collector/rules.yml:ro
+      - ../../packs/postgresql/rules.yml:/etc/vmalert/pack/rules.yml:ro
+      - ../../packs/pgbackrest/rules.yml:/etc/vmalert/pgbackrest/rules.yml:ro
 
   alertmanager:
     extends:

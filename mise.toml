@@ -106,7 +106,7 @@ run = [
 
 [tasks."lab:stage3:rules-test"]
 description = "unit-test the stage 3 inventory and the shared Patroni and etcd pack rules (vmalert-tool); needs docker"
-run = "scripts/vmalert-unittest.sh lab/stage3/vmalert/tests lab/packs/patroni/tests lab/packs/etcd/tests"
+run = "scripts/vmalert-unittest.sh lab/stage3/vmalert/tests packs/patroni/tests packs/etcd/tests"
 
 [tasks."lab:pgha:rules-test"]
 description = "unit-test Collector liveness in the pgha inventory with the shared pack rules (vmalert-tool); needs docker"
@@ -117,28 +117,28 @@ description = "unit-test Collector liveness in the k8s inventory with the shared
 run = "scripts/vmalert-unittest.sh lab/k8s/mon/vmalert/tests"
 
 [tasks."lab:cnpg:rules-test"]
-description = "unit-test the CloudNativePG pack rules (lab/packs/cnpg, vmalert-tool); needs docker"
-run = "scripts/vmalert-unittest.sh lab/packs/cnpg/tests"
+description = "unit-test the CloudNativePG pack rules (packs/cnpg, vmalert-tool); needs docker"
+run = "scripts/vmalert-unittest.sh packs/cnpg/tests"
 
 [tasks."lab:k8s-pack:rules-test"]
-description = "unit-test the Kubernetes pack rules (lab/packs/k8s, vmalert-tool); needs docker"
-run = "scripts/vmalert-unittest.sh lab/packs/k8s/tests"
+description = "unit-test the Kubernetes pack rules (packs/k8s, vmalert-tool); needs docker"
+run = "scripts/vmalert-unittest.sh packs/k8s/tests"
 
 [tasks."lab:pgbackrest:rules-test"]
-description = "unit-test the pgBackRest pack rules (lab/packs/pgbackrest, vmalert-tool); needs docker"
-run = "scripts/vmalert-unittest.sh lab/packs/pgbackrest/tests"
+description = "unit-test the pgBackRest pack rules (packs/pgbackrest, vmalert-tool); needs docker"
+run = "scripts/vmalert-unittest.sh packs/pgbackrest/tests"
 
 [tasks."lab:collector:rules-test"]
-description = "unit-test the shared Collector pack rules (lab/packs/collector, vmalert-tool); needs docker"
-run = "scripts/vmalert-unittest.sh lab/packs/collector/tests"
+description = "unit-test the shared Collector pack rules (packs/collector, vmalert-tool); needs docker"
+run = "scripts/vmalert-unittest.sh packs/collector/tests"
 
 [tasks."lab:oracle:rules-test"]
 description = "unit-test the Oracle Data Guard and RMAN backup pack rules and Collector liveness in the Oracle inventory (vmalert-tool); needs docker"
-run = "scripts/vmalert-unittest.sh lab/packs/oracledb-dg/tests lab/packs/oracledb-backup/tests lab/oracle/mon/vmalert/tests"
+run = "scripts/vmalert-unittest.sh packs/oracledb-dg/tests packs/oracledb-backup/tests lab/oracle/mon/vmalert/tests"
 
 [tasks."lab:host:rules-test"]
-description = "unit-test the shared host pack rules (lab/packs/host, vmalert-tool); needs docker"
-run = "scripts/vmalert-unittest.sh lab/packs/host/tests"
+description = "unit-test the shared host pack rules (packs/host, vmalert-tool); needs docker"
+run = "scripts/vmalert-unittest.sh packs/host/tests"
 
 [tasks."lab:stage3:otelcol-check"]
 description = "fail when lab/stage3/otelcol/config.yaml differs from what its template renders (lab/stage3/scripts/gen-otelcol.sh)"
@@ -154,11 +154,11 @@ diff -u lab/pgha/mon/vmalert/tests/collectors.yml "$t" || { echo "collectors.yml
 """
 
 [tasks."lab:pack:rules-test"]
-description = "unit-test the shared PostgreSQL pack rules (lab/packs/postgresql, vmalert-tool); needs docker"
+description = "unit-test the shared PostgreSQL pack rules (packs/postgresql, vmalert-tool); needs docker"
 # Every rule-test task runs every *.yml of its test directories
 # (scripts/vmalert-unittest.sh), so a new test file cannot be left out. The
-# image is pinned in lab/packs/versions.sh.
-run = "scripts/vmalert-unittest.sh lab/packs/postgresql/tests"
+# image is pinned in packs/versions.sh.
+run = "scripts/vmalert-unittest.sh packs/postgresql/tests"
 
 [tasks."lab:slice1:panels"]
 description = "run the panel queries of the slice 1 PostgreSQL dashboard against the running slice 1 Grafana (scripts/check-panels.sh); needs the lab, not part of check"
@@ -175,13 +175,13 @@ set -e
 g=http://127.0.0.1:33000
 e=lab/pgha/mon/.env
 scripts/check-panels.sh lab/stage3/grafana/dashboards/patroni.json $g $e
-scripts/check-panels.sh lab/packs/host/dashboards/host.json $g $e
+scripts/check-panels.sh packs/host/dashboards/host.json $g $e
 scripts/check-panels.sh lab/slice1/grafana/dashboards/postgresql.json $g $e pgha-1
 """
 
 [tasks."lab:oracle:panels"]
 description = "run the panel queries of the Oracle Data Guard dashboard against the running oracle Grafana (scripts/check-panels.sh); needs the lab, not part of check"
-run = "scripts/check-panels.sh lab/packs/oracledb-dg/dashboards/oracle-dg.json http://127.0.0.1:53000 lab/oracle/mon/.env"
+run = "scripts/check-panels.sh packs/oracledb-dg/dashboards/oracle-dg.json http://127.0.0.1:53000 lab/oracle/mon/.env"
 
 [tasks."lab:k8s:panels"]
 description = "run the panel queries of the CloudNativePG/Kubernetes and PostgreSQL dashboards against the running k8s Grafana (scripts/check-panels.sh); needs the lab, not part of check"

@@ -1,7 +1,7 @@
 # The generic PostgreSQL rules (PostgresTargetAbsent,
 # PostgresStandbyNotStreaming, PostgresReplayBacklog, PostgresSnapshotHeldTooLong, PostgresConnectionSaturation,
-# PostgresSeriesVanished) live in lab/packs/postgresql/rules.yml (Watchdog, CollectorAbsent and
-# CollectorUnknown: lab/packs/collector/rules.yml). This file holds the
+# PostgresSeriesVanished) live in packs/postgresql/rules.yml (Watchdog, CollectorAbsent and
+# CollectorUnknown: packs/collector/rules.yml). This file holds the
 # inventory and the slice 1 specific groups.
 groups:
   - name: inventory
@@ -163,7 +163,7 @@ groups:
       # A pool at its size with no client queued yet is the warning before
       # clients wait: r is the share of the configured pool_size that is linked
       # to a client, averaged over 5 m (window of 20 points, see the window
-      # notes at PostgresConnectionSaturation in lab/packs/postgresql/rules.yml; n
+      # notes at PostgresConnectionSaturation in packs/postgresql/rules.yml; n
       # requires a full window, so a new pool stays silent while it warms up).
       # sv_active can exceed pool_size when a reserve pool is configured (it is
       # 0 in the lab), so r can pass 1. SHOW DATABASES pool_size shows
