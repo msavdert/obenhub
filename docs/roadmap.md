@@ -94,9 +94,11 @@ the held dependency update batch and closes a release.
       PostgreSQL log path were alive; a resolution is searched from
       detection, not only after the revert. Done when a guard test covers
       each, then every lab's suite
-- [ ] B4 slice1 Alertmanager: `lab/mon/alertmanager.yml` says inhibit rules
-      race with delivery, `lab/slice1/alertmanager/alertmanager.yml` still
-      has five. One of the two changes
+- [ ] B4 slice1 Alertmanager: slice1 had its own copy with inhibit rules,
+      which race with delivery (`lab/mon/alertmanager.yml`); each was already
+      covered by a guard in the rule expression. slice1 now mounts the shared
+      file and `scripts/test-alertmanager.sh` checks that nothing is
+      inhibited; done when the full slice1 suite passes with it
 
 ### C. Packs usable outside the lab
 

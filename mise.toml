@@ -97,7 +97,7 @@ run = "scripts/test-k8s-check-tools.sh"
 description = "unit-test the lab alert rules (vmalert-tool) and Alertmanager routing (throwaway container); needs docker"
 run = [
   "scripts/vmalert-unittest.sh lab/slice1/vmalert/tests",
-  "lab/slice1/alertmanager/test.sh",
+  "scripts/test-alertmanager.sh",
 ]
 
 [tasks."lab:stage3:rules-test"]
