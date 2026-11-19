@@ -19,11 +19,6 @@ the held dependency update batch and closes a release.
 
 ### A. Tooling and documents, no lab run
 
-- [ ] A1 rest: `lab/scenarios/run-suite.sh` refuses scenario timing
-      overrides (`CONTROL_SECONDS`, the `lib-core.sh` windows) from the
-      environment. Done on branch `fix/suite-timing-refusal` with its test in
-      `lab:guard-test`; it changes the shared harness, which maps to a full
-      suite in every lab, so it lands at the start of the B+C chain
 - [x] A2 Affected-scenario mapping (`scripts/affected-scenarios.sh`,
       `scripts/evidence-paths.sh` and the test), before any pack edit. Today
       one changed alert in a pack reruns every scenario of every lab that

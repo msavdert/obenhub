@@ -37,6 +37,15 @@ if [ -z "${SUITE_LOCK_FILE:-}" ]; then
   unset _guard_uid _guard_rt
 fi
 
+# Timing knobs a single scenario run may take from the environment and a suite
+# run may not (run-suite.sh refuses them): the control load, the detection,
+# resolution and settle windows and holds of lib-core.sh, and the Oracle
+# backup-stale trial. Infrastructure timeouts (REMOTE_TIMEOUT, RESTORE_TIMEOUT)
+# only make a run fail sooner and are not listed. lab/scenarios/test-guard.sh checks
+# that every such ${NAME:-default} under lab/ is listed or named there.
+# shellcheck disable=SC2034  # read by run-suite.sh and test-guard.sh
+SUITE_TIMING_VARS="CONTROL_SECONDS DETECT_TIMEOUT DETECT_DEADLINE RESOLVE_TIMEOUT SETTLE_TIMEOUT HOLD_AFTER_DETECT BACKUP_STALE_TRIAL_SECONDS"
+
 # dirty_paths: porcelain lines of changed or untracked paths outside
 # lab/<lab>/results/. Fails (status 2, message on stderr) when git fails, so a
 # broken check never reads as clean.

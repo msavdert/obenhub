@@ -10,8 +10,9 @@ a lab's scenarios as a suite (`lab/scenarios/run-suite.sh`: clean tree outside
 and `detected_at`, the time each expected alert first fired); a scenario run on
 its own is a smoke run and records `suite: null`. Suites run on a commit of
 `main`, and their results come back through a pull request, so that the
-recorded `git_sha` stays in the history. A suite counts only with `control`
-run last. `mise run lab:evidence` reports, per
+recorded `git_sha` stays in the history. A suite refuses timing overrides
+from the environment (`SUITE_TIMING_VARS` in `lab/scenarios/guard.sh`), and
+counts only with `control` run last. `mise run lab:evidence` reports, per
 lab, whether its latest full suite plus the later targeted suites (subsets of
 `suite.txt`) cover the code: `scripts/affected-scenarios.sh` maps each change
 to the scenarios it can affect (its header is the reference for the mapping; a

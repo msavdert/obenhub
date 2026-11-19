@@ -7,7 +7,8 @@
 # of any lab, holds the host-wide lock (suites in different labs would share
 # the host and their timings would not be independent). Exports SUITE_ID and
 # SUITE_SIZE (the number of scenarios it will run), which every record of the
-# suite carries.
+# suite carries. Refuses an environment that overrides a scenario timing
+# (SUITE_TIMING_VARS in guard.sh).
 set -euo pipefail
 
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -22,6 +23,17 @@ dir="$GUARD_TOP/lab/$lab/scenarios"
 for s in "$@"; do
   case "$s" in *[!a-z-]*|lib|"") echo "bad scenario name: $s" >&2; exit 2;; esac
   [ -x "$dir/$s.sh" ] || { echo "no such scenario in $lab: $s" >&2; exit 2; }
+done
+
+# a suite runs every scenario with its own timings: an override in the caller's
+# environment (a shortened control run or detection window) would be recorded
+# as if it were the real scenario. Scenario scripts that set these themselves
+# are not affected; they set them after this check.
+for v in $SUITE_TIMING_VARS; do
+  if [ -n "${!v+x}" ]; then
+    echo "refusing to start: $v is set in the environment; a suite runs with the scenario timings (unset it)" >&2
+    exit 1
+  fi
 done
 
 dirty=$(dirty_paths) || { echo "refusing to start: cannot tell whether the tree is clean" >&2; exit 1; }
