@@ -61,7 +61,7 @@ the held dependency update batch and closes a release.
 
 ### B. Defects that need lab runs
 
-- [ ] B1 Oracle. `OraclePrimaryChanged` also fires when a primary is
+- [x] B1 Oracle. `OraclePrimaryChanged` also fires when a primary is
       demoted: the role is an attribute of `oracledb.database.primary`, and
       the `fsfo-failover` record of suite `oracle-20261118T202631Z-37e22f2`
       shows a firing at the reinstate, without a promotion.
@@ -73,7 +73,10 @@ the held dependency update batch and closes a release.
       `lab/oracle/files/otelcol-obs.yaml` set no `max_open_conn` (ADR 0003).
       The account query matches only `C##OBENHUB\_%`. Done when a unit test
       covers a demotion without a promotion and the backup kinds, and the
-      oracle suite passes
+      oracle suite passes. Done in #123 and suite
+      `oracle-20261119T153131Z-4ac9423` (12 of 12; `fsfo-failover` fired
+      `OraclePrimaryChanged` twice, for the two promotions). The backup
+      kinds are tested on the rule; the SQL itself only by the suite
 - [ ] B2 PostgreSQL and Kubernetes rules. The logical-replication rules in
       `lab/slice1/vmalert/rules/postgresql.yml` use `increase()` without
       the counter-start handling the pack documents
