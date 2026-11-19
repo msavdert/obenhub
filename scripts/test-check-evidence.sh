@@ -192,13 +192,15 @@ printf 'a\n' >lab/x/scenarios/long.txt
 expect "script not in suite.txt nor long.txt" 1 "< c" x
 rm lab/x/scenarios/c.sh lab/x/scenarios/lib-more.sh lab/x/scenarios/long.txt
 
-# prose and cross-lab mounts, on a lab named pgha
-mkdir -p lab/pgha/results lab/pgha/scenarios lab/stage3/grafana/dashboards lab/slice1/grafana/dashboards
+# prose and pack dashboards, on a lab named pgha
+mkdir -p lab/pgha/results lab/pgha/scenarios lab/pgha/mon packs/patroni/dashboards packs/postgresql/dashboards
 printf 'a\nb\n' >lab/pgha/scenarios/suite.txt
 touch lab/pgha/scenarios/a.sh lab/pgha/scenarios/b.sh lab/pgha/scenarios/lib.sh
+printf '%s\n' ../../../packs/patroni/dashboards ../../../packs/postgresql/dashboards >lab/pgha/mon/compose.yaml
 echo 1 >lab/pgha/README.md
-echo 1 >lab/stage3/grafana/dashboards/d.json
-echo 1 >lab/slice1/grafana/dashboards/d.json
+echo 1 >packs/patroni/dashboards/d.json
+echo 1 >packs/postgresql/dashboards/d.json
+echo 1 >packs/patroni/queries.yaml
 git add -A
 git commit -q -m pgha
 p0=$(git rev-parse --short HEAD)
@@ -216,14 +218,14 @@ echo 2 >lab/pgha/scenarios/a.sh
 git commit -q -am script
 expect "script change fails strict" 1 "lab/pgha/scenarios/a.sh" --strict pgha
 git reset -q --hard "$p0"
-echo 2 >lab/stage3/grafana/dashboards/d.json
+echo 2 >packs/patroni/dashboards/d.json
 git commit -q -am dash
-expect "cross-mounted dashboard changes no scenario" 0 "suite s1 ($p0) is current" --strict pgha
-expect "cross-mounted dashboard does not force a rerun with --full" 0 "suite s1 ($p0) is current" --strict --full pgha
+expect "pack dashboard changes no scenario" 0 "suite s1 ($p0) is current" --strict pgha
+expect "pack dashboard does not force a rerun with --full" 0 "suite s1 ($p0) is current" --strict --full pgha
 git reset -q --hard "$p0"
-echo 2 >lab/slice1/grafana/dashboards/d.json
+echo 2 >packs/postgresql/dashboards/d.json
 git commit -q -am dash
-expect "second cross-mounted dashboard does not force a rerun with --full" 0 "suite s1 ($p0) is current" --strict --full pgha
+expect "second pack dashboard does not force a rerun with --full" 0 "suite s1 ($p0) is current" --strict --full pgha
 git reset -q --hard "$p0"
 
 # tiered evidence on pgha: full suite s1 at p0 (a, b), targeted suites after it
@@ -290,10 +292,15 @@ d2=$(git rev-parse --short HEAD)
 expect "targeted suites chain" 0 "targeted s2 ($d1: a), targeted s3 ($d2: b) is current" --strict pgha
 git reset -q --hard "$p0"
 
+echo 2 >packs/patroni/queries.yaml
+git commit -q -am packfile
+expect "a non-dashboard file of a pack the lab mounts fails strict" 1 "packs/patroni/queries.yaml" --strict pgha
+git reset -q --hard "$p0"
+
 # a dashboard-only change between the evidence and a targeted suite is no scenario evidence
 echo 2 >lab/pgha/scenarios/a.sh
 git commit -q -am "change a"
-echo 2 >lab/stage3/grafana/dashboards/d.json
+echo 2 >packs/patroni/dashboards/d.json
 git commit -q -am "dashboard"
 f1=$(git rev-parse --short HEAD)
 { pair s1 "$p0" $t1; row s2 1 "$f1" false true $t2 a; } | fixture_pgha
