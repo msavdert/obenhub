@@ -124,7 +124,9 @@ config:
             transport: tcp
             username: otel_monitor
             password: ${env:OTEL_MONITOR_PASSWORD}
-            databases: [postgres]
+            # The workload lives in database app; postgres holds the administrative
+            # objects. The receiver connects to each listed database.
+            databases: [postgres, app]
             collection_interval: 15s
             metrics:
               postgresql.deadlocks:

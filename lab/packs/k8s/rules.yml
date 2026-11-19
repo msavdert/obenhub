@@ -15,7 +15,10 @@ groups:
       # node_conditions_to_report). A kubelet that stops reporting leaves the
       # condition Unknown once the node lifecycle controller notices (-1); a
       # kubelet that reports itself unhealthy gives False (0). Both are
-      # "!= 1". The series carries k8s.node.name and k8s.node.uid.
+      # "!= 1". The series carries k8s.node.name and k8s.node.uid; the rule
+      # copies k8s.node.name into service.instance.id, the label every other
+      # rule names its subject by, so Alertmanager groups and a scenario
+      # matches the alert per node.
       # Lab numbers (scenario worker-stopped, 2026-11-11, docker kill of the
       # primary's node; all approximate, from the 4th smoke run): the series
       # went to -1 about 58 s after the kill, the node lifecycle controller's
@@ -33,7 +36,7 @@ groups:
       # The alert says the node is not Ready, not why, and not what ran on it.
       # Lab scenario: lab/k8s/scenarios/worker-stopped.sh.
       - alert: KubernetesNodeNotReady
-        expr: k8s.node.condition_ready != 1
+        expr: label_replace(k8s.node.condition_ready != 1, "service.instance.id", "$1", "k8s.node.name", "(.+)")
         for: 1m
         labels:
           severity: critical

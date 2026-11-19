@@ -22,7 +22,7 @@ tests:
         groupname: k8s
         alertname: KubernetesNodeNotReady
         exp_alerts:
-          - exp_labels: {severity: critical, k8s.node.name: obenhub-worker, k8s.node.uid: u1}
+          - exp_labels: {severity: critical, k8s.node.name: obenhub-worker, service.instance.id: obenhub-worker, k8s.node.uid: u1}
             exp_annotations:
               summary: Node obenhub-worker is not Ready
       - eval_time: 10m30s   # Ready again since 10m
@@ -40,7 +40,7 @@ tests:
         groupname: k8s
         alertname: KubernetesNodeNotReady
         exp_alerts:
-          - exp_labels: {severity: critical, k8s.node.name: obenhub-worker, k8s.node.uid: u1}
+          - exp_labels: {severity: critical, k8s.node.name: obenhub-worker, service.instance.id: obenhub-worker, k8s.node.uid: u1}
             exp_annotations:
               summary: Node obenhub-worker is not Ready
 
@@ -73,7 +73,7 @@ tests:
         groupname: k8s
         alertname: KubernetesNodeNotReady
         exp_alerts:
-          - exp_labels: {severity: critical, k8s.node.name: obenhub-worker, k8s.node.uid: u1}
+          - exp_labels: {severity: critical, k8s.node.name: obenhub-worker, service.instance.id: obenhub-worker, k8s.node.uid: u1}
             exp_annotations:
               summary: Node obenhub-worker is not Ready
 
