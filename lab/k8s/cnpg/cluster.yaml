@@ -42,6 +42,7 @@ spec:
   # lab/pgha/files/post-bootstrap.sh creates it. The Secret is made by
   # scripts/up.sh (random password, never written to the repository). A
   # managed role cannot carry the per-role statement_timeout that pgha sets.
+  # packs/postgresql/monitoring-role.sql is the reference for grants and name.
   managed:
     roles:
       - name: otel_monitor

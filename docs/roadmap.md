@@ -105,6 +105,10 @@ the held dependency update batch and closes a release.
       logical-replication rules, a `pgbouncer` pack, the PostgreSQL, Patroni
       and CloudNativePG dashboards, and one monitoring-role SQL file that
       all four PostgreSQL labs use (five copies today)
+      Done so far (unchecked until the rest lands): the three dashboards and
+      `packs/postgresql/monitoring-role.sql`, used by slice1, stage3 and pgha;
+      k8s keeps its managed role, `lab/overhead/setup.sh` keeps its own copy
+      (a one-off measurement on a VM that would need the file copied)
 - [ ] C3 Identity, with an amendment to ADR 0006 first. Every join in the
       `postgresql` pack is on `service.instance.id` alone (13 places), so
       two clusters with a `pg-1` in one backend break the rules, and a

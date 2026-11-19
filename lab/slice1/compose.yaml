@@ -97,6 +97,8 @@ services:
       - ./postgres/10-init-primary.sh:/docker-entrypoint-initdb.d/10-init-primary.sh:ro
       # outside /docker-entrypoint-initdb.d: the image would also run it in `postgres`
       - ./postgres/app-schema.sql:/opt/obenhub/app-schema.sql:ro
+      # run by the init script (packs/postgresql/monitoring-role.sql)
+      - ../../packs/postgresql/monitoring-role.sql:/opt/obenhub/monitoring-role.sql:ro
     networks:
       repl:
         aliases: [pg-primary-repl]
@@ -142,6 +144,8 @@ services:
       - ./postgres/entrypoint.sh:/entrypoint.sh:ro
       - ./postgres/10-init-subscriber.sh:/docker-entrypoint-initdb.d/10-init-subscriber.sh:ro
       - ./postgres/app-schema.sql:/opt/obenhub/app-schema.sql:ro
+      # run by the init script (packs/postgresql/monitoring-role.sql)
+      - ../../packs/postgresql/monitoring-role.sql:/opt/obenhub/monitoring-role.sql:ro
     networks:
       - logical
       - mon
