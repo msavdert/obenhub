@@ -247,6 +247,7 @@ services:
     volumes:
       - ./otelcol/config.yaml:/etc/otelcol/config.yaml:ro
       - ../../packs/postgresql/queries.yaml:/etc/otelcol/packs/postgresql/queries.yaml:ro
+      - ../../packs/pgbouncer/queries.yaml:/etc/otelcol/packs/pgbouncer/queries.yaml:ro
       - otelcol-data:/var/lib/otelcol
       - primary-log:/var/log/pg-primary:ro
       - standby-log:/var/log/pg-standby:ro
@@ -311,6 +312,7 @@ services:
       - -rule=/etc/vmalert/collector/rules.yml
       - -rule=/etc/vmalert/pack/rules.yml
       - -rule=/etc/vmalert/pgbackrest/rules.yml
+      - -rule=/etc/vmalert/pgbouncer/rules.yml
       - -evaluationInterval=15s
     ports:
       - "127.0.0.1:18880:8880"
@@ -319,6 +321,7 @@ services:
       - ../../packs/collector/rules.yml:/etc/vmalert/collector/rules.yml:ro
       - ../../packs/postgresql/rules.yml:/etc/vmalert/pack/rules.yml:ro
       - ../../packs/pgbackrest/rules.yml:/etc/vmalert/pgbackrest/rules.yml:ro
+      - ../../packs/pgbouncer/rules.yml:/etc/vmalert/pgbouncer/rules.yml:ro
 
   alertmanager:
     extends:

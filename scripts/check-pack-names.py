@@ -3,7 +3,7 @@
 """Check the names project metrics use against ADR 0006. No network.
 
 For the pack query files (packs/postgresql, oracledb-dg, oracledb-backup) and
-the pgbouncer queries of lab/slice1/otelcol/config.yaml:
+packs/pgbouncer/queries.yaml:
     - every metric has a unit;
     - no metric name ends in a unit word (_seconds, _bytes, _ms, _us, _total);
     - names are lowercase, dot-separated.
@@ -26,7 +26,7 @@ PACKS = (
     (ROOT / "packs/oracledb-dg", "oracledb.", "oracledbreceiver"),
     (ROOT / "packs/oracledb-backup", "oracledb.", "oracledbreceiver"),
 )
-PGBOUNCER = ROOT / "lab/slice1/otelcol/config.yaml"
+PGBOUNCER = ROOT / "packs/pgbouncer/queries.yaml"
 UNIT_WORDS = ("_seconds", "_bytes", "_ms", "_us", "_total")
 NAME = re.compile(r"^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)+$")
 
@@ -59,9 +59,8 @@ def main():
             errors.append(
                 f"{rel}: {mentions} metric_name lines, {len(metrics)} parsed (one metric per line, flow mapping)"
             )
-        # No filtering by prefix: the slice1 config defines metric names only
-        # for PgBouncer (the PostgreSQL queries come from the pack), so every
-        # metric_name there must start with the prefix. A mistyped name fails.
+        # No filtering by prefix: every metric_name in a file must start with
+        # its prefix. A mistyped name fails.
         if not metrics:
             errors.append(f"{rel}: no {prefix}* metrics found")
         seen = set()
