@@ -127,10 +127,20 @@ tests:
         values: '1x8 _x52'
       - series: 'postgresql.replay.backlog{service.instance.id="pg-standby"}'
         values: '0x8 _x52'
+      - series: 'pgbouncer.list.item.count{service.instance.id="pgbouncer",pgbouncer.list.name="databases"}'
+        values: '1x8 _x52'
     alert_rule_test:
       - eval_time: 10m
         groupname: postgresql
         alertname: PostgresTargetAbsent
+        exp_alerts: []
+      - eval_time: 4m
+        groupname: pgbouncer
+        alertname: PgbouncerTargetAbsent
+        exp_alerts: []
+      - eval_time: 10m
+        groupname: pgbouncer
+        alertname: PgbouncerTargetAbsent
         exp_alerts: []
       - eval_time: 10m
         groupname: postgresql

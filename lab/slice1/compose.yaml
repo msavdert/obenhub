@@ -323,8 +323,6 @@ services:
     container_name: obenhub-slice1-alertmanager
     ports:
       - "127.0.0.1:19093:9093"
-    volumes:
-      - ./alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
 
   grafana:
     extends:

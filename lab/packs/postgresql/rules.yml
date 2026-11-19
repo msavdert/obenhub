@@ -144,7 +144,7 @@ groups:
       # bridged by the lookback after a missed scrape still count, so a single
       # lost sample does not restart the warm-up.
       # Suppression lives in the expressions, not in Alertmanager inhibit rules
-      # (see lab/slice1/alertmanager). $value in the summaries is the lowest
+      # (see lab/mon/alertmanager.yml). $value in the summaries is the lowest
       # value of the window, not the latest one.
       # PostgresConnectionSaturation, old for 1m, W' = 75s (5 points): critical at a ratio
       # of 0.95 or more, warning above 0.85 and below 0.95.

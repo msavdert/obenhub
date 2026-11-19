@@ -1,13 +1,15 @@
 #!/usr/bin/env bash
-# Prove Alertmanager grouping and inhibition with a throwaway container:
-# groups are per instance, and an inhibit rule only mutes the same instance.
+# Prove the shared Alertmanager grouping (lab/mon/alertmanager.yml) with a
+# throwaway container: groups are per instance, a cluster-level alert forms one
+# group per alertname, and nothing is inhibited (the config has no inhibit
+# rules; suppression lives in the rule expressions).
 # Needs docker and the prom/alertmanager image; no network after the pull.
 set -euo pipefail
 
-dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/../lab/mon" && pwd)"
 name="obenhub-slice1-amtest-$$"
 # Same image as the lab, read from the shared base so the pin lives in one place.
-image="$(sed -n 's/^ *image: *\(prom\/alertmanager:[^ ]*\).*/\1/p' "$dir/../../mon/compose.base.yaml" | head -n1)"
+image="$(sed -n 's/^ *image: *\(prom\/alertmanager:[^ ]*\).*/\1/p' "$dir/compose.base.yaml" | head -n1)"
 [ -n "$image" ] || { echo "alertmanager image not found in lab/mon/compose.base.yaml" >&2; exit 1; }
 trap 'docker rm -f "$name" >/dev/null 2>&1 || true' EXIT
 
@@ -54,29 +56,14 @@ groups="$(curl -fs "$base/api/v2/alerts/groups")"
 check "PostgresReplayBacklog forms one group per instance" \
   "sorted(g['labels'].get('service_instance_id') for g in d if g['labels']['alertname']=='PostgresReplayBacklog') == ['pg-primary','pg-standby']" "$groups"
 
-# 2. per-instance inhibition: standby target absent mutes only standby series
-post "[$(alert PostgresTargetAbsent pg-standby),$(alert PostgresSeriesVanished pg-standby),$(alert PostgresSeriesVanished pg-primary)]"
+# 2. a cluster-level alert has its own group, and nothing is inhibited
+post "[$(alert CollectorAbsent),$(alert PostgresTargetAbsent pg-standby),$(alert PostgresSeriesVanished pg-standby)]"
 sleep 2
+groups="$(curl -fs "$base/api/v2/alerts/groups")"
+check "CollectorAbsent without an instance forms one group" \
+  "[g['labels'] for g in d if g['labels']['alertname']=='CollectorAbsent'] == [{'alertname':'CollectorAbsent'}]" "$groups"
 alerts="$(curl -fs "$base/api/v2/alerts")"
-inhibited='lambda n, i: [x for x in d if x["labels"]["alertname"]==n and x["labels"].get("service_instance_id")==i][0]["status"]["inhibitedBy"]'
-check "PostgresSeriesVanished on the standby is inhibited by its own PostgresTargetAbsent" \
-  "bool(($inhibited)('PostgresSeriesVanished','pg-standby'))" "$alerts"
-check "PostgresSeriesVanished on the primary is NOT inhibited" \
-  "not ($inhibited)('PostgresSeriesVanished','pg-primary')" "$alerts"
-check "PostgresTargetAbsent itself is not inhibited" \
-  "not ($inhibited)('PostgresTargetAbsent','pg-standby')" "$alerts"
-
-# 3. a dead Collector mutes every target and series alert
-post "[$(alert CollectorAbsent),$(alert PgbouncerTargetAbsent pgbouncer)]"
-sleep 2
-alerts="$(curl -fs "$base/api/v2/alerts")"
-check "CollectorAbsent mutes PostgresTargetAbsent" \
-  "bool(($inhibited)('PostgresTargetAbsent','pg-standby'))" "$alerts"
-check "CollectorAbsent mutes PostgresSeriesVanished on the primary" \
-  "bool(($inhibited)('PostgresSeriesVanished','pg-primary'))" "$alerts"
-check "CollectorAbsent mutes PgbouncerTargetAbsent" \
-  "bool(($inhibited)('PgbouncerTargetAbsent','pgbouncer'))" "$alerts"
-check "PostgresReplayBacklog is never inhibited" \
-  "not ($inhibited)('PostgresReplayBacklog','pg-primary')" "$alerts"
+check "no alert is inhibited" \
+  "all(not x['status']['inhibitedBy'] for x in d)" "$alerts"
 
 exit "$fail"
