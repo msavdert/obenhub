@@ -54,7 +54,8 @@ The alert rules also use MetricsQL-only functions (`WITH` templates,
 
 ## Consequences
 
-- ADR 0002 and ADR 0003 keep their text; their status lines point here.
+- ADR 0002 and ADR 0003 keep their decisions; their status lines point here.
+  ADR 0002's plans moved to `docs/roadmap.md` on 2026-11-19.
 - A rule that would load in Prometheus is not a goal. Porting the rules is
   work for whoever needs it, and the OTLP contract stays the stable interface
   (ADR 0002).

@@ -18,9 +18,13 @@ nav = [
     "adr/0004-licence-policy.md",
     "adr/0005-lab-collection-topology-and-packs.md",
     "adr/0006-naming-contract.md",
+    "adr/0007-backup-tool.md",
+    "adr/0008-oracle-lab-scope.md",
   ] },
   { "Reference" = [
     "reference/postgresql-pack-metrics.md",
+    "reference/oracledb-backup-pack-metrics.md",
+    "reference/oracledb-dg-pack-metrics.md",
   ] },
   { "Roadmap" = "roadmap.md" },
   { "Changelog" = "changelog.md" },
