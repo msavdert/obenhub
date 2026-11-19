@@ -36,7 +36,8 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
-      # affected-scenarios.sh needs yq (pinned in mise.toml); nothing else
+      # affected-scenarios.sh needs yq (pinned in mise.toml) and python3 3.11+
+      # (tomllib; the runner's own python3, without it a TOML change counts as ALL)
       - uses: jdx/mise-action@d5574b52816a478f9d4e6529a3f6ff17a8a36785 # v5.2.8
         with:
           install_args: yq

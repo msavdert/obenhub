@@ -13,7 +13,8 @@
 #     same JSON (yq drops comments and formatting), a .sh file
 #     with the same lines apart from blank and comment lines
 #     (a line-1 #! is kept; a # line inside a heredoc counts as
-#     a comment; every #! line is kept), same file mode
+#     a comment; every #! line is kept), a .toml file with the
+#     same JSON (Python 3.11+ tomllib), same file mode
 #   alert rules: lab/packs/*/rules.yml (nothing when the lab     control (if in suite.txt) plus the
 #     does not use the pack) and YAML under lab/*/vmalert/ or    suite scenarios whose script text
 #     lab/*/mon/vmalert/; per alert name the rule objects        (symlinks resolved, BASE or HEAD)
@@ -189,6 +190,7 @@ yaml_at() {
   if [ -n "${t//[[:space:]]/}" ]; then printf '%s\n' "$t"; else echo '{}'; fi
 }
 
+toml_json='import json, sys, tomllib; print(json.dumps(tomllib.loads(sys.stdin.read()), sort_keys=True))'
 # comment_only FILE: true when FILE exists at BASE and HEAD with the same mode
 # and differs only in comments and formatting (see the header)
 comment_only() {
@@ -199,6 +201,12 @@ comment_only() {
       a=$(yaml_at "$base" "$f" | yq -o=json -I=0 . 2>/dev/null) || return 1
       b=$(yaml_at "$head" "$f" | yq -o=json -I=0 . 2>/dev/null) || return 1
       [ -n "$a" ] && [ -n "$b" ] || return 1  # blank input became {}: empty output means yq failed
+      [ "$a" = "$b" ]
+      ;;
+    *.toml)
+      # tomllib: Python 3.11 or later (mise.toml pins python)
+      a=$(show "$base" "$f" | python3 -c "$toml_json" 2>/dev/null) || return 1
+      b=$(show "$head" "$f" | python3 -c "$toml_json" 2>/dev/null) || return 1
       [ "$a" = "$b" ]
       ;;
     *.sh)
