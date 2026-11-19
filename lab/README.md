@@ -14,9 +14,9 @@ recorded `git_sha` stays in the history. A suite counts only with `control`
 run last. `mise run lab:evidence` reports, per
 lab, whether its latest full suite plus the later targeted suites (subsets of
 `suite.txt`) cover the code: `scripts/affected-scenarios.sh` maps each change
-to the scenarios it can affect (a changed scenario script runs itself, a new
-`suite.txt` entry runs the new scenario, anything else that reaches a lab's
-runs means all of them), and `mise run lab:affected <lab>` lists them
+to the scenarios it can affect (its header is the reference for the mapping; a
+Grafana change prints a `panels` line to run `mise run lab:<lab>:panels`), and
+`mise run lab:affected <lab>` lists them
 (`mise run lab:scenarios:affected` and `lab:<lab>:scenarios:affected` run
 them). `scripts/check-evidence.sh --full` counts only a full suite with no change
 that affects the lab since, as a release and the end of a dependency update

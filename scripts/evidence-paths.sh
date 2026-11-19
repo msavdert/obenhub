@@ -2,9 +2,10 @@
 # Sourced by check-evidence.sh and affected-scenarios.sh: the one definition of
 # which paths a lab's evidence depends on.
 #   evidence_extra_paths LAB   paths the lab mounts or sources from
-#                              other labs (read from lab/pgha/mon/compose.yaml,
-#                              lab/k8s/mon/compose.yaml and the `. versions.sh`
-#                              of lab/oracle/scripts/collector.sh; keep in step).
+#                              other labs (the Compose bind mounts and the
+#                              `. versions.sh` of lab/oracle/scripts/collector.sh;
+#                              scripts/test-affected-scenarios.sh derives the
+#                              Compose part and fails when this list differs).
 #                              mise.k8s.toml pins the k8s tools; mise.toml (task
 #                              definitions) is deliberately not watched
 #   evidence_pathspec LAB      sets EVIDENCE_SPEC, a git pathspec: the lab,

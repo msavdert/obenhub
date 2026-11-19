@@ -290,6 +290,25 @@ d2=$(git rev-parse --short HEAD)
 expect "targeted suites chain" 0 "targeted s2 ($d1: a), targeted s3 ($d2: b) is current" --strict pgha
 git reset -q --hard "$p0"
 
+# a dashboard-only change between the evidence and a targeted suite is no scenario evidence
+echo 2 >lab/pgha/scenarios/a.sh
+git commit -q -am "change a"
+echo 2 >lab/stage3/grafana/dashboards/d.json
+git commit -q -am "dashboard"
+f1=$(git rev-parse --short HEAD)
+{ pair s1 "$p0" $t1; row s2 1 "$f1" false true $t2 a; } | fixture_pgha
+expect "targeted suite counts with a dashboard change in between" 0 "targeted s2 ($f1: a) is current" --strict pgha
+git reset -q --hard "$p0"
+
+# version pins: current by default, a change under --full
+echo 2 >lab/pgha/versions.sh
+git add lab/pgha/versions.sh
+git commit -q -m "versions"
+pair s1 "$p0" $t1 | fixture_pgha
+expect "versions.sh-only change is current by default" 0 "suite s1 ($p0) is current" --strict pgha
+expect "versions.sh-only change is stale with --full" 1 "predates changes in 1 files, needs a full suite" --strict --full pgha
+git reset -q --hard "$p0"
+
 # a targeted suite on main that is not a descendant of the evidence commit
 echo 2 >lab/pgha/scenarios/a.sh
 git commit -q -am "change a"

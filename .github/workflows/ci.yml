@@ -36,6 +36,10 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
+      # affected-scenarios.sh needs yq (pinned in mise.toml); nothing else
+      - uses: jdx/mise-action@d5574b52816a478f9d4e6529a3f6ff17a8a36785 # v5.2.8
+        with:
+          install_args: yq
       - name: Every lab has a full suite for this code
         run: scripts/check-evidence.sh --strict --full
 
