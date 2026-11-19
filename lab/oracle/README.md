@@ -4,8 +4,8 @@ The Oracle lab of [ADR 0008](../../docs/adr/0008-oracle-lab-scope.md). What
 runs is the database side of the first slice, the `CDB19` Data Guard pair,
 its Collector configuration, the backend the Collector pushes to and the fault
 scenarios in `scenarios/` (below). The full suite
-`oracle-20261118T202631Z-37e22f2` (commit `37e22f2`) passed 12 of 12 on
-2026-11-18; its records are in [results/runs.jsonl](results/runs.jsonl).
+`oracle-20261119T153131Z-4ac9423` (commit `4ac9423`) passed 12 of 12 on
+2026-11-19; its records are in [results/runs.jsonl](results/runs.jsonl).
 
 ## Prerequisites
 
