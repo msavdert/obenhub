@@ -4,9 +4,10 @@ Docker Compose project `obenhub-stage3`, with its own backend so the slice1
 lab keeps running. Run it with `mise run lab:stage3:scenarios`; results are in
 `results/runs.jsonl`. The same cluster on VMs is [pgha](../pgha).
 
-Versions read 2026-11-07: Patroni 4.1.5 (MIT; PostgreSQL 18 support since
-4.0.7) from the PGDG package in `postgres:18.7-trixie`, etcd 3.6.16
-(Apache-2.0).
+The images are pinned in [compose.yaml](compose.yaml), and each run records
+the ones it used in the `images` field of `results/runs.jsonl`. Patroni (MIT;
+PostgreSQL 18 support since 4.0.7) comes from the PGDG package in the
+`postgres` image, etcd (Apache-2.0) from its upstream image.
 
 ## Prerequisites
 

@@ -38,22 +38,22 @@ the held dependency update batch and closes a release.
       maps to `lab:<lab>:panels`; a test derives the cross-lab mounts from
       the Compose files and compares them with `evidence_extra_paths`. Done
       when `mise run lab:affected-test` has a case for each
-- [ ] A3 Documents that drifted: the site navigation (`zensical.toml`) and
-      `README.md` stop at ADR 0006 and one reference page of three; ADR 0002
-      still carries plans (they are in the last section of this page now);
-      etcd is 3.7.3 in `lab/stage3/compose.yaml` and 3.6.16 in
-      `lab/stage3/README.md` and the etcd pack header; `lab/pgha/README.md`
-      says both `leader-killed` rows are outcome A; `lab/oracle/README.md`
-      names an old suite; `lab/k8s/README.md` and `mise.k8s.toml` name old
-      tool versions; `lab/pgha/files/load.sh` says it runs at the stage3
-      rate (it runs 100 transactions a second, stage3 20; both rates stay).
-      After A2, so that comment edits cost no lab run
+- [x] A3 Documents that drifted: site navigation, `README.md`, the plans in
+      ADR 0002, the etcd version, the pgha `leader-killed` outcomes, the
+      oracle suite of record, the k8s tool versions in its README (the
+      `mise.k8s.toml` comment moved to A4) and the pgha load rate
+      comment. `mise run docs:nav-check` now fails on a page missing from the
+      navigation (`zensical build --strict` does not)
 - [ ] A4 Renovate raised `kubectl` to 1.37.2 against a 1.36.4 kind node
       although `renovate.json` means to hold minors back. Assumption to
       confirm in the Renovate documentation: the mise manager matches on
-      `matchDepNames`, not `matchPackageNames`
-- [ ] A5 `release-evidence` as a required check on `main` (owner; the
-      ruleset requires only `check` and `semantic-title`)
+      `matchDepNames`, not `matchPackageNames`. The comment above `kubectl` in
+      `mise.k8s.toml` still names 1.36.6; it is fixed with this item, since
+      `affected-scenarios.sh` sees comment-only changes in YAML and shell
+      only and maps that file to the full k8s suite
+- [x] A5 `release-evidence` as a required check on `main` (owner,
+      2026-11-19; the ruleset requires it next to `check` and
+      `semantic-title`)
 - [ ] A6 `lab/obi` and `lab/overhead` reduced to their results pages and
       scripts (`results/cells`, `contaminated-2026-11-06`,
       `2026-11-07-old-pack`)
@@ -331,3 +331,5 @@ Named in ADR 0002 and not built; kept, in no order, behind everything above
 - [ ] Traces: VictoriaTraces in the reference backend
 - [ ] A ClickHouse-based backend compared on the same OTLP stream and the
       same fault scenarios
+- [ ] Perses (Apache 2.0, CNCF) re-evaluated against Grafana once it
+      supports the VictoriaLogs and VictoriaTraces datasources

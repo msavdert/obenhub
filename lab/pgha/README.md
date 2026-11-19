@@ -185,14 +185,15 @@ The writer, through `target_session_attrs=read-write` from this box, lost none
 of its acknowledged rows. `primary_gap_seconds` from `patroni_primary` is an
 upper bound from 15 s steps.
 
-Both recorded rows (2026-11-11T01:09 and the suite of 2026-11-12) are outcome
-A: the old leader came back and kept the leader key, and no replica took over.
-The timeline still rose by one, which is what `PatroniFailoverHappened` fires
-on; why is not confirmed from a log. Outcome B (a replica takes over, the old
-leader rejoins with `pg_rewind`) is known only from a smoke run on
-2026-11-10 that is not in `runs.jsonl` (8.8 s without a writable node, 465 of
-465 rows kept). Which outcome a run gets is a race, so the scenario does not
-assert a leadership change.
+Of the six recorded rows (2026-11-11 to 2026-11-19, `extra.outcome`), five
+are outcome A: the old leader came back and kept the leader key, and no
+replica took over (the writer saw no writable primary for 18.8 to 26.4 s).
+The timeline still rose by one, which is what `PatroniFailoverHappened`
+fires on; why is not confirmed from a log. One, in
+suite `pgha-20261118T225346Z-e47dc14`, is outcome B: `pgha-1` took over from
+the frozen `pgha-3`, which rejoined with `pg_rewind` (8.7 s, 389 of 389 rows
+kept). Which outcome a run gets is a race, so the scenario does not assert a
+leadership change.
 
 ### Synchronous standby cut
 

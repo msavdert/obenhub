@@ -15,9 +15,9 @@ Compose project on the box (`obenhub-k8s`).
 - Linux x86_64 only (the `kubectl-cnpg` asset pattern in `mise.k8s.toml`).
 - The tools pinned in [`mise.k8s.toml`](../../mise.k8s.toml), read only with
   `MISE_ENV=k8s` so that CI and `mise run check` do not download them (about
-  235 MB): `kind` 0.33.0 (the release whose node image `versions.sh` pins),
-  `kubectl` 1.36.6 (within one minor of the node image's Kubernetes 1.36),
-  `helm` 4.3.1 and the `kubectl-cnpg` plugin 1.30.1 (the scenarios call
+  235 MB): `kind` (the release whose node image `versions.sh` pins),
+  `kubectl` (within one minor of the node image's Kubernetes version),
+  `helm` and the `kubectl-cnpg` plugin (the scenarios call
   `kubectl cnpg promote`). `MISE_ENV=k8s mise install` fetches them.
   `scripts/check-tools.sh` compares each exactly with its pin, checks the
   kubectl skew and that the plugin pin equals `CNPG_VERSION`; `up.sh` runs it

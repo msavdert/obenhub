@@ -4,12 +4,12 @@
 # post-bootstrap.sh) to the node address over TLS; PGHOST and PGPASSWORD come
 # from /etc/obenhub-load.env (EnvironmentFile, root-only), so no password is on
 # a command line. The OS user stays postgres only for its home and PATH.
-# Same write pattern and rate as lab/stage3/scripts/load.sh: pgbench scale 5,
-# 4 clients, 100 transactions/s, in 60 s rounds. It writes only while this
-# node is the primary (pg_is_in_recovery() false); on a replica it waits, so
-# exactly one node carries the load and after a failover the new primary's
-# instance takes over within a round. pgbench exits when its connection is
-# lost, so it runs in a loop.
+# Same write pattern as lab/stage3/scripts/load.sh (pgbench scale 5, 4
+# clients, 60 s rounds), at 100 transactions/s where stage3 runs 20. It
+# writes only while this node is the primary (pg_is_in_recovery() false); on
+# a replica it waits, so exactly one node carries the load and after a
+# failover the new primary's instance takes over within a round. pgbench exits
+# when its connection is lost, so it runs in a loop.
 set -uo pipefail
 
 export PGDATABASE=app PGUSER=app PGSSLMODE=require

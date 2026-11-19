@@ -1,5 +1,6 @@
-# The three-member etcd cluster behind Patroni (etcd 3.6.16), scraped
-# by the Collector's prometheusreceiver (stage 3: the client URL; pgha: the metrics URL).
+# The three-member etcd cluster behind Patroni (versions:
+# lab/stage3/compose.yaml, lab/pgha/versions.sh), scraped by the Collector's
+# prometheusreceiver (stage 3: the client URL; pgha: the metrics URL).
 # Provenance, per ADR 0004 decision 4. The alert kinds, the expressions of
 # EtcdNoLeader, EtcdHighLeaderChanges, EtcdHighFsyncDurations and
 # EtcdHighCommitDurations, and their thresholds are adapted from

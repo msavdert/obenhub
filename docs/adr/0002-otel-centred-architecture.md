@@ -26,9 +26,9 @@ as first-class signals next to metrics, and backends that can be swapped.
 ## Decision
 
 1. OpenTelemetry is the centre. The project's product is the collection side:
-   - Collector configuration for the upstream `otelcol-contrib` image; an own
-     distribution built with the OpenTelemetry Collector Builder (OCB) comes
-     once running labs have fixed the component list;
+   - Collector configuration for the upstream `otelcol-contrib` image (an
+     own distribution built with the OpenTelemetry Collector Builder is in
+     the roadmap's last section);
    - receiver configuration and SQL query packs (see ADR 0003);
    - a documented naming and meaning contract for every metric and event the
      project adds, including resource attributes for stable identity
@@ -58,14 +58,12 @@ as first-class signals next to metrics, and backends that can be swapped.
    logs, an always-firing watchdog alert whose absence an outside receiver
    notices, a telemetry-absent alert per target).
 3. Reference backend, used by the lab, the dashboards and the alert rules:
-   VictoriaMetrics (metrics), VictoriaLogs (logs and events), VictoriaTraces
-   (traces), all Apache 2.0, all fed by OTLP. Alerting with vmalert and
-   Alertmanager, every rule with a unit test.
+   VictoriaMetrics (metrics) and VictoriaLogs (logs and events), both
+   Apache 2.0, both fed by OTLP. Alerting with vmalert and Alertmanager,
+   every rule with a unit test. Traces (VictoriaTraces) and a
+   ClickHouse-based backend are in the roadmap's last section.
 4. Visualisation: Grafana OSS, with dashboards kept as code in this
-   repository. Perses (Apache 2.0, CNCF) is re-evaluated when it supports the
-   Victoria log and trace datasources.
-5. A ClickHouse-based backend is evaluated later by sending the same OTLP
-   stream to both backends and comparing them on the same fault scenarios.
+   repository.
 
 ## Consequences
 
