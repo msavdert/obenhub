@@ -89,6 +89,10 @@ run = "scripts/test-check-evidence.sh"
 description = "test the scenario run guards (dirty pathspec, suite lock) in a throwaway git repository; no docker"
 run = "lab/scenarios/test-guard.sh"
 
+[tasks."lab:harness-test"]
+description = "test the scenario harness (running images, suite-wide unexpected-alert window, control sink probe, resolution from detection) against a stub VictoriaLogs and Alertmanager; no docker, no lab"
+run = "lab/scenarios/test-harness.sh"
+
 [tasks."lab:k8s:tools-test"]
 description = "test lab/k8s/scripts/check-tools.sh and the manifest check of up.sh with fake binaries on a temporary PATH; no docker, no cluster, no network"
 run = "scripts/test-k8s-check-tools.sh"
@@ -220,6 +224,7 @@ depends = [
   "lint:compose",
   "lint:otelcol",
   "lab:guard-test",
+  "lab:harness-test",
   "lab:k8s:tools-test",
   "lab:evidence-test",
   "lab:affected-test",

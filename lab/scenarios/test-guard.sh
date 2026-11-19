@@ -152,5 +152,27 @@ chmod +x "$work/stubbin/id"
 p3=$(env -u SUITE_LOCK_FILE PATH="$work/stubbin:$PATH" bash -c 'set -e; . "$1/lab/scenarios/guard.sh"; echo "$SUITE_LOCK_FILE"' _ "$repo" 2>/dev/null)
 [ "$p3" = /tmp/obenhub-lab-suite.lock ] && ok "failing id under set -e resolves the /tmp path" || bad "failing id under set -e: got '$p3'"
 
+echo "--- timing overrides"
+timing=$(bash -c '. "$1/lab/scenarios/guard.sh"; echo "$SUITE_TIMING_VARS"' _ "$repo")
+rm -f "$WHO_OUT"
+for v in $timing; do
+  if env "$v=60" "$repo/lab/scenarios/run-suite.sh" t who >"$work/suite.out" 2>&1; then
+    bad "run-suite with $v set is refused"
+  else
+    grep -q "refusing to start: $v is set" "$work/suite.out" && [ ! -e "$WHO_OUT" ] \
+      && ok "run-suite with $v set is refused" || bad "run-suite with $v set: $(cat "$work/suite.out")"
+  fi
+done
+env CONTROL_SECONDS= "$repo/lab/scenarios/run-suite.sh" t who >/dev/null 2>&1 \
+  && bad "an empty CONTROL_SECONDS is refused too" || ok "an empty CONTROL_SECONDS is refused too"
+# every ${NAME:-default} timing knob under lab/ is refused or named here as not one
+not_timing=" STANDBY_OF_WAIT REMOTE_TIMEOUT RESTORE_TIMEOUT REINSTATE_WAIT FSFO_ENABLE_WAIT S_HOLD SECONDS_DOWN WAIT_S NET_DEADLINE HOLDER "
+unlisted=$(grep -rhoE '\$\{[A-Z_]*(SECONDS|TIMEOUT|DEADLINE|WAIT|HOLD)[A-Z_]*:-' "$src/.." --include='*.sh' \
+  | sed 's/^\${//; s/:-$//' | sort -u | while read -r n; do
+      case " $timing $not_timing" in *" $n "*) ;; *) echo "$n" ;; esac
+    done)
+[ -z "$unlisted" ] && ok "every timing knob under lab/ is classified" \
+  || bad "timing knobs neither in SUITE_TIMING_VARS nor in not_timing: $unlisted"
+
 [ "$FAILED" = 0 ] && echo "guard tests passed" || echo "guard tests FAILED"
 exit "$FAILED"

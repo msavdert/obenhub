@@ -75,6 +75,10 @@ etcd_start() { dc start "$@" >/dev/null; }
 
 load_running() { [ "$(docker inspect -f '{{.State.Running}}' "$LOAD" 2>/dev/null)" = true ]; }
 
+# running container images against the Compose file, checked by the precondition and
+# recorded as running_images (lib-core.sh compose_running_images)
+running_images() { compose_running_images; }
+
 # component versions recorded under "images" in runs.jsonl
 component_versions() {
   { dc config --images 2>/dev/null | grep -v "^obenhub-"; grep -E '^FROM ' "$LAB_DIR/postgres/Dockerfile" | sed 's/^FROM //'; } | sort -u \

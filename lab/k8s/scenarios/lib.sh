@@ -126,6 +126,24 @@ component_versions() {
   } 2>/dev/null | grep . | sort -u | jq -R . | jq -s -c .
 }
 
+# running_images (lib-core.sh): every running container of the lab's pods
+# (namespaces obenhub, obenhub-otel and cnpg-system), the digest the kubelet
+# reports in containerStatuses[].imageID against the pod spec's image. Only a
+# digest-pinned spec image (name@sha256:...) is compared and can fail the
+# precondition; a tag-only reference (the CloudNativePG operator) has no
+# declared digest, so its running digest is recorded and not checked. On the
+# running lab (2026-11-19) imageID ended in the digest the spec pins for the
+# PostgreSQL, load and Collector pods.
+running_images() {
+  kcg get pods -A -o json | jq -r --arg ns "$NS" '
+    .items[] | select((.metadata.namespace == $ns or .metadata.namespace == "obenhub-otel" or .metadata.namespace == "cnpg-system") and .status.phase == "Running")
+    | . as $p | .spec.containers[] as $c
+    | ([$p.status.containerStatuses[]? | select(.name == $c.name)][0].imageID // "") as $id
+    | [($p.metadata.namespace + "/" + $p.metadata.name + "/" + $c.name),
+       ($id | sub("^.*@"; "") | if . == "" then "none" else . end),
+       (if ($c.image | test("@sha256:")) then ($c.image | sub("^.*@"; "")) else "" end)] | @tsv'
+}
+
 lab_precondition() {
   wait_until 180 "cluster healthy (one primary, two streaming replicas, 3 ready)" cluster_healthy || { PRE_ERR="cluster not healthy"; return 1; }
   wait_until 60 "load client acknowledging rows" load_running || { PRE_ERR="load client not running or not acknowledging rows (Deployment obenhub-load)"; return 1; }

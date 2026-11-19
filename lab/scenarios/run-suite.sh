@@ -7,7 +7,9 @@
 # of any lab, holds the host-wide lock (suites in different labs would share
 # the host and their timings would not be independent). Exports SUITE_ID and
 # SUITE_SIZE (the number of scenarios it will run), which every record of the
-# suite carries.
+# suite carries, and SUITE_STATE_FILE (the end of the previous scenario, where
+# each scenario's unexpected-alert window starts). Refuses an environment that overrides a scenario timing
+# (SUITE_TIMING_VARS in guard.sh).
 set -euo pipefail
 
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -24,6 +26,17 @@ for s in "$@"; do
   [ -x "$dir/$s.sh" ] || { echo "no such scenario in $lab: $s" >&2; exit 2; }
 done
 
+# a suite runs every scenario with its own timings: an override in the caller's
+# environment (a shortened control run or detection window) would be recorded
+# as if it were the real scenario. Scenario scripts that set these themselves
+# are not affected; they set them after this check.
+for v in $SUITE_TIMING_VARS; do
+  if [ -n "${!v+x}" ]; then
+    echo "refusing to start: $v is set in the environment; a suite runs with the scenario timings (unset it)" >&2
+    exit 1
+  fi
+done
+
 dirty=$(dirty_paths) || { echo "refusing to start: cannot tell whether the tree is clean" >&2; exit 1; }
 if [ -n "$dirty" ]; then
   echo "refusing to start: the tree has changes outside lab/*/results/ (commit or stash them):" >&2
@@ -36,6 +49,15 @@ SUITE_SIZE=$#
 export SUITE_ID SUITE_SIZE
 lock_acquire "$SUITE_ID" || { echo "refusing to start: another lab run holds $SUITE_LOCK_FILE" >&2; exit 1; }
 echo "suite $SUITE_ID: $*"
+
+# One unexpected-alert window over the suite: the state file starts with the
+# suite start; each scenario reads the end of the one before it (and its
+# expected alerts) from it and writes its own (lib-core.sh, SUITE_STATE_FILE).
+SUITE_TMP=$(mktemp -d) || { echo "cannot create a scratch directory" >&2; exit 1; }
+trap 'rm -rf "${SUITE_TMP:?}"' EXIT
+SUITE_STATE_FILE="$SUITE_TMP/state.json"
+export SUITE_STATE_FILE
+jq -n -c --arg end "$(date -u +%Y-%m-%dT%H:%M:%S.%3NZ)" '{end: $end, allow: []}' >"$SUITE_STATE_FILE"
 
 n=0 passed=0
 for s in "$@"; do
