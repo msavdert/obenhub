@@ -126,7 +126,11 @@ the held dependency update batch and closes a release.
       override test
 - [ ] C5 Collection interval: the rules assume 15 s (windows of 30 s in 17
       places, which cannot hold at 60 s). Stated in each pack README, and a
-      rule fires when heartbeat samples are more than 30 s apart
+      rule fires when heartbeat samples are more than 30 s apart. A second,
+      slower `sqlquery` tier (5 minutes) for catalog-heavy queries (F1
+      autovacuum, F5 sequences and invalid indexes), so they never run at
+      15 s on a busy primary; its rules use windows that hold at that
+      interval
 - [ ] C6 `description` and `runbook_url` on every alert (82 today, none has
       either), a runbook page only for alerts a scenario fires, with the
       SQL or LogsQL to look at first; a lint fails without both
@@ -174,7 +178,16 @@ the held dependency update batch and closes a release.
 ### F. Depth
 
 - [ ] F1 Query-level telemetry from `pg_stat_statements` (an ADR on
-      cardinality first), autovacuum and dead tuples, wait events
+      cardinality first; database-level totals and a bounded top-K, never a
+      series per `queryid`), autovacuum and dead tuples, wait events.
+      First step: read what the pinned `postgresqlreceiver` already emits
+      for dead tuples, vacuum counts and the checkpointer, and write pack
+      SQL only for the rest. Autovacuum is a count per database of tables
+      past their effective threshold (per-table `reloptions` honoured,
+      tables without recent writes left out), a count of tables with
+      autovacuum disabled, and the global `autovacuum` and `track_counts`
+      settings; wait events are sessions by state, wait event type and
+      wait event. Each signal comes with a scenario
 - [ ] F2 Logs in use: every lab ships logs to VictoriaLogs and no rule or
       dashboard panel reads them. One panel and one log rule per engine
 - [ ] F3 Host rules beyond filesystem, memory and reboot: disk I/O, OOM
@@ -182,6 +195,25 @@ the held dependency update batch and closes a release.
 - [ ] F4 The overhead measurement repeated with the current pack, after
       the `pg_stat_activity` queries (five scans every 15 s) are merged
       into one
+- [ ] F5 Signals taken as ideas from the dasha review (owner, 2026-11-19),
+      each with a rule and a scenario, in this order: `safe_wal_size` in
+      the slot query with the time until a slot is lost computed in
+      MetricsQL from the WAL rate (also a candidate for the upstream slot
+      work below); sequence exhaustion against the owning column's type
+      ceiling, as the highest ratio per database; then, lower priority,
+      lock-table saturation and a count of invalid indexes and unvalidated
+      constraints. The sequence query needs a grant in the monitoring role
+      (C2)
+
+Method references for F1 and F5: github.com/dbulashev/dasha is GPL-3.0, so
+it is read for how a signal is derived and nothing is copied from it; the
+SQL is written from the PostgreSQL documentation. Where a query is adapted
+from a permissive source (postgres_dba, BSD-3-Clause; pghero and
+db_verifier, MIT), ADR 0004 applies. Considered and left out: a composite
+health score, an index advisor, schema linting, continuous bloat
+estimation and plan comparison from `auto_explain` logs, which are
+per-object diagnostics for a user interface, not signals for a metrics
+pipeline.
 
 stage3 stays in the release gate next to pgha (owner, 2026-11-19): its full
 suite takes about an hour (66 minutes, `stage3-20261118T214721Z-e47dc14`),
