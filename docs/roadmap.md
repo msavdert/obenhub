@@ -44,13 +44,14 @@ the held dependency update batch and closes a release.
       `mise.k8s.toml` comment moved to A4) and the pgha load rate
       comment. `mise run docs:nav-check` now fails on a page missing from the
       navigation (`zensical build --strict` does not)
-- [ ] A4 Renovate raised `kubectl` to 1.37.2 against a 1.36.4 kind node
-      although `renovate.json` means to hold minors back. Assumption to
-      confirm in the Renovate documentation: the mise manager matches on
-      `matchDepNames`, not `matchPackageNames`. The comment above `kubectl` in
-      `mise.k8s.toml` still names 1.36.6; it is fixed with this item, since
-      `affected-scenarios.sh` sees comment-only changes in YAML and shell
-      only and maps that file to the full k8s suite
+- [x] A4 Renovate raised `kubectl` to 1.37.2 against a 1.36.4 kind node
+      although `renovate.json` means to hold minors back: its rule matched
+      `kind` and `kubectl` by `matchPackageNames`, which matches the package
+      name (`kubernetes-sigs/kind`, `kubernetes/kubernetes`), not the
+      dependency name. The rule names the package names now; kubectl stays
+      at 1.37.2 (within the skew policy; the k8s suite of record ran after #94, and
+      `up.sh` checks each tool against its pin).
+      `affected-scenarios.sh` treats comment-only TOML changes as nothing
 - [x] A5 `release-evidence` as a required check on `main` (owner,
       2026-11-19; the ruleset requires it next to `check` and
       `semantic-title`)

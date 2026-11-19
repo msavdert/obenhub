@@ -93,7 +93,7 @@ printf 'receivers:\n  x: 1\n' >lab/x/otelcol.yaml
 echo 'see packs/u' >lab/x/grafana/dashboards/d.json
 printf 'a\n' >lab/k8s/scenarios/suite.txt
 echo a >lab/k8s/scenarios/a.sh
-echo 1 >mise.k8s.toml
+printf '[tools]\nkind = "1"\n' >mise.k8s.toml
 echo 1 >mise.toml
 git add -A
 git commit -q -m base
@@ -221,6 +221,9 @@ case_ "shared scenario linked only from another lab" - "chg lab/scenarios/shared
 LABN=k8s case_ "shared scenario linked from this lab, not in its suite" - "chg lab/scenarios/shared/k8sonly.sh"
 case_ "shared scenario linked from nowhere" ALL "chg lab/scenarios/shared/orphan.sh"
 LABN=k8s case_ "mise.k8s.toml is watched by k8s" ALL "chg mise.k8s.toml"
+LABN=k8s case_ "comment-only TOML" - "printf '# note\\n\\n' >>mise.k8s.toml"
+LABN=k8s case_ "formatting-only TOML" - "printf 'tools = {kind = \"1\"}\\n' >mise.k8s.toml"
+LABN=k8s case_ "TOML value changed" ALL "sed -i 's/\"1\"/\"2\"/' mise.k8s.toml"
 LABN=k8s case_ "mise.toml is not watched" - "chg mise.toml"
 case_ "mise.k8s.toml is not watched by other labs" - "chg mise.k8s.toml"
 # a rename shows both paths, whatever diff.renames says

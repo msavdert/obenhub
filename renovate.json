@@ -59,11 +59,11 @@
       "enabled": false
     },
     {
-      "description": "The kind lab: the Kubernetes minor (node image, kubectl) and the kind release move together and deliberately; patch releases only",
+      "description": "The kind lab: the Kubernetes minor (node image, kubectl) and the kind release move together and deliberately; patch releases only. matchPackageNames matches packageName, not depName: the mise manager looks up kubectl as kubernetes/kubernetes (github-tags, seen in PR #94) and kind as kubernetes-sigs/kind (renovatebot/renovate lib/modules/manager/asdf/upgradeable-tooling.ts, main, read 2026-11-19)",
       "matchPackageNames": [
         "kindest/node",
-        "kind",
-        "kubectl"
+        "kubernetes-sigs/kind",
+        "kubernetes/kubernetes"
       ],
       "matchUpdateTypes": [
         "major",
