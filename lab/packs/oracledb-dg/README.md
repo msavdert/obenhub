@@ -10,7 +10,7 @@ name equals an `oracledbreceiver` metric (`upstream-receiver-metrics.txt`,
 contrib v0.164.0).
 
 `queries-primary.yaml` holds the queries that only the primary can answer
-(the state of the `C##OBENHUB_*` accounts from `DBA_USERS`, which a mounted
+(the state of the `C##OBENHUB_*` and `OBENHUB_*` accounts from `DBA_USERS`, which a mounted
 standby does not serve). One receiver that connects to the primary only reads
 it (`sql_query/primary_account`, `lab/oracle/files/otelcol-obs.yaml`).
 

@@ -26,10 +26,12 @@ BK_NEAR_AFTER=15
 arch_age() {
   ora_sql "$PRIMARY_SID" <<<"SELECT NVL(TO_CHAR(ROUND((SYSDATE - MAX(end_time)) * 86400)), 'none') FROM v\$rman_backup_job_details WHERE status IN ('COMPLETED', 'COMPLETED WITH WARNINGS') AND input_type IN ('ARCHIVELOG', 'DB FULL', 'DB INCR');" | tr -d '[:space:]'
 }
-# last_arch_job: "<status> <seconds since it started>" of the newest ARCHIVELOG
-# job that is not running (the one oracledb.backup.failed reads)
+# last_arch_job: "<status> <seconds since it started>" of the newest job of the
+# archivelog kind that is not running: ARCHIVELOG or a database job, newest by
+# START_TIME then SESSION_KEY (the one oracledb.backup.failed reads for
+# archivelog, lab/packs/oracledb-backup/queries.yaml)
 last_arch_job() {
-  ora_sql "$PRIMARY_SID" <<<"SELECT status || ' ' || ROUND((SYSDATE - start_time) * 86400) FROM (SELECT status, start_time FROM v\$rman_backup_job_details WHERE input_type = 'ARCHIVELOG' AND status NOT LIKE 'RUNNING%' ORDER BY start_time DESC) WHERE ROWNUM = 1;" | tr -s '[:space:]' ' ' | sed 's/^ //; s/ $//'
+  ora_sql "$PRIMARY_SID" <<<"SELECT status || ' ' || ROUND((SYSDATE - start_time) * 86400) FROM (SELECT status, start_time FROM v\$rman_backup_job_details WHERE input_type IN ('ARCHIVELOG', 'DB FULL', 'DB INCR') AND status NOT LIKE 'RUNNING%' ORDER BY start_time DESC, session_key DESC) WHERE ROWNUM = 1;" | tr -s '[:space:]' ' ' | sed 's/^ //; s/ $//'
 }
 # host_minute_of_day: the local time of the primary VM (cron's clock) as
 # minutes since midnight

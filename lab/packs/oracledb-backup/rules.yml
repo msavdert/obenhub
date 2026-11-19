@@ -46,7 +46,9 @@ groups:
 
       # The most recent finished RMAN job of a kind failed. It stays until the
       # next job of that kind succeeds (archived logs every 4 h, database
-      # daily).
+      # daily). A database job counts for both kinds (queries.yaml), so a failed
+      # level 0 or 1 raises it for database and archivelog, and the archivelog
+      # one clears at the next good archived log job.
       - alert: OracleBackupFailed
         expr: oracledb.backup.failed == 1
         for: 2m
