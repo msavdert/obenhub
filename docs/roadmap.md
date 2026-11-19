@@ -101,14 +101,13 @@ the held dependency update batch and closes a release.
       lab mounts, tests, generated reference, Renovate file patterns). Done
       when `git grep lab/packs` is empty, `mise run check` passes and every
       lab's full suite passes with it (the mounts changed)
-- [ ] C2 What the labs still keep moves into packs: the
-      logical-replication rules, a `pgbouncer` pack, the PostgreSQL, Patroni
-      and CloudNativePG dashboards, and one monitoring-role SQL file that
-      all four PostgreSQL labs use (five copies today)
-      Done so far (unchecked until the rest lands): the three dashboards and
-      `packs/postgresql/monitoring-role.sql`, used by slice1, stage3 and pgha;
-      k8s keeps its managed role, `lab/overhead/setup.sh` keeps its own copy
-      (a one-off measurement on a VM that would need the file copied)
+- [ ] C2 What the labs kept moved into packs: the logical-replication rules
+      (`packs/postgresql`, counter start as in `PostgresDeadlocks`), a
+      `pgbouncer` pack, the PostgreSQL, Patroni and CloudNativePG dashboards,
+      and `packs/postgresql/monitoring-role.sql` (slice1, stage3, pgha; k8s
+      keeps its CNPG managed role, `lab/overhead` its own copy). Done when
+      every lab's full suite passes with it, slice1, stage3 and pgha rebuilt
+      first (the role SQL runs only at bootstrap)
 - [ ] C3 Identity, with an amendment to ADR 0006 first. Every join in the
       `postgresql` pack is on `service.instance.id` alone (13 places), so
       two clusters with a `pg-1` in one backend break the rules, and a
