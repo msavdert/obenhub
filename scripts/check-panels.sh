@@ -11,7 +11,7 @@
 # An optional fourth argument replaces $instance (the PostgreSQL dashboard's
 # variable) in the queries. Needs the lab running.
 # Usage: check-panels.sh [--strict-rows] <dashboard.json> <grafana-url> <env-file-with-GRAFANA_ADMIN_PASSWORD> [instance]
-# Example: scripts/check-panels.sh lab/k8s/grafana/dashboards/cnpg.json http://127.0.0.1:43000 lab/k8s/mon/.env
+# Example: scripts/check-panels.sh packs/cnpg/dashboards/cnpg.json http://127.0.0.1:43000 lab/k8s/mon/.env
 set -euo pipefail
 
 strict=false

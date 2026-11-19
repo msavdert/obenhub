@@ -13,10 +13,7 @@ SET pg_stat_statements.track = 'none';
 SET log_min_duration_statement = -1;
 SET log_statement = 'none';
 SET log_min_error_statement = panic;
-CREATE ROLE otel_monitor WITH LOGIN PASSWORD :'mon_pw';
-GRANT pg_monitor TO otel_monitor;
-GRANT pg_use_reserved_connections TO otel_monitor;
-ALTER ROLE otel_monitor SET statement_timeout = '5s';
+\ir /opt/obenhub/monitoring-role.sql
 CREATE DATABASE app;
 SQL
 psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname app \

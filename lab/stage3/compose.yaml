@@ -94,6 +94,7 @@ services:
     volumes:
       - pg-1-data:/var/lib/postgresql
       - pg-1-log:/var/log/postgresql
+      - ../../packs/postgresql/monitoring-role.sql:/etc/patroni/monitoring-role.sql:ro
     networks:
       dcs: {ipv4_address: 10.215.0.11}
       repl: {ipv4_address: 10.216.0.11}
@@ -114,6 +115,7 @@ services:
     volumes:
       - pg-2-data:/var/lib/postgresql
       - pg-2-log:/var/log/postgresql
+      - ../../packs/postgresql/monitoring-role.sql:/etc/patroni/monitoring-role.sql:ro
     networks:
       dcs: {ipv4_address: 10.215.0.12}
       repl: {ipv4_address: 10.216.0.12}
@@ -134,6 +136,7 @@ services:
     volumes:
       - pg-3-data:/var/lib/postgresql
       - pg-3-log:/var/log/postgresql
+      - ../../packs/postgresql/monitoring-role.sql:/etc/patroni/monitoring-role.sql:ro
     networks:
       dcs: {ipv4_address: 10.215.0.13}
       repl: {ipv4_address: 10.216.0.13}
@@ -250,7 +253,7 @@ services:
     ports:
       - "127.0.0.1:23000:3000"
     volumes:
-      - ./grafana/dashboards:/var/lib/obenhub/dashboards:ro
+      - ../../packs/patroni/dashboards:/var/lib/obenhub/dashboards:ro
 
 networks:
   # etcd and the Patroni REST API: a scenario that cuts a node here cuts it

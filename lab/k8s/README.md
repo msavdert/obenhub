@@ -57,9 +57,9 @@ kind cluster                                   box (Compose project obenhub-k8s)
   which `up.sh` reads with `docker network inspect` into `mon/.env`
   (gitignored). The traffic stays on this box's bridge, so it is plain OTLP/HTTP
   where pgha uses mutual TLS across VMs. Grafana provisions
-  `grafana/dashboards/cnpg.json` (CloudNativePG and Kubernetes: one panel per
+  [cnpg.json](../../packs/cnpg/dashboards/cnpg.json) (CloudNativePG and Kubernetes: one panel per
   scenario alert, plus pod and node resources) and the shared PostgreSQL
-  dashboard of slice 1 (its PgBouncer and logical-replication rows are empty
+  dashboard ([postgresql.json](../../packs/postgresql/dashboards/postgresql.json); its PgBouncer and logical-replication rows are empty
   here). `mise run lab:k8s:panels` runs both dashboards' queries against the
   live Grafana; panels marked "Data only during a scenario" are empty while the
   cluster is healthy.

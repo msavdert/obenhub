@@ -19,10 +19,7 @@ SET log_min_duration_statement = -1;
 SET log_statement = 'none';
 SET log_min_error_statement = panic;
 CREATE ROLE replicator WITH REPLICATION LOGIN PASSWORD :'repl_pw';
-CREATE ROLE otel_monitor WITH LOGIN PASSWORD :'mon_pw';
-GRANT pg_monitor TO otel_monitor;
-GRANT pg_use_reserved_connections TO otel_monitor;
-ALTER ROLE otel_monitor SET statement_timeout = '5s';
+\ir /opt/obenhub/monitoring-role.sql
 CREATE EXTENSION IF NOT EXISTS pg_stat_statements;
 SELECT pg_create_physical_replication_slot('standby1');
 SQL

@@ -19,10 +19,7 @@ set -euo pipefail
 SET log_min_duration_statement = -1;
 SET log_statement = 'none';
 SET log_min_error_statement = panic;
-CREATE ROLE otel_monitor WITH LOGIN PASSWORD :'mon_pw';
-GRANT pg_monitor TO otel_monitor;
-GRANT pg_use_reserved_connections TO otel_monitor;
-ALTER ROLE otel_monitor SET statement_timeout = '5s';
+\ir /etc/patroni/monitoring-role.sql
 CREATE ROLE app WITH LOGIN PASSWORD :'app_pw';
 CREATE DATABASE app OWNER app;
 SQL

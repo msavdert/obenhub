@@ -262,6 +262,9 @@ SRC
   putf "$n" /etc/patroni/tls/etcd-client.crt 644 postgres:postgres "$pki/patroni-etcd.crt" "$PATRONI_MARK"
   putf "$n" /etc/patroni/tls/etcd-client.key 600 postgres:postgres "$pki/patroni-etcd.key" "$PATRONI_MARK"
   putf "$n" /etc/patroni/post-bootstrap.sh 750 postgres:postgres "$files/post-bootstrap.sh" "$PATRONI_MARK"
+  # run by post-bootstrap.sh, so it only matters at bootstrap; no restart marker, but a
+  # changed file still sets CHANGED, so a running node gets a Patroni reload (harmless)
+  putf "$n" /etc/patroni/monitoring-role.sql 644 postgres:postgres "$dir/../../packs/postgresql/monitoring-role.sql"
   # secrets for post-bootstrap.sh, read by systemd (root) via EnvironmentFile
   put "$n" /etc/patroni_env.conf 600 root:root "$PATRONI_MARK" <<<"$PATRONI_ENV"
   put "$n" /etc/patroni/config.yml 600 postgres:postgres "$PATRONI_MARK" <<<"${PATRONI_CONF[$n]}"
