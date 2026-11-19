@@ -1,5 +1,6 @@
 # Collector liveness in the Oracle lab: one Collector per VM (otelcol-ora-au-lab,
-# otelcol-ora-dg-stby, otelcol-ora-dg-obs); the observer reads both databases
+# otelcol-ora-dg-stby, otelcol-ora-dg-obs), each sending through the gateway on
+# the box (otelcol-gateway, lab/oracle/mon/compose.yaml); the observer reads both databases
 # (inventory: lab/oracle/mon/vmalert/inventory.yml), the
 # shared Collector pack and the Data Guard pack read the inventory. Samples are
 # 15 s apart; self-metrics stop after 2 m (8 samples) and the heartbeats of a
@@ -16,6 +17,8 @@ tests:
   - name: "the observer Collector stops: CollectorAbsent fires, OracleTargetAbsent does not"
     interval: 15s
     input_series:
+      - series: 'otelcol_process_uptime{service.name="otelcol",service.instance.id="otelcol-gateway"}'
+        values: '1x60'
       - series: 'otelcol_process_uptime{service.name="otelcol",service.instance.id="otelcol-ora-dg-obs"}'
         values: '1x8 _x52'
       - series: 'otelcol_process_uptime{service.name="otelcol",service.instance.id="otelcol-ora-au-lab"}'
@@ -35,7 +38,7 @@ tests:
         groupname: collector
         alertname: CollectorAbsent
         exp_alerts:
-          - exp_labels: {severity: critical, service.namespace: obenhub-lab, service.instance.id: otelcol-ora-dg-obs}
+          - exp_labels: {severity: critical, service.namespace: obenhub-lab, service.instance.id: otelcol-ora-dg-obs, obenhub.upstream: otelcol-gateway}
             exp_annotations:
               summary: Collector otelcol-ora-dg-obs reports no self-metrics
       - eval_time: 3m
@@ -59,9 +62,11 @@ tests:
         alertname: OracleTargetAbsent
         exp_alerts: []
 
-  - name: "the three Collectors are alive: CollectorAbsent and CollectorUnknown are quiet on the inventory as written"
+  - name: "the gateway and the three VM Collectors are alive: CollectorAbsent and CollectorUnknown are quiet on the inventory as written"
     interval: 15s
     input_series:
+      - series: 'otelcol_process_uptime{service.name="otelcol",service.instance.id="otelcol-gateway"}'
+        values: '1x60'
       - series: 'otelcol_process_uptime{service.name="otelcol",service.instance.id="otelcol-ora-dg-obs"}'
         values: '1x60'
       - series: 'otelcol_process_uptime{service.name="otelcol",service.instance.id="otelcol-ora-au-lab"}'
@@ -100,6 +105,8 @@ tests:
   - name: "the Collector of the standby VM stops: CollectorAbsent for it alone, the database targets stay"
     interval: 15s
     input_series:
+      - series: 'otelcol_process_uptime{service.name="otelcol",service.instance.id="otelcol-gateway"}'
+        values: '1x60'
       - series: 'otelcol_process_uptime{service.name="otelcol",service.instance.id="otelcol-ora-dg-obs"}'
         values: '1x60'
       - series: 'otelcol_process_uptime{service.name="otelcol",service.instance.id="otelcol-ora-au-lab"}'
@@ -119,9 +126,44 @@ tests:
         groupname: collector
         alertname: CollectorAbsent
         exp_alerts:
-          - exp_labels: {severity: critical, service.namespace: obenhub-lab, service.instance.id: otelcol-ora-dg-stby}
+          - exp_labels: {severity: critical, service.namespace: obenhub-lab, service.instance.id: otelcol-ora-dg-stby, obenhub.upstream: otelcol-gateway}
             exp_annotations:
               summary: Collector otelcol-ora-dg-stby reports no self-metrics
+      - eval_time: 6m
+        groupname: oracledb-dg
+        alertname: OracleTargetAbsent
+        exp_alerts: []
+
+  - name: "the gateway stops: CollectorAbsent for the gateway alone, not for the Collectors behind it"
+    interval: 15s
+    input_series:
+      - series: 'otelcol_process_uptime{service.name="otelcol",service.instance.id="otelcol-gateway"}'
+        values: '1x8 _x52'
+      - series: 'otelcol_process_uptime{service.name="otelcol",service.instance.id="otelcol-ora-dg-obs"}'
+        values: '1x8 _x52'
+      - series: 'otelcol_process_uptime{service.name="otelcol",service.instance.id="otelcol-ora-au-lab"}'
+        values: '1x8 _x52'
+      - series: 'otelcol_process_uptime{service.name="otelcol",service.instance.id="otelcol-ora-dg-stby"}'
+        values: '1x8 _x52'
+      - series: 'oracledb.collection.heartbeat{service.name="oracledb",service.instance.id="CDB19"}'
+        values: '1x10 _x50'
+      - series: 'oracledb.collection.heartbeat{service.name="oracledb",service.instance.id="CDB19_STBY"}'
+        values: '1x10 _x50'
+    alert_rule_test:
+      - eval_time: 6m
+        groupname: collector
+        alertname: CollectorAbsent
+        exp_alerts:
+          - exp_labels: {severity: critical, service.namespace: obenhub-lab, service.instance.id: otelcol-gateway}
+            exp_annotations:
+              summary: Collector otelcol-gateway reports no self-metrics
+      - eval_time: 9m
+        groupname: collector
+        alertname: CollectorAbsent
+        exp_alerts:
+          - exp_labels: {severity: critical, service.namespace: obenhub-lab, service.instance.id: otelcol-gateway}
+            exp_annotations:
+              summary: Collector otelcol-gateway reports no self-metrics
       - eval_time: 6m
         groupname: oracledb-dg
         alertname: OracleTargetAbsent

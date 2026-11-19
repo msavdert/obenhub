@@ -18,15 +18,18 @@
 # for the age of the last archived log backup (observed: the first CDB19 level 0 is
 # one job row with the archived log pieces in it) a DB job counts too.
 # The kind attribute: database = INPUT_TYPE 'DB FULL' or 'DB INCR'; archivelog
-# = 'ARCHIVELOG' (and, for the age only, the database jobs). Other input types
-# (a manual controlfile or datafile backup) are not read.
+# = 'ARCHIVELOG' and the database jobs, for the age and for failed alike (a
+# failed database job did not back up its archived logs either). Other input
+# types (a manual controlfile or datafile backup) are not read.
 # Status: age counts COMPLETED and COMPLETED WITH WARNINGS. The warning is the
 # normal result of "delete all input" on a Data Guard primary: the first CDB19
 # level 0 on 2026-11-14 ended COMPLETED WITH WARNINGS because of RMAN-08120
 # (archived log not deleted, not yet applied by standby), so a COMPLETED-only
 # age would never reset. Failed is 1 for FAILED and COMPLETED WITH ERRORS. A job
 # still RUNNING is left out, so a long backup does not hide the result of the
-# one before it.
+# one before it. Failed reads the most recent job of the kind by START_TIME,
+# then SESSION_KEY (both columns read on CDB19 2026-11-19), so two jobs with
+# the same start time still give one row.
 # Aliases are quoted so that go-ora returns them in lower case.
 - sql: |
     SELECT
@@ -50,13 +53,14 @@
       CASE WHEN r.status LIKE 'FAILED%' OR r.status = 'COMPLETED WITH ERRORS' THEN 1 ELSE 0 END AS "failed"
     FROM (
       SELECT
-        CASE WHEN input_type IN ('DB FULL', 'DB INCR') THEN 'database' ELSE 'archivelog' END AS kind,
-        status,
-        ROW_NUMBER() OVER (
-          PARTITION BY CASE WHEN input_type IN ('DB FULL', 'DB INCR') THEN 'database' ELSE 'archivelog' END
-          ORDER BY start_time DESC) AS rn
-      FROM v$rman_backup_job_details
-      WHERE input_type IN ('DB FULL', 'DB INCR', 'ARCHIVELOG') AND status NOT LIKE 'RUNNING%'
+        k.kind,
+        j.status,
+        ROW_NUMBER() OVER (PARTITION BY k.kind ORDER BY j.start_time DESC, j.session_key DESC) AS rn
+      FROM (SELECT 'database' AS kind FROM dual UNION ALL SELECT 'archivelog' FROM dual) k
+      JOIN v$rman_backup_job_details j
+        ON j.status NOT LIKE 'RUNNING%'
+        AND ((k.kind = 'database' AND j.input_type IN ('DB FULL', 'DB INCR'))
+          OR (k.kind = 'archivelog' AND j.input_type IN ('ARCHIVELOG', 'DB FULL', 'DB INCR')))
     ) r
     CROSS JOIN v$database d
     WHERE r.rn = 1 AND d.database_role = 'PRIMARY'

@@ -1266,7 +1266,7 @@
           "legendFormat": "{{oracledb.user.name}} {{oracledb.user.status}} ({{service.instance.id}})"
         }
       ],
-      "description": "1 when a project monitoring account (C##OBENHUB_*) has DBA_USERS status OPEN, 0 when it is expired, in grace or locked; the status is a label. From the primary-only sql_query of the oracledb-dg pack. An expired password stops only new logins, so the receivers keep sending. Alert: OracleMonitoringAccountNotOpen (critical when 0 for 1m).",
+      "description": "1 when a project monitoring account (C##OBENHUB_* or OBENHUB_*) has DBA_USERS status OPEN, 0 when it is expired, in grace or locked; the status is a label. From the primary-only sql_query of the oracledb-dg pack. An expired password stops only new logins, so the receivers keep sending. Alert: OracleMonitoringAccountNotOpen (critical when 0 for 1m).",
       "fieldConfig": {
         "defaults": {
           "custom": {

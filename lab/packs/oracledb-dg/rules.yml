@@ -23,8 +23,8 @@
 # keep an alert for up to the window longer. The old primary's series (value 1)
 # is still inside a 1m window for up to 45s after a switchover, next to its new
 # standby series (0). Every rule below except OraclePrimaryChanged has a hold
-# (for:) of at least 1m, which absorbs that; OraclePrimaryChanged has none, and
-# there the extra hit is the same cluster-level alert.
+# (for:) of at least 1m, which absorbs that; OraclePrimaryChanged has none and
+# compares when each value was last seen instead.
 groups:
   - name: oracledb-dg
     interval: 15s
@@ -60,18 +60,24 @@ groups:
         annotations:
           summary: 'No heartbeat from Oracle database {{ (index $labels "service.instance.id") }}'
 
-      # A database that reported primary == 0 within the last 3 minutes is now
-      # the current primary: a standby was promoted, by switchover or failover
-      # (this signal cannot tell them apart; the broker log can). One firing per
-      # change, cluster level: the role label is aggregated away and the alert
-      # holds for 3 minutes after the promotion, until the last 0 leaves the
-      # window. Adapted from CNPGPrimaryChanged with the sense inverted (here
-      # 1 is primary). Both sides aggregate over all series of a database, old role
-      # label included. After a switchover the demoted database also matches for
-      # up to 45s (its old 1 is in the 1m window, its new 0 in the 3m one); that
-      # lands in the same cluster-level alert, so it is not a second firing.
+      # A database whose last primary == 1 sample is later than its last
+      # primary == 0 sample, both within 3 minutes, and that reported 1 within
+      # the last minute: a standby was promoted, by switchover or failover (this
+      # signal cannot tell them apart; the broker log can). The value is fixed
+      # per series (the role label decides it, queries.yaml), so
+      # tlast_over_time over the series of one value is the time that value was
+      # last seen. One firing per change, cluster level: the role label is
+      # aggregated away and the alert holds until the last 0 leaves the 3m
+      # window. Adapted from CNPGPrimaryChanged with the sense inverted (here 1
+      # is primary). The order is what tells a promotion from a demotion: the
+      # first version of this rule asked only for a 1 in the last minute and a 0
+      # in the last 3, and fired when the failed-over old primary, mounted and
+      # still reporting role PRIMARY, was reinstated as a standby (1 then 0;
+      # fsfo-failover in suite oracle-20261118T202631Z-37e22f2, three firings
+      # for two promotions).
       # Quiet at steady state, when a primary restarts (it never reported 0),
-      # and when the old primary is gone (no standby sample to promote).
+      # when the old primary is gone (no standby sample to promote) and for a
+      # demoted database (its 0 is the later sample).
       # Accepted miss: a promoted database silent for the whole window around
       # the promotion.
       # Scenario: fsfo-failover (lab/oracle; delivered about 95 to 105 s after
@@ -83,10 +89,16 @@ groups:
         expr: |
           max by (obenhub.cluster.name) (
             (
-              max by (service.instance.id, obenhub.cluster.name) (last_over_time(oracledb.database.primary[1m])) == 1
+              max by (service.instance.id, obenhub.cluster.name) (
+                tlast_over_time(oracledb.database.primary[3m]) and (last_over_time(oracledb.database.primary[3m]) == 1)
+              )
+                > on(service.instance.id, obenhub.cluster.name)
+              max by (service.instance.id, obenhub.cluster.name) (
+                tlast_over_time(oracledb.database.primary[3m]) and (last_over_time(oracledb.database.primary[3m]) == 0)
+              )
             )
               and on(service.instance.id, obenhub.cluster.name)
-            (min by (service.instance.id, obenhub.cluster.name) (min_over_time(oracledb.database.primary[3m])) == 0)
+            (max by (service.instance.id, obenhub.cluster.name) (last_over_time(oracledb.database.primary[1m])) == 1)
           )
         labels:
           severity: warning

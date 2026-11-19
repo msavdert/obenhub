@@ -17,6 +17,9 @@
 # rows only, which is where the oracledb receiver connects (service CDB19).
 # Names follow ADR 0006 under the receiver's namespace oracledb.*. Aliases are
 # quoted so that go-ora returns them in lower case.
+# Accounts: C##OBENHUB_* (a common user, as in the lab's CDBs) or OBENHUB_*
+# (a database without the C## prefix, a non-CDB for one; no such account
+# exists in the lab, read 2026-11-19).
 # ACCOUNT_STATUS is OPEN, EXPIRED, EXPIRED(GRACE), LOCKED, LOCKED(TIMED) or
 # a combination such as EXPIRED & LOCKED; everything but OPEN is value 0. The
 # status is a label, so the old series lingers until staleness after a change.
@@ -27,7 +30,7 @@
       u.account_status AS "oracledb.user.status",
       CASE WHEN u.account_status = 'OPEN' THEN 1 ELSE 0 END AS "open"
     FROM dba_users u CROSS JOIN v$database d
-    WHERE u.username LIKE 'C##OBENHUB\_%' ESCAPE '\'
+    WHERE u.username LIKE 'C##OBENHUB\_%' ESCAPE '\' OR u.username LIKE 'OBENHUB\_%' ESCAPE '\'
   metrics:
     - {metric_name: oracledb.user.open, value_column: open, attribute_columns: ["oracledb.database.unique_name", "oracledb.user.name", "oracledb.user.status"], value_type: int, data_type: gauge, unit: "1", description: "1 when the account status of a project monitoring account is OPEN, 0 when it is expired, in grace or locked"}
 # Oldest lock wait: the longest time a session has been waiting on another

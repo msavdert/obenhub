@@ -831,6 +831,41 @@ tests:
         alertname: OracleNoPrimary
         exp_alerts: []
 
+  - name: "a demotion without a promotion does not fire OraclePrimaryChanged"
+    # The reinstate after a failover (fsfo-failover): CDB19_STBY has been the
+    # primary for longer than 3 minutes; the old primary CDB19, mounted, still
+    # reports role PRIMARY (1) until the observer reinstates it as a standby at
+    # 5m15s (0). The first version of the rule fired here.
+    interval: 15s
+    input_series:
+      - series: 'oracledb.database.primary{obenhub.cluster.name="cdb19",service.name="oracledb",service.namespace="obenhub-lab",service.instance.id="CDB19_STBY",oracledb.database.unique_name="CDB19_STBY",oracledb.database.role="PRIMARY"}'
+        values: '1x60'
+      - series: 'oracledb.database.primary{obenhub.cluster.name="cdb19",service.name="oracledb",service.namespace="obenhub-lab",service.instance.id="CDB19",oracledb.database.unique_name="CDB19",oracledb.database.role="PRIMARY"}'
+        values: '1x20 _x40'
+      - series: 'oracledb.database.primary{obenhub.cluster.name="cdb19",service.name="oracledb",service.namespace="obenhub-lab",service.instance.id="CDB19",oracledb.database.unique_name="CDB19",oracledb.database.role="PHYSICAL STANDBY"}'
+        values: '_x21 0x39'
+    alert_rule_test:
+      - eval_time: 4m
+        groupname: oracledb-dg
+        alertname: OraclePrimaryChanged
+        exp_alerts: []
+      - eval_time: 5m30s
+        groupname: oracledb-dg
+        alertname: OraclePrimaryChanged
+        exp_alerts: []
+      - eval_time: 6m
+        groupname: oracledb-dg
+        alertname: OraclePrimaryChanged
+        exp_alerts: []
+      - eval_time: 7m
+        groupname: oracledb-dg
+        alertname: OraclePrimaryChanged
+        exp_alerts: []
+      - eval_time: 9m
+        groupname: oracledb-dg
+        alertname: OraclePrimaryChanged
+        exp_alerts: []
+
   - name: "a primary that restarts does not fire OraclePrimaryChanged"
     interval: 15s
     input_series:

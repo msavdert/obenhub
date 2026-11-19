@@ -2,20 +2,24 @@
 # Collector per VM, ADR 0008 decision 2: host metrics and journal on each, the
 # alert log of the CDB19 pair on ora-au-lab and ora-dg-stby, and on ora-dg-obs
 # the database receivers that read both databases of the pair). The rules that read these series are the pack
-# lab/packs/oracledb-dg. Same record names and shapes as lab/pgha's inventory.
+# lab/packs/oracledb-dg. Same record names and shapes as lab/pgha's inventory:
+# every VM's Collector sends through the gateway on the box (otelcol-gateway,
+# lab/oracle/mon/compose.yaml), named as its obenhub.upstream.
 groups:
   - name: inventory
     interval: 15s
     rules:
       # The Collectors this lab expects, by their self-telemetry
-      # service.instance.id (otelcol-<ssh alias>). The gateway is not listed:
-      # assumption, its own self-metrics are not part of this lab's checks yet.
+      # service.instance.id (otelcol-<ssh alias>, and the gateway on the box);
+      # the VM Collectors send through the gateway (obenhub.upstream), so a
+      # stopped gateway raises only its own CollectorAbsent.
       - record: obenhub.expected_collector
         expr: |
           union(
-            label_set(vector(1), "service.namespace", "obenhub-lab", "service.instance.id", "otelcol-ora-au-lab"),
-            label_set(vector(1), "service.namespace", "obenhub-lab", "service.instance.id", "otelcol-ora-dg-stby"),
-            label_set(vector(1), "service.namespace", "obenhub-lab", "service.instance.id", "otelcol-ora-dg-obs")
+            label_set(vector(1), "service.namespace", "obenhub-lab", "service.instance.id", "otelcol-gateway"),
+            label_set(vector(1), "service.namespace", "obenhub-lab", "service.instance.id", "otelcol-ora-au-lab", "obenhub.upstream", "otelcol-gateway"),
+            label_set(vector(1), "service.namespace", "obenhub-lab", "service.instance.id", "otelcol-ora-dg-stby", "obenhub.upstream", "otelcol-gateway"),
+            label_set(vector(1), "service.namespace", "obenhub-lab", "service.instance.id", "otelcol-ora-dg-obs", "obenhub.upstream", "otelcol-gateway")
           )
 
       # The databases: service.instance.id is the db_unique_name, and the

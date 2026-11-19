@@ -51,28 +51,35 @@ receivers:
         attributes: [tablespace_name, oracle.db.pdb]
       oracledb.tablespace_size.limit:
         attributes: [tablespace_name, oracle.db.pdb]
+  # Every sql_query receiver caps its pool at 3 connections; the receiver's
+  # default is unlimited (ADR 0003, Context and decision 2).
   sql_query/primary:
     driver: oracle
+    max_open_conn: 3
     datasource: "oracle://C%23%23OBENHUB_DG:${env:ORA_DG_PASSWORD}@ora-au-lab.lab.local:1521/CDB19?DBA%20PRIVILEGE=SYSDG"
     collection_interval: 15s
     queries: ${file:/etc/otelcol-contrib/packs/oracledb-dg/queries.yaml}
   sql_query/standby:
     driver: oracle
+    max_open_conn: 3
     datasource: "oracle://C%23%23OBENHUB_DG:${env:ORA_DG_PASSWORD}@ora-dg-stby.lab.local:1521/CDB19_STBY?DBA%20PRIVILEGE=SYSDG"
     collection_interval: 15s
     queries: ${file:/etc/otelcol-contrib/packs/oracledb-dg/queries.yaml}
   sql_query/primary_account:
     driver: oracle
+    max_open_conn: 3
     datasource: "oracle://C%23%23OBENHUB_DG:${env:ORA_DG_PASSWORD}@ora-au-lab.lab.local:1521/CDB19?DBA%20PRIVILEGE=SYSDG"
     collection_interval: 15s
     queries: ${file:/etc/otelcol-contrib/packs/oracledb-dg/queries-primary.yaml}
   sql_query/primary_backup:
     driver: oracle
+    max_open_conn: 3
     datasource: "oracle://C%23%23OBENHUB_DG:${env:ORA_DG_PASSWORD}@ora-au-lab.lab.local:1521/CDB19?DBA%20PRIVILEGE=SYSDG"
     collection_interval: 60s
     queries: ${file:/etc/otelcol-contrib/packs/oracledb-backup/queries.yaml}
   sql_query/standby_backup:
     driver: oracle
+    max_open_conn: 3
     datasource: "oracle://C%23%23OBENHUB_DG:${env:ORA_DG_PASSWORD}@ora-dg-stby.lab.local:1521/CDB19_STBY?DBA%20PRIVILEGE=SYSDG"
     collection_interval: 60s
     queries: ${file:/etc/otelcol-contrib/packs/oracledb-backup/queries.yaml}

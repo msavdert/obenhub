@@ -125,6 +125,46 @@ tests:
         alertname: OracleBackupFailed
         exp_alerts: []
 
+  - name: a failed database job fails both kinds; the next archived log job clears archivelog only
+    # queries.yaml counts a database job for the archivelog kind too (its
+    # archived logs are backed up in the same job), for the age and for failed
+    # alike, so a failed level 1 sets failed 1 for both kinds; the next
+    # archived log job that succeeds is the newest archivelog job, not the
+    # newest database job.
+    interval: 1m
+    input_series:
+      - series: 'oracledb.backup.failed{service.instance.id="CDB19",oracledb.backup.kind="database"}'
+        values: '0x4 1x40'
+      - series: 'oracledb.backup.failed{service.instance.id="CDB19",oracledb.backup.kind="archivelog"}'
+        values: '0x4 1x20 0x20'
+    alert_rule_test:
+      - eval_time: 10m
+        groupname: oracledb-backup
+        alertname: OracleBackupFailed
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              service.instance.id: CDB19
+              oracledb.backup.kind: database
+            exp_annotations:
+              summary: 'The last RMAN database backup of CDB19 failed'
+          - exp_labels:
+              severity: critical
+              service.instance.id: CDB19
+              oracledb.backup.kind: archivelog
+            exp_annotations:
+              summary: 'The last RMAN archivelog backup of CDB19 failed'
+      - eval_time: 30m
+        groupname: oracledb-backup
+        alertname: OracleBackupFailed
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              service.instance.id: CDB19
+              oracledb.backup.kind: database
+            exp_annotations:
+              summary: 'The last RMAN database backup of CDB19 failed'
+
   - name: a standby reports no backup series, so nothing fires (only its heartbeat exists)
     interval: 1m
     input_series:
