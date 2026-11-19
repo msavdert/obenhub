@@ -39,10 +39,10 @@ SUBSCRIPTION=app_sub
 # PostgreSQL pack, the pgBackRest pack, then alertmanager.yml.
 _lc_collate=${LC_COLLATE-}
 LC_COLLATE=C
-CONFIG_FILES=("$LAB_DIR"/vmalert/rules/*.yml "$LAB_DIR/../../packs/collector/rules.yml" "$LAB_DIR/../../packs/postgresql/rules.yml" "$LAB_DIR/../../packs/pgbackrest/rules.yml" "$LAB_DIR/../mon/alertmanager.yml")
+CONFIG_FILES=("$LAB_DIR"/vmalert/rules/*.yml "$LAB_DIR/../../packs/collector/rules.yml" "$LAB_DIR/../../packs/postgresql/rules.yml" "$LAB_DIR/../../packs/pgbackrest/rules.yml" "$LAB_DIR/../../packs/pgbouncer/rules.yml" "$LAB_DIR/../mon/alertmanager.yml")
 LC_COLLATE=$_lc_collate
 unset _lc_collate
-VMALERT_LOADED_CAT='cat /etc/vmalert/rules/*.yml /etc/vmalert/collector/rules.yml /etc/vmalert/pack/rules.yml /etc/vmalert/pgbackrest/rules.yml'
+VMALERT_LOADED_CAT='cat /etc/vmalert/rules/*.yml /etc/vmalert/collector/rules.yml /etc/vmalert/pack/rules.yml /etc/vmalert/pgbackrest/rules.yml /etc/vmalert/pgbouncer/rules.yml'
 # the record carries crash_restarts; null until the check at the end ran
 CRASH_RESTARTS=null
 

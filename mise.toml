@@ -64,6 +64,10 @@ run = [
 description = "docker compose config -q on every tracked compose file, with dummy variables; needs docker"
 run = "scripts/lint-compose.sh"
 
+[tasks."lint:config-files"]
+description = "each lab's config_hash reads the same rule files in the repository and in vmalert (CONFIG_FILES vs VMALERT_LOADED_CAT through the Compose mounts); needs docker"
+run = "python3 -I scripts/check-config-files.py"
+
 [tasks."lint:otelcol"]
 description = "otelcol-contrib validate on every tracked Collector config (pgha template rendered); needs docker"
 run = "scripts/lint-otelcol.sh"
@@ -123,6 +127,10 @@ run = "scripts/vmalert-unittest.sh packs/cnpg/tests"
 [tasks."lab:k8s-pack:rules-test"]
 description = "unit-test the Kubernetes pack rules (packs/k8s, vmalert-tool); needs docker"
 run = "scripts/vmalert-unittest.sh packs/k8s/tests"
+
+[tasks."lab:pgbouncer:rules-test"]
+description = "unit-test the PgBouncer pack rules (packs/pgbouncer, vmalert-tool); needs docker"
+run = "scripts/vmalert-unittest.sh packs/pgbouncer/tests"
 
 [tasks."lab:pgbackrest:rules-test"]
 description = "unit-test the pgBackRest pack rules (packs/pgbackrest, vmalert-tool); needs docker"
@@ -222,6 +230,7 @@ depends = [
   "lint:shell",
   "lint:python",
   "lint:compose",
+  "lint:config-files",
   "lint:otelcol",
   "lab:guard-test",
   "lab:harness-test",
@@ -245,6 +254,7 @@ depends = [
   "lab:cnpg:rules-test",
   "lab:k8s-pack:rules-test",
   "lab:pgbackrest:rules-test",
+  "lab:pgbouncer:rules-test",
   "lab:oracle:rules-test",
   "lab:oracle:rman-test",
   "lab:oracle:restore-roles-test",

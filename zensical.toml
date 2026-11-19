@@ -23,6 +23,7 @@ nav = [
   ] },
   { "Reference" = [
     "reference/postgresql-pack-metrics.md",
+    "reference/pgbouncer-pack-metrics.md",
     "reference/oracledb-backup-pack-metrics.md",
     "reference/oracledb-dg-pack-metrics.md",
   ] },

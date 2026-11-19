@@ -1,7 +1,9 @@
 # PostgreSQL pack
 
 `queries.yaml` is the `sql_query` list every PostgreSQL target of the labs
-shares; `rules.yml` and `tests/` are its alerts. The metric list is generated:
+shares; `rules.yml` and `tests/` are its alerts (group `postgresql`, and
+`logical-replication` for subscriptions and logical slots, which fires only
+where those exist). The metric list is generated:
 [docs/reference/postgresql-pack-metrics.md](../../docs/reference/postgresql-pack-metrics.md).
 Names follow [ADR 0006](../../docs/adr/0006-naming-contract.md).
 `dashboards/postgresql.json` is the dashboard; slice1, pgha and k8s mount it.
