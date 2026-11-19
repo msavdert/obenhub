@@ -1,6 +1,6 @@
 # PostgresLogicalApplyErrors, PostgresLogicalSubscriptionNotStreaming, PostgresLogicalSlotStalled.
 rule_files:
-  - ../rules/postgresql.yml
+  - ../rules.yml
 evaluation_interval: 15s
 
 tests:
@@ -437,3 +437,45 @@ tests:
         groupname: logical-replication
         alertname: PostgresLogicalApplyErrors
         exp_alerts: []
+
+  # Counter start (Collector restart): the series is absent, then appears at a
+  # high lifetime value. increase() reads it as errors from zero and fires; the
+  # last-minus-first form sees no rise.
+  - name: a counter that appears mid-window already high (Collector restart) does not fire
+    interval: 15s
+    input_series:
+      - series: 'postgresql.subscription.apply_error{service.name="postgresql",service.namespace="obenhub-lab",obenhub.cluster.name="slice1-subscriber",service.instance.id="pg-subscriber",postgresql.subscription.name="app_sub"}'
+        values: '_x20 42x40'
+      - series: 'postgresql.subscription.sync_error{service.name="postgresql",service.namespace="obenhub-lab",obenhub.cluster.name="slice1-subscriber",service.instance.id="pg-subscriber",postgresql.subscription.name="app_sub"}'
+        values: '_x20 7x40'
+    alert_rule_test:
+      - eval_time: 6m
+        groupname: logical-replication
+        alertname: PostgresLogicalApplyErrors
+        exp_alerts: []
+      - eval_time: 9m
+        groupname: logical-replication
+        alertname: PostgresLogicalApplyErrors
+        exp_alerts: []
+
+  - name: a real rise of two after a restart still fires
+    interval: 15s
+    input_series:
+      - series: 'postgresql.subscription.apply_error{service.name="postgresql",service.namespace="obenhub-lab",obenhub.cluster.name="slice1-subscriber",service.instance.id="pg-subscriber",postgresql.subscription.name="app_sub"}'
+        values: '_x20 42x10 43x5 44x25'
+      - series: 'postgresql.subscription.sync_error{service.name="postgresql",service.namespace="obenhub-lab",obenhub.cluster.name="slice1-subscriber",service.instance.id="pg-subscriber",postgresql.subscription.name="app_sub"}'
+        values: '_x20 7x40'
+    alert_rule_test:
+      - eval_time: 9m30s   # 42 -> 43 -> 44 inside the last 3 m
+        groupname: logical-replication
+        alertname: PostgresLogicalApplyErrors
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              service.instance.id: pg-subscriber
+              service.name: postgresql
+              service.namespace: obenhub-lab
+              obenhub.cluster.name: slice1-subscriber
+              postgresql.subscription.name: app_sub
+            exp_annotations:
+              summary: Subscription app_sub on pg-subscriber has apply or sync errors

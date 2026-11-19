@@ -72,11 +72,11 @@ the held dependency update batch and closes a release.
       `oracle-20261119T153131Z-4ac9423` (12 of 12; `fsfo-failover` fired
       `OraclePrimaryChanged` twice, for the two promotions). The backup
       kinds are tested on the rule; the SQL itself only by the suite
-- [ ] B2 PostgreSQL and Kubernetes rules. The logical-replication rules in
-      `lab/slice1/vmalert/rules/postgresql.yml` use `increase()` without
-      the counter-start handling the pack documents
-      (`packs/postgresql/rules.yml`, `PostgresDeadlocks`); fixed as they
-      move into the pack (C2). `KubernetesNodeNotReady` names its node in
+- [ ] B2 PostgreSQL and Kubernetes rules. The logical-replication rules
+      used `increase()` without the counter-start handling the pack
+      documents (`PostgresDeadlocks`); moved into `packs/postgresql/rules.yml`
+      with last-minus-first and a unit test (C2), still to run in the chain.
+      `KubernetesNodeNotReady` names its node in
       `service.instance.id`, and stage3, pgha and k8s give the `postgresql`
       receiver the database `app` too; done when the full suites of
       stage3, pgha and k8s pass with them
