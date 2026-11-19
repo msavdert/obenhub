@@ -2,7 +2,8 @@
 """Summarise the OBI experiment: pgbench numbers and OBI metrics per cell.
 
 Reads results/cells/*/ (summary.env, txlog.gz, pgbench.out, written by
-measure-cell.sh) and results/metrics.jsonl[.gz] (Collector file exporter).
+measure-cell.sh; not in the tree after commit bfa6ee9, `git checkout bfa6ee9 --
+lab/obi/results/cells` restores it) and results/metrics.jsonl[.gz] (Collector file exporter).
 
 Window: OBI needs several seconds to attach to the new pgbench and backend
 processes, so every cell is measured from the last OBI export tick at or
@@ -187,6 +188,8 @@ def merge(items, keyfn):
 
 def main():
     cells = load_cells()
+    if not cells:
+        sys.exit("no results/cells/*/summary.env: git checkout bfa6ee9 -- lab/obi/results/cells")
     pts = list(load_points())
     wins = {}
     failed = {}

@@ -47,7 +47,7 @@ sleep: `src/bin/pgbench/pgbench.c`, postgres/postgres tag REL_18_6 (commit
 
 ## What OBI attached to
 
-From `cells/*/obi.log`, identical in all eight cells with OBI on:
+From `cells/*/obi.log` (restored as the end of this page says), identical in all eight cells with OBI on:
 
 - PostgreSQL postmaster `/usr/lib/postgresql/18/bin/postgres`: 7.8 s before
   pgbench started; the only attach line for PostgreSQL, backends appear as
@@ -167,4 +167,7 @@ prepared (no events); the Collector 0.02-0.08 s.
   measured; `analysis.md` is unchanged.
 
 Reproduce: `lab/obi/setup.sh`, `lab/obi/run.sh` (about 20 minutes, changes only
-pg-lab), `lab/obi/analyze.py`. Raw data: `cells/`, `metrics.jsonl.gz`.
+pg-lab), `lab/obi/analyze.py`. Raw data: `metrics.jsonl.gz`, and `cells/`, which left
+the tree after commit `bfa6ee9`
+(`git checkout bfa6ee9 -- lab/obi/results/cells` restores it for
+`analyze.py`).

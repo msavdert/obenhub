@@ -12,7 +12,7 @@ existing ones: the snapshot query gained a prepared-transaction term and an
 xmin horizon subquery, and the slot query uses `greatest(receive, replay)` LSN.
 None of this is in the measurement, so every pack cost below understates what
 main's pack would cost. The first measurement (2026-11-07, three-query pack) is
-kept in `2026-11-07-old-pack/` for comparison and is not the current result.
+in `2026-11-07-old-pack/` (see Set-aside series) and is not the current result.
 
 Tables: `./summarize.sh --from-block 2 results/runs.csv` (TPC-B arm) and
 `./summarize.sh --from-block 2 results/runs-cpu.csv` (CPU-saturated arm); raw
@@ -248,11 +248,13 @@ ran about once per scrape (20.1 calls per 300 s run, 12.0 per 180 s run).
 
 ## Set-aside series
 
-`contaminated-2026-11-06/` holds the first series (6 OFF, 6 ON, no steal or
+Both left the tree after commit `bfa6ee9`; `git show
+bfa6ee9:lab/overhead/results/<dir>/runs.csv` reads them.
+`contaminated-2026-11-06/` held the first series (6 OFF, 6 ON, no steal or
 await columns), not used: another VM on the same Proxmox host ran load during
-it. `2026-11-07-old-pack/` is the 2026-11-07 series (8 OFF, 8 ON, 22 columns,
-no `host_cpu_busy_pct`) from before the pack grew; it is superseded, not
-faulty.
+it. `2026-11-07-old-pack/` held the 2026-11-07 series (8 OFF, 8 ON, 22
+columns, no `host_cpu_busy_pct`) from before the pack grew; it is superseded,
+not faulty.
 
 ## Caveats
 

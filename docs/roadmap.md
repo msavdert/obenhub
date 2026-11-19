@@ -55,7 +55,7 @@ the held dependency update batch and closes a release.
 - [x] A5 `release-evidence` as a required check on `main` (owner,
       2026-11-19; the ruleset requires it next to `check` and
       `semantic-title`)
-- [ ] A6 `lab/obi` and `lab/overhead` reduced to their results pages and
+- [x] A6 `lab/obi` and `lab/overhead` reduced to their results pages and
       scripts (`results/cells`, `contaminated-2026-11-06`,
       `2026-11-07-old-pack`)
 
@@ -180,8 +180,9 @@ the held dependency update batch and closes a release.
       the `pg_stat_activity` queries (five scans every 15 s) are merged
       into one
 
-Open after A2 has shown what a chain costs: whether stage3 stays in the
-release gate next to pgha, which runs the same Patroni scenarios.
+stage3 stays in the release gate next to pgha (owner, 2026-11-19): its full
+suite takes about an hour (66 minutes, `stage3-20261118T214721Z-e47dc14`),
+and it is the Patroni lab that runs without the owner's VMs.
 
 ## Known gaps, accepted for now
 
