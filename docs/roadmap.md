@@ -24,7 +24,7 @@ the held dependency update batch and closes a release.
       environment. Done on branch `fix/suite-timing-refusal` with its test in
       `lab:guard-test`; it changes the shared harness, which maps to a full
       suite in every lab, so it lands at the start of the B+C chain
-- [ ] A2 Affected-scenario mapping (`scripts/affected-scenarios.sh`,
+- [x] A2 Affected-scenario mapping (`scripts/affected-scenarios.sh`,
       `scripts/evidence-paths.sh` and the test), before any pack edit. Today
       one changed alert in a pack reruns every scenario of every lab that
       uses the pack (about 7 h for the `postgresql` pack), and a changed
@@ -34,7 +34,7 @@ the held dependency update batch and closes a release.
       `EXPECT` or `ALLOW` name it, plus `control`; a shared Patroni scenario
       maps to its linked scenario in stage3 and pgha and to nothing
       elsewhere; comment-only and annotation-only changes, `versions.sh` and
-      `upstream-receiver-metrics.txt` map to nothing; a Grafana-only change
+      `upstream-receiver-metrics.txt` map to nothing (`versions.sh` to ALL under `--full`); a Grafana-only change
       maps to `lab:<lab>:panels`; a test derives the cross-lab mounts from
       the Compose files and compares them with `evidence_extra_paths`. Done
       when `mise run lab:affected-test` has a case for each

@@ -52,10 +52,11 @@ strict=0
 fullmode=0
 shaonly=0
 labs=()
+affflags=()  # -f for affected-scenarios.sh in --full mode: version pins count
 for a in "$@"; do
   case "$a" in
     --strict) strict=1 ;;
-    --full) fullmode=1 ;;
+    --full) fullmode=1; affflags=(-f) ;;
     --sha) shaonly=1 ;;
     -*) echo "usage: check-evidence.sh [--strict] [--full] [--sha] [LAB...]" >&2; exit 2 ;;
     *) labs+=("$a") ;;
@@ -233,10 +234,11 @@ for lab in "${labs[@]}"; do
       notcounted "$tsuite" "config_sha256 differs from the evidence it extends"
       continue
     fi
-    if ! need=$("$here/affected-scenarios.sh" "$lab" "$ev" "$tsha"); then
+    if ! need=$("$here/affected-scenarios.sh" "${affflags[@]}" "$lab" "$ev" "$tsha"); then
       notcounted "$tsuite" "affected-scenarios.sh failed between $ev and $tsha"
       continue
     fi
+    need=$(grep -vx PANELS <<<"$need" || true)  # panels are not scenario evidence
     if [ "$need" = ALL ]; then
       notcounted "$tsuite" "changes between $ev and $tsha need a full suite"
       continue
@@ -280,14 +282,15 @@ for lab in "${labs[@]}"; do
     stale=1
   done
 
-  res2=$("$here/affected-scenarios.sh" -v "$lab" "$ev" HEAD 2>&1) || { echo "$lab: affected-scenarios.sh failed: $res2"; stale=1; continue; }
-  need=$(grep -v '^  ' <<<"$res2" || true)
+  res2=$("$here/affected-scenarios.sh" -v "${affflags[@]}" "$lab" "$ev" HEAD 2>&1) || { echo "$lab: affected-scenarios.sh failed: $res2"; stale=1; continue; }
+  # a PANELS line (Grafana change) is not scenario evidence
+  need=$(grep -v '^  ' <<<"$res2" | grep -vx PANELS || true)
   if [ -z "$need" ] && [ "${#failed[@]}" -eq 0 ]; then
     echo "$lab: suite $suite ($sha)$used is current$later"
   elif [ -z "$need" ]; then
     echo "$lab: suite $suite ($sha)$used needs a rerun of the failed scenarios$later"
   else
-    why=$(grep '^  ' <<<"$res2" | grep -v ': nothing' || true)
+    why=$(grep '^  ' <<<"$res2" | grep -v -e ': nothing' -e ': PANELS' || true)
     nfiles=$(awk '{sub(/:$/, "", $1); print $1}' <<<"$why" | sort -u | wc -l)
     if [ "$fullmode" = 1 ]; then need="a full suite"; fi
     echo "$lab: suite $suite ($sha)$used predates changes in $nfiles files, needs ${need//$'\n'/ }$later:"

@@ -5,8 +5,11 @@
 # the targeted suites after it), plus the scenarios that failed after it and
 # have not passed since; no valid full suite means ALL. Prints the
 # scenarios in suite.txt order with control last, or ALL's whole suite.txt, or
-# "nothing to run". With --run it executes them as one suite through
-# lab/scenarios/run-suite.sh (k8s through MISE_ENV=k8s mise exec --).
+# "nothing to run". When a Grafana file changed (affected-scenarios.sh prints
+# PANELS) a last line says to run `mise run lab:<lab>:panels`, which needs the
+# running lab; --run does not run it. With --run it executes the scenarios as
+# one suite through lab/scenarios/run-suite.sh (k8s through MISE_ENV=k8s mise
+# exec --).
 set -euo pipefail
 cd "$(git rev-parse --show-toplevel)"
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -19,6 +22,8 @@ case "$lab" in *[!a-z0-9]* | "") echo "bad lab name: $lab" >&2; exit 2 ;; esac
 list=lab/$lab/scenarios/suite.txt
 [ -f "$list" ] || { echo "no $list" >&2; exit 2; }
 
+panels=0
+panels_line() { [ "$panels" = 0 ] || echo "panels: mise run lab:$lab:panels (needs the running lab)"; }
 if ! ev=$("$here/check-evidence.sh" --sha "$lab" 2>/dev/null); then
   echo "check-evidence.sh failed for $lab (a repository inconsistency; run it to see which)" >&2
   exit 1
@@ -32,6 +37,10 @@ if [ -z "$ev" ]; then
   need=ALL
 else
   need=$("$here/affected-scenarios.sh" "$lab" "$ev" HEAD)
+  if grep -qx PANELS <<<"$need"; then
+    panels=1
+    need=$(grep -vx PANELS <<<"$need" || true)
+  fi
   [ "$need" = ALL ] || need=$(printf '%s\n%s\n' "$need" "$failed" | grep -v '^$' | sort -u || true)
 fi
 
@@ -45,9 +54,11 @@ if grep -qx control "$list" && { [ "$need" = ALL ] || grep -qx control <<<"$need
 
 if [ "${#todo[@]}" -eq 0 ]; then
   echo "nothing to run"
+  panels_line
   exit 0
 fi
 printf '%s\n' "${todo[@]}"
+panels_line
 [ "$run" = 1 ] || exit 0
 
 if [ "$lab" = k8s ]; then
