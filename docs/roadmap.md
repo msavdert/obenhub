@@ -19,15 +19,11 @@ the held dependency update batch and closes a release.
 
 ### A. Tooling and documents, no lab run
 
-- [ ] A1 Evidence check (`scripts/check-evidence.sh` and its test). A failing
-      suite newer than the counted one makes the lab stale until that
-      scenario passes again (by reading: the last valid full suite is taken
-      and a rejected one is only printed); a full suite counts only when
-      `control` ran last; rejected targeted suites are collected, not only
-      printed; a suite run with shortened `CONTROL_SECONDS` or timeouts
-      (`lab/scenarios/lib-core.sh`) is refused or rejected. Done when
-      `mise run lab:evidence-test` has a case for each, the pass-then-fail
-      case written first and seen to fail
+- [ ] A1 rest: `lab/scenarios/run-suite.sh` refuses scenario timing
+      overrides (`CONTROL_SECONDS`, the `lib-core.sh` windows) from the
+      environment. Done on branch `fix/suite-timing-refusal` with its test in
+      `lab:guard-test`; it changes the shared harness, which maps to a full
+      suite in every lab, so it lands at the start of the B+C chain
 - [ ] A2 Affected-scenario mapping (`scripts/affected-scenarios.sh`,
       `scripts/evidence-paths.sh` and the test), before any pack edit. Today
       one changed alert in a pack reruns every scenario of every lab that

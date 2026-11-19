@@ -31,6 +31,7 @@ git checkout -q main
 
 t1=2026-01-01T00:00:00Z
 t2=2026-02-01T00:00:00Z
+t3=2026-03-01T00:00:00Z
 
 # row SUITE SIZE SHA DIRTY PASS START SCENARIO: SIZE is JSON ("null" makes a
 # legacy row, SUITE "-" a suite-less row); the suite list is a, b
@@ -80,6 +81,47 @@ expect "mixed suite_size" 1 "not counted, mixed suite_size" --strict x
 
 { row s1 2 "$head" false true $t1 a; row s1 2 "$head" false false $t1 b; } | fixture
 expect "failing record" 1 "not counted, has a failing record" --strict x
+
+# a failing suite after the counted one: stale until that scenario passes again
+{ pair s1 "$head" $t1; row s2 2 "$head" false false $t2 a; } | fixture
+expect "pass then fail is stale" 1 "x: a failed in suite s2 ($head" --strict x
+expect "pass then fail is stale with --full" 1 "x: a failed in suite s2" --strict --full x
+expect "pass then fail: --sha names the failed scenario" 0 "failed a" --sha x
+{ pair s1 "$head" $t1; row s2 2 "$head" false false $t2 a; pair s3 "$head" $t3; } | fixture
+expect "a later full suite clears the failure" 0 "suite s3 ($head) is current" --strict x
+{ pair s1 "$head" $t1; row s2 2 "$head" false false $t2 a; row s3 1 "$head" false true $t3 a; } | fixture
+expect "a later passing targeted suite of it clears the failure" 0 "targeted s3 ($head: a) is current" --strict x
+expect "a later passing targeted suite clears it under --full too" 0 "suite s1 ($head) is current" --strict --full x
+{ pair s1 "$head" $t1; row s2 2 "$head" false false $t2 a; row s3 1 "$head" false true $t3 b; } | fixture
+expect "a pass of another scenario does not clear it" 1 "x: a failed in suite s2" --strict x
+{ pair s1 "$head" $t1; row s2 2 "$head" false false $t2 a; row s3 1 "$base" false true $t3 a; } | fixture
+expect "a pass on a commit before the evidence does not clear it" 1 "x: a failed in suite s2" --strict x
+{ pair s1 "$head" $t1; row s2 2 "$head" false false $t2 a; row s3 1 "$head" false true $t3 a | jq -c '.config_sha256 = "c2"'; } | fixture
+expect "a pass on another configuration does not clear it" 1 "x: a failed in suite s2" --strict x
+{ pair s1 "$head" $t1; row s2 2 "$head" false false $t2 a; row s3 2 "$head" false true $t3 a; } | fixture
+expect "a pass in a partial suite does not clear it" 1 "x: a failed in suite s2" --strict x
+{ pair s1 "$head" $t1; row s3 1 "$head" false true 2026-01-15T00:00:00Z a; row s2 2 "$head" false false $t2 a; } | fixture
+expect "a pass that started before the failure does not clear it" 1 "x: a failed in suite s2" --strict x
+{ pair s1 "$head" $t1; row s2 2 "$head" false false $t1 a; } | fixture
+expect "a failure at the start of the full suite does not count" 0 "suite s1 ($head) is current" --strict x
+{ pair s1 "$head" $t1; row s2 2 "$head" false false $t2 a | jq -c '.start = ""'; } | fixture
+expect "a failure with an empty start counts as the latest" 1 "x: a failed in suite s2" --strict x
+{ pair s1 "$head" $t1; row s3 1 "$head" false true 2026-01-15T00:00:00Z a; row s2 2 "$head" false false $t2 a | jq -c '.suite = ""'; } | fixture
+expect "an empty suite id does not shift the failure's start" 1 "x: a failed in suite  (" --strict x
+{ pair s1 "$head" $t1; row s2 2 "$head" false false $t2 gone; } | fixture
+expect "a failed scenario no longer in suite.txt is dropped" 0 "suite s1 ($head) is current" --strict x
+{ pair s1 "$head" $t1; row s2 2 "$head" false false $t2 a | jq -c 'del(.start)'; } | fixture
+expect "a failure without start counts as the latest" 1 "x: a failed in suite s2" --strict x
+{ pair s1 "$head" $t1; row s2 2 "$head" false true $t2 a | jq -c '.pass = null'; } | fixture
+expect "a record with pass null counts as a failure" 1 "x: a failed in suite s2" --strict x
+{ row s0 2 "$head" false false $t1 a; pair s1 "$head" $t2; } | fixture
+expect "a failure before the full suite does not count" 0 "suite s1 ($head) is current" --strict x
+{ pair s1 "$head" $t1; row s2 2 "$head" true false $t2 a; } | fixture
+expect "a failure on a dirty tree does not count" 0 "suite s1 ($head) is current" --strict x
+{ pair s1 "$head" $t1; row s2 2 "$off" false false $t2 a; } | fixture
+expect "a failure off main does not count" 0 "suite s1 ($head) is current" --strict x
+{ pair s1 "$head" $t1; row - null "$head" false false $t2 a; } | fixture
+expect "a failing smoke run does not count" 0 "suite s1 ($head) is current" --strict x
 
 { row s1 null "$head" false true $t1 a; row s1 null "$head" false true $t1 b; } | fixture
 expect "legacy rows" 1 "not counted, legacy" --strict x
@@ -257,6 +299,9 @@ git commit -q -am "change b"
 e2=$(git rev-parse --short HEAD)
 { pair s1 "$e2" $t1; row s2 1 "$e1" false true $t2 b; } | fixture_pgha
 expect "targeted suite older than the evidence commit" 0 "s2: not counted, $e1 is not a descendant of the evidence commit $e2" pgha
+expect "a suite the walk rejects is counted in the verdict" 0 "suite s1 ($e2) is current; 1 later suites not counted" pgha
+{ pair s1 "$e2" $t1; row s2 1 "$e1" false true $t2 b; row s3 2 "$e2" true true $t3 a; } | fixture_pgha
+expect "summary and walk rejections are counted together" 0 "is current; 2 later suites not counted" pgha
 
 # a targeted suite that started before the full suite does not extend it
 { pair s1 "$p0" $t2; row s0 1 "$e1" false true $t1 a; } | fixture_pgha
@@ -308,6 +353,9 @@ echo 2 >lab/pgha/scenarios/a.sh
 git commit -q -am "change a"
 expectla "lab-affected: one scenario" 0 "a" pgha
 git reset -q --hard "$p0"
+{ pair s1 "$p0" $t1; row s2 2 "$p0" false false $t2 b; } | fixture_pgha
+out=$(bash "$la" pgha 2>&1)
+if [ "$out" = b ]; then echo "ok   lab-affected: a failed scenario needs a run"; else echo "FAIL lab-affected failed scenario: $out" >&2; fail=1; fi
 echo 3 >lab/pgha/scenarios/lib.sh
 git commit -q -am lib
 out=$(bash "$la" pgha)
@@ -377,6 +425,29 @@ else
   printf '%s\n' "$out" >&2
   fail=1
 fi
+
+# control runs last in a suite that contains it
+git reset -q --hard "$p0"
+mkdir -p lab/w/results lab/w/scenarios
+printf 'a\nb\ncontrol\n' >lab/w/scenarios/suite.txt
+touch lab/w/scenarios/a.sh lab/w/scenarios/b.sh lab/w/scenarios/control.sh
+git add lab/w/scenarios
+git commit -q -m w
+w0=$(git rev-parse --short HEAD)
+fixture_w() { cat >lab/w/results/runs.jsonl; }
+# wrow START SCENARIO [SIZE]: a clean passing record on w0
+wrow() { row s1 "${3:-3}" "$w0" false true "$1" "$2"; }
+{ wrow $t1 a; wrow $t2 b; wrow $t3 control; } | fixture_w
+expect "control last counts" 0 "suite s1 ($w0) is current" --strict w
+{ wrow $t1 a; wrow $t2 control; wrow $t3 b; } | fixture_w
+expect "control not last is not counted" 1 "s1: not counted, control did not run last" --strict w
+{ wrow $t1 a; wrow $t2 b; wrow $t2 control; } | fixture_w
+expect "control at the same start as another record is not last" 1 "s1: not counted, control did not run last" --strict w
+{ wrow $t1 a; wrow $t2 b; wrow $t3 control; row s2 2 "$w0" false true 2026-04-01T00:00:00Z control
+  row s2 2 "$w0" false true 2026-05-01T00:00:00Z a; } | fixture_w
+expect "a targeted suite with control not last is not counted" 0 "s2: not counted, control did not run last" w
+git reset -q --hard "$p0"
+rm -rf lab/w
 
 expect "missing lab" 1 "no lab/y/results/runs.jsonl" --strict y
 
