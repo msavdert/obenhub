@@ -12,7 +12,16 @@ its own is a smoke run and records `suite: null`. Suites run on a commit of
 `main`, and their results come back through a pull request, so that the
 recorded `git_sha` stays in the history. A suite refuses timing overrides
 from the environment (`SUITE_TIMING_VARS` in `lab/scenarios/guard.sh`), and
-counts only with `control` run last. `mise run lab:evidence` reports, per
+counts only with `control` run last. A scenario's unexpected-alert window runs
+from the end of the previous scenario of the suite (the suite start for the
+first), so alerts between two scenarios count. The Compose and k8s labs fail
+the pre-flight when a running image differs from the declared one and record
+what runs as `running_images`. `control` also sends a synthetic alert that must
+come back from VictoriaLogs as firing and resolved, and needs database log
+records in its window. A resolution is searched from the alert's detection, so
+`seconds_to_resolve` (still from the revert) can be negative
+(`resolved_before_revert`). `mise run lab:harness-test` tests this without a
+lab. `mise run lab:evidence` reports, per
 lab, whether its latest full suite plus the later targeted suites (subsets of
 `suite.txt`) cover the code: `scripts/affected-scenarios.sh` maps each change
 to the scenarios it can affect (its header is the reference for the mapping; a

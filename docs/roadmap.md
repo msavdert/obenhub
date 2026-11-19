@@ -81,14 +81,14 @@ the held dependency update batch and closes a release.
       receiver the database `app` too; done when the full suites of
       stage3, pgha and k8s pass with them
 - [ ] B3 Harness (`lab/scenarios/lib-core.sh`, `run-suite.sh`, each lab's
-      `lib.sh`). The precondition fails when the running image IDs differ
-      from the Compose file, and the record carries the running IDs (slice1,
-      stage3 and k8s record what the files say today); one unexpected-alert
-      window over the whole suite (an alert between two scenarios falls in
-      none today); `control` proves that the Alertmanager sink and the
-      PostgreSQL log path were alive; a resolution is searched from
-      detection, not only after the revert. Done when a guard test covers
-      each, then every lab's suite
+      `lib.sh`), with a test per item (`mise run lab:harness-test`, stub
+      VictoriaLogs and Alertmanager): the precondition fails when running and
+      declared images differ (slice1, stage3, k8s; the record gains
+      `running_images`); the unexpected-alert window runs from the end of the
+      previous scenario of the suite (`window_start`); `control` sends a
+      synthetic alert and counts database log records; resolution is searched
+      from detection (`resolved_before_revert`). Done when every lab's full
+      suite passes with it
 - [ ] B4 slice1 Alertmanager: slice1 had its own copy with inhibit rules,
       which race with delivery (`lab/mon/alertmanager.yml`); each was already
       covered by a guard in the rule expression. slice1 now mounts the shared

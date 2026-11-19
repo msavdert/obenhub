@@ -173,6 +173,10 @@ checkpoint_headroom() {
 # the pgbackrest-backup service is running
 backup_service_running() { [ "$(docker inspect -f '{{.State.Running}}' "$BACKUP_C" 2>/dev/null)" = true ]; }
 
+# running container images against the Compose file, checked by the precondition and
+# recorded as running_images (lib-core.sh compose_running_images)
+running_images() { compose_running_images; }
+
 # component versions recorded under "images" in runs.jsonl
 component_versions() {
   docker compose -p obenhub-slice1 -f "$LAB_DIR/compose.yaml" config --images 2>/dev/null | sort -u \

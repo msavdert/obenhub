@@ -52,6 +52,12 @@
 #   component_versions JSON array of component version strings
 #   lab_precondition   lab part of the pre-flight (sets PRE_ERR, returns 1)
 # and optionally
+#   running_images     one line per running container: NAME, running image
+#                      ID or digest, declared one (tab separated, no empty
+#                      field in the middle; the declared one empty = record
+#                      only); the precondition fails when they differ and the
+#                      record carries the rows as running_images. Labs without
+#                      it keep recording what component_versions says.
 #   lab_final_checks   run after the unexpected-alert check, before extra_checks
 #
 # Needs: curl, jq, the lab running.
@@ -107,6 +113,32 @@ first_record() {
   [ -n "$3" ] && q="$q commonLabels.service_instance_id:=$3"
   vl "$q | sort by (_time) | limit 1 | fields _time" | jq -r '._time // empty' | head -n1
 }
+
+# last_record STATUS ALERTNAME INSTANCE SINCE -> _time of the latest match
+last_record() {
+  local q="_time:>$4 status:=$1 commonLabels.alertname:=$2"
+  [ -n "$3" ] && q="$q commonLabels.service_instance_id:=$3"
+  vl "$q | sort by (_time desc) | limit 1 | fields _time" | jq -r '._time // empty' | head -n1
+}
+# resolution_record ALERTNAME INSTANCE SINCE -> _time of the first resolved
+# record after SINCE that no firing record follows (a resolve that is
+# followed by a new firing is not a resolution); empty while there is none
+resolution_record() {
+  local f
+  f=$(last_record firing "$1" "$2" "$3") || return 1
+  first_record resolved "$1" "$2" "${f:-$3}"
+}
+
+# vl_count QUERY -> number of records QUERY selects
+vl_count() {
+  local out n
+  out=$(vl "$1 | stats count() n") || return 1
+  n=$(printf '%s\n' "$out" | jq -r '.n') || return 1
+  case "$n" in ''|*[!0-9]*) return 1 ;; esac
+  printf '%s\n' "$n"
+}
+# extra_set KEY JSON: add a field to the record's "extra"
+extra_set() { EXTRA_JSON=$(jq -c --arg k "$1" --argjson v "$2" '(. // {}) + {($k): $v}' <<<"${EXTRA_JSON:-null}"); }
 
 # am_active -> names of alerts that are active and not inhibited or silenced
 am_active() {
@@ -167,9 +199,46 @@ reload_config() {
   [ "$CONFIG_HASH" = "$(config_hash)" ] || { PRE_ERR="containers read a different alerting config than the repository (recreate vmalert and alertmanager)"; return 1; }
 }
 
+# What runs is what the files declare: running_images (adapter, optional)
+# lists every running container with the image it runs and the one the
+# repository declares; a difference fails the pre-flight. Without the hook
+# the record only carries the declared references (component_versions).
+RUNNING_IMAGES=null   # JSON array {name, running, declared}; null = not checked
+check_running_images() {
+  declare -F running_images >/dev/null || return 0
+  local rows name run decl bad=""
+  rows=$(running_images) || { PRE_ERR="cannot read the running images"; return 1; }
+  [ -n "$rows" ] || { PRE_ERR="no running container found for the declared services"; return 1; }
+  RUNNING_IMAGES=$(printf '%s\n' "$rows" | jq -R -s -c 'split("\n") | map(select(length>0) | split("\t") | {name: .[0], running: .[1], declared: ((.[2] // "") | if . == "" then null else . end)})') || { PRE_ERR="cannot parse the running images"; return 1; }
+  while IFS=$'\t' read -r name run decl; do
+    [ -n "$name" ] && [ -n "$decl" ] || continue
+    [ "$run" = "$decl" ] || bad="$bad${bad:+; }$name runs $run, declared $decl"
+  done <<<"$rows"
+  [ -z "$bad" ] || { PRE_ERR="running image differs from the declared one: $bad"; return 1; }
+}
+# running_images for the Compose labs (slice1, stage3): needs dc and PROJECT.
+# Running container image ID against the ID the tag in the Compose file has now
+# (a rebuilt obenhub-* image or a re-pulled tag moves its ID). Assumption: the
+# ID `docker inspect` gives a container equals the `docker image inspect` ID of
+# the same image (checked 2026-11-19 on the box's containerd image store for
+# every running slice1 and stage3 service).
+compose_running_images() {
+  local cfg svc ref cid run decl
+  cfg=$(dc config --format json) || return 1
+  while IFS=$'\t' read -r svc ref; do
+    [ -n "$ref" ] || ref="$PROJECT-$svc"
+    decl=$(docker image inspect -f '{{.Id}}' "$ref" 2>/dev/null) || decl=missing
+    for cid in $(docker ps -q --filter "label=com.docker.compose.project=$PROJECT" --filter "label=com.docker.compose.service=$svc"); do
+      run=$(docker inspect -f '{{.Image}}' "$cid" 2>/dev/null) || run=""
+      printf '%s\t%s\t%s\n' "$svc" "${run:-none}" "$decl"
+    done
+  done < <(jq -r '.services | to_entries[] | [.key, (.value.image // "")] | @tsv' <<<"$cfg")
+}
+
 # Pre-flight shared by all scenarios; lab_precondition is the adapter's part
 # (etcd, cluster, pause state, load; sets PRE_ERR and returns 1 on failure).
 precondition() {
+  check_running_images || return 1
   reload_config || return 1
   wait_until "$SETTLE_TIMEOUT" "only Watchdog active in Alertmanager" am_clean || { PRE_ERR="Alertmanager not clean: $(am_active | tr '\n' ' ')"; return 1; }
   lab_precondition || return 1
@@ -186,6 +255,17 @@ REVERTED=0
 WRITTEN=0
 CONFIG_HASH=""   # alerting config as loaded by the containers (reload_config); empty = not checked
 CRASH_RESTARTS=${CRASH_RESTARTS-}   # PostgreSQL crash restarts logged during the run; empty = field not recorded, null = not checked
+# One unexpected-alert window over a whole suite: run-suite.sh creates
+# SUITE_STATE_FILE with the suite start; every scenario reads the previous
+# scenario's end and its EXPECT and ALLOW from it, and rewrites it with its own
+# T_END, so the gap between two scenarios (the next pre-flight included) is in
+# some scenario's window. A resolved notification of the previous scenario's
+# alerts may land in that gap and is allowed (anywhere in the window, not only
+# the gap); a firing record of them there is not. Outside a suite the window
+# starts at T_START.
+SUITE_STATE_FILE=${SUITE_STATE_FILE:-}
+WINDOW_START="" PREV_ALLOW=""
+RESOLVED_BEFORE_REVERT=""   # true when the resolution came before the revert
 DETECTED_AT="{}"   # EXPECT entry -> first firing notification time
 SUITE_ID=${SUITE_ID:-}   # set by run-suite.sh; empty = single scenario run
 EXPECT=()          # entries "AlertName:instance" (instance may be empty)
@@ -209,6 +289,73 @@ window_alerts() {
   local out
   out=$(vl "_time:>$1 _time:<=$2 status:* -commonLabels.alertname:=Watchdog | stats by (commonLabels.alertname, commonLabels.service_instance_id, status) count() n") || return 1
   printf '%s\n' "$out" | jq -r '[.["commonLabels.alertname"], (.["commonLabels.service_instance_id"] // ""), .status, .n] | @tsv'
+}
+
+read_suite_state() {
+  [ -n "$SUITE_STATE_FILE" ] || return 0
+  WINDOW_START=$(jq -er '.end' "$SUITE_STATE_FILE" 2>/dev/null) || return 1
+  PREV_ALLOW=$(jq -er '.allow | join(",")' "$SUITE_STATE_FILE" 2>/dev/null) || return 1
+}
+write_suite_state() {
+  [ -n "$SUITE_STATE_FILE" ] || return 0
+  printf '%s\n' "${EXPECT[@]}" "${ALLOW[@]}" | jq -R . \
+    | jq -s -c --arg end "$T_END" '{end: $end, allow: map(select(length>0))}' >"$SUITE_STATE_FILE.tmp" \
+    && mv "$SUITE_STATE_FILE.tmp" "$SUITE_STATE_FILE" || FAILS+=("cannot write the suite state file $SUITE_STATE_FILE")
+}
+
+# Sink probe (control): a synthetic alert goes to Alertmanager and must come
+# back as a firing and a resolved record in VictoriaLogs, which proves the
+# notification path (Alertmanager, webhook, VictoriaLogs) is alive and that the
+# unexpected-alert check could have seen something. Start it early in
+# inject(), call sink_probe_check from extra_checks, and ALLOW
+# ObenhubSinkProbe: in the scenario.
+SINK_PROBE_TIMEOUT=${SINK_PROBE_TIMEOUT:-90}
+SINK_PROBE_SINCE="" SINK_PROBE_RUN=""
+sink_probe_start() {
+  local ends
+  ends=$(date -u -d '+30 seconds' +%Y-%m-%dT%H:%M:%S.%3NZ)
+  SINK_PROBE_RUN="${SUITE_ID:-single}/$SCENARIO"
+  SINK_PROBE_SINCE=$(now_ts)
+  if ! jq -n -c --arg run "$SINK_PROBE_RUN" --arg s "$SINK_PROBE_SINCE" --arg e "$ends" \
+      '[{labels: {alertname: "ObenhubSinkProbe", probe_run: $run}, annotations: {summary: "synthetic alert of the scenario harness"}, startsAt: $s, endsAt: $e}]' \
+      | curl -fsS -X POST -H 'Content-Type: application/json' --data @- "$AM/api/v2/alerts" >/dev/null; then
+    FAILS+=("sink probe: Alertmanager did not accept the synthetic alert")
+    SINK_PROBE_SINCE=""
+  fi
+}
+sink_probe_seen() { # STATUS
+  [ -n "$(vl "_time:>$SINK_PROBE_SINCE status:=$1 commonLabels.alertname:=ObenhubSinkProbe commonLabels.probe_run:=\"$SINK_PROBE_RUN\" | limit 1 | fields _time" | head -n1)" ]
+}
+sink_probe_check() {
+  [ -n "$SINK_PROBE_SINCE" ] || { [ "${#FAILS[@]}" -gt 0 ] || FAILS+=("sink probe was not started"); return 0; }
+  local t0 f=0 r=0
+  t0=$(date +%s)
+  while :; do
+    [ "$f" = 1 ] || { sink_probe_seen firing && f=1; } || true
+    [ "$r" = 1 ] || { sink_probe_seen resolved && r=1; } || true
+    [ "$f" = 1 ] && [ "$r" = 1 ] && break
+    [ $(($(date +%s) - t0)) -lt "$SINK_PROBE_TIMEOUT" ] || break
+    sleep 5
+  done
+  if [ "$f" = 1 ] && [ "$r" = 1 ]; then
+    extra_set sink_probe true
+    log "sink probe: firing and resolved record found"
+  else
+    extra_set sink_probe false
+    FAILS+=("sink probe: no $([ "$f" = 1 ] || echo firing)$([ "$f$r" = 00 ] && echo ' and ')$([ "$r" = 1 ] || echo resolved) record in VictoriaLogs within ${SINK_PROBE_TIMEOUT}s")
+  fi
+}
+# pg_log_records_check [SERVICE]: control proves the log path of the database
+# (default service.name postgresql): at least one record in the run's window
+pg_log_records_check() {
+  local svc=${1:-postgresql} n
+  if ! n=$(vl_count "_time:>$T_START _time:<=$T_END service.name:=$svc"); then
+    FAILS+=("$svc log records: VictoriaLogs query failed or unparsable")
+    return 0
+  fi
+  log "$svc log records in the window: $n"
+  extra_set "${svc}_log_records" "$n"
+  [ "$n" -gt 0 ] || FAILS+=("no $svc log records in the window: the log path is not alive")
 }
 
 # provenance: git_sha and git_dirty (guard.sh: dirty = changes outside
@@ -247,7 +394,7 @@ write_result() {
     --arg gsha "$(git_sha)" --argjson gdirty "$(git_dirty)" --arg chash "$CONFIG_HASH" \
     --argjson expected "$exp" --argjson unexpected "$UNEXPECTED" \
     --argjson pass "$pass" --argjson reasons "$reasons" \
-    --argjson components "$(component_versions)" --arg extra "${EXTRA_JSON:-null}" \
+    --argjson components "$(component_versions)" --argjson running "$RUNNING_IMAGES" --arg wstart "$WINDOW_START" --arg rbr "$RESOLVED_BEFORE_REVERT" --arg extra "${EXTRA_JSON:-null}" \
     --arg suite "$SUITE_ID" --arg ssize "${SUITE_SIZE:-}" --argjson det "$DETECTED_AT" --arg crash "$CRASH_RESTARTS" '
     def nz: if . == "" then null else . end;
     {scenario: $scenario, start: ($start|nz), inject: ($inject|nz), detected: ($detected|nz),
@@ -258,6 +405,7 @@ write_result() {
      git_sha: $gsha, git_dirty: $gdirty, config_sha256: ($chash|nz),
      expected_alert: $expected, unexpected_alerts: $unexpected,
      pass: $pass, failure_reasons: $reasons, extra: ($extra|fromjson), images: $components,
+     running_images: $running, window_start: ($wstart|nz), resolved_before_revert: ($rbr|nz|if . then (. == "true") else . end),
      suite: ($suite|nz), suite_size: ($ssize|nz|if . then tonumber else . end), detected_at: (reduce $expected[] as $e ({}; .[$e] = ($det[$e] // null)))}
     + (if $crash == "" then {} else {crash_restarts: ($crash|fromjson)} end)' \
     >>"$RESULTS"
@@ -289,10 +437,13 @@ run_scenario() {
   scenario_lock || { echo "refusing to start $SCENARIO: another lab run holds $SUITE_LOCK_FILE" >&2; exit 3; }
   trap on_exit EXIT
   trap 'exit 130' INT TERM
+  [ -n "$SUITE_ID" ] || SUITE_STATE_FILE=""
+  read_suite_state || { FAILS+=("cannot read the suite state file $SUITE_STATE_FILE"); exit 1; }
 
   if ! precondition; then FAILS+=("precondition: ${PRE_ERR:-failed}"); exit 1; fi
 
   T_START=$(now_ts)
+  [ -n "$WINDOW_START" ] || WINDOW_START=$T_START
   log "scenario $SCENARIO: start; expecting ${EXPECT[*]:-none}"
   T_INJECT=$(now_ts)   # set once: time to detect counts from the start of the fault
   local ti; ti=$(date +%s.%N)
@@ -334,12 +485,15 @@ run_scenario() {
   do_revert
 
   if [ "${#EXPECT[@]}" -gt 0 ] && [ -n "$T_DETECT" ]; then
-    local e name inst t last="" t0
+    # searched from the alert's own detection: an alert that resolved before the
+    # revert (or during it) counts, a resolve followed by a new firing does not
+    local e name inst t last="" t0 since
     for e in "${EXPECT[@]}"; do
       name=${e%%:*}; inst=${e#*:}; [ "$inst" = "$e" ] && inst=""
+      since=$(jq -r --arg k "$e" '.[$k] // empty' <<<"$DETECTED_AT"); [ -n "$since" ] || since=$T_DETECT
       t=""; t0=$(date +%s)
       while [ -z "$t" ]; do
-        t=$(first_record resolved "$name" "$inst" "$T_REVERT" || true)
+        t=$(resolution_record "$name" "$inst" "$since" || true)
         [ -n "$t" ] && break
         if [ $(($(date +%s) - t0)) -ge "$RESOLVE_TIMEOUT" ]; then break; fi
         sleep 5
@@ -348,22 +502,26 @@ run_scenario() {
       log "delivered resolved $e at $t"
       if [ -z "$last" ] || later "$t" "$last"; then last=$t; fi
     done
-    if [ -n "$last" ]; then T_RESOLVE=$last; S_RESOLVE=$(secs "$T_REVERT" "$T_RESOLVE"); log "time to resolve ${S_RESOLVE}s (from revert)"; fi
+    if [ -n "$last" ]; then T_RESOLVE=$last; S_RESOLVE=$(secs "$T_REVERT" "$T_RESOLVE"); log "time to resolve ${S_RESOLVE}s (from revert)"
+      if later "$T_REVERT" "$T_RESOLVE"; then RESOLVED_BEFORE_REVERT=true; else RESOLVED_BEFORE_REVERT=false; fi
+    fi
   fi
 
   # let the system settle so alerts caused by the revert are inside the window
   wait_until "$SETTLE_TIMEOUT" "Alertmanager clean again" am_clean || FAILS+=("Alertmanager not clean after revert: $(am_active | tr '\n' ' ')")
   sleep 25
   T_END=$(now_ts)
+  write_suite_state
 
-  # unexpected = any delivered group (firing or resolved) that is not expected
+  # unexpected = any delivered group (firing or resolved) that is not expected,
+  # from the end of the previous scenario of the suite (WINDOW_START)
   local rows
-  if ! rows=$(window_alerts "$T_START" "$T_END"); then
+  if ! rows=$(window_alerts "$WINDOW_START" "$T_END"); then
     FAILS+=("unexpected-alert query against VictoriaLogs failed")
     rows=""
   fi
-  UNEXPECTED=$(printf '%s\n' "$rows" | awk -F'\t' -v want="$(printf '%s,' "${EXPECT[@]}" "${ALLOW[@]}")" '
-    NF >= 4 { key = $1 ":" $2; if (index("," want, "," key ",") == 0) print $1 "\t" $2 "\t" $3 "\t" $4 }' \
+  UNEXPECTED=$(printf '%s\n' "$rows" | awk -F'\t' -v want="$(printf '%s,' "${EXPECT[@]}" "${ALLOW[@]}")" -v prev="$PREV_ALLOW" '
+    NF >= 4 { key = $1 ":" $2; if (index("," want, "," key ",") == 0 && !($3 == "resolved" && index("," prev ",", "," key ",") > 0)) print $1 "\t" $2 "\t" $3 "\t" $4 }' \
     | jq -R -s -c 'split("\n") | map(select(length>0) | split("\t") | {alertname: .[0], instance: .[1], status: .[2], count: (.[3]|tonumber)})')
   if [ "$UNEXPECTED" != "[]" ]; then FAILS+=("unexpected alerts delivered: $UNEXPECTED"); fi
 

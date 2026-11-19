@@ -44,7 +44,7 @@ fi
 # only make a run fail sooner and are not listed. lab/scenarios/test-guard.sh checks
 # that every such ${NAME:-default} under lab/ is listed or named there.
 # shellcheck disable=SC2034  # read by run-suite.sh and test-guard.sh
-SUITE_TIMING_VARS="CONTROL_SECONDS DETECT_TIMEOUT DETECT_DEADLINE RESOLVE_TIMEOUT SETTLE_TIMEOUT HOLD_AFTER_DETECT BACKUP_STALE_TRIAL_SECONDS"
+SUITE_TIMING_VARS="CONTROL_SECONDS DETECT_TIMEOUT DETECT_DEADLINE RESOLVE_TIMEOUT SETTLE_TIMEOUT HOLD_AFTER_DETECT BACKUP_STALE_TRIAL_SECONDS SINK_PROBE_TIMEOUT"
 
 # dirty_paths: porcelain lines of changed or untracked paths outside
 # lab/<lab>/results/. Fails (status 2, message on stderr) when git fails, so a
