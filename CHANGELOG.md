@@ -1,5 +1,26 @@
 # Changelog
 
+## [0.17.0](https://github.com/msavdert/obenhub/compare/v0.16.1...v0.17.0) (2026-11-19)
+
+
+### Features
+
+* **lab:** pgBackRest page checksum alert and backup-checksum-error scenario in slice1 ([#108](https://github.com/msavdert/obenhub/issues/108)) ([c4aea14](https://github.com/msavdert/obenhub/commit/c4aea14fffffe8378bed401761095edc64ae89c3))
+* **scripts:** tiered lab evidence, affected scenarios per change and a full suite before a release ([#110](https://github.com/msavdert/obenhub/issues/110)) ([8ed2eaa](https://github.com/msavdert/obenhub/commit/8ed2eaaad08257e630367ea21f821ea026cfde18))
+
+
+### Bug fixes
+
+* **lab:** per-lab etcd disk latency thresholds over the upstream defaults ([#113](https://github.com/msavdert/obenhub/issues/113)) ([e47dc14](https://github.com/msavdert/obenhub/commit/e47dc1442cb2f501c8f29e1a1acfdb483cdd84ee))
+* **lab:** slot-invalidated waits for checkpoint headroom after pausing the backups ([#111](https://github.com/msavdert/obenhub/issues/111)) ([095fdc1](https://github.com/msavdert/obenhub/commit/095fdc1e32ab3e2e879e720b8eeb6709fd50558a))
+
+
+### Documentation
+
+* **lab:** record the full five-lab suite chain before release 0.17.0 ([#115](https://github.com/msavdert/obenhub/issues/115)) ([1443560](https://github.com/msavdert/obenhub/commit/14435604352143a5eb816395912a4607d61dfa6d))
+* **lab:** record the slice1 backup-stage suite and close the backup roadmap items ([#112](https://github.com/msavdert/obenhub/issues/112)) ([37e22f2](https://github.com/msavdert/obenhub/commit/37e22f2a47410d9d823f5dadb2d1035da9efd9d7))
+* **roadmap:** usable outside the lab, after PostgreSQL 19 ([#114](https://github.com/msavdert/obenhub/issues/114)) ([020cffc](https://github.com/msavdert/obenhub/commit/020cffc47848422aa6c7168065354daf37f231ef))
+
 ## [0.16.1](https://github.com/msavdert/obenhub/compare/v0.16.0...v0.16.1) (2026-11-17)
 
 
