@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Scenario worker-stopped: power cut of the kind node that runs the primary: `docker kill` (SIGKILL), revert `docker start`. docker kill was enough, the node rejoined by itself (Ready 2 s after the start, smoke runs 2026-11-11), so `docker stop` was not needed. The primary must run on a worker without the CloudNativePG operator (its absence would stall the failover) and the load client (its acked ids would be lost); otherwise a preparatory switchover is made and the run waits 210 s for its CNPGPrimaryChanged to pass.
-# Expect CNPGPrimaryChanged, KubernetesNodeNotReady (lab/packs/k8s/rules.yml) and CollectorAbsent for otelcol-agent-<node> (the slowest, about 3.7 minutes after the kill). The pods tolerate not-ready for 300 s (tolerationSeconds, read on the pods), so detection is capped at 270 s (DETECT_DEADLINE in lib-core.sh) plus a 15 s hold: no eviction.
+# Expect CNPGPrimaryChanged, KubernetesNodeNotReady (packs/k8s/rules.yml) and CollectorAbsent for otelcol-agent-<node> (the slowest, about 3.7 minutes after the kill). The pods tolerate not-ready for 300 s (tolerationSeconds, read on the pods), so detection is capped at 270 s (DETECT_DEADLINE in lib-core.sh) plus a 15 s hold: no eviction.
 # Allowed: PostgresStandbyNotStreaming and PostgresPhysicalSlotInactive (seen in one run only) and PostgresSeriesVanished for the surviving replica only: its slot series ended with the promotion and came back after the rejoin, a gap longer than the rule's 2 m window. The killed instance has no heartbeat, which the rule requires. Replication is asynchronous (no spec.postgresql.synchronous, minSyncReplicas 0 in cnpg/cluster.yaml): writer_missing is recorded and fails the run only for a row acknowledged more than 10 s (a choice) before the kill.
 # Events seen: Node NodeNotReady, NodeReady; Pod NodeNotReady, TaintManagerEviction (message "Cancelling deletion of Pod"); Cluster FailingOver, FailoverTarget.
 # shellcheck disable=SC1091,SC2034,SC2153
@@ -43,7 +43,7 @@ lab_precondition() {
     wait_until 300 "cluster healthy on $target" cluster_healthy || { PRE_ERR="no healthy cluster after the switchover"; return 1; }
     [ "$(leader_name)" = "$target" ] || { PRE_ERR="primary is not $target after the switchover"; return 1; }
     # CNPGPrimaryChanged needs a pack sample after the promotion and holds for 3 minutes after it
-    # (lab/packs/cnpg/rules.yml); a quiet check right after the promotion passes before it has
+    # (packs/cnpg/rules.yml); a quiet check right after the promotion passes before it has
     # even started (observed in two aborted smoke runs), so wait out the window first.
     # Then vmalert, then Alertmanager (it shows an alert only after its group_wait).
     log "waiting 210 s for the CNPGPrimaryChanged of the preparatory switchover to pass"

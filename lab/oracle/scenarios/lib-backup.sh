@@ -6,7 +6,7 @@
 # run it.
 #
 # The age is read the way the oracledb-backup pack reads it
-# (lab/packs/oracledb-backup/queries.yaml): the newest END_TIME of a job in
+# (packs/oracledb-backup/queries.yaml): the newest END_TIME of a job in
 # V$RMAN_BACKUP_JOB_DETAILS with status COMPLETED or COMPLETED WITH WARNINGS
 # and input type ARCHIVELOG, DB FULL or DB INCR (a level 0 or 1 run backs up
 # archived logs too).
@@ -29,7 +29,7 @@ arch_age() {
 # last_arch_job: "<status> <seconds since it started>" of the newest job of the
 # archivelog kind that is not running: ARCHIVELOG or a database job, newest by
 # START_TIME then SESSION_KEY (the one oracledb.backup.failed reads for
-# archivelog, lab/packs/oracledb-backup/queries.yaml)
+# archivelog, packs/oracledb-backup/queries.yaml)
 last_arch_job() {
   ora_sql "$PRIMARY_SID" <<<"SELECT status || ' ' || ROUND((SYSDATE - start_time) * 86400) FROM (SELECT status, start_time FROM v\$rman_backup_job_details WHERE input_type IN ('ARCHIVELOG', 'DB FULL', 'DB INCR') AND status NOT LIKE 'RUNNING%' ORDER BY start_time DESC, session_key DESC) WHERE ROWNUM = 1;" | tr -s '[:space:]' ' ' | sed 's/^ //; s/ $//'
 }

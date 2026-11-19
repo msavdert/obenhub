@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Generate collectors.yml, the vmalert unit tests for Collector liveness in
-the pgha lab (inventory: ../inventory.yml; rules: lab/packs/*/rules.yml).
+the pgha lab (inventory: ../inventory.yml; rules: packs/*/rules.yml).
 
 Every case seeds the same series for the gateway and the three nodes
 (self-metrics, PostgreSQL heartbeat, Patroni and etcd `up`) and varies which
@@ -45,10 +45,10 @@ tests:
 """
 RULE_FILES = [
     "../inventory.yml",
-    "../../../../packs/collector/rules.yml",
-    "../../../../packs/postgresql/rules.yml",
-    "../../../../packs/patroni/rules.yml",
-    "../../../../packs/etcd/rules.yml",
+    "../../../../../packs/collector/rules.yml",
+    "../../../../../packs/postgresql/rules.yml",
+    "../../../../../packs/patroni/rules.yml",
+    "../../../../../packs/etcd/rules.yml",
 ]
 
 # alertname -> rule group

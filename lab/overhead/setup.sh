@@ -14,7 +14,7 @@
 #     restarts postgresql@18-main, creates role otel_monitor and
 #     pg_stat_statements;
 #   - copies otelcol.yaml to /etc/otelcol-contrib/config.yaml and the shared
-#     pack lab/packs/postgresql/queries.yaml (the version in this checkout)
+#     pack packs/postgresql/queries.yaml (the version in this checkout)
 #     to /etc/otelcol-contrib/packs/postgresql/queries.yaml;
 #     (after a re-measurement, copy that pack to results/pack-measured/ so
 #     that pack-cost.py reads what was measured);
@@ -29,7 +29,7 @@ VERSION=0.165.0
 SCALE="${SCALE:-100}"
 
 scp -q "$HERE/otelcol.yaml" "$HOST:/tmp/obenhub-otelcol.yaml"
-scp -q "$HERE/../packs/postgresql/queries.yaml" "$HOST:/tmp/obenhub-queries.yaml"
+scp -q "$HERE/../../packs/postgresql/queries.yaml" "$HOST:/tmp/obenhub-queries.yaml"
 
 ssh -o ServerAliveInterval=30 -o ServerAliveCountMax=4 "$HOST" sudo VERSION="$VERSION" SCALE="$SCALE" bash -s <<'REMOTE'
 set -euo pipefail

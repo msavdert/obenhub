@@ -39,7 +39,7 @@ SUBSCRIPTION=app_sub
 # PostgreSQL pack, the pgBackRest pack, then alertmanager.yml.
 _lc_collate=${LC_COLLATE-}
 LC_COLLATE=C
-CONFIG_FILES=("$LAB_DIR"/vmalert/rules/*.yml "$LAB_DIR/../packs/collector/rules.yml" "$LAB_DIR/../packs/postgresql/rules.yml" "$LAB_DIR/../packs/pgbackrest/rules.yml" "$LAB_DIR/../mon/alertmanager.yml")
+CONFIG_FILES=("$LAB_DIR"/vmalert/rules/*.yml "$LAB_DIR/../../packs/collector/rules.yml" "$LAB_DIR/../../packs/postgresql/rules.yml" "$LAB_DIR/../../packs/pgbackrest/rules.yml" "$LAB_DIR/../mon/alertmanager.yml")
 LC_COLLATE=$_lc_collate
 unset _lc_collate
 VMALERT_LOADED_CAT='cat /etc/vmalert/rules/*.yml /etc/vmalert/collector/rules.yml /etc/vmalert/pack/rules.yml /etc/vmalert/pgbackrest/rules.yml'
@@ -158,7 +158,7 @@ resume_backups() {
   return "$rc"
 }
 # Backups and CHECKPOINT are requested checkpoints, and PostgresCheckpointsRequested
-# fires above 3 in 5 minutes (lab/packs/postgresql/rules.yml; a third run within
+# fires above 3 in 5 minutes (packs/postgresql/rules.yml; a third run within
 # five minutes of two others tripped it, 2026-11-13). A scenario that takes
 # backups pauses the periodic ones with one backup taken first (pause_backups),
 # then waits until the primary's own window (the rule's expression, from

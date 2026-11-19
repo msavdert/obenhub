@@ -2,7 +2,7 @@
 # Stage 3 collector: three Patroni nodes, named by node and never by role.
 # Receiver keys: receiver/postgresqlreceiver and receiver/prometheusreceiver at
 # v0.164.0. The sql_query list is the shared PostgreSQL pack,
-# lab/packs/postgresql/queries.yaml, mounted at /etc/otelcol/packs/postgresql.
+# packs/postgresql/queries.yaml, mounted at /etc/otelcol/packs/postgresql.
 extensions:
   health_check:
     endpoint: 0.0.0.0:13133

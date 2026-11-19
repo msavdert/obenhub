@@ -98,7 +98,7 @@ receivers:
       - *jsonlog
       - *body
 
-  # The query list is the shared PostgreSQL pack, lab/packs/postgresql/
+  # The query list is the shared PostgreSQL pack, packs/postgresql/
   # queries.yaml, mounted at /etc/otelcol/packs/postgresql; all three servers
   # use it.
   sql_query/primary:

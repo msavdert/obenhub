@@ -10,8 +10,8 @@ set -uo pipefail
 . "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 
 # EXPECT is set in inject() once the old leader is known.
-# - PatroniFailoverHappened: the highest timeline rose (lab/packs/patroni/rules.yml). The 2026-11-09 manual run saw 1 to 2 although the old leader kept the key (a restart after crash recovery or a new promotion; HYPOTHESIS, not confirmed from a log). If the timeline does not rise in outcome A, this expectation fails and that is a finding.
-# - HostRebooted:<old leader>: system.uptime < 300 on the old leader's host (lab/packs/host/rules.yml), whatever happens to leadership afterwards.
+# - PatroniFailoverHappened: the highest timeline rose (packs/patroni/rules.yml). The 2026-11-09 manual run saw 1 to 2 although the old leader kept the key (a restart after crash recovery or a new promotion; HYPOTHESIS, not confirmed from a log). If the timeline does not rise in outcome A, this expectation fails and that is a finding.
+# - HostRebooted:<old leader>: system.uptime < 300 on the old leader's host (packs/host/rules.yml), whatever happens to leadership afterwards.
 # Not expected: PatroniNoWritablePrimary (for 90s; the write outage seen was about 16 s), the target-absent alerts and CollectorAbsent (windows of 1 to 2 m outlast a reset; same reasoning as network-partition.sh), the etcd alerts (etcd on the old leader's node stops with the VM; two of three members keep quorum, EtcdMemberAbsent has the same window).
 # Allowed, not expected (decided from the rule files, to be confirmed or removed by the first runs):
 # - PostgresPhysicalSlotInactive:<new leader>, outcome B only: the new leader keeps a slot for the old leader that is inactive until the old leader has rejoined (added in finalize).

@@ -6,7 +6,7 @@
 # renames count as a delete plus an add) and maps each changed file, the first
 # row that applies winning:
 #   Markdown, results/, rule unit tests,                         nothing
-#     lab/packs/*/upstream-receiver-metrics.txt
+#     packs/*/upstream-receiver-metrics.txt
 #   versions.sh                                                  nothing; with -f (full mode of
 #                                                                check-evidence.sh) ALL
 #   a .yml/.yaml file that exists at BASE and HEAD with the      nothing
@@ -15,7 +15,7 @@
 #     (a line-1 #! is kept; a # line inside a heredoc counts as
 #     a comment; every #! line is kept), a .toml file with the
 #     same JSON (Python 3.11+ tomllib), same file mode
-#   alert rules: lab/packs/*/rules.yml (nothing when the lab     control (if in suite.txt) plus the
+#   alert rules: packs/*/rules.yml (nothing when the lab     control (if in suite.txt) plus the
 #     does not use the pack) and YAML under lab/*/vmalert/ or    suite scenarios whose script text
 #     lab/*/mon/vmalert/; per alert name the rule objects        (symlinks resolved, BASE or HEAD)
 #     without annotations, with their group's other keys,        has the name as a word; ALL when
@@ -27,7 +27,7 @@
 #     without alerts, top-level keys), or a rule file yq
 #     cannot parse
 #   Grafana: lab/*/grafana/, lab/*/mon/grafana/,                 PANELS (lab:<lab>:panels); a pack
-#     lab/packs/*/dashboards/ (lab/mon is shared: ALL)           dashboard only when the lab uses
+#     packs/*/dashboards/ (lab/mon is shared: ALL)           dashboard only when the lab uses
 #                                                                the pack, else nothing
 #   scenarios/<name>.sh in the lab's suite.txt                   that scenario, and every
 #                                                                suite scenario whose symlink
@@ -39,7 +39,7 @@
 #     symlink of any lab (BASE or HEAD) points at                that link to it; nothing when
 #                                                                only long.txt scenarios or other
 #                                                                labs link to it
-#   a file of lab/packs/<p> (not tests or dashboards)            ALL if the lab uses the
+#   a file of packs/<p> (not tests or dashboards)            ALL if the lab uses the
 #                                                                pack, else nothing
 #   every other watched file: lib.sh and lib-*.sh, files         ALL
 #     directly in lab/scenarios, a shared script nothing links
@@ -294,8 +294,8 @@ for f in "${changed[@]}"; do
     */versions.sh)
       if [ "$fullmode" = 1 ]; then all=1; out "$f" "ALL (version pins: full mode)"; else out "$f" "nothing (version bumps ride the update batch)"; fi
       ;;
-    lab/packs/*/upstream-receiver-metrics.txt) out "$f" "nothing (reference list)" ;;
-    lab/packs/*/tests/* | lab/*/vmalert/tests/*) out "$f" nothing ;;
+    packs/*/upstream-receiver-metrics.txt) out "$f" "nothing (reference list)" ;;
+    packs/*/tests/* | lab/*/vmalert/tests/*) out "$f" nothing ;;
     *) if comment_only "$f"; then out "$f" "nothing (comments or formatting only)"; continue; fi ;;&
     */lib.sh | */lib-*.sh) all=1; out "$f" ALL ;;
     "$longlist") out "$f" "nothing (long.txt)" ;;
@@ -334,20 +334,20 @@ for f in "${changed[@]}"; do
       fi
       ;;
     lab/mon/*) all=1; out "$f" ALL ;;
-    lab/packs/*/dashboards/*)
-      p=${f#lab/packs/}
+    packs/*/dashboards/*)
+      p=${f#packs/}
       p=${p%%/*}
       if uses "$p"; then panels=1; out "$f" "PANELS (lab uses pack $p)"; else out "$f" "nothing (lab does not use pack $p)"; fi
       ;;
     lab/*/grafana/* | lab/*/mon/*/dashboards/*) panels=1; out "$f" PANELS ;;
-    lab/packs/*/rules.yml)
-      p=${f#lab/packs/}
+    packs/*/rules.yml)
+      p=${f#packs/}
       p=${p%%/*}
       if uses "$p"; then alert_file "$f"; else out "$f" "nothing (lab does not use pack $p)"; fi
       ;;
     lab/*/vmalert/*.yml | lab/*/vmalert/*.yaml) alert_file "$f" ;;
-    lab/packs/*/*)
-      p=${f#lab/packs/}
+    packs/*/*)
+      p=${f#packs/}
       p=${p%%/*}
       if uses "$p"; then
         all=1

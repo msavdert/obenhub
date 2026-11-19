@@ -55,8 +55,8 @@ for f in "$dir/.env" "$pki/ca.crt" "$pki/otelcol.crt" "$pki/otelcol.key" \
   "$pki/$PRIMARY_HOST/otelcol.crt" "$pki/$PRIMARY_HOST/otelcol.key" \
   "$pki/$STANDBY_HOST/otelcol.crt" "$pki/$STANDBY_HOST/otelcol.key" \
   "$dir/files/otelcol-host.yaml" "$dir/files/otelcol-db.yaml" "$dir/files/otelcol-obs.yaml" \
-  "$dir/../packs/oracledb-dg/queries.yaml" "$dir/../packs/oracledb-dg/queries-primary.yaml" \
-  "$dir/../packs/oracledb-backup/queries.yaml"; do
+  "$dir/../../packs/oracledb-dg/queries.yaml" "$dir/../../packs/oracledb-dg/queries-primary.yaml" \
+  "$dir/../../packs/oracledb-backup/queries.yaml"; do
   [ -s "$f" ] || { echo "collector: $f is missing (provision.sh, pki.sh)" >&2; exit 1; }
 done
 set -a
@@ -162,9 +162,9 @@ converge() {
   putf /etc/otelcol-contrib/tls/otelcol.key 600 otelcol-contrib:otelcol-contrib "$certdir/otelcol.key"
   putf /etc/otelcol-contrib/host.yaml 640 root:otelcol-contrib "$dir/files/otelcol-host.yaml"
   if [ "$role" = obs ]; then
-    putf /etc/otelcol-contrib/packs/oracledb-dg/queries.yaml 640 root:otelcol-contrib "$dir/../packs/oracledb-dg/queries.yaml"
-    putf /etc/otelcol-contrib/packs/oracledb-dg/queries-primary.yaml 640 root:otelcol-contrib "$dir/../packs/oracledb-dg/queries-primary.yaml"
-    putf /etc/otelcol-contrib/packs/oracledb-backup/queries.yaml 640 root:otelcol-contrib "$dir/../packs/oracledb-backup/queries.yaml"
+    putf /etc/otelcol-contrib/packs/oracledb-dg/queries.yaml 640 root:otelcol-contrib "$dir/../../packs/oracledb-dg/queries.yaml"
+    putf /etc/otelcol-contrib/packs/oracledb-dg/queries-primary.yaml 640 root:otelcol-contrib "$dir/../../packs/oracledb-dg/queries-primary.yaml"
+    putf /etc/otelcol-contrib/packs/oracledb-backup/queries.yaml 640 root:otelcol-contrib "$dir/../../packs/oracledb-backup/queries.yaml"
     putf /etc/otelcol-contrib/config.yaml 640 root:otelcol-contrib "$dir/files/otelcol-obs.yaml"
     put /etc/otelcol-contrib/obenhub.env 600 root:root <<ENV
 OBENHUB_NODE=$n

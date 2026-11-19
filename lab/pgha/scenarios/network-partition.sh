@@ -6,7 +6,7 @@ set -uo pipefail
 
 # EXPECT is set in inject() from what the old leader does (see the header).
 # - PatroniFailoverHappened: the new leader's timeline is above the one-hour maximum from 3 m ago; no "for".
-# - HostRebooted:<old leader>: system.uptime < 300 on the old leader's host (lab/packs/host/rules.yml).
+# - HostRebooted:<old leader>: system.uptime < 300 on the old leader's host (packs/host/rules.yml).
 # Not expected: EtcdMemberAbsent and the target-absent alerts (scrapes are local to each node and their windows outlast the reset), EtcdInsufficientMembers (counts scrapes), PatroniNoWritablePrimary (for 90s), CollectorAbsent (absent window [2m] plus for 1m; the reset and restart stayed inside it in the first attempt and the smoke run).
 EXPECT=()
 ALLOW=()

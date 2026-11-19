@@ -4,7 +4,7 @@
 set -uo pipefail
 . "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 
-# Derived from the rules before the first run (lab/packs/etcd/rules.yml, lab/packs/postgresql/rules.yml):
+# Derived from the rules before the first run (packs/etcd/rules.yml, packs/postgresql/rules.yml):
 # - EtcdNoLeader:<replica>. etcd_server_has_leader == 0 for 1m. A follower that gets no heartbeats becomes a pre-candidate and reports no leader (the etcd journal of the first leader attempt shows the pre-vote rounds; not re-read for this scenario). The series is scraped by the replica's own Collector, whose path to the gateway is open.
 # - PostgresStandbyNotStreaming:<replica>. postgresql.wal_receiver.streaming == 0 and the node in recovery and some node not in recovery (the leader), for 1m. The replica's WAL receiver cannot reach the leader.
 # - PatroniReplicaNotEligible:<replica>. Listed as possible in the first derivation, added after the first run (VictoriaLogs, 2026-11-10 19:14:26 firing, "20.14MiB behind the leader", threshold 16 MiB, for 1m; resolved 19:15:26 at 34MiB; not in runs.jsonl): the leader keeps writing under the pgbench load while the isolated replica receives nothing.

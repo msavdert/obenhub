@@ -62,7 +62,7 @@ the held dependency update batch and closes a release.
       shows a firing at the reinstate, without a promotion.
       `oracledb.backup.failed` counts a database backup for one kind where
       `oracledb.backup.age` counts it for both, and has no tie-breaker
-      (`lab/packs/oracledb-backup/queries.yaml`). The inventory has no
+      (`packs/oracledb-backup/queries.yaml`). The inventory has no
       gateway and no `obenhub.upstream`
       (`lab/oracle/mon/vmalert/inventory.yml`). The `sql_query` receivers in
       `lab/oracle/files/otelcol-obs.yaml` set no `max_open_conn` (ADR 0003).
@@ -75,7 +75,7 @@ the held dependency update batch and closes a release.
 - [ ] B2 PostgreSQL and Kubernetes rules. The logical-replication rules in
       `lab/slice1/vmalert/rules/postgresql.yml` use `increase()` without
       the counter-start handling the pack documents
-      (`lab/packs/postgresql/rules.yml`, `PostgresDeadlocks`); fixed as they
+      (`packs/postgresql/rules.yml`, `PostgresDeadlocks`); fixed as they
       move into the pack (C2). `KubernetesNodeNotReady` names its node in
       `service.instance.id`, and stage3, pgha and k8s give the `postgresql`
       receiver the database `app` too; done when the full suites of
@@ -98,8 +98,9 @@ the held dependency update batch and closes a release.
 ### C. Packs usable outside the lab
 
 - [ ] C1 `lab/packs` moves to `packs/`, paths only (scripts, `mise.toml`,
-      lab mounts, tests, generated reference). Done when `git grep
-      lab/packs` is empty and `mise run check` passes
+      lab mounts, tests, generated reference, Renovate file patterns). Done
+      when `git grep lab/packs` is empty, `mise run check` passes and every
+      lab's full suite passes with it (the mounts changed)
 - [ ] C2 What the labs still keep moves into packs: the
       logical-replication rules, a `pgbouncer` pack, the PostgreSQL, Patroni
       and CloudNativePG dashboards, and one monitoring-role SQL file that
@@ -114,7 +115,7 @@ the held dependency update batch and closes a release.
       without a cluster. Done when unit tests with two clusters sharing an
       instance name, and with two pod UIDs for one instance, pass
 - [ ] C4 Thresholds: a production default in the rule and an optional
-      override series, in one form everywhere, as `lab/packs/etcd/rules.yml`
+      override series, in one form everywhere, as `packs/etcd/rules.yml`
       does since #113. About 30 literal values in the postgresql, patroni,
       oracledb-dg, host and etcd packs; the labs keep today's values as
       overrides in their inventories; dashboards read the same series; each
@@ -166,7 +167,7 @@ the held dependency update batch and closes a release.
       supported majors are covered by E1
 - [ ] E3 The one query that needs PostgreSQL 18
       (`pg_stat_subscription_stats` conflict columns,
-      `lab/packs/postgresql/README.md`) is gated by version, so the pack
+      `packs/postgresql/README.md`) is gated by version, so the pack
       runs on 17, and on 16 if E1 passes there
 - [ ] E4 `CDB26` (26ai, no standby) in `lab/oracle` as a compatibility
       check of the receiver and the pack queries, not a second suite (ADR
@@ -235,7 +236,7 @@ and it is the Patroni lab that runs without the owner's VMs.
   (`mise run lab:<lab>:panels`)
 - Dropping the last replication slot or subscription on purpose fires
   `PostgresSeriesVanished` for up to an hour
-  (`lab/packs/postgresql/rules.yml`)
+  (`packs/postgresql/rules.yml`)
 - Compose labs run without TLS, with `trust` authentication in stage3 and a
   Collector as root; pgha shows the hardened form
 - The Oracle databases are not built from this repository

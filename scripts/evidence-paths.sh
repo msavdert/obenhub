@@ -9,7 +9,7 @@
 #                              mise.k8s.toml pins the k8s tools; mise.toml (task
 #                              definitions) is deliberately not watched
 #   evidence_pathspec LAB      sets EVIDENCE_SPEC, a git pathspec: the lab,
-#                              lab/packs, lab/scenarios, lab/mon, lab/scripts and
+#                              packs, lab/scenarios, lab/mon, lab/scripts and
 #                              the extra paths, without Markdown and results/
 
 evidence_extra_paths() {
@@ -24,6 +24,6 @@ evidence_pathspec() {
   local extra
   read -r -a extra <<<"$(evidence_extra_paths "$1")"
   # shellcheck disable=SC2034  # read by the sourcing script
-  EVIDENCE_SPEC=("lab/$1" lab/packs lab/scenarios lab/mon lab/scripts "${extra[@]}"
+  EVIDENCE_SPEC=("lab/$1" packs lab/scenarios lab/mon lab/scripts "${extra[@]}"
     ':(exclude,glob)lab/*/results/**' ':(exclude,glob)**/*.md')
 }

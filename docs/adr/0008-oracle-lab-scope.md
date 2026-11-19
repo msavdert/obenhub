@@ -86,7 +86,7 @@ produced that metric and marks the connection reuse as an assumption); the recei
    this user only, with its password from `.env`, never in the
    repository.
 5. **Data Guard telemetry.** No receiver reads it, so a pack
-   `lab/packs/oracledb-dg/` holds `sql_query` statements for transport and
+   `packs/oracledb-dg/` holds `sql_query` statements for transport and
    apply lag, archive gap, apply state, protection mode, role, open mode
    and fast-start failover state, read on every collection (not once at
    start). Alerts follow ADR 0006.

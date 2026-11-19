@@ -1,5 +1,5 @@
 # Stage 3 inventory: the targets and scrapes this lab expects. The alert rules
-# that read these series are the shared packs, lab/packs/{collector,postgresql,patroni,etcd}.
+# that read these series are the shared packs, packs/{collector,postgresql,patroni,etcd}.
 # Every rule is role-agnostic and the inventory names nodes, never roles.
 groups:
   - name: inventory
@@ -44,7 +44,7 @@ groups:
             label_set(vector(1), "service.namespace", "obenhub-lab", "service.name", "etcd", "service.instance.id", "etcd-3", "obenhub.collector", "otelcol-stage3")
           )
 
-  # Lab parameters for the shared etcd pack (lab/packs/etcd/rules.yml): the pack
+  # Lab parameters for the shared etcd pack (packs/etcd/rules.yml): the pack
   # keeps the etcd-mixin thresholds (fsync p99 0.5 s, commit p99 0.25 s) as the
   # production defaults; this lab raises both to 1.0 s. This is not a production
   # value: the lab host's Proxmox storage is shared and slow, and the lab accepts

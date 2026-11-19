@@ -4,7 +4,7 @@ Measured 2026-11-12 with `lab/overhead/setup.sh` and `lab/overhead/run.sh`.
 The pack measured is kept as `pack-measured/queries.yaml` next to these
 results: nine queries, sha256
 `c5b2401f4ff59415b143d64221ba9fd5dd0537a70f58f064027485f6817526ee`. It is not
-the pack on main (`lab/packs/postgresql/queries.yaml`, eleven queries, sha256
+the pack on main (`packs/postgresql/queries.yaml`, eleven queries, sha256
 `7e28cc96aa960bc1f82875b9680f52e621225d7aef50bd7f50f706ec7b7ec29a` at the time
 of writing). Main's adds the archiver query (`pg_stat_archiver`,
 `pg_ls_archive_statusdir()`) and the synchronous standby query, and changes two

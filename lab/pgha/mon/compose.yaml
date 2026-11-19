@@ -3,7 +3,7 @@
 # The five backend services extend lab/mon/compose.base.yaml (images, versions,
 # flags, Alertmanager config, Grafana provisioning); this file adds ports,
 # names, rule files and dashboards. Dashboards: the stage 3 Patroni one, the
-# shared host dashboard (lab/packs/host/dashboards) and the shared PostgreSQL
+# shared host dashboard (packs/host/dashboards) and the shared PostgreSQL
 # dashboard of slice 1.
 # Start with: mise run lab:pgha:mon:up (generates .env).
 name: obenhub-pgha
@@ -58,11 +58,11 @@ services:
       - "127.0.0.1:38880:8880"
     volumes:
       - ./vmalert/inventory.yml:/etc/vmalert/inventory.yml:ro
-      - ../../packs/collector/rules.yml:/etc/vmalert/pack/collector.yml:ro
-      - ../../packs/postgresql/rules.yml:/etc/vmalert/pack/postgresql.yml:ro
-      - ../../packs/host/rules.yml:/etc/vmalert/pack/host.yml:ro
-      - ../../packs/patroni/rules.yml:/etc/vmalert/pack/patroni.yml:ro
-      - ../../packs/etcd/rules.yml:/etc/vmalert/pack/etcd.yml:ro
+      - ../../../packs/collector/rules.yml:/etc/vmalert/pack/collector.yml:ro
+      - ../../../packs/postgresql/rules.yml:/etc/vmalert/pack/postgresql.yml:ro
+      - ../../../packs/host/rules.yml:/etc/vmalert/pack/host.yml:ro
+      - ../../../packs/patroni/rules.yml:/etc/vmalert/pack/patroni.yml:ro
+      - ../../../packs/etcd/rules.yml:/etc/vmalert/pack/etcd.yml:ro
 
   alertmanager:
     extends:
@@ -83,7 +83,7 @@ services:
       - "127.0.0.1:33000:3000"
     volumes:
       - ../../stage3/grafana/dashboards:/var/lib/obenhub/dashboards/patroni:ro
-      - ../../packs/host/dashboards:/var/lib/obenhub/dashboards/host:ro
+      - ../../../packs/host/dashboards:/var/lib/obenhub/dashboards/host:ro
       - ../../slice1/grafana/dashboards:/var/lib/obenhub/dashboards/postgresql:ro
 
 networks:

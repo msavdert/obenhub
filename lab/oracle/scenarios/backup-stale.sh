@@ -8,7 +8,7 @@
 # out (prefix "#obenhub-paused# ") the one crontab line of the oracle user that ends in
 # "rman-backup.sh CDB19 arch # obenhub: CDB19" (schedule "45 */4 * * *", lab/oracle/scripts/rman.sh). Nothing else
 # changes: no RMAN, database or file change. The daily level 0 or 1 line (01:45) is NOT paused and it also backs up
-# archived logs, so the age series (which counts those jobs too, lab/packs/oracledb-backup/queries.yaml) resets
+# archived logs, so the age series (which counts those jobs too, packs/oracledb-backup/queries.yaml) resets
 # when it ends; the scenario reads the next 01:45 on the VM's clock and, if it falls before the alert would fire,
 # computes the fire time from the end of that job (DAILY_JOB_S, 326 s measured for a level 0 on 2026-11-14,
 # rounded up) and refuses to start when that is beyond the wait cap.
@@ -119,7 +119,7 @@ lab_precondition() {
   AGE0=$(arch_age)
   [[ $AGE0 =~ ^[0-9]+$ ]] || { PRE_ERR="no completed archived log backup on record on $PRIMARY_SID: '$AGE0'"; return 1; }
   sa=$(age_series)
-  [[ $sa =~ ^[0-9]+$ ]] && [ "$((sa - AGE0))" -ge -150 ] && [ "$((sa - AGE0))" -le 150 ] || { PRE_ERR="the receiver's oracledb.backup.age archivelog '${sa:-none}' does not match the database's $AGE0 s (lab/packs/oracledb-backup/queries.yaml deployed? lab:oracle:collector)"; return 1; }
+  [[ $sa =~ ^[0-9]+$ ]] && [ "$((sa - AGE0))" -ge -150 ] && [ "$((sa - AGE0))" -le 150 ] || { PRE_ERR="the receiver's oracledb.backup.age archivelog '${sa:-none}' does not match the database's $AGE0 s (packs/oracledb-backup/queries.yaml deployed? lab:oracle:collector)"; return 1; }
   LIMIT=$(limit_series)
   LIMIT=${LIMIT%.*}
   if [ -z "$LIMIT" ]; then LIMIT=$DEFAULT_LIMIT; log "no obenhub.backup_age.limit series for archivelog, the pack default $LIMIT applies"; fi

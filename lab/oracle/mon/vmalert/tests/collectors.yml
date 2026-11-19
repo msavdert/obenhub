@@ -9,8 +9,8 @@
 # for: 1m. Series labels reduced to the ones the rules use.
 rule_files:
   - ../inventory.yml
-  - ../../../../packs/collector/rules.yml
-  - ../../../../packs/oracledb-dg/rules.yml
+  - ../../../../../packs/collector/rules.yml
+  - ../../../../../packs/oracledb-dg/rules.yml
 evaluation_interval: 15s
 
 tests:

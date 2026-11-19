@@ -378,7 +378,7 @@ phase_collector() {
   putf "$n" /etc/otelcol-contrib/tls/ca.crt 644 root:otelcol-contrib "$pki/ca.crt" "$OTEL_MARK"
   putf "$n" /etc/otelcol-contrib/tls/otelcol.crt 644 root:otelcol-contrib "$pki/$n/otelcol.crt" "$OTEL_MARK"
   putf "$n" /etc/otelcol-contrib/tls/otelcol.key 600 otelcol-contrib:otelcol-contrib "$pki/$n/otelcol.key" "$OTEL_MARK"
-  putf "$n" /etc/otelcol-contrib/packs/postgresql/queries.yaml 644 root:otelcol-contrib "$dir/../packs/postgresql/queries.yaml" "$OTEL_MARK"
+  putf "$n" /etc/otelcol-contrib/packs/postgresql/queries.yaml 644 root:otelcol-contrib "$dir/../../packs/postgresql/queries.yaml" "$OTEL_MARK"
   # root-only; systemd reads it (EnvironmentFile in the drop-in), the service
   # user never opens it and the value is not in the config or on any command line
   put "$n" /etc/otelcol-contrib/monitor.env 600 root:root "$OTEL_MARK" <<<"OTEL_MONITOR_PASSWORD=$OTEL_MONITOR_PASSWORD"

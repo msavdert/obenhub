@@ -55,7 +55,7 @@ VictoriaLogs 39428, vmalert 38880, Alertmanager 39093, Grafana 33000.
 It scrapes only its own node (`files/otelcol.yaml.tmpl`):
 
 - PostgreSQL through the `postgresql` receiver and the shared `sql_query` pack
-  (`lab/packs/postgresql/queries.yaml`), over `hostssl` with the lab CA.
+  (`packs/postgresql/queries.yaml`), over `hostssl` with the lab CA.
 - The Patroni REST API `/metrics` over https.
 - etcd `/metrics` on `http://127.0.0.1:2381` (`--listen-metrics-urls`), so the
   Collector needs no etcd client certificate.
@@ -74,10 +74,10 @@ The monitor password reaches the node in `/etc/otelcol-contrib/monitor.env`
 
 ## Alerts
 
-vmalert loads the shared packs `lab/packs/{postgresql,patroni,etcd,host}/rules.yml`
+vmalert loads the shared packs `packs/{postgresql,patroni,etcd,host}/rules.yml`
 and `mon/vmalert/inventory.yml` (the Collectors and nodes this lab expects).
 The Grafana instance provisions the stage 3 Patroni dashboard unchanged and the
-shared host dashboard, `lab/packs/host/dashboards/host.json` (filesystem,
+shared host dashboard, `packs/host/dashboards/host.json` (filesystem,
 memory, uptime, CPU, load, network, disk; the host alerts' expressions) and the
 shared PostgreSQL dashboard of slice 1.
 `mise run lab:pgha:panels` runs the queries of all three dashboards against the live Grafana.
@@ -87,7 +87,7 @@ own Collector, so a stopped node Collector raises only its alert, and a stopped
 gateway (which carries every node's telemetry) only the gateway's.
 `mise run lab:pgha:rules-test` covers these cases.
 
-The host pack (`lab/packs/host/rules.yml`, tests with `mise run
+The host pack (`packs/host/rules.yml`, tests with `mise run
 lab:host:rules-test`) reads the series of the Collector's hostmetrics receiver
 (`host_metrics` in the config). The two
 memory metrics it needs are off by default and enabled in

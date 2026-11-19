@@ -71,7 +71,7 @@ kind cluster                                   box (Compose project obenhub-k8s)
   `kubernetesEvents` (cluster).
 - PostgreSQL pack: `receiver_creator` with `k8s_observer` creates the
   `postgresql` receiver and the `sql_query` receiver with
-  `lab/packs/postgresql/queries.yaml` (mounted from a ConfigMap) for every
+  `packs/postgresql/queries.yaml` (mounted from a ConfigMap) for every
   pod labelled `cnpg.io/cluster=pg` on the agent's own node. Series are named
   by pod (`service.instance.id`, `server.address` = `pg-1`...), never by role,
   and carry the `k8s.*` attributes.
@@ -104,10 +104,10 @@ kind cluster                                   box (Compose project obenhub-k8s)
   7 days before expiry, per the same page; the CA's own period and any
   rotation here are unverified), `sql_query` fails until
   `up.sh` runs again.
-- Alerts: vmalert loads `lab/packs/collector/rules.yml` and `lab/packs/postgresql/rules.yml` unchanged,
-  `lab/packs/cnpg/rules.yml` (`CNPGPrimaryChanged`, unit tests in
-  `lab/packs/cnpg/tests/`, `mise run lab:cnpg:rules-test`),
-  `lab/packs/k8s/rules.yml` (`KubernetesNodeNotReady`, from the
+- Alerts: vmalert loads `packs/collector/rules.yml` and `packs/postgresql/rules.yml` unchanged,
+  `packs/cnpg/rules.yml` (`CNPGPrimaryChanged`, unit tests in
+  `packs/cnpg/tests/`, `mise run lab:cnpg:rules-test`),
+  `packs/k8s/rules.yml` (`KubernetesNodeNotReady`, from the
   `k8s_cluster` receiver's `k8s.node.condition_ready`; `mise run
   lab:k8s-pack:rules-test`) and
   `mon/vmalert/inventory.yml`, which lists the five Collectors (gateway,

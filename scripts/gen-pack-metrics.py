@@ -12,7 +12,7 @@ from pathlib import Path
 from packmetrics import parse_metrics
 
 ROOT = Path(__file__).resolve().parent.parent
-# (pack directory under lab/packs, page title)
+# (pack directory under packs, page title)
 PACKS = (
     ("postgresql", "PostgreSQL pack metrics"),
     ("oracledb-dg", "Oracle Data Guard pack metrics"),
@@ -28,14 +28,14 @@ def render(pack, title):
     metrics, files = [], []
     # queries-primary.yaml: queries read by a receiver on the primary only
     for name in ("queries.yaml", "queries-primary.yaml"):
-        source = ROOT / "lab/packs" / pack / name
+        source = ROOT / "packs" / pack / name
         if not source.exists():
             continue
         found, mentions = parse_metrics(source)
         if mentions != len(found):
             sys.exit(f"{source}: {mentions} metric_name lines, {len(found)} parsed")
         metrics += found
-        files.append(f"`lab/packs/{pack}/{name}`")
+        files.append(f"`packs/{pack}/{name}`")
     rows = ["| Name | Type | Unit | Attributes | Description |", "| --- | --- | --- | --- | --- |"]
     for m in sorted(metrics, key=lambda m: m["metric_name"]):
         kind = "gauge" if m["data_type"] == "gauge" else "sum, monotonic" if m.get("monotonic") == "true" else "sum"

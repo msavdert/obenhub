@@ -1,6 +1,6 @@
 # Collector config for the overhead measurement on pg-lab (one server).
 # Derived from lab/slice1/otelcol/config.yaml (receiver keys at v0.164.0):
-# same receivers, the current shared PostgreSQL pack (lab/packs/postgresql/
+# same receivers, the current shared PostgreSQL pack (packs/postgresql/
 # queries.yaml, installed by setup.sh at /etc/otelcol-contrib/packs/
 # postgresql), same 15s intervals, max_open_conn 3, the optional
 # postgresql.deadlocks metric on, same internal telemetry level.

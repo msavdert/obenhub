@@ -25,7 +25,7 @@ access to `apt.postgresql.org`.
   (pgbouncer#1354), so `sqlqueryreceiver` queries the admin console
   (`SHOW POOLS`, `SHOW DATABASES`, `SHOW LISTS`, `SHOW STATS`).
 - One `otelcol-contrib` Collector: `postgresqlreceiver`, the shared
-  PostgreSQL pack ([lab/packs](../packs)) and `filelog` on `jsonlog`.
+  PostgreSQL pack ([packs](../../packs)) and `filelog` on `jsonlog`.
   `postgresqlreceiver` v0.164.0 has no replication slot or subscription
   metrics, so the pack queries `pg_replication_slots`, `pg_subscription`,
   `pg_stat_subscription`, `pg_stat_subscription_stats` and `pg_stat_archiver`.
@@ -35,7 +35,7 @@ access to `apt.postgresql.org`.
   none exists or the last is older than ten intervals, else incremental);
   woblerr/pgbackrest_exporter v0.25.0 refreshes every 30 s and the Collector
   scrapes it (`prometheus/pgbackrest`); the pack is
-  [lab/packs/pgbackrest](../packs/pgbackrest).
+  [packs/pgbackrest](../../packs/pgbackrest).
 - An expected-target inventory the heartbeat is checked against; PgBouncer's
   heartbeat is the `SHOW LISTS` row `databases`.
 - VictoriaMetrics, VictoriaLogs, vmalert, Alertmanager with a webhook sink
