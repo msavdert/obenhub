@@ -78,6 +78,32 @@ before the TLS overlay, which comes last because it replaces the
 self-telemetry reader of the collector pack. `mise run lint:otelcol`
 validates and starts exactly this combination (from the repository paths).
 
+## Install test
+
+`mise run deploy:install-test` (docker, about 15 minutes, not part of
+`mise run check`) installs this page's backend and host Collector in a
+throwaway compose project against a plain PostgreSQL container with default
+settings, without lab files (Grafana's provisioning from `lab/mon/` is the
+one exception, see `compose.yaml`). It waits past the longest `for:` of the
+packs that can fire on this setup (collector, host, postgresql), then
+asserts that the heartbeat is there, that only `Watchdog` fires with nothing
+pending, that no other alert fired at any time during the run (the one
+exception is `CollectorAbsent` of the host Collector in its first 120 s: the
+inventory expects it before its first export has arrived), that `Watchdog`
+reaches the `deadman` receiver every 60 s with the newest notification at
+most 90 s old, and that every panel of the PostgreSQL and host dashboards is
+accounted for and returns data or is empty for a known reason. The panels
+that stay empty are the rows of components only some labs run (subscription,
+PgBouncer, pgBackRest), the log and scenario-only panels, and the replication
+slot panels (a plain server has none). journald and PostgreSQL log
+collection are not exercised (no `journalctl` in the contrib image, no
+jsonlog on a default server). The Collector runs in a container with the
+host's `/` mounted read-only and `root_path` set in a test overlay, which the
+host pack does not do itself; with real filesystem data `HostFilesystemSpaceLow`
+fires on a nearly full host, which is a correct report and makes the test
+fail there (machine-dependent).
+Everything is torn down, and a line goes to `results/runs.jsonl`.
+
 ## Kubernetes
 
 The values are derived from the kind lab (`lab/k8s/otel/`) and are for

@@ -8,7 +8,9 @@ deploy/ is a second copy of what the labs run, so the pins must not drift:
 lab-pinned ones, and each image equals the image of the same service in
 lab/mon/compose.base.yaml (the gateway: lab/pgha/mon/compose.yaml).
 2. The Grafana plugin versions of both are equal.
-3. deploy/helm/versions.sh OTEL_CHART_VERSION, OTEL_CHART_REPO and OTELCOL_IMAGE
+3. The PostgreSQL image of deploy/test/install-test.sh equals the one of
+lab/stage3/compose.yaml.
+4. deploy/helm/versions.sh OTEL_CHART_VERSION, OTEL_CHART_REPO and OTELCOL_IMAGE
 equal lab/k8s/versions.sh, and OTELCOL_IMAGE equals the gateway image.
 
 Plain text matching, standard library only, no network.
@@ -73,6 +75,12 @@ def main():
         else:
             same(f"compose {service} image", image, b.get(service), "lab/mon/compose.base.yaml")
     same("Grafana plugins", plugins(deploy), plugins(base), "lab/mon/compose.base.yaml")
+    pg = re.search(r"^PG_IMAGE=(\S+)$", (ROOT / "deploy/test/install-test.sh").read_text(), re.M)
+    lab_pg = set(re.findall(r"image: *(postgres:\S+)", (ROOT / "lab/stage3/compose.yaml").read_text()))
+    if not pg or lab_pg != {pg.group(1)}:
+        errors.append(
+            f"install-test PostgreSQL image {pg and pg.group(1)} differs from lab/stage3/compose.yaml: {sorted(lab_pg)}"
+        )
     for name in ("OTEL_CHART_VERSION", "OTEL_CHART_REPO", "OTELCOL_IMAGE"):
         same(f"helm {name}", shell_var(helm, name), shell_var(k8s, name), "lab/k8s/versions.sh")
     same("helm OTELCOL_IMAGE", shell_var(helm, "OTELCOL_IMAGE"), d.get("gateway"), "the compose gateway")

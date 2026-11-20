@@ -173,9 +173,10 @@ the held dependency update batch and closes a release.
       loaded without a parameters group, `Watchdog` routed to `deadman`, the
       gateway refuses a client without a certificate, a host Collector
       reaches it, `helm template` renders both values files)
-- [ ] D2 An install test without lab files: a plain PostgreSQL container
+- [x] D2 An install test without lab files: a plain PostgreSQL container
       and D1 with production defaults; the heartbeat is there, nothing but
       `Watchdog` fires, the dashboard panels have data
+      (`mise run deploy:install-test`; the run is in `deploy/results/runs.jsonl`)
 - [ ] D3 Quick start on slice1 and the install guide: a stranger reaches a
       fired and resolved alert in under 15 minutes, timed on a clean VM.
       These are the first Guides pages on the docs site; further Learn
