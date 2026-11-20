@@ -1,0 +1,105 @@
+# Values for the upstream opentelemetry-collector chart (versions.sh), release
+# "cluster": one Deployment replica for the cluster-wide telemetry (k8s_cluster
+# metrics and Kubernetes events). Derived from lab/k8s/otel/cluster-values.yaml;
+# variables and the secret obenhub-gateway-tls as in agent-values.yaml.
+# Preset behaviour: chart templates/_config.tpl at chart 0.178.3.
+mode: deployment
+replicaCount: 1
+fullnameOverride: otelcol-cluster
+
+# Runs on a control-plane node, so that stopping a worker never takes the
+# Collector with the node-condition signal (the lab's choice, scenario
+# worker-stopped). The toleration is for kubeadm's NoSchedule taint
+# node-role.kubernetes.io/control-plane; remove nodeSelector and tolerations
+# where the control plane is not schedulable or has other labels.
+nodeSelector:
+  node-role.kubernetes.io/control-plane: ""
+tolerations:
+  - key: node-role.kubernetes.io/control-plane
+    operator: Exists
+    effect: NoSchedule
+
+image:
+  repository: ${OTELCOL_IMAGE_REPOSITORY}
+  tag: ${OTELCOL_IMAGE_TAG}
+  digest: ${OTELCOL_IMAGE_DIGEST}
+command:
+  name: otelcol-contrib
+
+presets:
+  kubernetesAttributes:
+    enabled: true
+  clusterMetrics:
+    enabled: true
+  kubernetesEvents:
+    enabled: true
+
+# Receive nothing, so no Service either (it would have no ports).
+service:
+  enabled: false
+ports:
+  otlp: {enabled: false}
+  otlp-http: {enabled: false}
+  jaeger-compact: {enabled: false}
+  jaeger-thrift: {enabled: false}
+  jaeger-grpc: {enabled: false}
+  zipkin: {enabled: false}
+
+extraVolumes:
+  - name: gateway-tls
+    secret:
+      secretName: obenhub-gateway-tls
+extraVolumeMounts:
+  - {name: gateway-tls, mountPath: /etc/obenhub/tls, readOnly: true}
+
+extraEnvs:
+  - name: OBENHUB_GATEWAY_ENDPOINT
+    value: "${OBENHUB_GATEWAY_ENDPOINT}"
+
+telemetry:
+  resourceAttributes:
+    extra:
+      service.namespace: ${OBENHUB_SERVICE_NAMESPACE}
+      service.name: otelcol
+      service.instance.id: otelcol-cluster
+
+config:
+  receivers:
+    jaeger: null
+    otlp: null
+    prometheus: null
+    zipkin: null
+  exporters:
+    debug: null
+    otlp_http/gateway:
+      endpoint: ${env:OBENHUB_GATEWAY_ENDPOINT}
+      tls:
+        ca_file: /etc/obenhub/tls/ca.crt
+        cert_file: /etc/obenhub/tls/tls.crt
+        key_file: /etc/obenhub/tls/tls.key
+  service:
+    telemetry:
+      metrics:
+        level: normal
+        readers:
+          - periodic:
+              interval: 15000
+              exporter:
+                otlp:
+                  protocol: http/protobuf
+                  endpoint: ${env:OBENHUB_GATEWAY_ENDPOINT}/v1/metrics
+                  certificate: /etc/obenhub/tls/ca.crt
+                  client_certificate: /etc/obenhub/tls/tls.crt
+                  client_key: /etc/obenhub/tls/tls.key
+    pipelines:
+      traces: null
+      # receivers: k8s_cluster is added by the preset
+      metrics:
+        receivers: []
+        processors: [memory_limiter, k8s_attributes, batch]
+        exporters: [otlp_http/gateway]
+      # receivers: the events receiver is added by the preset
+      logs:
+        receivers: []
+        processors: [memory_limiter, k8s_attributes, batch]
+        exporters: [otlp_http/gateway]

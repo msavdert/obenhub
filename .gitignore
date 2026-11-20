@@ -17,3 +17,7 @@ site/
 /lab/pgha/.env
 /lab/pgha/pki/
 /lab/oracle/pki/
+!.env.example
+/deploy/compose/tls/
+obenhub.env
+/deploy/compose/secrets/

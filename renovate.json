@@ -114,9 +114,9 @@
   "customManagers": [
     {
       "customType": "regex",
-      "description": "Versions annotated with a '# renovate:' comment on the line above a NAME=version assignment in lab shell scripts",
+      "description": "Versions annotated with a '# renovate:' comment on the line above a NAME=version assignment in lab and deploy shell scripts",
       "managerFilePatterns": [
-        "/^(lab|packs)/.+\\.sh$/"
+        "/^(lab|packs|deploy)/.+\\.sh$/"
       ],
       "matchStrings": [
         "# renovate: datasource=(?<datasource>github-releases|github-tags|docker) depName=(?<depName>\\S+)(?: extractVersion=(?<extractVersion>\\S+))?\\s+[A-Z_]+=(?<currentValue>\\S+)"
@@ -124,9 +124,9 @@
     },
     {
       "customType": "regex",
-      "description": "Container images pinned as repository:tag@digest under a '# renovate: datasource=docker' comment in lab shell scripts",
+      "description": "Container images pinned as repository:tag@digest under a '# renovate: datasource=docker' comment in lab and deploy shell scripts",
       "managerFilePatterns": [
-        "/^(lab|packs)/.+\\.sh$/"
+        "/^(lab|packs|deploy)/.+\\.sh$/"
       ],
       "matchStrings": [
         "# renovate: datasource=docker\\s+[A-Z_]+=(?<depName>[^:\\s]+):(?<currentValue>[^@\\s]+)@(?<currentDigest>sha256:[0-9a-f]{64})"
@@ -157,9 +157,9 @@
     },
     {
       "customType": "regex",
-      "description": "Grafana plugins preinstalled by the lab compose files",
+      "description": "Grafana plugins preinstalled by the lab and deploy compose files",
       "managerFilePatterns": [
-        "/^lab/.+/compose(\\.base)?\\.ya?ml$/"
+        "/^(lab/.+|deploy/compose)/compose(\\.base)?\\.ya?ml$/"
       ],
       "matchStrings": [
         "victoriametrics-metrics-datasource@(?<currentValue>[0-9.]+)"
@@ -170,9 +170,9 @@
     },
     {
       "customType": "regex",
-      "description": "Grafana plugins preinstalled by the lab compose files",
+      "description": "Grafana plugins preinstalled by the lab and deploy compose files",
       "managerFilePatterns": [
-        "/^lab/.+/compose(\\.base)?\\.ya?ml$/"
+        "/^(lab/.+|deploy/compose)/compose(\\.base)?\\.ya?ml$/"
       ],
       "matchStrings": [
         "victoriametrics-logs-datasource@(?<currentValue>[0-9.]+)"

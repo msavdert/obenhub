@@ -15,9 +15,13 @@
 # pack component and every lab pipeline with the fragment; what may differ is
 # listed in its docstring and its ALLOW table.
 #
-# Not covered: lab/k8s/otel/*-values.yaml (Helm values merged into the chart's
+# The host install, deploy/collector/otelcol-tls.yaml merged after base, collector,
+# host and postgresql fragments, is validated and started once as well.
+#
+# Not covered: lab/k8s/otel/*-values.yaml and deploy/helm/*-values.yaml (Helm values merged into the chart's
 # own defaults; rendering needs the chart from the network, see
-# lab/k8s/versions.sh OTEL_CHART_VERSION).
+# lab/k8s/versions.sh OTEL_CHART_VERSION; the deploy values were rendered once
+# with `helm template`, see deploy/README.md).
 set -euo pipefail
 cd "$(git rev-parse --show-toplevel)"
 
@@ -119,6 +123,63 @@ while read -r f base kind; do
     echo "note $f: Kubernetes fragment, validated only (no startup test outside a cluster)"
   fi
 done < <(python3 -I scripts/check-otelcol-fragments.py --fragments)
+# The host install (deploy/collector, README in deploy/): the config files in the
+# order the README gives them, base, collector, host, postgresql and the
+# mutual-TLS overlay last, validated and started once (the host fragment
+# without its logs pipeline, as above). Dummy certificates stand in for the
+# ones deploy/compose/tls.sh makes: the TLS settings read the files at start.
+mkdir "$tmp/tls"
+openssl req -x509 -newkey ec -pkeyopt ec_paramgen_curve:prime256v1 -nodes -days 1 -subj /CN=dummy \
+  -keyout "$tmp/tls/client.key" -out "$tmp/tls/client.crt" 2>/dev/null
+cp "$tmp/tls/client.crt" "$tmp/tls/ca.crt"
+# deploy/compose/otelcol-gateway.yaml reads ca.crt, gateway.crt and gateway.key at /etc/otelcol/tls
+cp "$tmp/tls/client.crt" "$tmp/tls/gateway.crt"
+cp "$tmp/tls/client.key" "$tmp/tls/gateway.key"
+if docker run --rm --user "$(id -u):$(id -g)" -e OBENHUB_NAMESPACE=dummy \
+  -v "$tmp/tls:/etc/otelcol/tls:ro" -v "$PWD/deploy/compose/otelcol-gateway.yaml:/c.yaml:ro" \
+  "$image" validate --config=/c.yaml >"$tmp/out" 2>&1; then
+  echo "ok   deploy/compose/otelcol-gateway.yaml"
+else
+  echo "FAIL deploy/compose/otelcol-gateway.yaml" >&2; cat "$tmp/out" >&2; failed=1
+fi
+yq 'del(.service.pipelines."logs/obenhub-host")' packs/host/otelcol.yaml >"$tmp/deploy-host.yaml"
+deploy_files=("$PWD/packs/otelcol-base.yaml" "$PWD/packs/collector/otelcol.yaml" "$tmp/deploy-host.yaml"
+  "$PWD/packs/postgresql/otelcol.yaml" "$PWD/deploy/collector/otelcol-tls.yaml")
+deploy_mounts=() deploy_args=()
+for i in "${!deploy_files[@]}"; do
+  deploy_mounts+=(-v "${deploy_files[$i]}:/c$i.yaml:ro")
+  deploy_args+=(--config="/c$i.yaml")
+done
+deploy_env=(-e OBENHUB_TLS_DIR=/tls -e OBENHUB_GATEWAY_ENDPOINT=https://127.0.0.1:4318)
+deploy_label="deploy/collector (base, collector, host, postgresql, otelcol-tls.yaml)"
+if docker run --rm --user "$(id -u):$(id -g)" "${fragenv[@]}" "${deploy_env[@]}" \
+  -v "$tmp/tls:/tls:ro" -v "$PWD/packs:/etc/otelcol-contrib/packs:ro" "${deploy_mounts[@]}" \
+  "$image" validate "${deploy_args[@]}" >"$tmp/out" 2>&1; then
+  echo "ok   $deploy_label"
+else
+  echo "FAIL $deploy_label" >&2; cat "$tmp/out" >&2; failed=1
+fi
+name="obenhub-lint-$$"
+if docker run -d --name "$name" --user "$(id -u):$(id -g)" --tmpfs /tmp:rw,mode=1777 \
+  "${fragenv[@]}" "${deploy_env[@]}" -v "$tmp/tls:/tls:ro" -v "$PWD/packs:/etc/otelcol-contrib/packs:ro" \
+  "${deploy_mounts[@]}" "$image" "${deploy_args[@]}" >"$tmp/out" 2>&1; then
+  i=0 up=0
+  while [ "$i" -lt 30 ]; do
+    if docker logs "$name" 2>&1 | grep -q 'Everything is ready'; then up=1; break; fi
+    [ "$(docker inspect -f '{{.State.Running}}' "$name")" = true ] || break
+    sleep 1; i=$((i + 1))
+  done
+  if [ "$up" = 1 ]; then
+    echo "ok   $deploy_label (started)"
+  else
+    echo "FAIL $deploy_label did not reach 'Everything is ready'" >&2
+    docker logs "$name" 2>&1 | tail -15 >&2
+    failed=1
+  fi
+  docker rm -f "$name" >/dev/null 2>&1 || true
+else
+  echo "FAIL $deploy_label" >&2; cat "$tmp/out" >&2; failed=1
+fi
 python3 -I scripts/check-otelcol-fragments.py \
   --lab "lab/pgha/files/otelcol.yaml.tmpl (rendered)=$tmp/pgha-node.yaml" || failed=1
 exit "$failed"

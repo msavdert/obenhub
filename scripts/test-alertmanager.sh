@@ -2,7 +2,9 @@
 # Prove the shared Alertmanager grouping (lab/mon/alertmanager.yml) with a
 # throwaway container: groups are per instance, a cluster-level alert forms one
 # group per alertname, and nothing is inhibited (the config has no inhibit
-# rules; suppression lives in the rule expressions).
+# rules; suppression lives in the rule expressions). Also the routing of the
+# deploy install (deploy/compose/alertmanager.yml) with `amtool config routes
+# test`: Watchdog to deadman, critical, warning, anything else to default.
 # Needs docker and the prom/alertmanager image; no network after the pull.
 set -euo pipefail
 
@@ -74,5 +76,31 @@ check "CollectorAbsent without an instance forms one group" \
 alerts="$(curl -fs "$base/api/v2/alerts")"
 check "no alert is inhibited" \
   "all(not x['status']['inhibitedBy'] for x in d)" "$alerts"
+
+# 3. deploy/compose/alertmanager.yml routes by severity (amtool of the same image)
+deploy_am="$(cd "$dir/../../deploy/compose" && pwd)/alertmanager.yml"
+route() { # expected receiver, labels...
+  local want="$1" got
+  shift
+  got="$(docker run --rm --entrypoint amtool -v "$deploy_am:/c.yml:ro" "$image" \
+    config routes test --config.file=/c.yml "$@" 2>&1 | tr -d '\n')" || true
+  if [ "$got" = "$want" ]; then
+    echo "ok   deploy route $* -> $want"
+  else
+    echo "FAIL deploy route $* -> $want (got: $got)"
+    fail=1
+  fi
+}
+route deadman alertname=Watchdog severity=none
+route critical alertname=CollectorAbsent severity=critical
+route warning alertname=PostgresReplayBacklog severity=warning
+route default alertname=Other severity=info
+route default alertname=Other
+if docker run --rm --entrypoint amtool -v "$deploy_am:/c.yml:ro" "$image" check-config /c.yml >/dev/null; then
+  echo "ok   deploy alertmanager.yml passes amtool check-config"
+else
+  echo "FAIL deploy alertmanager.yml check-config"
+  fail=1
+fi
 
 exit "$fail"
