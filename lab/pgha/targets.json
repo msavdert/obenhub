@@ -1,0 +1,59 @@
+{
+  "namespace": "obenhub-lab",
+  "groups": [
+    {
+      "name": "inventory",
+      "records": [
+        {
+          "comment": [
+            "The Collectors this lab expects, by their self-telemetry",
+            "service.instance.id; CollectorAbsent reads them. The gateway takes the",
+            "node Collectors' telemetry and sends its own straight to",
+            "VictoriaMetrics; obenhub.upstream names the Collector a node sends",
+            "through. The obenhub.collector label on the targets below names the",
+            "Collector that collects them: each node's own (etcd and Patroni are",
+            "scraped locally, lab/pgha/files/otelcol.yaml.tmpl)."
+          ],
+          "collectors": [
+            {"id": "otelcol-gateway"},
+            {"id": "otelcol-pgha-1", "upstream": "otelcol-gateway"},
+            {"id": "otelcol-pgha-2", "upstream": "otelcol-gateway"},
+            {"id": "otelcol-pgha-3", "upstream": "otelcol-gateway"}
+          ]
+        },
+        {
+          "blank_before": true,
+          "targets": [
+            {"service": "postgresql", "cluster": "pgha", "id": "pgha-1", "collector": "otelcol-pgha-1"},
+            {"service": "postgresql", "cluster": "pgha", "id": "pgha-2", "collector": "otelcol-pgha-2"},
+            {"service": "postgresql", "cluster": "pgha", "id": "pgha-3", "collector": "otelcol-pgha-3"}
+          ]
+        }
+      ]
+    },
+    {
+      "name": "patroni-inventory",
+      "records": [
+        {
+          "scrapes": [
+            {"service": "patroni", "cluster": "pgha", "id": "pgha-1", "collector": "otelcol-pgha-1"},
+            {"service": "patroni", "cluster": "pgha", "id": "pgha-2", "collector": "otelcol-pgha-2"},
+            {"service": "patroni", "cluster": "pgha", "id": "pgha-3", "collector": "otelcol-pgha-3"}
+          ]
+        }
+      ]
+    },
+    {
+      "name": "etcd-inventory",
+      "records": [
+        {
+          "scrapes": [
+            {"service": "etcd", "cluster": "pgha-etcd", "id": "pgha-1", "collector": "otelcol-pgha-1"},
+            {"service": "etcd", "cluster": "pgha-etcd", "id": "pgha-2", "collector": "otelcol-pgha-2"},
+            {"service": "etcd", "cluster": "pgha-etcd", "id": "pgha-3", "collector": "otelcol-pgha-3"}
+          ]
+        }
+      ]
+    }
+  ]
+}
