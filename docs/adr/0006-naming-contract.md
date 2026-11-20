@@ -76,6 +76,25 @@ Kubernetes attributes) are used as they arrive.
    to no component.
 6. **Generated reference.** The metric list of each pack is generated from its
    query file and checked in `mise run check`; it is not written by hand.
+7. **Target identity** (amended 2026-11-20). A target is identified by
+   `obenhub.cluster.name` and `service.instance.id` together;
+   `service.instance.id` alone is unique only within one cluster.
+   - `obenhub.cluster.name` is mandatory on every series of the engine and
+     cluster components: PostgreSQL, PgBouncer, pgBackRest, Patroni, etcd,
+     CloudNativePG and Oracle. Host, Collector and Kubernetes node series
+     describe shared infrastructure and do not carry it.
+   - etcd is its own cluster with its own name (for example `pgha-etcd`): one
+     etcd cluster can be the store of several Patroni clusters.
+   - Rules join and group on the cluster and the instance. A one-to-one
+     match (arithmetic, comparison, `group_left`) also matches on
+     `k8s.pod.uid`, so the last sample of a deleted pod never pairs with its
+     recreated successor of the same name; where the label is absent on
+     both sides the match is unchanged. Patroni rules group by the cluster,
+     not by Patroni's own `scope`.
+   - A guard that asks about the rest of a cluster (a writable member, the
+     member count) asks per cluster, never across the backend.
+   - Each pack has a rule `<Component>ClusterNameMissing` that fires on a
+     target of that pack without the attribute.
 
 ## Consequences
 
