@@ -57,6 +57,20 @@ groups:
         annotations:
           summary: 'The last RMAN {{ (index $labels "oracledb.backup.kind") }} backup of {{ (index $labels "service.instance.id") }} failed'
 
+      # An RMAN backup series without obenhub.cluster.name (ADR 0006, decision
+      # 7). OracleBackupMissing joins the backup age to the Data Guard role on
+      # it, so an age series without it never counts as the primary's backup
+      # and OracleBackupMissing fires. All backup series of a database come
+      # from one resource, so the age series is enough; reading failed as
+      # well would give two alerts with the same labels.
+      - alert: OracleBackupClusterNameMissing
+        expr: oracledb.backup.age{obenhub.cluster.name=""}
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'RMAN backup series of {{ (index $labels "service.instance.id") }} carry no obenhub.cluster.name'
+
       # A database that is primary according to the Data Guard pack has no
       # completed database backup series. It fires on a fresh primary until its
       # first database backup, and on a newly promoted primary until it has run
@@ -70,7 +84,7 @@ groups:
           max by (oracledb.database.unique_name, service.instance.id, obenhub.cluster.name) (
             last_over_time(oracledb.database.primary[1m])
           ) == 1
-            unless on(oracledb.database.unique_name)
+            unless on(obenhub.cluster.name, oracledb.database.unique_name)
           oracledb.backup.age{oracledb.backup.kind="database"}
         for: 30m
         labels:

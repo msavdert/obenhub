@@ -19,6 +19,10 @@
 # taken from the mixin (which is v3.7.3). Every threshold below that differs
 # from the mixin says so: the mixin waits 10 to 20 minutes, the lab scenarios cannot.
 # Suppression is written into the expressions, as in packs/patroni/rules.yml.
+# Identity (ADR 0006, decision 7): etcd is a cluster of its own, with its own
+# obenhub.cluster.name (for example pgha-etcd), because one etcd cluster can be
+# the store of several Patroni clusters. Rules join and group on the cluster
+# and the instance.
 # The inventory (obenhub.expected_scrape with service.name "etcd", each with an
 # obenhub.collector label naming the Collector that scrapes it, next to
 # obenhub.expected_collector) is per lab, for example
@@ -40,7 +44,7 @@ groups:
       - alert: EtcdMemberAbsent
         expr: |
           obenhub.expected_scrape{service.name="etcd"}
-            unless on(service.instance.id)
+            unless on(obenhub.cluster.name, service.instance.id)
           (max_over_time(up{service.name="etcd"}[2m]) == 1)
             and on(obenhub.collector)
           label_replace(present_over_time(otelcol_process_uptime[1m]), "obenhub.collector", "$1", "service.instance.id", "(.+)")
@@ -50,7 +54,9 @@ groups:
         annotations:
           summary: 'etcd member {{ (index $labels "service.instance.id") }} is not scraped'
 
-      # Fewer members reporting than a majority of the inventory (2 of 3).
+      # Per etcd cluster: fewer members reporting than a majority of the
+      # cluster's inventory (2 of 3). A cluster with no member reporting has no
+      # series in the count, so `members * 0` supplies its zero.
       # Mixin: same comparison, for 3m, on `up`; the 2 m window already delays
       # this, so "for" is 1m. A member counts as reporting if its scrape
       # succeeded within 2 m or its Collector is not alive: unknown is not
@@ -59,20 +65,39 @@ groups:
       # counts a member once.
       - alert: EtcdInsufficientMembers
         expr: |
-          (count(
-              obenhub.expected_scrape{service.name="etcd"}
-                and on(service.instance.id) (max_over_time(up{service.name="etcd"}[2m]) == 1)
-            or
-              obenhub.expected_scrape{service.name="etcd"}
-                unless on(obenhub.collector) label_replace(present_over_time(otelcol_process_uptime[1m]), "obenhub.collector", "$1", "service.instance.id", "(.+)")
-          ) or on() vector(0))
-            < on()
-          ((count(obenhub.expected_scrape{service.name="etcd"}) + 1) / 2)
+          WITH (
+            inv = obenhub.expected_scrape{service.name="etcd"},
+            members = count by (obenhub.cluster.name) (inv)
+          )
+          (
+            count by (obenhub.cluster.name) (
+                inv
+                  and on(obenhub.cluster.name, service.instance.id) (max_over_time(up{service.name="etcd"}[2m]) == 1)
+              or
+                inv
+                  unless on(obenhub.collector) label_replace(present_over_time(otelcol_process_uptime[1m]), "obenhub.collector", "$1", "service.instance.id", "(.+)")
+            )
+              or
+            members * 0
+          )
+            < on(obenhub.cluster.name)
+          ((members + 1) / 2)
         for: 1m
         labels:
           severity: critical
         annotations:
-          summary: 'Only {{ $value }} etcd members report: quorum is lost'
+          summary: 'Only {{ $value }} members of etcd cluster {{ (index $labels "obenhub.cluster.name") }} report: quorum is lost'
+
+      # An etcd member without obenhub.cluster.name (ADR 0006, decision 7). The
+      # member alerts above and EtcdHighLeaderChanges group on it, so such a
+      # member counts toward no cluster. up is the series EtcdMemberAbsent reads.
+      - alert: EtcdClusterNameMissing
+        expr: up{service.name="etcd", obenhub.cluster.name=""}
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'etcd member {{ (index $labels "service.instance.id") }} reports no obenhub.cluster.name'
 
       # A member that reports and has no leader. Mixin: same expression, for
       # 1m (kept). A normal election takes about a second.
@@ -93,12 +118,12 @@ groups:
       # value, which increase() reads as a counter reset and adds in full.
       # We take the per-member increase first and the max after, on purpose.
       - alert: EtcdHighLeaderChanges
-        expr: max(increase(etcd_server_leader_changes_seen_total[5m])) >= 3
+        expr: max by (obenhub.cluster.name) (increase(etcd_server_leader_changes_seen_total[5m])) >= 3
         for: 1m
         labels:
           severity: warning
         annotations:
-          summary: '{{ $value }} etcd leader changes within 5 minutes'
+          summary: '{{ $value }} leader changes of etcd cluster {{ (index $labels "obenhub.cluster.name") }} within 5 minutes'
 
       # Mixin: histogram_quantile(0.99, rate(...[5m])) > 0.5, for 10m (warning),
       # > 1 (critical). Here: the threshold is the mixin's 0.5 s, the production

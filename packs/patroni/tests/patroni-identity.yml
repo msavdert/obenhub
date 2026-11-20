@@ -1,0 +1,173 @@
+# Target identity (ADR 0006, decision 7) for the Patroni pack: rules group by
+# obenhub.cluster.name, not by Patroni's own `scope`. Two clusters share the
+# member names pg-1 and pg-2 and, on purpose, the same scope label, so that
+# only the cluster name tells them apart. PatroniClusterNameMissing is at the
+# end.
+rule_files:
+  - ../rules.yml
+evaluation_interval: 15s
+
+tests:
+  - name: no primary in cluster a fires for a although cluster b has one and the scope is shared
+    interval: 15s
+    input_series:
+      - series: 'patroni_primary{obenhub.cluster.name="a",scope="shared",service.instance.id="pg-1"}'
+        values: '0x60'
+      - series: 'patroni_primary{obenhub.cluster.name="a",scope="shared",service.instance.id="pg-2"}'
+        values: '0x60'
+      - series: 'patroni_primary{obenhub.cluster.name="b",scope="shared",service.instance.id="pg-1"}'
+        values: '1x60'
+      - series: 'patroni_primary{obenhub.cluster.name="b",scope="shared",service.instance.id="pg-2"}'
+        values: '0x60'
+    alert_rule_test:
+      - eval_time: 1m
+        groupname: patroni
+        alertname: PatroniNoWritablePrimary
+        exp_alerts: []
+      - eval_time: 5m
+        groupname: patroni
+        alertname: PatroniNoWritablePrimary
+        exp_alerts:
+          - exp_labels: {severity: critical, obenhub.cluster.name: a}
+            exp_annotations:
+              summary: Cluster a has no writable primary
+
+  - name: one primary in each of two clusters with one shared scope is not a split brain
+    interval: 15s
+    input_series:
+      - series: 'patroni_primary{obenhub.cluster.name="a",scope="shared",service.instance.id="pg-1"}'
+        values: '1x60'
+      - series: 'patroni_primary{obenhub.cluster.name="a",scope="shared",service.instance.id="pg-2"}'
+        values: '0x60'
+      - series: 'patroni_primary{obenhub.cluster.name="b",scope="shared",service.instance.id="pg-1"}'
+        values: '0x60'
+      - series: 'patroni_primary{obenhub.cluster.name="b",scope="shared",service.instance.id="pg-2"}'
+        values: '1x60'
+    alert_rule_test:
+      - eval_time: 5m
+        groupname: patroni
+        alertname: PatroniMultiplePrimaries
+        exp_alerts: []
+
+  - name: a split brain in cluster a is not hidden by cluster b's standbys of the same names
+    interval: 15s
+    input_series:
+      - series: 'patroni_primary{obenhub.cluster.name="a",scope="shared",service.instance.id="pg-1"}'
+        values: '1x60'
+      - series: 'patroni_primary{obenhub.cluster.name="a",scope="shared",service.instance.id="pg-2"}'
+        values: '1x60'
+      - series: 'patroni_primary{obenhub.cluster.name="b",scope="shared",service.instance.id="pg-1"}'
+        values: '0x60'
+      - series: 'patroni_primary{obenhub.cluster.name="b",scope="shared",service.instance.id="pg-2"}'
+        values: '0x60'
+    alert_rule_test:
+      - eval_time: 5m
+        groupname: patroni
+        alertname: PatroniMultiplePrimaries
+        exp_alerts:
+          - exp_labels: {severity: critical, obenhub.cluster.name: a}
+            exp_annotations:
+              summary: Cluster a has 2 members reporting primary (split brain)
+
+  - name: two primaries in cluster b fire for b alone
+    interval: 15s
+    input_series:
+      - series: 'patroni_primary{obenhub.cluster.name="a",scope="shared",service.instance.id="pg-1"}'
+        values: '1x60'
+      - series: 'patroni_primary{obenhub.cluster.name="b",scope="shared",service.instance.id="pg-1"}'
+        values: '1x60'
+      - series: 'patroni_primary{obenhub.cluster.name="b",scope="shared",service.instance.id="pg-2"}'
+        values: '1x60'
+    alert_rule_test:
+      - eval_time: 5m
+        groupname: patroni
+        alertname: PatroniMultiplePrimaries
+        exp_alerts:
+          - exp_labels: {severity: critical, obenhub.cluster.name: b}
+            exp_annotations:
+              summary: Cluster b has 2 members reporting primary (split brain)
+
+  - name: a replica is measured against its own cluster's leader, not the other cluster's position
+    interval: 15s
+    input_series:
+      # a: leader at 100 MB, pg-2 replica 1 MB behind
+      - series: 'patroni_xlog_location{obenhub.cluster.name="a",scope="shared",service.instance.id="pg-1"}'
+        values: '100000000x60'
+      - series: 'patroni_replica{obenhub.cluster.name="a",scope="shared",service.instance.id="pg-1"}'
+        values: '0x60'
+      - series: 'patroni_xlog_received_location{obenhub.cluster.name="a",scope="shared",service.instance.id="pg-2"}'
+        values: '99000000x60'
+      - series: 'patroni_xlog_replayed_location{obenhub.cluster.name="a",scope="shared",service.instance.id="pg-2"}'
+        values: '99000000x60'
+      - series: 'patroni_replica{obenhub.cluster.name="a",scope="shared",service.instance.id="pg-2"}'
+        values: '1x60'
+      # b: leader at 10 MB, pg-2 at 9 MB. Against a's leader (100 MB) it would
+      # be 91 MB behind, so an alert for it means the clusters were mixed
+      - series: 'patroni_xlog_location{obenhub.cluster.name="b",scope="shared",service.instance.id="pg-1"}'
+        values: '10000000x60'
+      - series: 'patroni_replica{obenhub.cluster.name="b",scope="shared",service.instance.id="pg-1"}'
+        values: '0x60'
+      - series: 'patroni_xlog_received_location{obenhub.cluster.name="b",scope="shared",service.instance.id="pg-2"}'
+        values: '9000000x60'
+      - series: 'patroni_xlog_replayed_location{obenhub.cluster.name="b",scope="shared",service.instance.id="pg-2"}'
+        values: '9000000x60'
+      - series: 'patroni_replica{obenhub.cluster.name="b",scope="shared",service.instance.id="pg-2"}'
+        values: '1x60'
+      # c: leader at 300 MB, pg-2 60 MB behind: fires
+      - series: 'patroni_xlog_location{obenhub.cluster.name="c",scope="shared",service.instance.id="pg-1"}'
+        values: '300000000x60'
+      - series: 'patroni_replica{obenhub.cluster.name="c",scope="shared",service.instance.id="pg-1"}'
+        values: '0x60'
+      - series: 'patroni_xlog_received_location{obenhub.cluster.name="c",scope="shared",service.instance.id="pg-2"}'
+        values: '240000000x60'
+      - series: 'patroni_xlog_replayed_location{obenhub.cluster.name="c",scope="shared",service.instance.id="pg-2"}'
+        values: '240000000x60'
+      - series: 'patroni_replica{obenhub.cluster.name="c",scope="shared",service.instance.id="pg-2"}'
+        values: '1x60'
+    alert_rule_test:
+      - eval_time: 5m
+        groupname: patroni
+        alertname: PatroniReplicaNotEligible
+        exp_alerts:
+          - exp_labels:
+              obenhub.cluster.name: c
+              severity: warning
+              scope: shared
+              service.instance.id: pg-2
+            exp_annotations:
+              summary: pg-2 is 57.22MiB behind the leader, beyond maximum_lag_on_failover
+
+  - name: a Patroni target without obenhub.cluster.name fires PatroniClusterNameMissing after 5 m
+    interval: 15s
+    input_series:
+      - series: 'up{service.name="patroni",scope="shared",service.instance.id="pg-1"}'
+        values: '1x60'
+      - series: 'up{service.name="patroni",obenhub.cluster.name="a",scope="shared",service.instance.id="pg-2"}'
+        values: '1x60'
+    alert_rule_test:
+      - eval_time: 4m
+        groupname: patroni
+        alertname: PatroniClusterNameMissing
+        exp_alerts: []
+      - eval_time: 6m
+        groupname: patroni
+        alertname: PatroniClusterNameMissing
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              service.name: patroni
+              scope: shared
+              service.instance.id: pg-1
+            exp_annotations:
+              summary: Patroni on pg-1 reports no obenhub.cluster.name
+
+  - name: Patroni targets with a cluster name keep PatroniClusterNameMissing quiet
+    interval: 15s
+    input_series:
+      - series: 'up{service.name="patroni",obenhub.cluster.name="a",scope="shared",service.instance.id="pg-1"}'
+        values: '1x60'
+    alert_rule_test:
+      - eval_time: 10m
+        groupname: patroni
+        alertname: PatroniClusterNameMissing
+        exp_alerts: []

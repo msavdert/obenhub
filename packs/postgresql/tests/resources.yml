@@ -8,9 +8,9 @@ tests:
   - name: snapshot older than 120s fires after 30s; younger or absent does not
     interval: 15s
     input_series:
-      - series: 'postgresql.snapshot.oldest_age{service.instance.id="pg-primary"}'
+      - series: 'postgresql.snapshot.oldest_age{obenhub.cluster.name="slice1",service.instance.id="pg-primary"}'
         values: '0x4 130x56'
-      - series: 'postgresql.snapshot.oldest_age{service.instance.id="pg-standby"}'
+      - series: 'postgresql.snapshot.oldest_age{obenhub.cluster.name="slice1",service.instance.id="pg-standby"}'
         values: '100x60'
     alert_rule_test:
       - eval_time: 1m
@@ -22,6 +22,7 @@ tests:
         alertname: PostgresSnapshotHeldTooLong
         exp_alerts:
           - exp_labels:
+              obenhub.cluster.name: slice1
               severity: warning
               service.instance.id: pg-primary
             exp_annotations:
@@ -30,7 +31,7 @@ tests:
   - name: no snapshot data does not fire
     interval: 15s
     input_series:
-      - series: 'postgresql.snapshot.oldest_age{service.instance.id="pg-primary"}'
+      - series: 'postgresql.snapshot.oldest_age{obenhub.cluster.name="slice1",service.instance.id="pg-primary"}'
         values: '_x60'
     alert_rule_test:
       - eval_time: 5m
@@ -41,13 +42,13 @@ tests:
   - name: saturation fires above 85 percent of capacity on one server only
     interval: 15s
     input_series:
-      - series: 'postgresql.client_connection.count{service.instance.id="pg-primary"}'
+      - series: 'postgresql.client_connection.count{obenhub.cluster.name="slice1",service.instance.id="pg-primary"}'
         values: '5x4 90x56'
-      - series: 'postgresql.client_connection.limit{service.instance.id="pg-primary"}'
+      - series: 'postgresql.client_connection.limit{obenhub.cluster.name="slice1",service.instance.id="pg-primary"}'
         values: '97x60'
-      - series: 'postgresql.client_connection.count{service.instance.id="pg-standby"}'
+      - series: 'postgresql.client_connection.count{obenhub.cluster.name="slice1",service.instance.id="pg-standby"}'
         values: '5x60'
-      - series: 'postgresql.client_connection.limit{service.instance.id="pg-standby"}'
+      - series: 'postgresql.client_connection.limit{obenhub.cluster.name="slice1",service.instance.id="pg-standby"}'
         values: '97x60'
     alert_rule_test:
       - eval_time: 1m
@@ -59,6 +60,7 @@ tests:
         alertname: PostgresConnectionSaturation
         exp_alerts:
           - exp_labels:
+              obenhub.cluster.name: slice1
               severity: warning
               service.instance.id: pg-primary
             exp_annotations:
@@ -67,11 +69,11 @@ tests:
   - name: saturation at 80 percent or with a missing capacity series does not fire
     interval: 15s
     input_series:
-      - series: 'postgresql.client_connection.count{service.instance.id="pg-primary"}'
+      - series: 'postgresql.client_connection.count{obenhub.cluster.name="slice1",service.instance.id="pg-primary"}'
         values: '78x60'
-      - series: 'postgresql.client_connection.limit{service.instance.id="pg-primary"}'
+      - series: 'postgresql.client_connection.limit{obenhub.cluster.name="slice1",service.instance.id="pg-primary"}'
         values: '97x60'
-      - series: 'postgresql.client_connection.count{service.instance.id="pg-standby"}'
+      - series: 'postgresql.client_connection.count{obenhub.cluster.name="slice1",service.instance.id="pg-standby"}'
         values: '95x60'
     alert_rule_test:
       - eval_time: 8m
@@ -83,24 +85,24 @@ tests:
     interval: 15s
     input_series:
       # 95 of 100 = 0.95: critical
-      - series: 'postgresql.client_connection.count{service.instance.id="pg-crit"}'
+      - series: 'postgresql.client_connection.count{obenhub.cluster.name="slice1",service.instance.id="pg-crit"}'
         values: '95x60'
       # 0.95 exactly (19 of 20) belongs to the critical tier
-      - series: 'postgresql.client_connection.count{service.instance.id="pg-edge"}'
+      - series: 'postgresql.client_connection.count{obenhub.cluster.name="slice1",service.instance.id="pg-edge"}'
         values: '19x60'
       # 0.90: warning only
-      - series: 'postgresql.client_connection.count{service.instance.id="pg-warn"}'
+      - series: 'postgresql.client_connection.count{obenhub.cluster.name="slice1",service.instance.id="pg-warn"}'
         values: '90x60'
       # 0.90 for 3 minutes, then 0.98
-      - series: 'postgresql.client_connection.count{service.instance.id="pg-esc"}'
+      - series: 'postgresql.client_connection.count{obenhub.cluster.name="slice1",service.instance.id="pg-esc"}'
         values: '90x12 98x48'
-      - series: 'postgresql.client_connection.limit{service.instance.id="pg-crit"}'
+      - series: 'postgresql.client_connection.limit{obenhub.cluster.name="slice1",service.instance.id="pg-crit"}'
         values: '100x60'
-      - series: 'postgresql.client_connection.limit{service.instance.id="pg-edge"}'
+      - series: 'postgresql.client_connection.limit{obenhub.cluster.name="slice1",service.instance.id="pg-edge"}'
         values: '20x60'
-      - series: 'postgresql.client_connection.limit{service.instance.id="pg-warn"}'
+      - series: 'postgresql.client_connection.limit{obenhub.cluster.name="slice1",service.instance.id="pg-warn"}'
         values: '100x60'
-      - series: 'postgresql.client_connection.limit{service.instance.id="pg-esc"}'
+      - series: 'postgresql.client_connection.limit{obenhub.cluster.name="slice1",service.instance.id="pg-esc"}'
         values: '100x60'
     alert_rule_test:
       # pg-esc: warning while at 0.90, ...
@@ -109,21 +111,25 @@ tests:
         alertname: PostgresConnectionSaturation
         exp_alerts:
           - exp_labels:
+              obenhub.cluster.name: slice1
               severity: critical
               service.instance.id: pg-crit
             exp_annotations:
               summary: 'pg-crit client connections at or above 95% of capacity'
           - exp_labels:
+              obenhub.cluster.name: slice1
               severity: critical
               service.instance.id: pg-edge
             exp_annotations:
               summary: 'pg-edge client connections at or above 95% of capacity'
           - exp_labels:
+              obenhub.cluster.name: slice1
               severity: warning
               service.instance.id: pg-esc
             exp_annotations:
               summary: 'pg-esc client connections above 85% of capacity'
           - exp_labels:
+              obenhub.cluster.name: slice1
               severity: warning
               service.instance.id: pg-warn
             exp_annotations:
@@ -134,21 +140,25 @@ tests:
         alertname: PostgresConnectionSaturation
         exp_alerts:
           - exp_labels:
+              obenhub.cluster.name: slice1
               severity: critical
               service.instance.id: pg-crit
             exp_annotations:
               summary: 'pg-crit client connections at or above 95% of capacity'
           - exp_labels:
+              obenhub.cluster.name: slice1
               severity: critical
               service.instance.id: pg-edge
             exp_annotations:
               summary: 'pg-edge client connections at or above 95% of capacity'
           - exp_labels:
+              obenhub.cluster.name: slice1
               severity: critical
               service.instance.id: pg-esc
             exp_annotations:
               summary: 'pg-esc client connections at or above 95% of capacity'
           - exp_labels:
+              obenhub.cluster.name: slice1
               severity: warning
               service.instance.id: pg-warn
             exp_annotations:
@@ -158,9 +168,9 @@ tests:
   - name: saturation tiers - escalation, exactly one tier at every evaluation
     interval: 15s
     input_series:
-      - series: 'postgresql.client_connection.count{service.instance.id="a"}'
+      - series: 'postgresql.client_connection.count{obenhub.cluster.name="slice1",service.instance.id="a"}'
         values: '90x12 98x48'
-      - series: 'postgresql.client_connection.limit{service.instance.id="a"}'
+      - series: 'postgresql.client_connection.limit{obenhub.cluster.name="slice1",service.instance.id="a"}'
         values: '100x60'
     alert_rule_test:
       - eval_time: 3m
@@ -168,6 +178,7 @@ tests:
         alertname: PostgresConnectionSaturation
         exp_alerts:
           - exp_labels:
+              obenhub.cluster.name: slice1
               severity: warning
               service.instance.id: a
             exp_annotations:
@@ -177,6 +188,7 @@ tests:
         alertname: PostgresConnectionSaturation
         exp_alerts:
           - exp_labels:
+              obenhub.cluster.name: slice1
               severity: warning
               service.instance.id: a
             exp_annotations:
@@ -186,6 +198,7 @@ tests:
         alertname: PostgresConnectionSaturation
         exp_alerts:
           - exp_labels:
+              obenhub.cluster.name: slice1
               severity: warning
               service.instance.id: a
             exp_annotations:
@@ -195,6 +208,7 @@ tests:
         alertname: PostgresConnectionSaturation
         exp_alerts:
           - exp_labels:
+              obenhub.cluster.name: slice1
               severity: warning
               service.instance.id: a
             exp_annotations:
@@ -204,6 +218,7 @@ tests:
         alertname: PostgresConnectionSaturation
         exp_alerts:
           - exp_labels:
+              obenhub.cluster.name: slice1
               severity: warning
               service.instance.id: a
             exp_annotations:
@@ -213,6 +228,7 @@ tests:
         alertname: PostgresConnectionSaturation
         exp_alerts:
           - exp_labels:
+              obenhub.cluster.name: slice1
               severity: critical
               service.instance.id: a
             exp_annotations:
@@ -222,6 +238,7 @@ tests:
         alertname: PostgresConnectionSaturation
         exp_alerts:
           - exp_labels:
+              obenhub.cluster.name: slice1
               severity: critical
               service.instance.id: a
             exp_annotations:
@@ -231,6 +248,7 @@ tests:
         alertname: PostgresConnectionSaturation
         exp_alerts:
           - exp_labels:
+              obenhub.cluster.name: slice1
               severity: critical
               service.instance.id: a
             exp_annotations:
@@ -240,6 +258,7 @@ tests:
         alertname: PostgresConnectionSaturation
         exp_alerts:
           - exp_labels:
+              obenhub.cluster.name: slice1
               severity: critical
               service.instance.id: a
             exp_annotations:
@@ -248,9 +267,9 @@ tests:
   - name: saturation tiers - de-escalation, the warning follows the critical at once
     interval: 15s
     input_series:
-      - series: 'postgresql.client_connection.count{service.instance.id="a"}'
+      - series: 'postgresql.client_connection.count{obenhub.cluster.name="slice1",service.instance.id="a"}'
         values: '98x20 90x40'
-      - series: 'postgresql.client_connection.limit{service.instance.id="a"}'
+      - series: 'postgresql.client_connection.limit{obenhub.cluster.name="slice1",service.instance.id="a"}'
         values: '100x60'
     alert_rule_test:
       - eval_time: 4m30s
@@ -258,6 +277,7 @@ tests:
         alertname: PostgresConnectionSaturation
         exp_alerts:
           - exp_labels:
+              obenhub.cluster.name: slice1
               severity: critical
               service.instance.id: a
             exp_annotations:
@@ -267,6 +287,7 @@ tests:
         alertname: PostgresConnectionSaturation
         exp_alerts:
           - exp_labels:
+              obenhub.cluster.name: slice1
               severity: critical
               service.instance.id: a
             exp_annotations:
@@ -276,6 +297,7 @@ tests:
         alertname: PostgresConnectionSaturation
         exp_alerts:
           - exp_labels:
+              obenhub.cluster.name: slice1
               severity: critical
               service.instance.id: a
             exp_annotations:
@@ -285,6 +307,7 @@ tests:
         alertname: PostgresConnectionSaturation
         exp_alerts:
           - exp_labels:
+              obenhub.cluster.name: slice1
               severity: warning
               service.instance.id: a
             exp_annotations:
@@ -294,6 +317,7 @@ tests:
         alertname: PostgresConnectionSaturation
         exp_alerts:
           - exp_labels:
+              obenhub.cluster.name: slice1
               severity: warning
               service.instance.id: a
             exp_annotations:
@@ -303,6 +327,7 @@ tests:
         alertname: PostgresConnectionSaturation
         exp_alerts:
           - exp_labels:
+              obenhub.cluster.name: slice1
               severity: warning
               service.instance.id: a
             exp_annotations:
@@ -312,6 +337,7 @@ tests:
         alertname: PostgresConnectionSaturation
         exp_alerts:
           - exp_labels:
+              obenhub.cluster.name: slice1
               severity: warning
               service.instance.id: a
             exp_annotations:
@@ -321,6 +347,7 @@ tests:
         alertname: PostgresConnectionSaturation
         exp_alerts:
           - exp_labels:
+              obenhub.cluster.name: slice1
               severity: warning
               service.instance.id: a
             exp_annotations:
@@ -329,9 +356,9 @@ tests:
   - name: saturation tiers - a single dip while critical shows the warning for the window, then the critical returns
     interval: 15s
     input_series:
-      - series: 'postgresql.client_connection.count{service.instance.id="a"}'
+      - series: 'postgresql.client_connection.count{obenhub.cluster.name="slice1",service.instance.id="a"}'
         values: '98x20 90 98x39'
-      - series: 'postgresql.client_connection.limit{service.instance.id="a"}'
+      - series: 'postgresql.client_connection.limit{obenhub.cluster.name="slice1",service.instance.id="a"}'
         values: '100x60'
     alert_rule_test:
       - eval_time: 4m30s
@@ -339,6 +366,7 @@ tests:
         alertname: PostgresConnectionSaturation
         exp_alerts:
           - exp_labels:
+              obenhub.cluster.name: slice1
               severity: critical
               service.instance.id: a
             exp_annotations:
@@ -348,6 +376,7 @@ tests:
         alertname: PostgresConnectionSaturation
         exp_alerts:
           - exp_labels:
+              obenhub.cluster.name: slice1
               severity: critical
               service.instance.id: a
             exp_annotations:
@@ -357,6 +386,7 @@ tests:
         alertname: PostgresConnectionSaturation
         exp_alerts:
           - exp_labels:
+              obenhub.cluster.name: slice1
               severity: critical
               service.instance.id: a
             exp_annotations:
@@ -366,6 +396,7 @@ tests:
         alertname: PostgresConnectionSaturation
         exp_alerts:
           - exp_labels:
+              obenhub.cluster.name: slice1
               severity: warning
               service.instance.id: a
             exp_annotations:
@@ -375,6 +406,7 @@ tests:
         alertname: PostgresConnectionSaturation
         exp_alerts:
           - exp_labels:
+              obenhub.cluster.name: slice1
               severity: warning
               service.instance.id: a
             exp_annotations:
@@ -384,6 +416,7 @@ tests:
         alertname: PostgresConnectionSaturation
         exp_alerts:
           - exp_labels:
+              obenhub.cluster.name: slice1
               severity: warning
               service.instance.id: a
             exp_annotations:
@@ -393,6 +426,7 @@ tests:
         alertname: PostgresConnectionSaturation
         exp_alerts:
           - exp_labels:
+              obenhub.cluster.name: slice1
               severity: warning
               service.instance.id: a
             exp_annotations:
@@ -402,6 +436,7 @@ tests:
         alertname: PostgresConnectionSaturation
         exp_alerts:
           - exp_labels:
+              obenhub.cluster.name: slice1
               severity: warning
               service.instance.id: a
             exp_annotations:
@@ -411,6 +446,7 @@ tests:
         alertname: PostgresConnectionSaturation
         exp_alerts:
           - exp_labels:
+              obenhub.cluster.name: slice1
               severity: critical
               service.instance.id: a
             exp_annotations:
@@ -420,6 +456,7 @@ tests:
         alertname: PostgresConnectionSaturation
         exp_alerts:
           - exp_labels:
+              obenhub.cluster.name: slice1
               severity: critical
               service.instance.id: a
             exp_annotations:
@@ -429,6 +466,7 @@ tests:
         alertname: PostgresConnectionSaturation
         exp_alerts:
           - exp_labels:
+              obenhub.cluster.name: slice1
               severity: critical
               service.instance.id: a
             exp_annotations:
@@ -437,9 +475,9 @@ tests:
   - name: saturation tiers - a jump from below the warning threshold straight above the critical one never shows the warning
     interval: 15s
     input_series:
-      - series: 'postgresql.client_connection.count{service.instance.id="a"}'
+      - series: 'postgresql.client_connection.count{obenhub.cluster.name="slice1",service.instance.id="a"}'
         values: '50x12 98x48'
-      - series: 'postgresql.client_connection.limit{service.instance.id="a"}'
+      - series: 'postgresql.client_connection.limit{obenhub.cluster.name="slice1",service.instance.id="a"}'
         values: '100x60'
     alert_rule_test:
       - eval_time: 3m
@@ -467,6 +505,7 @@ tests:
         alertname: PostgresConnectionSaturation
         exp_alerts:
           - exp_labels:
+              obenhub.cluster.name: slice1
               severity: critical
               service.instance.id: a
             exp_annotations:
@@ -476,6 +515,7 @@ tests:
         alertname: PostgresConnectionSaturation
         exp_alerts:
           - exp_labels:
+              obenhub.cluster.name: slice1
               severity: critical
               service.instance.id: a
             exp_annotations:
@@ -485,6 +525,7 @@ tests:
         alertname: PostgresConnectionSaturation
         exp_alerts:
           - exp_labels:
+              obenhub.cluster.name: slice1
               severity: critical
               service.instance.id: a
             exp_annotations:
@@ -494,9 +535,9 @@ tests:
   - name: saturation warm-up - a new series above the critical threshold stays silent until its window is full
     interval: 15s
     input_series:
-      - series: 'postgresql.client_connection.count{service.instance.id="a"}'
+      - series: 'postgresql.client_connection.count{obenhub.cluster.name="slice1",service.instance.id="a"}'
         values: '_x4 98x56'
-      - series: 'postgresql.client_connection.limit{service.instance.id="a"}'
+      - series: 'postgresql.client_connection.limit{obenhub.cluster.name="slice1",service.instance.id="a"}'
         values: '100x100'
     alert_rule_test:
       - eval_time: 1m
@@ -520,6 +561,7 @@ tests:
         alertname: PostgresConnectionSaturation
         exp_alerts:
           - exp_labels:
+              obenhub.cluster.name: slice1
               severity: critical
               service.instance.id: a
             exp_annotations:
@@ -529,6 +571,7 @@ tests:
         alertname: PostgresConnectionSaturation
         exp_alerts:
           - exp_labels:
+              obenhub.cluster.name: slice1
               severity: critical
               service.instance.id: a
             exp_annotations:
@@ -538,6 +581,7 @@ tests:
         alertname: PostgresConnectionSaturation
         exp_alerts:
           - exp_labels:
+              obenhub.cluster.name: slice1
               severity: critical
               service.instance.id: a
             exp_annotations:
@@ -547,9 +591,9 @@ tests:
   - name: saturation warm-up - a return after a gap longer than the lookback starts the window again
     interval: 15s
     input_series:
-      - series: 'postgresql.client_connection.count{service.instance.id="a"}'
+      - series: 'postgresql.client_connection.count{obenhub.cluster.name="slice1",service.instance.id="a"}'
         values: '_x4 98x12 _x30 98x30'
-      - series: 'postgresql.client_connection.limit{service.instance.id="a"}'
+      - series: 'postgresql.client_connection.limit{obenhub.cluster.name="slice1",service.instance.id="a"}'
         values: '100x100'
     alert_rule_test:
       - eval_time: 3m45s
@@ -557,6 +601,7 @@ tests:
         alertname: PostgresConnectionSaturation
         exp_alerts:
           - exp_labels:
+              obenhub.cluster.name: slice1
               severity: critical
               service.instance.id: a
             exp_annotations:
@@ -566,6 +611,7 @@ tests:
         alertname: PostgresConnectionSaturation
         exp_alerts:
           - exp_labels:
+              obenhub.cluster.name: slice1
               severity: critical
               service.instance.id: a
             exp_annotations:
@@ -575,6 +621,7 @@ tests:
         alertname: PostgresConnectionSaturation
         exp_alerts:
           - exp_labels:
+              obenhub.cluster.name: slice1
               severity: critical
               service.instance.id: a
             exp_annotations:
@@ -608,6 +655,7 @@ tests:
         alertname: PostgresConnectionSaturation
         exp_alerts:
           - exp_labels:
+              obenhub.cluster.name: slice1
               severity: critical
               service.instance.id: a
             exp_annotations:
@@ -617,6 +665,7 @@ tests:
         alertname: PostgresConnectionSaturation
         exp_alerts:
           - exp_labels:
+              obenhub.cluster.name: slice1
               severity: critical
               service.instance.id: a
             exp_annotations:
@@ -625,9 +674,9 @@ tests:
   - name: saturation warm-up - one lost sample does not restart the window
     interval: 15s
     input_series:
-      - series: 'postgresql.client_connection.count{service.instance.id="a"}'
+      - series: 'postgresql.client_connection.count{obenhub.cluster.name="slice1",service.instance.id="a"}'
         values: '_x4 98x12 _ 98x30'
-      - series: 'postgresql.client_connection.limit{service.instance.id="a"}'
+      - series: 'postgresql.client_connection.limit{obenhub.cluster.name="slice1",service.instance.id="a"}'
         values: '100x100'
     alert_rule_test:
       - eval_time: 2m
@@ -635,6 +684,7 @@ tests:
         alertname: PostgresConnectionSaturation
         exp_alerts:
           - exp_labels:
+              obenhub.cluster.name: slice1
               severity: critical
               service.instance.id: a
             exp_annotations:
@@ -644,6 +694,7 @@ tests:
         alertname: PostgresConnectionSaturation
         exp_alerts:
           - exp_labels:
+              obenhub.cluster.name: slice1
               severity: critical
               service.instance.id: a
             exp_annotations:
@@ -653,6 +704,7 @@ tests:
         alertname: PostgresConnectionSaturation
         exp_alerts:
           - exp_labels:
+              obenhub.cluster.name: slice1
               severity: critical
               service.instance.id: a
             exp_annotations:
@@ -662,6 +714,7 @@ tests:
         alertname: PostgresConnectionSaturation
         exp_alerts:
           - exp_labels:
+              obenhub.cluster.name: slice1
               severity: critical
               service.instance.id: a
             exp_annotations:
@@ -671,6 +724,7 @@ tests:
         alertname: PostgresConnectionSaturation
         exp_alerts:
           - exp_labels:
+              obenhub.cluster.name: slice1
               severity: critical
               service.instance.id: a
             exp_annotations:
@@ -680,6 +734,7 @@ tests:
         alertname: PostgresConnectionSaturation
         exp_alerts:
           - exp_labels:
+              obenhub.cluster.name: slice1
               severity: critical
               service.instance.id: a
             exp_annotations:
@@ -689,6 +744,7 @@ tests:
         alertname: PostgresConnectionSaturation
         exp_alerts:
           - exp_labels:
+              obenhub.cluster.name: slice1
               severity: critical
               service.instance.id: a
             exp_annotations:
@@ -698,6 +754,7 @@ tests:
         alertname: PostgresConnectionSaturation
         exp_alerts:
           - exp_labels:
+              obenhub.cluster.name: slice1
               severity: critical
               service.instance.id: a
             exp_annotations:
@@ -707,6 +764,7 @@ tests:
         alertname: PostgresConnectionSaturation
         exp_alerts:
           - exp_labels:
+              obenhub.cluster.name: slice1
               severity: critical
               service.instance.id: a
             exp_annotations:
@@ -716,6 +774,7 @@ tests:
         alertname: PostgresConnectionSaturation
         exp_alerts:
           - exp_labels:
+              obenhub.cluster.name: slice1
               severity: critical
               service.instance.id: a
             exp_annotations:
@@ -725,6 +784,7 @@ tests:
         alertname: PostgresConnectionSaturation
         exp_alerts:
           - exp_labels:
+              obenhub.cluster.name: slice1
               severity: critical
               service.instance.id: a
             exp_annotations:
@@ -734,6 +794,7 @@ tests:
         alertname: PostgresConnectionSaturation
         exp_alerts:
           - exp_labels:
+              obenhub.cluster.name: slice1
               severity: critical
               service.instance.id: a
             exp_annotations:
@@ -743,6 +804,7 @@ tests:
         alertname: PostgresConnectionSaturation
         exp_alerts:
           - exp_labels:
+              obenhub.cluster.name: slice1
               severity: critical
               service.instance.id: a
             exp_annotations:
@@ -752,6 +814,7 @@ tests:
         alertname: PostgresConnectionSaturation
         exp_alerts:
           - exp_labels:
+              obenhub.cluster.name: slice1
               severity: critical
               service.instance.id: a
             exp_annotations:
@@ -761,6 +824,7 @@ tests:
         alertname: PostgresConnectionSaturation
         exp_alerts:
           - exp_labels:
+              obenhub.cluster.name: slice1
               severity: critical
               service.instance.id: a
             exp_annotations:
@@ -770,6 +834,7 @@ tests:
         alertname: PostgresConnectionSaturation
         exp_alerts:
           - exp_labels:
+              obenhub.cluster.name: slice1
               severity: critical
               service.instance.id: a
             exp_annotations:
@@ -779,6 +844,7 @@ tests:
         alertname: PostgresConnectionSaturation
         exp_alerts:
           - exp_labels:
+              obenhub.cluster.name: slice1
               severity: critical
               service.instance.id: a
             exp_annotations:
@@ -788,19 +854,19 @@ tests:
     interval: 15s
     input_series:
       # a slot holds the horizon, no client snapshot: fires
-      - series: 'postgresql.xmin_horizon.age{service.instance.id="pg-primary"}'
+      - series: 'postgresql.xmin_horizon.age{obenhub.cluster.name="slice1",service.instance.id="pg-primary"}'
         values: '5000000x4 20000000x56'
-      - series: 'postgresql.snapshot.oldest_age{service.instance.id="pg-primary"}'
+      - series: 'postgresql.snapshot.oldest_age{obenhub.cluster.name="slice1",service.instance.id="pg-primary"}'
         values: '0x60'
       # the horizon is old, and so is a client snapshot: PostgresSnapshotHeldTooLong covers it
-      - series: 'postgresql.xmin_horizon.age{service.instance.id="pg-standby"}'
+      - series: 'postgresql.xmin_horizon.age{obenhub.cluster.name="slice1",service.instance.id="pg-standby"}'
         values: '20000000x60'
-      - series: 'postgresql.snapshot.oldest_age{service.instance.id="pg-standby"}'
+      - series: 'postgresql.snapshot.oldest_age{obenhub.cluster.name="slice1",service.instance.id="pg-standby"}'
         values: '130x60'
       # below the threshold: quiet
-      - series: 'postgresql.xmin_horizon.age{service.instance.id="pg-other"}'
+      - series: 'postgresql.xmin_horizon.age{obenhub.cluster.name="slice1",service.instance.id="pg-other"}'
         values: '9000000x60'
-      - series: 'postgresql.snapshot.oldest_age{service.instance.id="pg-other"}'
+      - series: 'postgresql.snapshot.oldest_age{obenhub.cluster.name="slice1",service.instance.id="pg-other"}'
         values: '0x60'
     alert_rule_test:
       - eval_time: 4m
@@ -812,6 +878,7 @@ tests:
         alertname: PostgresXminHorizonHeld
         exp_alerts:
           - exp_labels:
+              obenhub.cluster.name: slice1
               severity: warning
               service.instance.id: pg-primary
             exp_annotations:

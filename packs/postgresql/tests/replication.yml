@@ -10,13 +10,13 @@ tests:
   - name: not streaming fires on the standby only; the primary (0, not in recovery) is gated out
     interval: 15s
     input_series:
-      - series: 'postgresql.wal_receiver.streaming{service.instance.id="pg-primary"}'
+      - series: 'postgresql.wal_receiver.streaming{obenhub.cluster.name="slice1",service.instance.id="pg-primary"}'
         values: '0x60'
-      - series: 'postgresql.recovery.active{service.instance.id="pg-primary"}'
+      - series: 'postgresql.recovery.active{obenhub.cluster.name="slice1",service.instance.id="pg-primary"}'
         values: '0x60'
-      - series: 'postgresql.wal_receiver.streaming{service.instance.id="pg-standby"}'
+      - series: 'postgresql.wal_receiver.streaming{obenhub.cluster.name="slice1",service.instance.id="pg-standby"}'
         values: '1x8 0x52'
-      - series: 'postgresql.recovery.active{service.instance.id="pg-standby"}'
+      - series: 'postgresql.recovery.active{obenhub.cluster.name="slice1",service.instance.id="pg-standby"}'
         values: '1x60'
     alert_rule_test:
       - eval_time: 1m   # still streaming
@@ -32,6 +32,7 @@ tests:
         alertname: PostgresStandbyNotStreaming
         exp_alerts:
           - exp_labels:
+              obenhub.cluster.name: slice1
               severity: critical
               service.instance.id: pg-standby
             exp_annotations:
@@ -40,9 +41,9 @@ tests:
   - name: a failed standby collection (no samples) does not fire
     interval: 15s
     input_series:
-      - series: 'postgresql.wal_receiver.streaming{service.instance.id="pg-standby"}'
+      - series: 'postgresql.wal_receiver.streaming{obenhub.cluster.name="slice1",service.instance.id="pg-standby"}'
         values: '1x8 _x52'
-      - series: 'postgresql.recovery.active{service.instance.id="pg-standby"}'
+      - series: 'postgresql.recovery.active{obenhub.cluster.name="slice1",service.instance.id="pg-standby"}'
         values: '1x8 _x52'
     alert_rule_test:
       - eval_time: 8m
@@ -53,7 +54,7 @@ tests:
   - name: not streaming does not fire when only recovery.active is missing
     interval: 15s
     input_series:
-      - series: 'postgresql.wal_receiver.streaming{service.instance.id="pg-standby"}'
+      - series: 'postgresql.wal_receiver.streaming{obenhub.cluster.name="slice1",service.instance.id="pg-standby"}'
         values: '0x60'
     alert_rule_test:
       - eval_time: 8m
@@ -64,9 +65,9 @@ tests:
   - name: a short startup blip of streaming=0 does not fire
     interval: 15s
     input_series:
-      - series: 'postgresql.wal_receiver.streaming{service.instance.id="pg-standby"}'
+      - series: 'postgresql.wal_receiver.streaming{obenhub.cluster.name="slice1",service.instance.id="pg-standby"}'
         values: '0x3 1x57'
-      - series: 'postgresql.recovery.active{service.instance.id="pg-standby"}'
+      - series: 'postgresql.recovery.active{obenhub.cluster.name="slice1",service.instance.id="pg-standby"}'
         values: '1x60'
     alert_rule_test:
       - eval_time: 3m
@@ -77,9 +78,9 @@ tests:
   - name: promoted standby (recovery.active 0) is no longer expected to stream
     interval: 15s
     input_series:
-      - series: 'postgresql.wal_receiver.streaming{service.instance.id="pg-standby"}'
+      - series: 'postgresql.wal_receiver.streaming{obenhub.cluster.name="slice1",service.instance.id="pg-standby"}'
         values: '0x60'
-      - series: 'postgresql.recovery.active{service.instance.id="pg-standby"}'
+      - series: 'postgresql.recovery.active{obenhub.cluster.name="slice1",service.instance.id="pg-standby"}'
         values: '0x60'
     alert_rule_test:
       - eval_time: 8m
@@ -90,13 +91,13 @@ tests:
   - name: backlog above 16 MiB fires on the standby; 0 and the primary do not
     interval: 15s
     input_series:
-      - series: 'postgresql.replay.backlog{service.instance.id="pg-standby"}'
+      - series: 'postgresql.replay.backlog{obenhub.cluster.name="slice1",service.instance.id="pg-standby"}'
         values: '0x8 20000000x52'
-      - series: 'postgresql.recovery.active{service.instance.id="pg-standby"}'
+      - series: 'postgresql.recovery.active{obenhub.cluster.name="slice1",service.instance.id="pg-standby"}'
         values: '1x60'
-      - series: 'postgresql.replay.backlog{service.instance.id="pg-primary"}'
+      - series: 'postgresql.replay.backlog{obenhub.cluster.name="slice1",service.instance.id="pg-primary"}'
         values: '20000000x60'
-      - series: 'postgresql.recovery.active{service.instance.id="pg-primary"}'
+      - series: 'postgresql.recovery.active{obenhub.cluster.name="slice1",service.instance.id="pg-primary"}'
         values: '0x60'
     alert_rule_test:
       - eval_time: 1m
@@ -108,6 +109,7 @@ tests:
         alertname: PostgresReplayBacklog
         exp_alerts:
           - exp_labels:
+              obenhub.cluster.name: slice1
               severity: warning
               service.instance.id: pg-standby
             exp_annotations:
@@ -116,9 +118,9 @@ tests:
   - name: backlog exactly at the threshold or below does not fire
     interval: 15s
     input_series:
-      - series: 'postgresql.replay.backlog{service.instance.id="pg-standby"}'
+      - series: 'postgresql.replay.backlog{obenhub.cluster.name="slice1",service.instance.id="pg-standby"}'
         values: '16777216x60'
-      - series: 'postgresql.recovery.active{service.instance.id="pg-standby"}'
+      - series: 'postgresql.recovery.active{obenhub.cluster.name="slice1",service.instance.id="pg-standby"}'
         values: '1x60'
     alert_rule_test:
       - eval_time: 8m
@@ -129,13 +131,13 @@ tests:
   - name: not streaming is silent when no node is writable (quorum lost, all in recovery)
     interval: 15s
     input_series:
-      - series: 'postgresql.wal_receiver.streaming{service.instance.id="pg-1"}'
+      - series: 'postgresql.wal_receiver.streaming{obenhub.cluster.name="slice1",service.instance.id="pg-1"}'
         values: '0x60'
-      - series: 'postgresql.recovery.active{service.instance.id="pg-1"}'
+      - series: 'postgresql.recovery.active{obenhub.cluster.name="slice1",service.instance.id="pg-1"}'
         values: '1x60'
-      - series: 'postgresql.wal_receiver.streaming{service.instance.id="pg-2"}'
+      - series: 'postgresql.wal_receiver.streaming{obenhub.cluster.name="slice1",service.instance.id="pg-2"}'
         values: '0x60'
-      - series: 'postgresql.recovery.active{service.instance.id="pg-2"}'
+      - series: 'postgresql.recovery.active{obenhub.cluster.name="slice1",service.instance.id="pg-2"}'
         values: '1x60'
     alert_rule_test:
       - eval_time: 8m
@@ -146,15 +148,15 @@ tests:
   - name: not streaming ignores a deleted pod's stale primary sample under the recreated pod (k8s.pod.uid)
     interval: 15s
     input_series:
-      - series: 'postgresql.wal_receiver.streaming{service.instance.id="pg-1",k8s.pod.uid="old"}'
+      - series: 'postgresql.wal_receiver.streaming{obenhub.cluster.name="slice1",service.instance.id="pg-1",k8s.pod.uid="old"}'
         values: '0x4'
-      - series: 'postgresql.recovery.active{service.instance.id="pg-1",k8s.pod.uid="old"}'
+      - series: 'postgresql.recovery.active{obenhub.cluster.name="slice1",service.instance.id="pg-1",k8s.pod.uid="old"}'
         values: '0x4'
-      - series: 'postgresql.wal_receiver.streaming{service.instance.id="pg-1",k8s.pod.uid="new"}'
+      - series: 'postgresql.wal_receiver.streaming{obenhub.cluster.name="slice1",service.instance.id="pg-1",k8s.pod.uid="new"}'
         values: '_x6 1x40'
-      - series: 'postgresql.recovery.active{service.instance.id="pg-1",k8s.pod.uid="new"}'
+      - series: 'postgresql.recovery.active{obenhub.cluster.name="slice1",service.instance.id="pg-1",k8s.pod.uid="new"}'
         values: '_x6 1x40'
-      - series: 'postgresql.recovery.active{service.instance.id="pg-2",k8s.pod.uid="p2"}'
+      - series: 'postgresql.recovery.active{obenhub.cluster.name="slice1",service.instance.id="pg-2",k8s.pod.uid="p2"}'
         values: '1x4 0x42'
     alert_rule_test:
       - eval_time: 3m
@@ -165,11 +167,11 @@ tests:
   - name: not streaming still fires for a pod in recovery that does not stream (k8s.pod.uid on both sides)
     interval: 15s
     input_series:
-      - series: 'postgresql.wal_receiver.streaming{service.instance.id="pg-1",k8s.pod.uid="new"}'
+      - series: 'postgresql.wal_receiver.streaming{obenhub.cluster.name="slice1",service.instance.id="pg-1",k8s.pod.uid="new"}'
         values: '0x40'
-      - series: 'postgresql.recovery.active{service.instance.id="pg-1",k8s.pod.uid="new"}'
+      - series: 'postgresql.recovery.active{obenhub.cluster.name="slice1",service.instance.id="pg-1",k8s.pod.uid="new"}'
         values: '1x40'
-      - series: 'postgresql.recovery.active{service.instance.id="pg-2",k8s.pod.uid="p2"}'
+      - series: 'postgresql.recovery.active{obenhub.cluster.name="slice1",service.instance.id="pg-2",k8s.pod.uid="p2"}'
         values: '0x40'
     alert_rule_test:
       - eval_time: 3m
@@ -177,6 +179,7 @@ tests:
         alertname: PostgresStandbyNotStreaming
         exp_alerts:
           - exp_labels:
+              obenhub.cluster.name: slice1
               severity: critical
               service.instance.id: pg-1
               k8s.pod.uid: new
@@ -335,11 +338,11 @@ tests:
   - name: FIRST 2 with one synchronous standby left fires (required 2, count 2 then 1)
     interval: 15s
     input_series:
-      - series: 'postgresql.replication.synchronous_standby.required{service.instance.id="pg-1"}'
+      - series: 'postgresql.replication.synchronous_standby.required{obenhub.cluster.name="slice1",service.instance.id="pg-1"}'
         values: '2x60'
-      - series: 'postgresql.replication.synchronous_standby.count{service.instance.id="pg-1"}'
+      - series: 'postgresql.replication.synchronous_standby.count{obenhub.cluster.name="slice1",service.instance.id="pg-1"}'
         values: '2x8 1x52'
-      - series: 'postgresql.recovery.active{service.instance.id="pg-1"}'
+      - series: 'postgresql.recovery.active{obenhub.cluster.name="slice1",service.instance.id="pg-1"}'
         values: '0x60'
     alert_rule_test:
       - eval_time: 1m   # enough standbys
@@ -355,6 +358,7 @@ tests:
         alertname: PostgresSynchronousStandbyMissing
         exp_alerts:
           - exp_labels:
+              obenhub.cluster.name: slice1
               severity: critical
               service.instance.id: pg-1
             exp_annotations:
@@ -363,11 +367,11 @@ tests:
   - name: ANY 2 of 3 with one standby left fires (required 2, count 2 then 1)
     interval: 15s
     input_series:
-      - series: 'postgresql.replication.synchronous_standby.required{service.instance.id="pg-1"}'
+      - series: 'postgresql.replication.synchronous_standby.required{obenhub.cluster.name="slice1",service.instance.id="pg-1"}'
         values: '2x60'
-      - series: 'postgresql.replication.synchronous_standby.count{service.instance.id="pg-1"}'
+      - series: 'postgresql.replication.synchronous_standby.count{obenhub.cluster.name="slice1",service.instance.id="pg-1"}'
         values: '2x8 1x52'
-      - series: 'postgresql.recovery.active{service.instance.id="pg-1"}'
+      - series: 'postgresql.recovery.active{obenhub.cluster.name="slice1",service.instance.id="pg-1"}'
         values: '0x60'
     alert_rule_test:
       - eval_time: 1m   # enough standbys
@@ -383,6 +387,7 @@ tests:
         alertname: PostgresSynchronousStandbyMissing
         exp_alerts:
           - exp_labels:
+              obenhub.cluster.name: slice1
               severity: critical
               service.instance.id: pg-1
             exp_annotations:
@@ -391,11 +396,11 @@ tests:
   - name: a star or a plain list with no synchronous standby fires (required 1, count 1 then 0)
     interval: 15s
     input_series:
-      - series: 'postgresql.replication.synchronous_standby.required{service.instance.id="pg-1"}'
+      - series: 'postgresql.replication.synchronous_standby.required{obenhub.cluster.name="slice1",service.instance.id="pg-1"}'
         values: '1x60'
-      - series: 'postgresql.replication.synchronous_standby.count{service.instance.id="pg-1"}'
+      - series: 'postgresql.replication.synchronous_standby.count{obenhub.cluster.name="slice1",service.instance.id="pg-1"}'
         values: '1x8 0x52'
-      - series: 'postgresql.recovery.active{service.instance.id="pg-1"}'
+      - series: 'postgresql.recovery.active{obenhub.cluster.name="slice1",service.instance.id="pg-1"}'
         values: '0x60'
     alert_rule_test:
       - eval_time: 1m   # enough standbys
@@ -411,6 +416,7 @@ tests:
         alertname: PostgresSynchronousStandbyMissing
         exp_alerts:
           - exp_labels:
+              obenhub.cluster.name: slice1
               severity: critical
               service.instance.id: pg-1
             exp_annotations:
@@ -419,11 +425,11 @@ tests:
   - name: empty synchronous_standby_names (required 0, count 0) is quiet
     interval: 15s
     input_series:
-      - series: 'postgresql.replication.synchronous_standby.required{service.instance.id="pg-1"}'
+      - series: 'postgresql.replication.synchronous_standby.required{obenhub.cluster.name="slice1",service.instance.id="pg-1"}'
         values: '0x60'
-      - series: 'postgresql.replication.synchronous_standby.count{service.instance.id="pg-1"}'
+      - series: 'postgresql.replication.synchronous_standby.count{obenhub.cluster.name="slice1",service.instance.id="pg-1"}'
         values: '0x60'
-      - series: 'postgresql.recovery.active{service.instance.id="pg-1"}'
+      - series: 'postgresql.recovery.active{obenhub.cluster.name="slice1",service.instance.id="pg-1"}'
         values: '0x60'
     alert_rule_test:
       - eval_time: 5m
@@ -434,11 +440,11 @@ tests:
   - name: enough standbys (required 2, count 2) is quiet
     interval: 15s
     input_series:
-      - series: 'postgresql.replication.synchronous_standby.required{service.instance.id="pg-1"}'
+      - series: 'postgresql.replication.synchronous_standby.required{obenhub.cluster.name="slice1",service.instance.id="pg-1"}'
         values: '2x60'
-      - series: 'postgresql.replication.synchronous_standby.count{service.instance.id="pg-1"}'
+      - series: 'postgresql.replication.synchronous_standby.count{obenhub.cluster.name="slice1",service.instance.id="pg-1"}'
         values: '2x60'
-      - series: 'postgresql.recovery.active{service.instance.id="pg-1"}'
+      - series: 'postgresql.recovery.active{obenhub.cluster.name="slice1",service.instance.id="pg-1"}'
         values: '0x60'
     alert_rule_test:
       - eval_time: 5m
@@ -449,11 +455,11 @@ tests:
   - name: more than required (required 1, count 2) is quiet
     interval: 15s
     input_series:
-      - series: 'postgresql.replication.synchronous_standby.required{service.instance.id="pg-1"}'
+      - series: 'postgresql.replication.synchronous_standby.required{obenhub.cluster.name="slice1",service.instance.id="pg-1"}'
         values: '1x60'
-      - series: 'postgresql.replication.synchronous_standby.count{service.instance.id="pg-1"}'
+      - series: 'postgresql.replication.synchronous_standby.count{obenhub.cluster.name="slice1",service.instance.id="pg-1"}'
         values: '2x60'
-      - series: 'postgresql.recovery.active{service.instance.id="pg-1"}'
+      - series: 'postgresql.recovery.active{obenhub.cluster.name="slice1",service.instance.id="pg-1"}'
         values: '0x60'
     alert_rule_test:
       - eval_time: 5m
@@ -464,11 +470,11 @@ tests:
   - name: a standby (in recovery) never fires, whatever its own counts
     interval: 15s
     input_series:
-      - series: 'postgresql.replication.synchronous_standby.required{service.instance.id="pg-1"}'
+      - series: 'postgresql.replication.synchronous_standby.required{obenhub.cluster.name="slice1",service.instance.id="pg-1"}'
         values: '2x60'
-      - series: 'postgresql.replication.synchronous_standby.count{service.instance.id="pg-1"}'
+      - series: 'postgresql.replication.synchronous_standby.count{obenhub.cluster.name="slice1",service.instance.id="pg-1"}'
         values: '0x60'
-      - series: 'postgresql.recovery.active{service.instance.id="pg-1"}'
+      - series: 'postgresql.recovery.active{obenhub.cluster.name="slice1",service.instance.id="pg-1"}'
         values: '1x60'
     alert_rule_test:
       - eval_time: 5m
@@ -479,11 +485,11 @@ tests:
   - name: a failed collection (no samples) does not fire
     interval: 15s
     input_series:
-      - series: 'postgresql.replication.synchronous_standby.required{service.instance.id="pg-1"}'
+      - series: 'postgresql.replication.synchronous_standby.required{obenhub.cluster.name="slice1",service.instance.id="pg-1"}'
         values: '1x8 _x52'
-      - series: 'postgresql.replication.synchronous_standby.count{service.instance.id="pg-1"}'
+      - series: 'postgresql.replication.synchronous_standby.count{obenhub.cluster.name="slice1",service.instance.id="pg-1"}'
         values: '1x8 _x52'
-      - series: 'postgresql.recovery.active{service.instance.id="pg-1"}'
+      - series: 'postgresql.recovery.active{obenhub.cluster.name="slice1",service.instance.id="pg-1"}'
         values: '0x8 _x52'
     alert_rule_test:
       - eval_time: 8m

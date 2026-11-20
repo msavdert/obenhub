@@ -8,16 +8,16 @@
 # sits in a row whose title contains "(labs with": such a row holds the
 # panels of a component only some labs run (PgBouncer, a logical subscriber).
 # --strict-rows turns the last exception off, for a lab that runs the component.
-# An optional fourth argument replaces $instance (the PostgreSQL dashboard's
-# variable) in the queries. Needs the lab running.
-# Usage: check-panels.sh [--strict-rows] <dashboard.json> <grafana-url> <env-file-with-GRAFANA_ADMIN_PASSWORD> [instance]
+# An optional fourth argument replaces $instance and an optional fifth $cluster
+# (the PostgreSQL dashboard's variables) in the queries. Needs the lab running.
+# Usage: check-panels.sh [--strict-rows] <dashboard.json> <grafana-url> <env-file-with-GRAFANA_ADMIN_PASSWORD> [instance [cluster]]
 # Example: scripts/check-panels.sh packs/cnpg/dashboards/cnpg.json http://127.0.0.1:43000 lab/k8s/mon/.env
 set -euo pipefail
 
 strict=false
 if [ "${1:-}" = "--strict-rows" ]; then strict=true; shift; fi
-[ $# -ge 3 ] && [ $# -le 4 ] || { sed -n 13,14p "$0" >&2; exit 2; }
-dashboard="$1"; grafana="$2"; envfile="$3"; instance="${4:-}"
+[ $# -ge 3 ] && [ $# -le 5 ] || { sed -n 13,14p "$0" >&2; exit 2; }
+dashboard="$1"; grafana="$2"; envfile="$3"; instance="${4:-}"; cluster="${5:-}"
 pw="$(sed -n 's/^GRAFANA_ADMIN_PASSWORD=//p' "$envfile")"
 [ -n "$pw" ] || { echo "GRAFANA_ADMIN_PASSWORD missing from $envfile" >&2; exit 1; }
 # curl --config reads the value in double quotes with backslash escapes (curl man page, --config)
@@ -32,9 +32,9 @@ fail=0
 n=$(jq 'length' "$flat")
 for i in $(seq 0 $((n - 1))); do
   title=$(jq -r ".[$i].title" "$flat")
-  body=$(jq -c --argjson i "$i" --arg inst "$instance" '
+  body=$(jq -c --argjson i "$i" --arg inst "$instance" --arg clus "$cluster" '
     {queries: [.[$i].targets[] | . + {maxDataPoints: 500, intervalMs: 15000}
-        | walk(if type == "string" then gsub("\\$__rate_interval"; "1m") | (if $inst != "" then gsub("\\$instance"; $inst) else . end) else . end)],
+        | walk(if type == "string" then gsub("\\$__rate_interval"; "1m") | (if $inst != "" then gsub("\\$instance"; $inst) else . end) | (if $clus != "" then gsub("\\$cluster"; $clus) else . end) else . end)],
      from: "now-1h", to: "now"}' "$flat")
   resp=$(curl -sS --connect-timeout 5 --max-time 60 -K <(printf 'user = "admin:%s"\n' "$cfgpw") -H 'Content-Type: application/json' -d "$body" "$grafana/api/ds/query") || resp=""
   lines=$(printf '%s' "$resp" | jq -r --argjson i "$i" --argjson strict "$strict" --slurpfile d "$flat" '

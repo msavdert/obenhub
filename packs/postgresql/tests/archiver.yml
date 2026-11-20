@@ -7,9 +7,9 @@ tests:
   - name: archiving failing fires after 1m of failing, only on the node that fails, and clears on success
     interval: 15s
     input_series:
-      - series: 'postgresql.archiver.failing{service.instance.id="pg-primary"}'
+      - series: 'postgresql.archiver.failing{obenhub.cluster.name="slice1",service.instance.id="pg-primary"}'
         values: '0x4 1x20 0x35'
-      - series: 'postgresql.archiver.failing{service.instance.id="pg-standby"}'
+      - series: 'postgresql.archiver.failing{obenhub.cluster.name="slice1",service.instance.id="pg-standby"}'
         values: '0x60'
     alert_rule_test:
       - eval_time: 1m   # still healthy
@@ -25,6 +25,7 @@ tests:
         alertname: PostgresArchivingFailing
         exp_alerts:
           - exp_labels:
+              obenhub.cluster.name: slice1
               severity: warning
               service.instance.id: pg-primary
             exp_annotations:
@@ -37,13 +38,13 @@ tests:
   - name: archive backlog above 8 files fires after 2m (9 is enough, 12 too); 8 files and no data do not
     interval: 15s
     input_series:
-      - series: 'postgresql.archiver.ready_file.count{service.instance.id="pg-primary"}'
+      - series: 'postgresql.archiver.ready_file.count{obenhub.cluster.name="slice1",service.instance.id="pg-primary"}'
         values: '0x4 12x56'
-      - series: 'postgresql.archiver.ready_file.count{service.instance.id="pg-standby"}'
+      - series: 'postgresql.archiver.ready_file.count{obenhub.cluster.name="slice1",service.instance.id="pg-standby"}'
         values: '8x60'
-      - series: 'postgresql.archiver.ready_file.count{service.instance.id="pg-subscriber"}'
+      - series: 'postgresql.archiver.ready_file.count{obenhub.cluster.name="slice1-subscriber",service.instance.id="pg-subscriber"}'
         values: '_x60'
-      - series: 'postgresql.archiver.ready_file.count{service.instance.id="pg-nine"}'
+      - series: 'postgresql.archiver.ready_file.count{obenhub.cluster.name="slice1",service.instance.id="pg-nine"}'
         values: '9x60'
     alert_rule_test:
       - eval_time: 1m   # above the threshold since 0: pending until 2m
@@ -55,11 +56,13 @@ tests:
         alertname: PostgresArchiveBacklog
         exp_alerts:
           - exp_labels:
+              obenhub.cluster.name: slice1
               severity: warning
               service.instance.id: pg-primary
             exp_annotations:
               summary: '12 WAL files on pg-primary are waiting for the archiver (lab threshold)'
           - exp_labels:
+              obenhub.cluster.name: slice1
               severity: warning
               service.instance.id: pg-nine
             exp_annotations:

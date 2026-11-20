@@ -1,0 +1,134 @@
+# Target identity (ADR 0006, decision 7) for the etcd pack: two etcd clusters
+# in one backend whose members have the same names (etcd-1 to etcd-3), as
+# when two labs report into one VictoriaMetrics. A fault of one cluster must
+# neither fire for nor be hidden by the other. The inventory is written into
+# the tests; EtcdClusterNameMissing is at the end.
+rule_files:
+  - ../rules.yml
+evaluation_interval: 15s
+
+tests:
+  - name: two clusters share member names - quorum lost in a is reported for a alone, per cluster
+    interval: 15s
+    input_series:
+      - series: 'obenhub.expected_scrape{service.name="etcd",obenhub.cluster.name="a",service.instance.id="etcd-1",obenhub.collector="otelcol-x"}'
+        values: '1x60'
+      - series: 'obenhub.expected_scrape{service.name="etcd",obenhub.cluster.name="a",service.instance.id="etcd-2",obenhub.collector="otelcol-x"}'
+        values: '1x60'
+      - series: 'obenhub.expected_scrape{service.name="etcd",obenhub.cluster.name="a",service.instance.id="etcd-3",obenhub.collector="otelcol-x"}'
+        values: '1x60'
+      - series: 'obenhub.expected_scrape{service.name="etcd",obenhub.cluster.name="b",service.instance.id="etcd-1",obenhub.collector="otelcol-x"}'
+        values: '1x60'
+      - series: 'obenhub.expected_scrape{service.name="etcd",obenhub.cluster.name="b",service.instance.id="etcd-2",obenhub.collector="otelcol-x"}'
+        values: '1x60'
+      - series: 'obenhub.expected_scrape{service.name="etcd",obenhub.cluster.name="b",service.instance.id="etcd-3",obenhub.collector="otelcol-x"}'
+        values: '1x60'
+      # a: two members stop answering, one stays (1 of 3: no quorum)
+      - series: 'up{service.name="etcd",obenhub.cluster.name="a",service.instance.id="etcd-1"}'
+        values: '1x60'
+      - series: 'up{service.name="etcd",obenhub.cluster.name="a",service.instance.id="etcd-2"}'
+        values: '1x8 0x52'
+      - series: 'up{service.name="etcd",obenhub.cluster.name="a",service.instance.id="etcd-3"}'
+        values: '1x8 0x52'
+      # b: all three answer. Counted across the backend 4 of 6 would report, a majority.
+      - series: 'up{service.name="etcd",obenhub.cluster.name="b",service.instance.id="etcd-1"}'
+        values: '1x60'
+      - series: 'up{service.name="etcd",obenhub.cluster.name="b",service.instance.id="etcd-2"}'
+        values: '1x60'
+      - series: 'up{service.name="etcd",obenhub.cluster.name="b",service.instance.id="etcd-3"}'
+        values: '1x60'
+      - series: 'otelcol_process_uptime{service.name="otelcol",service.instance.id="otelcol-x"}'
+        values: '1x60'
+    alert_rule_test:
+      - eval_time: 3m
+        groupname: etcd
+        alertname: EtcdInsufficientMembers
+        exp_alerts: []
+      - eval_time: 7m
+        groupname: etcd
+        alertname: EtcdInsufficientMembers
+        exp_alerts:
+          - exp_labels: {severity: critical, obenhub.cluster.name: a}
+            exp_annotations:
+              summary: "Only 1 members of etcd cluster a report: quorum is lost"
+
+  - name: two clusters share member names - EtcdMemberAbsent names the member of a, not b's etcd-2
+    interval: 15s
+    input_series:
+      - series: 'obenhub.expected_scrape{service.name="etcd",obenhub.cluster.name="a",service.instance.id="etcd-2",obenhub.collector="otelcol-x"}'
+        values: '1x60'
+      - series: 'obenhub.expected_scrape{service.name="etcd",obenhub.cluster.name="b",service.instance.id="etcd-2",obenhub.collector="otelcol-x"}'
+        values: '1x60'
+      - series: 'up{service.name="etcd",obenhub.cluster.name="a",service.instance.id="etcd-2"}'
+        values: '1x8 0x52'
+      - series: 'up{service.name="etcd",obenhub.cluster.name="b",service.instance.id="etcd-2"}'
+        values: '1x60'
+      - series: 'otelcol_process_uptime{service.name="otelcol",service.instance.id="otelcol-x"}'
+        values: '1x60'
+    alert_rule_test:
+      - eval_time: 3m
+        groupname: etcd
+        alertname: EtcdMemberAbsent
+        exp_alerts: []
+      - eval_time: 6m
+        groupname: etcd
+        alertname: EtcdMemberAbsent
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              service.name: etcd
+              obenhub.cluster.name: a
+              service.instance.id: etcd-2
+              obenhub.collector: otelcol-x
+            exp_annotations:
+              summary: etcd member etcd-2 is not scraped
+
+  - name: leader changes are counted per cluster - three in a fire for a, one in b do not
+    interval: 15s
+    input_series:
+      - series: 'etcd_server_leader_changes_seen_total{obenhub.cluster.name="a",service.name="etcd",service.instance.id="etcd-1"}'
+        values: '2x24 3 4 5 5x74'
+      - series: 'etcd_server_leader_changes_seen_total{obenhub.cluster.name="b",service.name="etcd",service.instance.id="etcd-1"}'
+        values: '2x24 3 3x75'
+    alert_rule_test:
+      - eval_time: 8m
+        groupname: etcd
+        alertname: EtcdHighLeaderChanges
+        exp_alerts:
+          - exp_labels: {severity: warning, obenhub.cluster.name: a}
+            exp_annotations:
+              summary: 3 leader changes of etcd cluster a within 5 minutes
+
+  - name: a member without obenhub.cluster.name fires EtcdClusterNameMissing after 5 m
+    interval: 15s
+    input_series:
+      - series: 'up{service.name="etcd",service.instance.id="etcd-1"}'
+        values: '1x60'
+      - series: 'up{service.name="etcd",obenhub.cluster.name="a",service.instance.id="etcd-2"}'
+        values: '1x60'
+    alert_rule_test:
+      - eval_time: 4m
+        groupname: etcd
+        alertname: EtcdClusterNameMissing
+        exp_alerts: []
+      - eval_time: 6m
+        groupname: etcd
+        alertname: EtcdClusterNameMissing
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              service.name: etcd
+              service.instance.id: etcd-1
+            exp_annotations:
+              summary: etcd member etcd-1 reports no obenhub.cluster.name
+
+  - name: members with a cluster name keep EtcdClusterNameMissing quiet
+    interval: 15s
+    input_series:
+      - series: 'up{service.name="etcd",obenhub.cluster.name="a",service.instance.id="etcd-1"}'
+        values: '1x60'
+    alert_rule_test:
+      - eval_time: 10m
+        groupname: etcd
+        alertname: EtcdClusterNameMissing
+        exp_alerts: []

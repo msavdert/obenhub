@@ -16,6 +16,23 @@
   "templating": {
     "list": [
       {
+        "name": "cluster",
+        "label": "Cluster",
+        "type": "query",
+        "datasource": {
+          "type": "victoriametrics-metrics-datasource",
+          "uid": "vm"
+        },
+        "query": "label_values(postgresql.collection.heartbeat, obenhub.cluster.name)",
+        "refresh": 2,
+        "sort": 1,
+        "includeAll": false,
+        "current": {
+          "text": "slice1",
+          "value": "slice1"
+        }
+      },
+      {
         "name": "instance",
         "label": "Instance",
         "type": "query",
@@ -23,7 +40,7 @@
           "type": "victoriametrics-metrics-datasource",
           "uid": "vm"
         },
-        "query": "label_values(postgresql.collection.heartbeat, service.instance.id)",
+        "query": "label_values(postgresql.collection.heartbeat{obenhub.cluster.name=\"$cluster\"}, service.instance.id)",
         "refresh": 2,
         "sort": 1,
         "includeAll": false,
@@ -55,7 +72,7 @@
             "type": "victoriametrics-metrics-datasource",
             "uid": "vm"
           },
-          "expr": "postgresql.recovery.active{service.instance.id=\"$instance\"}",
+          "expr": "postgresql.recovery.active{obenhub.cluster.name=\"$cluster\", service.instance.id=\"$instance\"}",
           "refId": "A",
           "range": true,
           "instant": false
@@ -129,7 +146,7 @@
             "type": "victoriametrics-metrics-datasource",
             "uid": "vm"
           },
-          "expr": "postgresql.wal_receiver.streaming{service.instance.id=\"$instance\"}",
+          "expr": "postgresql.wal_receiver.streaming{obenhub.cluster.name=\"$cluster\", service.instance.id=\"$instance\"}",
           "refId": "A",
           "range": true,
           "instant": false
@@ -203,7 +220,7 @@
             "type": "victoriametrics-metrics-datasource",
             "uid": "vm"
           },
-          "expr": "postgresql.collection.heartbeat{service.instance.id=\"$instance\"}",
+          "expr": "postgresql.collection.heartbeat{obenhub.cluster.name=\"$cluster\", service.instance.id=\"$instance\"}",
           "refId": "A",
           "range": true,
           "instant": false
@@ -335,7 +352,7 @@
             "type": "victoriametrics-metrics-datasource",
             "uid": "vm"
           },
-          "expr": "postgresql.replay.backlog{service.instance.id=\"$instance\"}",
+          "expr": "postgresql.replay.backlog{obenhub.cluster.name=\"$cluster\", service.instance.id=\"$instance\"}",
           "refId": "A",
           "range": true,
           "instant": false,
@@ -400,7 +417,7 @@
             "type": "victoriametrics-metrics-datasource",
             "uid": "vm"
           },
-          "expr": "postgresql.snapshot.oldest_age{service.instance.id=\"$instance\"}",
+          "expr": "postgresql.snapshot.oldest_age{obenhub.cluster.name=\"$cluster\", service.instance.id=\"$instance\"}",
           "refId": "A",
           "range": true,
           "instant": false,
@@ -465,7 +482,7 @@
             "type": "victoriametrics-metrics-datasource",
             "uid": "vm"
           },
-          "expr": "postgresql.xmin_horizon.age{service.instance.id=\"$instance\"}",
+          "expr": "postgresql.xmin_horizon.age{obenhub.cluster.name=\"$cluster\", service.instance.id=\"$instance\"}",
           "refId": "A",
           "range": true,
           "instant": false,
@@ -514,7 +531,7 @@
             "type": "victoriametrics-metrics-datasource",
             "uid": "vm"
           },
-          "expr": "postgresql.client_connection.count{service.instance.id=\"$instance\"}",
+          "expr": "postgresql.client_connection.count{obenhub.cluster.name=\"$cluster\", service.instance.id=\"$instance\"}",
           "refId": "A",
           "range": true,
           "instant": false,
@@ -525,7 +542,7 @@
             "type": "victoriametrics-metrics-datasource",
             "uid": "vm"
           },
-          "expr": "postgresql.client_connection.limit{service.instance.id=\"$instance\"}",
+          "expr": "postgresql.client_connection.limit{obenhub.cluster.name=\"$cluster\", service.instance.id=\"$instance\"}",
           "refId": "B",
           "range": true,
           "instant": false,
@@ -536,7 +553,7 @@
             "type": "victoriametrics-metrics-datasource",
             "uid": "vm"
           },
-          "expr": "0.85 * postgresql.client_connection.limit{service.instance.id=\"$instance\"}",
+          "expr": "0.85 * postgresql.client_connection.limit{obenhub.cluster.name=\"$cluster\", service.instance.id=\"$instance\"}",
           "refId": "C",
           "range": true,
           "instant": false,
@@ -585,7 +602,7 @@
             "type": "victoriametrics-metrics-datasource",
             "uid": "vm"
           },
-          "expr": "sum(rate(postgresql.commits{service.instance.id=\"$instance\"}[$__rate_interval]))",
+          "expr": "sum(rate(postgresql.commits{obenhub.cluster.name=\"$cluster\", service.instance.id=\"$instance\"}[$__rate_interval]))",
           "refId": "A",
           "range": true,
           "instant": false,
@@ -596,7 +613,7 @@
             "type": "victoriametrics-metrics-datasource",
             "uid": "vm"
           },
-          "expr": "sum(rate(postgresql.rollbacks{service.instance.id=\"$instance\"}[$__rate_interval]))",
+          "expr": "sum(rate(postgresql.rollbacks{obenhub.cluster.name=\"$cluster\", service.instance.id=\"$instance\"}[$__rate_interval]))",
           "refId": "B",
           "range": true,
           "instant": false,
@@ -765,7 +782,7 @@
             "type": "victoriametrics-metrics-datasource",
             "uid": "vm"
           },
-          "expr": "postgresql.archiver.ready_file.count{service.instance.id=\"$instance\"}",
+          "expr": "postgresql.archiver.ready_file.count{obenhub.cluster.name=\"$cluster\", service.instance.id=\"$instance\"}",
           "refId": "A",
           "range": true,
           "instant": false,
@@ -776,7 +793,7 @@
             "type": "victoriametrics-metrics-datasource",
             "uid": "vm"
           },
-          "expr": "postgresql.archiver.failing{service.instance.id=\"$instance\"}",
+          "expr": "postgresql.archiver.failing{obenhub.cluster.name=\"$cluster\", service.instance.id=\"$instance\"}",
           "refId": "B",
           "range": true,
           "instant": false,
@@ -787,7 +804,7 @@
             "type": "victoriametrics-metrics-datasource",
             "uid": "vm"
           },
-          "expr": "postgresql.archiver.failure{service.instance.id=\"$instance\"}",
+          "expr": "postgresql.archiver.failure{obenhub.cluster.name=\"$cluster\", service.instance.id=\"$instance\"}",
           "refId": "C",
           "range": true,
           "instant": false,
@@ -836,7 +853,7 @@
             "type": "victoriametrics-metrics-datasource",
             "uid": "vm"
           },
-          "expr": "max(postgresql.database.xid_age{service.instance.id=\"$instance\"}) / 2147483648",
+          "expr": "max(postgresql.database.xid_age{obenhub.cluster.name=\"$cluster\", service.instance.id=\"$instance\"}) / 2147483648",
           "refId": "A",
           "range": true,
           "instant": false,
@@ -847,7 +864,7 @@
             "type": "victoriametrics-metrics-datasource",
             "uid": "vm"
           },
-          "expr": "max(postgresql.database.mxid_age{service.instance.id=\"$instance\"}) / 2147483648",
+          "expr": "max(postgresql.database.mxid_age{obenhub.cluster.name=\"$cluster\", service.instance.id=\"$instance\"}) / 2147483648",
           "refId": "B",
           "range": true,
           "instant": false,
@@ -918,7 +935,7 @@
             "type": "victoriametrics-metrics-datasource",
             "uid": "vm"
           },
-          "expr": "postgresql.transaction.idle_age{service.instance.id=\"$instance\"}",
+          "expr": "postgresql.transaction.idle_age{obenhub.cluster.name=\"$cluster\", service.instance.id=\"$instance\"}",
           "refId": "A",
           "range": true,
           "instant": false,
@@ -987,7 +1004,7 @@
             "type": "victoriametrics-metrics-datasource",
             "uid": "vm"
           },
-          "expr": "postgresql.lock.oldest_wait_age{service.instance.id=\"$instance\"}",
+          "expr": "postgresql.lock.oldest_wait_age{obenhub.cluster.name=\"$cluster\", service.instance.id=\"$instance\"}",
           "refId": "A",
           "range": true,
           "instant": false,
@@ -998,7 +1015,7 @@
             "type": "victoriametrics-metrics-datasource",
             "uid": "vm"
           },
-          "expr": "postgresql.lock.waiting_session.count{service.instance.id=\"$instance\"}",
+          "expr": "postgresql.lock.waiting_session.count{obenhub.cluster.name=\"$cluster\", service.instance.id=\"$instance\"}",
           "refId": "B",
           "range": true,
           "instant": false,
@@ -1086,7 +1103,7 @@
             "type": "victoriametrics-metrics-datasource",
             "uid": "vm"
           },
-          "expr": "last_over_time(postgresql.deadlocks{service.instance.id=\"$instance\"}[5m]) - first_over_time(postgresql.deadlocks{service.instance.id=\"$instance\"}[5m])",
+          "expr": "last_over_time(postgresql.deadlocks{obenhub.cluster.name=\"$cluster\", service.instance.id=\"$instance\"}[5m]) - first_over_time(postgresql.deadlocks{obenhub.cluster.name=\"$cluster\", service.instance.id=\"$instance\"}[5m])",
           "refId": "A",
           "range": true,
           "instant": false,
@@ -1135,7 +1152,7 @@
             "type": "victoriametrics-metrics-datasource",
             "uid": "vm"
           },
-          "expr": "last_over_time(postgresql.bgwriter.checkpoint.count{service.instance.id=\"$instance\"}[5m]) - first_over_time(postgresql.bgwriter.checkpoint.count{service.instance.id=\"$instance\"}[5m])",
+          "expr": "last_over_time(postgresql.bgwriter.checkpoint.count{obenhub.cluster.name=\"$cluster\", service.instance.id=\"$instance\"}[5m]) - first_over_time(postgresql.bgwriter.checkpoint.count{obenhub.cluster.name=\"$cluster\", service.instance.id=\"$instance\"}[5m])",
           "refId": "A",
           "range": true,
           "instant": false,
@@ -2120,7 +2137,7 @@
             "type": "victoriametrics-logs-datasource",
             "uid": "vl"
           },
-          "expr": "service.name:=postgresql service.instance.id:=\"$instance\" severity_text:in(ERROR,FATAL,PANIC)",
+          "expr": "service.name:=postgresql obenhub.cluster.name:=\"$cluster\" service.instance.id:=\"$instance\" severity_text:in(ERROR,FATAL,PANIC)",
           "refId": "A",
           "queryType": "range"
         }

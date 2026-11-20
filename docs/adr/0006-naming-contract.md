@@ -78,7 +78,11 @@ Kubernetes attributes) are used as they arrive.
    query file and checked in `mise run check`; it is not written by hand.
 7. **Target identity** (amended 2026-11-20). A target is identified by
    `obenhub.cluster.name` and `service.instance.id` together;
-   `service.instance.id` alone is unique only within one cluster.
+   `service.instance.id` alone is unique only within one cluster, and a
+   cluster name is unique within one backend. On Kubernetes, where a
+   CloudNativePG Cluster name is unique only per namespace, the Collector
+   configuration must set a name that is unique across namespaces (the k8s lab
+   runs one Cluster, `pg`).
    - `obenhub.cluster.name` is mandatory on every series of the engine and
      cluster components: PostgreSQL, PgBouncer, pgBackRest, Patroni, etcd,
      CloudNativePG and Oracle. Host, Collector and Kubernetes node series

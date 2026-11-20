@@ -180,3 +180,38 @@ tests:
         groupname: cnpg
         alertname: CNPGInstanceFenced
         exp_alerts: []
+
+  # --- a target without a cluster (ADR 0006, decision 7) --------------------
+  - name: an exporter series without obenhub.cluster.name fires CNPGClusterNameMissing after 5 m
+    interval: 15s
+    input_series:
+      - series: 'cnpg_collector_fencing_on{k8s.namespace.name="obenhub",service.instance.id="pg-1"}'
+        values: '0x60'
+      - series: 'cnpg_collector_fencing_on{k8s.namespace.name="obenhub",obenhub.cluster.name="pg",service.instance.id="pg-2"}'
+        values: '0x60'
+    alert_rule_test:
+      - eval_time: 4m
+        groupname: cnpg
+        alertname: CNPGClusterNameMissing
+        exp_alerts: []
+      - eval_time: 6m
+        groupname: cnpg
+        alertname: CNPGClusterNameMissing
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              k8s.namespace.name: obenhub
+              service.instance.id: pg-1
+            exp_annotations:
+              summary: pg-1 (obenhub) reports no obenhub.cluster.name
+
+  - name: exporter series with a cluster name keep CNPGClusterNameMissing quiet
+    interval: 15s
+    input_series:
+      - series: 'cnpg_collector_fencing_on{k8s.namespace.name="obenhub",obenhub.cluster.name="pg",service.instance.id="pg-1"}'
+        values: '0x60'
+    alert_rule_test:
+      - eval_time: 10m
+        groupname: cnpg
+        alertname: CNPGClusterNameMissing
+        exp_alerts: []

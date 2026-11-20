@@ -7,10 +7,12 @@
 # so nothing here names a node as primary or standby. Patroni reports 0 for
 # metrics that do not apply to a node's role (timeline and xlog_location are 0
 # on a replica, received and replayed location are 0 on the leader; observed
-# 2026-11-07 on Patroni 4.1.5), so cluster-wide values are max by (scope).
+# 2026-11-07 on Patroni 4.1.5), so cluster-wide values are max by (obenhub.cluster.name).
 # Suppression is written into the expressions, not into Alertmanager inhibits
 # (lab/slice1 lesson: vmalert's startsAt predates group_wait, so inhibits race).
-# Names follow the naming contract (ADR 0006).
+# Names follow the naming contract (ADR 0006). Identity (ADR 0006, decision 7):
+# rules group and join on obenhub.cluster.name, with service.instance.id for a
+# member; Patroni's own `scope` label stays as it arrives but no rule reads it.
 groups:
   - name: patroni
     interval: 15s
@@ -35,30 +37,30 @@ groups:
           WITH (
             last_primary = tlast_over_time((patroni_primary == 1)[1d:15s])
           )
-          sum by (scope) (patroni_primary) == 0
-            unless on(scope)
+          sum by (obenhub.cluster.name) (patroni_primary) == 0
+            unless on(obenhub.cluster.name)
           (
             (
               last_primary
-                and on(service.instance.id)
+                and on(obenhub.cluster.name, service.instance.id)
               (last_over_time(patroni_primary[1d]) == 1)
-                and on(service.instance.id)
+                and on(obenhub.cluster.name, service.instance.id)
               (
                 obenhub.expected_scrape{service.name="patroni"}
                   unless on(obenhub.collector)
                 label_replace(present_over_time(otelcol_process_uptime[1m]), "obenhub.collector", "$1", "service.instance.id", "(.+)")
               )
             )
-              >= on(scope) group_left
-            max by (scope) (last_primary)
+              >= on(obenhub.cluster.name) group_left
+            max by (obenhub.cluster.name) (last_primary)
           )
         for: 90s
         labels:
           severity: critical
         annotations:
-          summary: 'Cluster {{ $labels.scope }} has no writable primary'
+          summary: 'Cluster {{ (index $labels "obenhub.cluster.name") }} has no writable primary'
 
-      # Two or more members of one scope report patroni_primary == 1 at the
+      # Two or more members of one cluster report patroni_primary == 1 at the
       # same time: two writable primaries, split brain. Only fresh samples
       # count: last_over_time over 30 s (two 15 s scrapes, so one missed scrape
       # is tolerated) returns each member's latest value and drops a member
@@ -96,8 +98,8 @@ groups:
       # PostgreSQL itself) cover that.
       - alert: PatroniMultiplePrimaries
         expr: |
-          count by (scope) (
-            min by (scope, service.instance.id) (
+          count by (obenhub.cluster.name) (
+            min by (obenhub.cluster.name, service.instance.id) (
               last_over_time(patroni_primary[30s])
             ) == 1
           ) > 1
@@ -105,7 +107,7 @@ groups:
         labels:
           severity: critical
         annotations:
-          summary: 'Cluster {{ $labels.scope }} has {{ $value }} members reporting primary (split brain)'
+          summary: 'Cluster {{ (index $labels "obenhub.cluster.name") }} has {{ $value }} members reporting primary (split brain)'
 
       # The highest timeline any node reports rose compared with the highest
       # one seen in the hour before the last 3 m (a rolling maximum, so the
@@ -118,13 +120,13 @@ groups:
       # switchover scenario).
       - alert: PatroniFailoverHappened
         expr: |
-          max by (scope) (patroni_postgres_timeline)
-            > on(scope)
-          max_over_time(max by (scope) (patroni_postgres_timeline)[1h:1m] offset 3m)
+          max by (obenhub.cluster.name) (patroni_postgres_timeline)
+            > on(obenhub.cluster.name)
+          max_over_time(max by (obenhub.cluster.name) (patroni_postgres_timeline)[1h:1m] offset 3m)
         labels:
           severity: warning
         annotations:
-          summary: 'Cluster {{ $labels.scope }} moved to timeline {{ $value }}'
+          summary: 'Cluster {{ (index $labels "obenhub.cluster.name") }} moved to timeline {{ $value }}'
 
       # A replica whose WAL position (max of received and replayed, the value
       # Patroni itself compares) is more than maximum_lag_on_failover behind
@@ -136,14 +138,14 @@ groups:
       - alert: PatroniReplicaNotEligible
         expr: |
           (
-            max by (scope) (patroni_xlog_location)
-              - on(scope) group_right()
+            max by (obenhub.cluster.name) (patroni_xlog_location)
+              - on(obenhub.cluster.name) group_right()
             (
               (
                 clamp_min(patroni_xlog_received_location - patroni_xlog_replayed_location, 0)
                   + patroni_xlog_replayed_location
               )
-                and on(service.instance.id)
+                and on(obenhub.cluster.name, service.instance.id)
               patroni_replica == 1
             )
           ) > 16777216
@@ -155,12 +157,12 @@ groups:
 
       # Maintenance mode disables automatic failover. 3 m is a lab value.
       - alert: PatroniClusterPaused
-        expr: max by (scope) (patroni_is_paused) == 1
+        expr: max by (obenhub.cluster.name) (patroni_is_paused) == 1
         for: 3m
         labels:
           severity: warning
         annotations:
-          summary: 'Cluster {{ $labels.scope }} is paused: no automatic failover'
+          summary: 'Cluster {{ (index $labels "obenhub.cluster.name") }} is paused: no automatic failover'
 
       # A parameter changed that needs a restart. 2 m is a lab value.
       - alert: PatroniPendingRestart
@@ -189,9 +191,9 @@ groups:
       - alert: PatroniTargetAbsent
         expr: |
           obenhub.expected_scrape{service.name="patroni"}
-            unless on(service.instance.id)
+            unless on(obenhub.cluster.name, service.instance.id)
           (max_over_time(up{service.name="patroni"}[2m]) == 1)
-            and on(service.instance.id)
+            and on(obenhub.cluster.name, service.instance.id)
           present_over_time(postgresql.collection.heartbeat[1m])
             and on(obenhub.collector)
           label_replace(present_over_time(otelcol_process_uptime[1m]), "obenhub.collector", "$1", "service.instance.id", "(.+)")
@@ -200,6 +202,18 @@ groups:
           severity: critical
         annotations:
           summary: 'Patroni on {{ (index $labels "service.instance.id") }} is not scraped while PostgreSQL still reports'
+
+      # A Patroni target without obenhub.cluster.name (ADR 0006, decision 7).
+      # Every rule of this pack groups on it, so such a member belongs to no
+      # cluster: PatroniNoWritablePrimary and PatroniMultiplePrimaries count
+      # it nowhere. up is the series PatroniTargetAbsent reads.
+      - alert: PatroniClusterNameMissing
+        expr: up{service.name="patroni", obenhub.cluster.name=""}
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'Patroni on {{ (index $labels "service.instance.id") }} reports no obenhub.cluster.name'
 
       # Failsafe mode: the DCS is unreachable and the leader keeps running on
       # the failsafe topology. UNIT TESTS ONLY: the lab runs with failsafe_mode

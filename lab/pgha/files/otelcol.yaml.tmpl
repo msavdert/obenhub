@@ -177,6 +177,7 @@ processors:
       - {key: service.instance.id, value: @NODE@, action: upsert}
       - {key: server.address, value: @NODE@, action: upsert}
       - {key: server.port, value: '2379', action: upsert}
+      - {key: obenhub.cluster.name, value: pgha-etcd, action: upsert}
   # Operating-system telemetry of the node: hostmetrics and the journal.
   resource/host:
     attributes:

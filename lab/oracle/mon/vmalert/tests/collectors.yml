@@ -25,9 +25,9 @@ tests:
         values: '1x60'
       - series: 'otelcol_process_uptime{service.name="otelcol",service.instance.id="otelcol-ora-dg-stby"}'
         values: '1x60'
-      - series: 'oracledb.collection.heartbeat{service.name="oracledb",service.instance.id="CDB19"}'
+      - series: 'oracledb.collection.heartbeat{service.name="oracledb",obenhub.cluster.name="cdb19",service.instance.id="CDB19"}'
         values: '1x10 _x50'
-      - series: 'oracledb.collection.heartbeat{service.name="oracledb",service.instance.id="CDB19_STBY"}'
+      - series: 'oracledb.collection.heartbeat{service.name="oracledb",obenhub.cluster.name="cdb19",service.instance.id="CDB19_STBY"}'
         values: '1x10 _x50'
     alert_rule_test:
       - eval_time: 3m
@@ -73,9 +73,9 @@ tests:
         values: '1x60'
       - series: 'otelcol_process_uptime{service.name="otelcol",service.instance.id="otelcol-ora-dg-stby"}'
         values: '1x60'
-      - series: 'oracledb.collection.heartbeat{service.name="oracledb",service.instance.id="CDB19"}'
+      - series: 'oracledb.collection.heartbeat{service.name="oracledb",obenhub.cluster.name="cdb19",service.instance.id="CDB19"}'
         values: '1x60'
-      - series: 'oracledb.collection.heartbeat{service.name="oracledb",service.instance.id="CDB19_STBY"}'
+      - series: 'oracledb.collection.heartbeat{service.name="oracledb",obenhub.cluster.name="cdb19",service.instance.id="CDB19_STBY"}'
         values: '1x60'
     alert_rule_test:
       - eval_time: 5m
@@ -113,9 +113,9 @@ tests:
         values: '1x60'
       - series: 'otelcol_process_uptime{service.name="otelcol",service.instance.id="otelcol-ora-dg-stby"}'
         values: '1x8 _x52'
-      - series: 'oracledb.collection.heartbeat{service.name="oracledb",service.instance.id="CDB19"}'
+      - series: 'oracledb.collection.heartbeat{service.name="oracledb",obenhub.cluster.name="cdb19",service.instance.id="CDB19"}'
         values: '1x60'
-      - series: 'oracledb.collection.heartbeat{service.name="oracledb",service.instance.id="CDB19_STBY"}'
+      - series: 'oracledb.collection.heartbeat{service.name="oracledb",obenhub.cluster.name="cdb19",service.instance.id="CDB19_STBY"}'
         values: '1x60'
     alert_rule_test:
       - eval_time: 3m
@@ -145,9 +145,9 @@ tests:
         values: '1x8 _x52'
       - series: 'otelcol_process_uptime{service.name="otelcol",service.instance.id="otelcol-ora-dg-stby"}'
         values: '1x8 _x52'
-      - series: 'oracledb.collection.heartbeat{service.name="oracledb",service.instance.id="CDB19"}'
+      - series: 'oracledb.collection.heartbeat{service.name="oracledb",obenhub.cluster.name="cdb19",service.instance.id="CDB19"}'
         values: '1x10 _x50'
-      - series: 'oracledb.collection.heartbeat{service.name="oracledb",service.instance.id="CDB19_STBY"}'
+      - series: 'oracledb.collection.heartbeat{service.name="oracledb",obenhub.cluster.name="cdb19",service.instance.id="CDB19_STBY"}'
         values: '1x10 _x50'
     alert_rule_test:
       - eval_time: 6m

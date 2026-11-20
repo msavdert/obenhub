@@ -10,7 +10,7 @@ tests:
   - name: with the slice 1 parameter a backup 900 s old is stale and one 600 s old is not
     interval: 15s
     input_series:
-      - series: 'pgbackrest_backup_since_last_completion_seconds{backup_type="incr",stanza="slice1",service.name="pgbackrest",service.instance.id="pgbackrest"}'
+      - series: 'pgbackrest_backup_since_last_completion_seconds{obenhub.cluster.name="slice1",backup_type="incr",stanza="slice1",service.name="pgbackrest",service.instance.id="pgbackrest"}'
         values: '600x20 900x20'
     alert_rule_test:
       - eval_time: 4m
@@ -22,6 +22,7 @@ tests:
         alertname: PgBackRestBackupStale
         exp_alerts:
           - exp_labels:
+              obenhub.cluster.name: slice1
               severity: warning
               backup_type: incr
               stanza: slice1

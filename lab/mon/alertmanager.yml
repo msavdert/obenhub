@@ -4,11 +4,13 @@
 # Alertmanager (verified on the wire, v1.155.0, no flag keeps them), so
 # routing uses the underscored names. No inhibit rules: suppression is written
 # into the rule expressions (vmalert's startsAt predates group_wait, so an
-# inhibit races with delivery; found in lab/slice1, 2026-11-06). Cluster-level
-# alerts carry no service_instance_id and form one group per alertname.
+# inhibit races with delivery; found in lab/slice1, 2026-11-06). A target is
+# its cluster plus its instance (ADR 0006, decision 7), so both are grouped on.
+# Cluster-level alerts carry no service_instance_id and form one group per
+# alertname and cluster.
 route:
   receiver: victorialogs
-  group_by: [alertname, service_instance_id]
+  group_by: [alertname, obenhub_cluster_name, service_instance_id]
   group_wait: 5s
   group_interval: 15s
   repeat_interval: 1h

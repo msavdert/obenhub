@@ -218,7 +218,7 @@
             "type": "victoriametrics-metrics-datasource",
             "uid": "vm"
           },
-          "expr": "max((postgresql.replication_slot.retained_wal unless on(service.instance.id, postgresql.replication_slot.name) postgresql.replication_slot.invalidated == 1) and on(service.instance.id) postgresql.recovery.active == 0) or vector(0)",
+          "expr": "max((postgresql.replication_slot.retained_wal unless on(obenhub.cluster.name, service.instance.id, postgresql.replication_slot.name) postgresql.replication_slot.invalidated == 1) and on(obenhub.cluster.name, service.instance.id) postgresql.recovery.active == 0) or vector(0)",
           "refId": "A",
           "range": true,
           "instant": false

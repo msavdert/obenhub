@@ -13,21 +13,21 @@ tests:
   - name: WAL fsync p99 above 0.5 s for 10 m fires for the slow member only
     interval: 15s
     input_series:
-      - series: 'etcd_disk_wal_fsync_duration_seconds_bucket{le="0.032",service.name="etcd",service.instance.id="etcd-1"}'
+      - series: 'etcd_disk_wal_fsync_duration_seconds_bucket{obenhub.cluster.name="stage3-etcd",le="0.032",service.name="etcd",service.instance.id="etcd-1"}'
         values: '0+10x100'
-      - series: 'etcd_disk_wal_fsync_duration_seconds_bucket{le="0.5",service.name="etcd",service.instance.id="etcd-1"}'
+      - series: 'etcd_disk_wal_fsync_duration_seconds_bucket{obenhub.cluster.name="stage3-etcd",le="0.5",service.name="etcd",service.instance.id="etcd-1"}'
         values: '0+10x100'
-      - series: 'etcd_disk_wal_fsync_duration_seconds_bucket{le="1",service.name="etcd",service.instance.id="etcd-1"}'
+      - series: 'etcd_disk_wal_fsync_duration_seconds_bucket{obenhub.cluster.name="stage3-etcd",le="1",service.name="etcd",service.instance.id="etcd-1"}'
         values: '0+10x100'
-      - series: 'etcd_disk_wal_fsync_duration_seconds_bucket{le="+Inf",service.name="etcd",service.instance.id="etcd-1"}'
+      - series: 'etcd_disk_wal_fsync_duration_seconds_bucket{obenhub.cluster.name="stage3-etcd",le="+Inf",service.name="etcd",service.instance.id="etcd-1"}'
         values: '0+10x100'
-      - series: 'etcd_disk_wal_fsync_duration_seconds_bucket{le="0.032",service.name="etcd",service.instance.id="etcd-2"}'
+      - series: 'etcd_disk_wal_fsync_duration_seconds_bucket{obenhub.cluster.name="stage3-etcd",le="0.032",service.name="etcd",service.instance.id="etcd-2"}'
         values: '0x100'
-      - series: 'etcd_disk_wal_fsync_duration_seconds_bucket{le="0.5",service.name="etcd",service.instance.id="etcd-2"}'
+      - series: 'etcd_disk_wal_fsync_duration_seconds_bucket{obenhub.cluster.name="stage3-etcd",le="0.5",service.name="etcd",service.instance.id="etcd-2"}'
         values: '0x100'
-      - series: 'etcd_disk_wal_fsync_duration_seconds_bucket{le="1",service.name="etcd",service.instance.id="etcd-2"}'
+      - series: 'etcd_disk_wal_fsync_duration_seconds_bucket{obenhub.cluster.name="stage3-etcd",le="1",service.name="etcd",service.instance.id="etcd-2"}'
         values: '0+10x100'
-      - series: 'etcd_disk_wal_fsync_duration_seconds_bucket{le="+Inf",service.name="etcd",service.instance.id="etcd-2"}'
+      - series: 'etcd_disk_wal_fsync_duration_seconds_bucket{obenhub.cluster.name="stage3-etcd",le="+Inf",service.name="etcd",service.instance.id="etcd-2"}'
         values: '0+10x100'
     alert_rule_test:
       - eval_time: 8m   # slow for 8 m, below the 10 m hold
@@ -39,6 +39,7 @@ tests:
         alertname: EtcdHighFsyncDurations
         exp_alerts:
           - exp_labels:
+              obenhub.cluster.name: stage3-etcd
               severity: warning
               service.instance.id: etcd-2
               service.name: etcd
@@ -49,17 +50,17 @@ tests:
     interval: 15s
     input_series:
       # etcd-1: all in (0.25, 0.5]; etcd-2: all in (0.128, 0.25] (p99 < 0.25)
-      - series: 'etcd_disk_backend_commit_duration_seconds_bucket{le="0.25",service.name="etcd",service.instance.id="etcd-1"}'
+      - series: 'etcd_disk_backend_commit_duration_seconds_bucket{obenhub.cluster.name="stage3-etcd",le="0.25",service.name="etcd",service.instance.id="etcd-1"}'
         values: '0x100'
-      - series: 'etcd_disk_backend_commit_duration_seconds_bucket{le="0.5",service.name="etcd",service.instance.id="etcd-1"}'
+      - series: 'etcd_disk_backend_commit_duration_seconds_bucket{obenhub.cluster.name="stage3-etcd",le="0.5",service.name="etcd",service.instance.id="etcd-1"}'
         values: '0+10x100'
-      - series: 'etcd_disk_backend_commit_duration_seconds_bucket{le="+Inf",service.name="etcd",service.instance.id="etcd-1"}'
+      - series: 'etcd_disk_backend_commit_duration_seconds_bucket{obenhub.cluster.name="stage3-etcd",le="+Inf",service.name="etcd",service.instance.id="etcd-1"}'
         values: '0+10x100'
-      - series: 'etcd_disk_backend_commit_duration_seconds_bucket{le="0.128",service.name="etcd",service.instance.id="etcd-2"}'
+      - series: 'etcd_disk_backend_commit_duration_seconds_bucket{obenhub.cluster.name="stage3-etcd",le="0.128",service.name="etcd",service.instance.id="etcd-2"}'
         values: '0x100'
-      - series: 'etcd_disk_backend_commit_duration_seconds_bucket{le="0.25",service.name="etcd",service.instance.id="etcd-2"}'
+      - series: 'etcd_disk_backend_commit_duration_seconds_bucket{obenhub.cluster.name="stage3-etcd",le="0.25",service.name="etcd",service.instance.id="etcd-2"}'
         values: '0+10x100'
-      - series: 'etcd_disk_backend_commit_duration_seconds_bucket{le="+Inf",service.name="etcd",service.instance.id="etcd-2"}'
+      - series: 'etcd_disk_backend_commit_duration_seconds_bucket{obenhub.cluster.name="stage3-etcd",le="+Inf",service.name="etcd",service.instance.id="etcd-2"}'
         values: '0+10x100'
     alert_rule_test:
       - eval_time: 16m
@@ -67,6 +68,7 @@ tests:
         alertname: EtcdHighCommitDurations
         exp_alerts:
           - exp_labels:
+              obenhub.cluster.name: stage3-etcd
               severity: warning
               service.instance.id: etcd-1
               service.name: etcd
@@ -79,17 +81,17 @@ tests:
   - name: fsync p99 just above 0.5 s fires, just below does not
     interval: 15s
     input_series:
-      - series: 'etcd_disk_wal_fsync_duration_seconds_bucket{le="0.5",service.name="etcd",service.instance.id="etcd-1"}'
+      - series: 'etcd_disk_wal_fsync_duration_seconds_bucket{obenhub.cluster.name="stage3-etcd",le="0.5",service.name="etcd",service.instance.id="etcd-1"}'
         values: '0+98x100'
-      - series: 'etcd_disk_wal_fsync_duration_seconds_bucket{le="1",service.name="etcd",service.instance.id="etcd-1"}'
+      - series: 'etcd_disk_wal_fsync_duration_seconds_bucket{obenhub.cluster.name="stage3-etcd",le="1",service.name="etcd",service.instance.id="etcd-1"}'
         values: '0+100x100'
-      - series: 'etcd_disk_wal_fsync_duration_seconds_bucket{le="+Inf",service.name="etcd",service.instance.id="etcd-1"}'
+      - series: 'etcd_disk_wal_fsync_duration_seconds_bucket{obenhub.cluster.name="stage3-etcd",le="+Inf",service.name="etcd",service.instance.id="etcd-1"}'
         values: '0+100x100'
-      - series: 'etcd_disk_wal_fsync_duration_seconds_bucket{le="0.5",service.name="etcd",service.instance.id="etcd-2"}'
+      - series: 'etcd_disk_wal_fsync_duration_seconds_bucket{obenhub.cluster.name="stage3-etcd",le="0.5",service.name="etcd",service.instance.id="etcd-2"}'
         values: '0+995x100'
-      - series: 'etcd_disk_wal_fsync_duration_seconds_bucket{le="1",service.name="etcd",service.instance.id="etcd-2"}'
+      - series: 'etcd_disk_wal_fsync_duration_seconds_bucket{obenhub.cluster.name="stage3-etcd",le="1",service.name="etcd",service.instance.id="etcd-2"}'
         values: '0+1000x100'
-      - series: 'etcd_disk_wal_fsync_duration_seconds_bucket{le="+Inf",service.name="etcd",service.instance.id="etcd-2"}'
+      - series: 'etcd_disk_wal_fsync_duration_seconds_bucket{obenhub.cluster.name="stage3-etcd",le="+Inf",service.name="etcd",service.instance.id="etcd-2"}'
         values: '0+1000x100'
     alert_rule_test:
       - eval_time: 16m
@@ -97,6 +99,7 @@ tests:
         alertname: EtcdHighFsyncDurations
         exp_alerts:
           - exp_labels:
+              obenhub.cluster.name: stage3-etcd
               severity: warning
               service.instance.id: etcd-1
               service.name: etcd
@@ -106,17 +109,17 @@ tests:
   - name: commit p99 just above 0.25 s fires, just below does not
     interval: 15s
     input_series:
-      - series: 'etcd_disk_backend_commit_duration_seconds_bucket{le="0.25",service.name="etcd",service.instance.id="etcd-1"}'
+      - series: 'etcd_disk_backend_commit_duration_seconds_bucket{obenhub.cluster.name="stage3-etcd",le="0.25",service.name="etcd",service.instance.id="etcd-1"}'
         values: '0+98x100'
-      - series: 'etcd_disk_backend_commit_duration_seconds_bucket{le="0.5",service.name="etcd",service.instance.id="etcd-1"}'
+      - series: 'etcd_disk_backend_commit_duration_seconds_bucket{obenhub.cluster.name="stage3-etcd",le="0.5",service.name="etcd",service.instance.id="etcd-1"}'
         values: '0+100x100'
-      - series: 'etcd_disk_backend_commit_duration_seconds_bucket{le="+Inf",service.name="etcd",service.instance.id="etcd-1"}'
+      - series: 'etcd_disk_backend_commit_duration_seconds_bucket{obenhub.cluster.name="stage3-etcd",le="+Inf",service.name="etcd",service.instance.id="etcd-1"}'
         values: '0+100x100'
-      - series: 'etcd_disk_backend_commit_duration_seconds_bucket{le="0.25",service.name="etcd",service.instance.id="etcd-2"}'
+      - series: 'etcd_disk_backend_commit_duration_seconds_bucket{obenhub.cluster.name="stage3-etcd",le="0.25",service.name="etcd",service.instance.id="etcd-2"}'
         values: '0+995x100'
-      - series: 'etcd_disk_backend_commit_duration_seconds_bucket{le="0.5",service.name="etcd",service.instance.id="etcd-2"}'
+      - series: 'etcd_disk_backend_commit_duration_seconds_bucket{obenhub.cluster.name="stage3-etcd",le="0.5",service.name="etcd",service.instance.id="etcd-2"}'
         values: '0+1000x100'
-      - series: 'etcd_disk_backend_commit_duration_seconds_bucket{le="+Inf",service.name="etcd",service.instance.id="etcd-2"}'
+      - series: 'etcd_disk_backend_commit_duration_seconds_bucket{obenhub.cluster.name="stage3-etcd",le="+Inf",service.name="etcd",service.instance.id="etcd-2"}'
         values: '0+1000x100'
     alert_rule_test:
       - eval_time: 16m
@@ -124,6 +127,7 @@ tests:
         alertname: EtcdHighCommitDurations
         exp_alerts:
           - exp_labels:
+              obenhub.cluster.name: stage3-etcd
               severity: warning
               service.instance.id: etcd-1
               service.name: etcd
@@ -134,11 +138,11 @@ tests:
   - name: the 10 m hold - silent at 9 m, firing at 11 m
     interval: 15s
     input_series:
-      - series: 'etcd_disk_wal_fsync_duration_seconds_bucket{le="0.5",service.name="etcd",service.instance.id="etcd-1"}'
+      - series: 'etcd_disk_wal_fsync_duration_seconds_bucket{obenhub.cluster.name="stage3-etcd",le="0.5",service.name="etcd",service.instance.id="etcd-1"}'
         values: '0x100'
-      - series: 'etcd_disk_wal_fsync_duration_seconds_bucket{le="1",service.name="etcd",service.instance.id="etcd-1"}'
+      - series: 'etcd_disk_wal_fsync_duration_seconds_bucket{obenhub.cluster.name="stage3-etcd",le="1",service.name="etcd",service.instance.id="etcd-1"}'
         values: '0+10x100'
-      - series: 'etcd_disk_wal_fsync_duration_seconds_bucket{le="+Inf",service.name="etcd",service.instance.id="etcd-1"}'
+      - series: 'etcd_disk_wal_fsync_duration_seconds_bucket{obenhub.cluster.name="stage3-etcd",le="+Inf",service.name="etcd",service.instance.id="etcd-1"}'
         values: '0+10x100'
     alert_rule_test:
       - eval_time: 9m
@@ -150,6 +154,7 @@ tests:
         alertname: EtcdHighFsyncDurations
         exp_alerts:
           - exp_labels:
+              obenhub.cluster.name: stage3-etcd
               severity: warning
               service.instance.id: etcd-1
               service.name: etcd

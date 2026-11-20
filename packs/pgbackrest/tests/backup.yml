@@ -12,7 +12,7 @@ tests:
       - series: 'obenhub.backup_age.limit'
         values: '300x80'
       # age grows 15 s per step; a backup at step 40 (10m) resets it
-      - series: 'pgbackrest_backup_since_last_completion_seconds{backup_type="incr",stanza="slice1",service.name="pgbackrest",service.instance.id="pgbackrest"}'
+      - series: 'pgbackrest_backup_since_last_completion_seconds{obenhub.cluster.name="slice1",backup_type="incr",stanza="slice1",service.name="pgbackrest",service.instance.id="pgbackrest"}'
         values: '0+15x39 0+15x40'
     alert_rule_test:
       - eval_time: 5m   # 300 s: not above the parameter
@@ -28,6 +28,7 @@ tests:
         alertname: PgBackRestBackupStale
         exp_alerts:
           - exp_labels:
+              obenhub.cluster.name: slice1
               severity: warning
               backup_type: incr
               stanza: slice1
@@ -43,7 +44,7 @@ tests:
   - name: without the lab parameter the 26 h default applies
     interval: 5m
     input_series:
-      - series: 'pgbackrest_backup_since_last_completion_seconds{backup_type="incr",stanza="slice1",service.name="pgbackrest",service.instance.id="pgbackrest"}'
+      - series: 'pgbackrest_backup_since_last_completion_seconds{obenhub.cluster.name="slice1",backup_type="incr",stanza="slice1",service.name="pgbackrest",service.instance.id="pgbackrest"}'
         values: '0+300x400'
     alert_rule_test:
       - eval_time: 25h   # 90000 s: below 93600
@@ -55,6 +56,7 @@ tests:
         alertname: PgBackRestBackupStale
         exp_alerts:
           - exp_labels:
+              obenhub.cluster.name: slice1
               severity: warning
               backup_type: incr
               stanza: slice1
@@ -77,7 +79,7 @@ tests:
   - name: stanza status other than 0 fires after 2m (1 and 2 as seen live), 0 does not
     interval: 15s
     input_series:
-      - series: 'pgbackrest_stanza_status{stanza="slice1",service.name="pgbackrest",service.instance.id="pgbackrest"}'
+      - series: 'pgbackrest_stanza_status{obenhub.cluster.name="slice1",stanza="slice1",service.name="pgbackrest",service.instance.id="pgbackrest"}'
         values: '1x4 2x8 0x40'
     alert_rule_test:
       - eval_time: 1m
@@ -89,6 +91,7 @@ tests:
         alertname: PgBackRestStanzaError
         exp_alerts:
           - exp_labels:
+              obenhub.cluster.name: slice1
               severity: critical
               stanza: slice1
               service.name: pgbackrest
@@ -103,7 +106,7 @@ tests:
   - name: a short blip of the stanza status does not fire
     interval: 15s
     input_series:
-      - series: 'pgbackrest_stanza_status{stanza="slice1",service.name="pgbackrest",service.instance.id="pgbackrest"}'
+      - series: 'pgbackrest_stanza_status{obenhub.cluster.name="slice1",stanza="slice1",service.name="pgbackrest",service.instance.id="pgbackrest"}'
         values: '0x4 2x5 0x40'
     alert_rule_test:
       - eval_time: 4m
@@ -114,9 +117,9 @@ tests:
   - name: exporter down fires on a failed scrape and on exporter_status 0, not on 1
     interval: 15s
     input_series:
-      - series: 'up{service.name="pgbackrest",service.instance.id="pgbackrest"}'
+      - series: 'up{obenhub.cluster.name="slice1",service.name="pgbackrest",service.instance.id="pgbackrest"}'
         values: '1x8 0x20 1x30'
-      - series: 'pgbackrest_exporter_status{stanza="slice1",service.name="pgbackrest",service.instance.id="pgbackrest"}'
+      - series: 'pgbackrest_exporter_status{obenhub.cluster.name="slice1",stanza="slice1",service.name="pgbackrest",service.instance.id="pgbackrest"}'
         values: '1x40 0x20 1x18'
     alert_rule_test:
       - eval_time: 2m
@@ -128,6 +131,7 @@ tests:
         alertname: PgBackRestExporterDown
         exp_alerts:
           - exp_labels:
+              obenhub.cluster.name: slice1
               severity: warning
               service.name: pgbackrest
               service.instance.id: pgbackrest
@@ -142,6 +146,7 @@ tests:
         alertname: PgBackRestExporterDown
         exp_alerts:
           - exp_labels:
+              obenhub.cluster.name: slice1
               severity: warning
               stanza: slice1
               service.name: pgbackrest
@@ -152,11 +157,11 @@ tests:
   - name: checksum error fires on the incr series (the exporter's last backup of any kind), not on full alone, clears when incr is 0
     interval: 15s
     input_series:
-      - series: 'pgbackrest_backup_last_error_status{backup_type="incr",block_incr="n",stanza="slice1",service.name="pgbackrest",service.instance.id="pgbackrest"}'
+      - series: 'pgbackrest_backup_last_error_status{obenhub.cluster.name="slice1",backup_type="incr",block_incr="n",stanza="slice1",service.name="pgbackrest",service.instance.id="pgbackrest"}'
         values: '0x8 1x20 0x10'
       # full alone at 1 (an older full backup with an error, a newer clean
       # incremental one) does not fire: only incr, the last backup, counts
-      - series: 'pgbackrest_backup_last_error_status{backup_type="full",block_incr="n",stanza="slice1",service.name="pgbackrest",service.instance.id="pgbackrest"}'
+      - series: 'pgbackrest_backup_last_error_status{obenhub.cluster.name="slice1",backup_type="full",block_incr="n",stanza="slice1",service.name="pgbackrest",service.instance.id="pgbackrest"}'
         values: '1x8 0x32'
     alert_rule_test:
       - eval_time: 1m
@@ -168,6 +173,7 @@ tests:
         alertname: PgBackRestBackupChecksumError
         exp_alerts:
           - exp_labels:
+              obenhub.cluster.name: slice1
               severity: critical
               backup_type: incr
               block_incr: n
@@ -179,4 +185,39 @@ tests:
       - eval_time: 8m   # the next backup is clean from 7m
         groupname: pgbackrest
         alertname: PgBackRestBackupChecksumError
+        exp_alerts: []
+
+  # --- a target without a cluster (ADR 0006, decision 7) --------------------
+  - name: an exporter target without obenhub.cluster.name fires PgBackRestClusterNameMissing after 5 m
+    interval: 15s
+    input_series:
+      - series: 'up{service.name="pgbackrest",service.instance.id="pgbackrest"}'
+        values: '1x60'
+      - series: 'up{service.name="pgbackrest",obenhub.cluster.name="slice1",service.instance.id="other"}'
+        values: '1x60'
+    alert_rule_test:
+      - eval_time: 4m
+        groupname: pgbackrest
+        alertname: PgBackRestClusterNameMissing
+        exp_alerts: []
+      - eval_time: 6m
+        groupname: pgbackrest
+        alertname: PgBackRestClusterNameMissing
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              service.name: pgbackrest
+              service.instance.id: pgbackrest
+            exp_annotations:
+              summary: pgBackRest exporter pgbackrest reports no obenhub.cluster.name
+
+  - name: exporter targets with a cluster name keep PgBackRestClusterNameMissing quiet
+    interval: 15s
+    input_series:
+      - series: 'up{service.name="pgbackrest",obenhub.cluster.name="slice1",service.instance.id="pgbackrest"}'
+        values: '1x60'
+    alert_rule_test:
+      - eval_time: 10m
+        groupname: pgbackrest
+        alertname: PgBackRestClusterNameMissing
         exp_alerts: []

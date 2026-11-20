@@ -9,9 +9,9 @@ tests:
   - name: defaults apply per kind
     interval: 1m
     input_series:
-      - series: 'oracledb.backup.age{service.instance.id="CDB19",oracledb.backup.kind="database"}'
+      - series: 'oracledb.backup.age{obenhub.cluster.name="cdb19",service.instance.id="CDB19",oracledb.backup.kind="database"}'
         values: '90000+60x120'
-      - series: 'oracledb.backup.age{service.instance.id="CDB19",oracledb.backup.kind="archivelog"}'
+      - series: 'oracledb.backup.age{obenhub.cluster.name="cdb19",service.instance.id="CDB19",oracledb.backup.kind="archivelog"}'
         values: '17400+60x120'
     alert_rule_test:
       - eval_time: 5m   # database 90300 s, archivelog 17700 s: below both defaults
@@ -23,12 +23,14 @@ tests:
         alertname: OracleBackupStale
         exp_alerts:
           - exp_labels:
+              obenhub.cluster.name: cdb19
               severity: warning
               service.instance.id: CDB19
               oracledb.backup.kind: database
             exp_annotations:
               summary: 'No completed RMAN database backup of CDB19 for 95400 s'
           - exp_labels:
+              obenhub.cluster.name: cdb19
               severity: warning
               service.instance.id: CDB19
               oracledb.backup.kind: archivelog

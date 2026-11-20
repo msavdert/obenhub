@@ -11,11 +11,11 @@ tests:
   - name: target absent fires only for the node that stopped reporting
     interval: 15s
     input_series:
-      - series: 'postgresql.collection.heartbeat{service.instance.id="pg-1"}'
+      - series: 'postgresql.collection.heartbeat{obenhub.cluster.name="stage3",service.instance.id="pg-1"}'
         values: '1x60'
-      - series: 'postgresql.collection.heartbeat{service.instance.id="pg-2"}'
+      - series: 'postgresql.collection.heartbeat{obenhub.cluster.name="stage3",service.instance.id="pg-2"}'
         values: '1x8 _x52'
-      - series: 'postgresql.collection.heartbeat{service.instance.id="pg-3"}'
+      - series: 'postgresql.collection.heartbeat{obenhub.cluster.name="stage3",service.instance.id="pg-3"}'
         values: '1x60'
       - series: 'otelcol_process_uptime{service.name="otelcol",service.instance.id="otelcol-stage3"}'
         values: '1x60'
@@ -45,11 +45,11 @@ tests:
   - name: target absent does not fire when every node keeps reporting
     interval: 15s
     input_series:
-      - series: 'postgresql.collection.heartbeat{service.instance.id="pg-1"}'
+      - series: 'postgresql.collection.heartbeat{obenhub.cluster.name="stage3",service.instance.id="pg-1"}'
         values: '1x60'
-      - series: 'postgresql.collection.heartbeat{service.instance.id="pg-2"}'
+      - series: 'postgresql.collection.heartbeat{obenhub.cluster.name="stage3",service.instance.id="pg-2"}'
         values: '1x60'
-      - series: 'postgresql.collection.heartbeat{service.instance.id="pg-3"}'
+      - series: 'postgresql.collection.heartbeat{obenhub.cluster.name="stage3",service.instance.id="pg-3"}'
         values: '1x60'
       - series: 'otelcol_process_uptime{service.name="otelcol",service.instance.id="otelcol-stage3"}'
         values: '1x60'
@@ -64,9 +64,9 @@ tests:
     input_series:
       - series: 'otelcol_process_uptime{service.name="otelcol",service.instance.id="otelcol-stage3"}'
         values: '1x60'
-      - series: 'postgresql.collection.heartbeat{service.instance.id="pg-1"}'
+      - series: 'postgresql.collection.heartbeat{obenhub.cluster.name="stage3",service.instance.id="pg-1"}'
         values: '1x60'
-      - series: 'postgresql.collection.heartbeat{service.instance.id="pg-3"}'
+      - series: 'postgresql.collection.heartbeat{obenhub.cluster.name="stage3",service.instance.id="pg-3"}'
         values: '1x60'
     alert_rule_test:
       - eval_time: 5m
@@ -86,11 +86,11 @@ tests:
   - name: a stopped Collector raises CollectorAbsent only, not one alert per node
     interval: 15s
     input_series:
-      - series: 'postgresql.collection.heartbeat{service.instance.id="pg-1"}'
+      - series: 'postgresql.collection.heartbeat{obenhub.cluster.name="stage3",service.instance.id="pg-1"}'
         values: '1x8 _x52'
-      - series: 'postgresql.collection.heartbeat{service.instance.id="pg-2"}'
+      - series: 'postgresql.collection.heartbeat{obenhub.cluster.name="stage3",service.instance.id="pg-2"}'
         values: '1x8 _x52'
-      - series: 'postgresql.collection.heartbeat{service.instance.id="pg-3"}'
+      - series: 'postgresql.collection.heartbeat{obenhub.cluster.name="stage3",service.instance.id="pg-3"}'
         values: '1x8 _x52'
       - series: 'otelcol_process_uptime{service.name="otelcol",service.instance.id="otelcol-stage3"}'
         values: '1x8 _x52'

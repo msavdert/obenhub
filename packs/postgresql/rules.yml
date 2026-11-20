@@ -4,6 +4,12 @@
 # (with an obenhub.collector label naming the Collector that collects it) in its
 # own inventory group; PostgresTargetAbsent reads the service.name="postgresql"
 # entries. Names follow the naming contract (ADR 0006).
+# Identity (ADR 0006, decision 7): a target is obenhub.cluster.name together
+# with service.instance.id, so every join below matches on both. A one-to-one
+# match (arithmetic, comparison) adds k8s.pod.uid, so the last sample of a
+# deleted pod never pairs with its recreated successor of the same name;
+# where the label is absent on both sides the match is unchanged. Set
+# operations (and, unless, or) leave the pod out: they ask about the instance.
 # Gating: standby-only rules join on recovery.active == 1, so a primary never
 # matches and missing data never fires.
 groups:
@@ -13,7 +19,7 @@ groups:
       - alert: PostgresTargetAbsent
         expr: |
           obenhub.expected_target{service.name="postgresql"}
-            unless on(service.instance.id)
+            unless on(obenhub.cluster.name, service.instance.id)
           present_over_time(postgresql.collection.heartbeat[2m])
             and on(obenhub.collector)
           label_replace(present_over_time(otelcol_process_uptime[1m]), "obenhub.collector", "$1", "service.instance.id", "(.+)")
@@ -30,12 +36,25 @@ groups:
         annotations:
           summary: 'No heartbeat from {{ (index $labels "service.instance.id") }}'
 
+      # A target without obenhub.cluster.name (ADR 0006, decision 7). Every
+      # join of this pack matches on it, so such a target would pair with
+      # nothing: the rules that need a partner stay silent and PostgresTargetAbsent
+      # fires against its inventory entry. This says why.
+      - alert: PostgresClusterNameMissing
+        expr: postgresql.collection.heartbeat{obenhub.cluster.name=""}
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: '{{ (index $labels "service.instance.id") }} reports no obenhub.cluster.name'
+
       - alert: PostgresStandbyNotStreaming
-        # Not while no PostgreSQL in the lab is writable: then every node is in
-        # recovery and none can stream; a cluster manager's own alert says that
-        # (stage 3: PatroniNoWritablePrimary). The guard is lab-wide, not per
-        # cluster: in slice1 the subscriber is always writable, so there it
-        # never silences. "A node is writable" is read from the pack
+        # Not while no PostgreSQL of the same cluster is writable: then every
+        # member is in recovery and none can stream; a cluster manager's own
+        # alert says that (stage 3: PatroniNoWritablePrimary). The guard is per
+        # cluster: another cluster's writable node, a logical subscriber
+        # included (slice1-subscriber is its own cluster), neither silences
+        # nor confirms it. "A node is writable" is read from the pack
         # (recovery.active == 0), so the two sources stay independent.
         # The join includes k8s.pod.uid: on Kubernetes a deleted pod's last
         # sample (streaming 0, as on any primary) stays visible for the
@@ -45,10 +64,10 @@ groups:
         # join is unchanged.
         expr: |
           postgresql.wal_receiver.streaming == 0
-            and on(service.instance.id, k8s.pod.uid)
+            and on(obenhub.cluster.name, service.instance.id, k8s.pod.uid)
           postgresql.recovery.active == 1
-            and on()
-          count(postgresql.recovery.active == 0) > 0
+            and on(obenhub.cluster.name)
+          count by (obenhub.cluster.name) (postgresql.recovery.active == 0) > 0
         for: 1m
         labels:
           severity: critical
@@ -67,9 +86,9 @@ groups:
       - alert: PostgresSynchronousStandbyMissing
         expr: |
           postgresql.replication.synchronous_standby.count
-            < on(service.instance.id)
+            < on(obenhub.cluster.name, service.instance.id, k8s.pod.uid)
           postgresql.replication.synchronous_standby.required
-            and on(service.instance.id)
+            and on(obenhub.cluster.name, service.instance.id)
           postgresql.recovery.active == 0
         for: 1m
         labels:
@@ -80,7 +99,7 @@ groups:
       - alert: PostgresReplayBacklog
         expr: |
           postgresql.replay.backlog > 16 * 1024 * 1024
-            and on(service.instance.id)
+            and on(obenhub.cluster.name, service.instance.id)
           postgresql.recovery.active == 1
         for: 1m
         labels:
@@ -114,7 +133,7 @@ groups:
       - alert: PostgresXminHorizonHeld
         expr: |
           postgresql.xmin_horizon.age > 10000000
-            unless on(service.instance.id)
+            unless on(obenhub.cluster.name, service.instance.id)
           postgresql.snapshot.oldest_age > 120
         for: 5m
         labels:
@@ -152,7 +171,7 @@ groups:
         expr: |
           WITH (
             r = postgresql.client_connection.count
-              / on(service.instance.id)
+              / on(obenhub.cluster.name, service.instance.id, k8s.pod.uid)
             postgresql.client_connection.limit,
             x = min_over_time(r[75s:15s]),
             n = count_over_time(r[75s:15s])
@@ -167,7 +186,7 @@ groups:
         expr: |
           WITH (
             r = postgresql.client_connection.count
-              / on(service.instance.id)
+              / on(obenhub.cluster.name, service.instance.id, k8s.pod.uid)
             postgresql.client_connection.limit,
             x = min_over_time(r[75s:15s]),
             n = count_over_time(r[75s:15s])
@@ -199,7 +218,7 @@ groups:
             n = count_over_time(f[315s:15s])
           )
           (((x > 0.5) unless (x > 0.75)) and (n >= 21))
-            and on(service.instance.id)
+            and on(obenhub.cluster.name, service.instance.id)
           postgresql.recovery.active == 0
         labels:
           severity: warning
@@ -216,7 +235,7 @@ groups:
             n = count_over_time(f[315s:15s])
           )
           ((x > 0.75) and (n >= 21))
-            and on(service.instance.id)
+            and on(obenhub.cluster.name, service.instance.id)
           postgresql.recovery.active == 0
         labels:
           severity: critical
@@ -300,7 +319,7 @@ groups:
             last_over_time(postgresql.bgwriter.checkpoint.count{type="requested"}[5m])
               - first_over_time(postgresql.bgwriter.checkpoint.count{type="requested"}[5m])
           ) > 3
-            and on(service.instance.id)
+            and on(obenhub.cluster.name, service.instance.id)
           postgresql.recovery.active == 0
         for: 1m
         labels:
@@ -317,10 +336,10 @@ groups:
         expr: |
           (
             postgresql.replication_slot.inactive_age{postgresql.replication_slot.type="physical"} > 120
-              unless on(service.instance.id, postgresql.replication_slot.name)
+              unless on(obenhub.cluster.name, service.instance.id, postgresql.replication_slot.name)
             postgresql.replication_slot.invalidated == 1
           )
-            and on(service.instance.id)
+            and on(obenhub.cluster.name, service.instance.id)
           postgresql.recovery.active == 0
         for: 1m
         labels:
@@ -370,10 +389,10 @@ groups:
         expr: |
           (
             postgresql.replication_slot.retained_wal > 512 * 1024 * 1024
-              unless on(service.instance.id, postgresql.replication_slot.name)
+              unless on(obenhub.cluster.name, service.instance.id, postgresql.replication_slot.name)
             postgresql.replication_slot.invalidated == 1
           )
-            and on(service.instance.id)
+            and on(obenhub.cluster.name, service.instance.id)
           postgresql.recovery.active == 0
         for: 2m
         labels:
@@ -429,9 +448,9 @@ groups:
       - alert: PostgresSeriesVanished
         expr: |
           label_copy(last_over_time({__name__=~"postgresql[.](recovery[.]active|wal_receiver[.]streaming|replay[.](backlog|paused)|snapshot[.]oldest_age|xmin_horizon[.]age|client_connection[.](count|limit)|database[.](count|xid_age|mxid_age)|transaction[.]idle_age|lock[.](waiting_session[.]count|oldest_wait_age)|replication[.]synchronous_standby[.](count|required)|replication_slot[.](active|retained_wal|unconfirmed_wal|wal_status|invalidated|inactive_age)|subscription[.](enabled|apply_worker_running|last_msg_age|apply_error|sync_error|conflict)|archiver[.](archived_file|failure|failing|ready_file[.]count))"}[1h]) keep_metric_names, "__name__", "metric")
-            unless on(metric, service.instance.id)
+            unless on(metric, obenhub.cluster.name, service.instance.id)
           label_copy(present_over_time({__name__=~"postgresql[.](recovery[.]active|wal_receiver[.]streaming|replay[.](backlog|paused)|snapshot[.]oldest_age|xmin_horizon[.]age|client_connection[.](count|limit)|database[.](count|xid_age|mxid_age)|transaction[.]idle_age|lock[.](waiting_session[.]count|oldest_wait_age)|replication[.]synchronous_standby[.](count|required)|replication_slot[.](active|retained_wal|unconfirmed_wal|wal_status|invalidated|inactive_age)|subscription[.](enabled|apply_worker_running|last_msg_age|apply_error|sync_error|conflict)|archiver[.](archived_file|failure|failing|ready_file[.]count))"}[2m]) keep_metric_names, "__name__", "metric")
-            and on(service.instance.id)
+            and on(obenhub.cluster.name, service.instance.id)
           present_over_time(postgresql.collection.heartbeat[2m])
         # Only while the target's heartbeat lives: a dead target or Collector
         # is PostgresTargetAbsent or CollectorAbsent, not one alert per series.
@@ -446,8 +465,8 @@ groups:
       # reads PostgreSQL itself, so it holds with any cluster manager or none
       # (Patroni, CloudNativePG, a manual promote). A cluster is the set of
       # members of one physical (streaming) replication group: they share
-      # obenhub.cluster.name (on Kubernetes with k8s.namespace.name, as in
-      # packs/cnpg). A logical subscriber is a cluster of its own and has its
+      # obenhub.cluster.name, unique within the backend (ADR 0006, decision 7;
+      # k8s.namespace.name is grouped on too, absent off Kubernetes). A logical subscriber is a cluster of its own and has its
       # own obenhub.cluster.name (slice1-subscriber), or it would always count as a
       # second primary.
       # Only fresh samples count: last_over_time over 30 s (two 15 s
@@ -537,20 +556,20 @@ groups:
         expr: |
           (
             postgresql.subscription.enabled == 1
-              and on(service.instance.id, postgresql.subscription.name)
+              and on(obenhub.cluster.name, service.instance.id, postgresql.subscription.name)
             (
               avg_over_time(postgresql.subscription.apply_worker_running[1m]) < 0.5
-                or on(service.instance.id, postgresql.subscription.name)
+                or on(obenhub.cluster.name, service.instance.id, postgresql.subscription.name)
               postgresql.subscription.last_msg_age > 60
             )
           )
-            unless on(service.instance.id, postgresql.subscription.name)
+            unless on(obenhub.cluster.name, service.instance.id, postgresql.subscription.name)
           (
             (last_over_time(postgresql.subscription.apply_error[3m]) - first_over_time(postgresql.subscription.apply_error[3m]))
-              + on(service.instance.id, postgresql.subscription.name)
+              + on(obenhub.cluster.name, service.instance.id, k8s.pod.uid, postgresql.subscription.name)
             (last_over_time(postgresql.subscription.sync_error[3m]) - first_over_time(postgresql.subscription.sync_error[3m])) >= 2
           )
-            and on(service.instance.id)
+            and on(obenhub.cluster.name, service.instance.id)
           present_over_time(postgresql.collection.heartbeat[2m])
         for: 1m
         labels:
@@ -572,7 +591,7 @@ groups:
         expr: |
           (
             postgresql.replication_slot.inactive_age{postgresql.replication_slot.type="logical"} > 180
-              or on(service.instance.id, postgresql.replication_slot.name)
+              or on(obenhub.cluster.name, service.instance.id, postgresql.replication_slot.name)
             postgresql.replication_slot.unconfirmed_wal{postgresql.replication_slot.type="logical"} > 128 * 1024 * 1024
           )
         for: 1m

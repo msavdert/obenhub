@@ -3543,3 +3543,38 @@ tests:
         groupname: oracledb-dg
         alertname: OracleBlockedSessions
         exp_alerts: []
+
+  # --- a target without a cluster (ADR 0006, decision 7) --------------------
+  - name: a heartbeat without obenhub.cluster.name fires OracleClusterNameMissing after 5 m
+    interval: 15s
+    input_series:
+      - series: 'oracledb.collection.heartbeat{service.instance.id="CDB19",service.name="oracledb"}'
+        values: '1x60'
+      - series: 'oracledb.collection.heartbeat{obenhub.cluster.name="cdb19",service.instance.id="CDB19_STBY",service.name="oracledb"}'
+        values: '1x60'
+    alert_rule_test:
+      - eval_time: 4m
+        groupname: oracledb-dg
+        alertname: OracleClusterNameMissing
+        exp_alerts: []
+      - eval_time: 6m
+        groupname: oracledb-dg
+        alertname: OracleClusterNameMissing
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              service.name: oracledb
+              service.instance.id: CDB19
+            exp_annotations:
+              summary: CDB19 reports no obenhub.cluster.name
+
+  - name: heartbeats with a cluster name keep OracleClusterNameMissing quiet
+    interval: 15s
+    input_series:
+      - series: 'oracledb.collection.heartbeat{obenhub.cluster.name="cdb19",service.instance.id="CDB19",service.name="oracledb"}'
+        values: '1x60'
+    alert_rule_test:
+      - eval_time: 10m
+        groupname: oracledb-dg
+        alertname: OracleClusterNameMissing
+        exp_alerts: []
