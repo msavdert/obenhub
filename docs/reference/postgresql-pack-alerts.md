@@ -208,7 +208,7 @@ last_over_time(postgresql.deadlocks[5m]) - first_over_time(postgresql.deadlocks[
 
 ## PostgresCheckpointsRequested
 
-More than 3 requested checkpoints in 5 minutes on a primary: WAL reached max_wal_size before checkpoint_timeout (lab threshold). Check pg_stat_checkpointer, max_wal_size against the WAL volume and what writes it.
+More than 3 requested checkpoints in 5 minutes on a primary (lab threshold). Usually WAL reached max_wal_size before checkpoint_timeout, but CHECKPOINT, CREATE DATABASE, base backups, promotion and shutdown also request one. Check pg_stat_checkpointer, max_wal_size against the WAL volume and what writes it.
 
 **warning**, for 1m
 

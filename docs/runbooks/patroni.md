@@ -2,17 +2,21 @@
 
 One section for each alert of `packs/patroni/rules.yml` that a lab scenario fires; the other alerts are only in the [generated reference](../reference/patroni-pack-alerts.md). Each section gives what the alert means, the query or command to run first with the file it comes from, and the scenarios that fire it (scripts in `lab/<lab>/scenarios/`) with the latest passing run, named by its `suite` field in `lab/<lab>/results/runs.jsonl`.
 
-## PatroniNoWritablePrimary
+Commands several sections use:
 
-No member of the cluster reports `patroni_primary` 1, so the cluster cannot take writes. Reference: [PatroniNoWritablePrimary](../reference/patroni-pack-alerts.md#patroninowritableprimary).
-
-Look first: Members and roles.
+`patronictl list` shows the members with role, timeline, lag, the `Maintenance mode` line and the pending-restart flag.
 
 ```bash
 patronictl -c /etc/patroni/config.yml list
 ```
 
 From `ptl` in `lab/pgha/scenarios/lib.sh` (as the postgres user on a node; the stage3 lab runs `patronictl list` inside the container, `lab/stage3/scenarios/lib.sh`).
+
+## PatroniNoWritablePrimary
+
+No member of the cluster reports `patroni_primary` 1, so the cluster cannot take writes. Reference: [PatroniNoWritablePrimary](../reference/patroni-pack-alerts.md#patroninowritableprimary).
+
+Look first: Members and roles, with `patronictl list` (see the top of this page).
 
 Look first: The DCS behind it.
 
@@ -33,13 +37,7 @@ Seen in the lab:
 
 The highest PostgreSQL timeline of the cluster rose within the last hour: a switchover or a failover, which the metrics cannot tell apart. Reference: [PatroniFailoverHappened](../reference/patroni-pack-alerts.md#patronifailoverhappened).
 
-Look first: Leader and timeline.
-
-```bash
-patronictl -c /etc/patroni/config.yml list
-```
-
-From `ptl` in `lab/pgha/scenarios/lib.sh` (as the postgres user on a node; the stage3 lab runs `patronictl list` inside the container, `lab/stage3/scenarios/lib.sh`). The harness reads the leader's `TL` from `patronictl list -f json`, `timeline()` in `lab/scenarios/lib-core.sh`.
+Look first: Leader and timeline, with `patronictl list` (see the top of this page). The harness reads the leader's `TL` from `patronictl list -f json`, `timeline()` in `lab/scenarios/lib-core.sh`.
 
 Seen in the lab:
 
@@ -50,13 +48,7 @@ Seen in the lab:
 
 A replica's WAL position is more than 16 MiB behind the leader's, so Patroni will not promote it. Reference: [PatroniReplicaNotEligible](../reference/patroni-pack-alerts.md#patronireplicanoteligible).
 
-Look first: Members and their lag.
-
-```bash
-patronictl -c /etc/patroni/config.yml list
-```
-
-From `ptl` in `lab/pgha/scenarios/lib.sh` (as the postgres user on a node; the stage3 lab runs `patronictl list` inside the container, `lab/stage3/scenarios/lib.sh`).
+Look first: Members and their lag, with `patronictl list` (see the top of this page).
 
 Seen in the lab:
 
@@ -67,14 +59,13 @@ Seen in the lab:
 
 The cluster has been in maintenance mode for 3 minutes, which disables automatic failover. Reference: [PatroniClusterPaused](../reference/patroni-pack-alerts.md#patroniclusterpaused).
 
-Look first: Look for `Maintenance mode: on`, end it with resume.
+Look first: `patronictl list` (see the top of this page) shows `Maintenance mode: on`; end it with resume.
 
 ```bash
-patronictl -c /etc/patroni/config.yml list
 patronictl -c /etc/patroni/config.yml resume --wait
 ```
 
-From `ptl` in `lab/pgha/scenarios/lib.sh` (as the postgres user on a node; the stage3 lab runs `patronictl list` inside the container, `lab/stage3/scenarios/lib.sh`). The `Maintenance mode: on` line is what `cluster_paused` greps in `lab/scenarios/lib-core.sh`; `resume --wait` is the revert of `lab/scenarios/patroni/cluster-paused.sh`.
+The `Maintenance mode: on` line is what `cluster_paused` greps in `lab/scenarios/lib-core.sh`; `resume --wait` is the revert of `lab/scenarios/patroni/cluster-paused.sh`.
 
 Seen in the lab:
 
@@ -85,13 +76,7 @@ Seen in the lab:
 
 A PostgreSQL parameter changed on a member needs a restart to take effect. Reference: [PatroniPendingRestart](../reference/patroni-pack-alerts.md#patronipendingrestart).
 
-Look first: The member flagged as pending restart.
-
-```bash
-patronictl -c /etc/patroni/config.yml list
-```
-
-From `ptl` in `lab/pgha/scenarios/lib.sh` (as the postgres user on a node; the stage3 lab runs `patronictl list` inside the container, `lab/stage3/scenarios/lib.sh`). The flag shows in the `patronictl list` output (comment in `lab/pgha/scripts/provision.sh`).
+Look first: The member flagged as pending restart, with `patronictl list` (see the top of this page). The flag shows in the `patronictl list` output (comment in `lab/pgha/scripts/provision.sh`).
 
 Seen in the lab:
 

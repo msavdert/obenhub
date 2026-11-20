@@ -16,12 +16,20 @@ URL names: docs/reference/<pack>-pack-alerts.md is generated, so a missing
 heading means the generator was not run; docs/runbooks/<pack>.md is written by
 hand and holds one section for each alert a scenario fires and for no other.
 
+The "Seen in the lab:" bullets of a runbook section (`- <lab>: `a`, `b` (suite
+`...`)`) are checked against the scenarios: every cited `lab/<lab>/scenarios/<name>.sh`
+must exist and have the section's alert in its EXPECT, and every per-lab
+scenario script that expects the alert must be cited. The suite ids in those
+bullets are NOT checked (they name a line of lab/<lab>/results/runs.jsonl;
+scripts/check-evidence.sh owns that evidence).
+
 Also failing: a scenario that expects an alert with no rule, and a rule file
 outside packs/ that defines an alert (it would have no reference page).
 """
 
 import re
 import sys
+from pathlib import Path
 
 from packalerts import ROOT, lab_alert_files, pack_alerts, scenario_alerts
 
@@ -34,6 +42,34 @@ def headings(path):
             fence = not fence
         elif not fence and line.startswith("## "):
             found.append(line[3:].strip())
+    return found
+
+
+SEEN = re.compile(r"^- ([\w-]+): (.*?)(?: \(|$)")
+
+
+def seen_in_lab(path):
+    """{alert heading: [(line, lab, scenario name), ...]} from the "Seen in the lab:" bullets of a runbook."""
+    found, current, in_seen, fence = {}, None, False, False
+    for n, line in enumerate(path.read_text(encoding="utf-8").split("\n"), 1):
+        if line.lstrip().startswith("```"):
+            fence = not fence
+        if fence:
+            continue
+        if line.startswith("## "):
+            current, in_seen = line[3:].strip(), False
+            found[current] = []
+        elif line.startswith("Seen in the lab:"):
+            in_seen = True
+        elif in_seen and line.startswith("- "):
+            m = SEEN.match(line)
+            if not m:
+                found.setdefault(current, []).append((n, None, line))
+                continue
+            for name in re.findall(r"`([^`]+)`", m.group(2)):
+                found[current].append((n, m.group(1), name))
+        elif in_seen and line.strip():
+            in_seen = False
     return found
 
 
@@ -100,6 +136,34 @@ def main():
                 errors.append(
                     f"{page.relative_to(ROOT)}: section ## {h}: no scenario fires this alert, its entry is docs/reference/{pack}-pack-alerts.md"
                 )
+
+    for page in sorted((ROOT / "docs/runbooks").glob("*.md")) if (ROOT / "docs/runbooks").exists() else []:
+        names = {a["name"] for a in packs.get(page.stem, [])}
+        rel = page.relative_to(ROOT)
+        for alert, cites in seen_in_lab(page).items():
+            if alert not in names:
+                continue
+            cited = set()
+            for n, lab, name in cites:
+                if lab is None:
+                    errors.append(
+                        f"{rel}:{n}: section ## {alert}: cannot read `{name}` as `- <lab>: `scenario`, ... (suite `id`)`"
+                    )
+                    continue
+                script = f"lab/{lab}/scenarios/{name}.sh"
+                cited.add(script)
+                if not (ROOT / script).exists():
+                    errors.append(f"{rel}:{n}: section ## {alert}: cites {script}, which does not exist")
+                elif script not in fired.get(alert, []):
+                    errors.append(
+                        f"{rel}:{n}: section ## {alert}: cites {script}, whose EXPECT does not contain {alert}"
+                    )
+            for script in fired.get(alert, []):
+                parts = script.split("/")
+                if parts[1] != "scenarios" and f"lab/{parts[1]}/scenarios/{Path(script).stem}.sh" not in cited:
+                    errors.append(
+                        f"{rel}: section ## {alert}: {script} expects the alert but the section does not cite it under Seen in the lab"
+                    )
 
     for line in missing:
         print(("note: " if allow_missing else "") + line, file=sys.stderr)

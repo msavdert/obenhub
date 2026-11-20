@@ -2,6 +2,14 @@
 
 One section for each alert of `packs/oracledb-dg/rules.yml` that a lab scenario fires; the other alerts are only in the [generated reference](../reference/oracledb-dg-pack-alerts.md). Each section gives what the alert means, the query or command to run first with the file it comes from, and the scenarios that fire it (scripts in `lab/<lab>/scenarios/`) with the latest passing run, named by its `suite` field in `lab/<lab>/results/runs.jsonl`.
 
+Command several sections use:
+
+```bash
+dgmgrl -silent / 'show configuration'
+```
+
+Run as the oracle user on the host of the database: `dg` in `lab/oracle/scenarios/lib.sh`.
+
 ## OraclePrimaryChanged
 
 A database reports PRIMARY after having reported another role within the last 3 minutes: a standby was promoted, by switchover or failover. Reference: [OraclePrimaryChanged](../reference/oracledb-dg-pack-alerts.md#oracleprimarychanged).
@@ -14,13 +22,7 @@ SELECT db_unique_name, database_role, open_mode FROM v$database;
 
 The role query of `packs/oracledb-dg/queries.yaml`.
 
-Look first: Broker view.
-
-```bash
-dgmgrl -silent / 'show configuration'
-```
-
-Run as the oracle user on the host of the database: `dg` in `lab/oracle/scenarios/lib.sh`.
+Look first: Broker view, with `dgmgrl show configuration` (see the top of this page).
 
 Seen in the lab:
 
@@ -38,13 +40,7 @@ SELECT protection_mode, protection_level FROM v$database;
 
 The protection query of `packs/oracledb-dg/queries.yaml`.
 
-Look first: Broker view.
-
-```bash
-dgmgrl -silent / 'show configuration'
-```
-
-Run as the oracle user on the host of the database: `dg` in `lab/oracle/scenarios/lib.sh`.
+Look first: Broker view, with `dgmgrl show configuration` (see the top of this page).
 
 Seen in the lab:
 
@@ -62,13 +58,7 @@ SELECT fs_failover_status, fs_failover_observer_present FROM v$database;
 
 The fast-start failover query of `packs/oracledb-dg/queries.yaml`.
 
-Look first: Broker view.
-
-```bash
-dgmgrl -silent / 'show configuration'
-```
-
-Run as the oracle user on the host of the database: `dg` in `lab/oracle/scenarios/lib.sh`.
+Look first: Broker view, with `dgmgrl show configuration` (see the top of this page).
 
 Seen in the lab:
 

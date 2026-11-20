@@ -2,6 +2,15 @@
 
 One section for each alert of `packs/postgresql/rules.yml` that a lab scenario fires; the other alerts are only in the [generated reference](../reference/postgresql-pack-alerts.md). Each section gives what the alert means, the query or command to run first with the file it comes from, and the scenarios that fire it (scripts in `lab/<lab>/scenarios/`) with the latest passing run, named by its `suite` field in `lab/<lab>/results/runs.jsonl`.
 
+Query several sections use, the slot query of `packs/postgresql/queries.yaml` with the columns unaggregated:
+
+```sql
+SELECT slot_name, slot_type, active, wal_status, invalidation_reason, inactive_since, restart_lsn,
+       pg_wal_lsn_diff(CASE WHEN pg_is_in_recovery() THEN greatest(pg_last_wal_receive_lsn(), pg_last_wal_replay_lsn())
+                           ELSE pg_current_wal_lsn() END, restart_lsn) AS retained_wal
+FROM pg_replication_slots;
+```
+
 ## PostgresTargetAbsent
 
 The Collector is alive but the PostgreSQL target has sent no heartbeat for 2 minutes: PostgreSQL is down or the monitoring role cannot connect. Reference: [PostgresTargetAbsent](../reference/postgresql-pack-alerts.md#postgrestargetabsent).
@@ -183,7 +192,7 @@ Seen in the lab:
 
 ## PostgresCheckpointsRequested
 
-More than 3 requested checkpoints in 5 minutes on a primary: WAL reached `max_wal_size` before `checkpoint_timeout`. Reference: [PostgresCheckpointsRequested](../reference/postgresql-pack-alerts.md#postgrescheckpointsrequested).
+More than 3 requested checkpoints in 5 minutes on a primary. Usually WAL reached `max_wal_size` before `checkpoint_timeout`, but `CHECKPOINT`, `CREATE DATABASE`, base backups, promotion and shutdown also request one (the scenario pauses pgBackRest backups for that reason). Reference: [PostgresCheckpointsRequested](../reference/postgresql-pack-alerts.md#postgrescheckpointsrequested).
 
 Look first: On the primary.
 
@@ -202,16 +211,7 @@ Seen in the lab:
 
 A physical replication slot has had no consumer for more than 120 seconds and keeps WAL. Reference: [PostgresPhysicalSlotInactive](../reference/postgresql-pack-alerts.md#postgresphysicalslotinactive).
 
-Look first: On the primary.
-
-```sql
-SELECT slot_name, slot_type, active, wal_status, invalidation_reason, inactive_since, restart_lsn,
-       pg_wal_lsn_diff(CASE WHEN pg_is_in_recovery() THEN greatest(pg_last_wal_receive_lsn(), pg_last_wal_replay_lsn())
-                           ELSE pg_current_wal_lsn() END, restart_lsn) AS retained_wal
-FROM pg_replication_slots;
-```
-
-The slot query of `packs/postgresql/queries.yaml`, columns unaggregated.
+Look first: On the primary, the slot query (see the top of this page).
 
 Seen in the lab:
 
@@ -223,16 +223,7 @@ Seen in the lab:
 
 A replication slot is invalidated and no longer retains WAL; the consumer that depended on it has to be rebuilt. Reference: [PostgresReplicationSlotInvalidated](../reference/postgresql-pack-alerts.md#postgresreplicationslotinvalidated).
 
-Look first: On the primary.
-
-```sql
-SELECT slot_name, slot_type, active, wal_status, invalidation_reason, inactive_since, restart_lsn,
-       pg_wal_lsn_diff(CASE WHEN pg_is_in_recovery() THEN greatest(pg_last_wal_receive_lsn(), pg_last_wal_replay_lsn())
-                           ELSE pg_current_wal_lsn() END, restart_lsn) AS retained_wal
-FROM pg_replication_slots;
-```
-
-The slot query of `packs/postgresql/queries.yaml`; `wal_status` and `invalidation_reason` say why.
+Look first: On the primary, the slot query (see the top of this page); `wal_status` and `invalidation_reason` say why.
 
 Seen in the lab:
 
@@ -242,16 +233,7 @@ Seen in the lab:
 
 A valid slot holds back more than 512 MiB of WAL, so the WAL volume is filling. Reference: [PostgresReplicationSlotRetainingWAL](../reference/postgresql-pack-alerts.md#postgresreplicationslotretainingwal).
 
-Look first: On the primary.
-
-```sql
-SELECT slot_name, slot_type, active, wal_status, invalidation_reason, inactive_since, restart_lsn,
-       pg_wal_lsn_diff(CASE WHEN pg_is_in_recovery() THEN greatest(pg_last_wal_receive_lsn(), pg_last_wal_replay_lsn())
-                           ELSE pg_current_wal_lsn() END, restart_lsn) AS retained_wal
-FROM pg_replication_slots;
-```
-
-The slot query of `packs/postgresql/queries.yaml`; `retained_wal` is the value the alert reads.
+Look first: On the primary, the slot query (see the top of this page); `retained_wal` is the value the alert reads.
 
 Seen in the lab:
 

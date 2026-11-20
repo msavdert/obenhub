@@ -3,9 +3,14 @@
 
 The rule files write one alert as `- alert: Name`, an `expr` (one line or a
 block scalar), `for`, `labels.severity` and `annotations` with one-line
-values. This reads exactly that shape with the standard library, so the checks
-need no PyYAML. Comments inside a rule are ignored. A rule file that has more
-`- alert:` lines than the parser found alerts is an error.
+values. This reads exactly that shape with the standard library (PyYAML is not
+a dependency of the repo scripts, so a regex reader it is). Comments inside a
+rule are ignored. Anything else fails closed instead of being skipped: a
+separate, looser guard finds every YAML key `alert:` in the file (any
+indentation, with or without the list dash, also in flow style), and each one
+must be exactly `- alert: Name` (a bare name, no quotes, no trailing comment,
+the first key of its list item); annotation values must be one line (a block
+scalar or a continuation line is an error).
 
 Two tiers of one alert (one name, two severities) are two entries here.
 """
@@ -15,7 +20,18 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-ALERT = re.compile(r"^(\s*)- alert:\s*(\S+)\s*$")
+ALERT = re.compile(r"^(\s*)- alert:\s+([A-Za-z_][A-Za-z0-9_]*)\s*$")
+# the independent guard: any `alert:` key, whatever the shape around it
+LOOSE_ALERT = re.compile(r"^\s*(-\s+)?alert\s*:|[{,]\s*alert\s*:")
+BLOCK_SCALAR = re.compile(r"^[|>][+-]?\d*[+-]?$")
+SHAPE = "write the alert as `- alert: Name` (bare name, no quotes, no trailing comment, first key of the list item)"
+
+
+def loose_alert_lines(lines):
+    """Line numbers (1-based) of every `alert:` key in the text, comments excluded."""
+    return [n for n, line in enumerate(lines, 1) if not line.lstrip().startswith("#") and LOOSE_ALERT.search(line)]
+
+
 KEY = re.compile(r"^(\s*)([A-Za-z_][\w.]*):\s?(.*)$")
 
 
@@ -31,14 +47,16 @@ def scalar(text):
 def parse_rules(path):
     """Return the alerts of one rules file: dicts with name, severity, for, expr, annotations, line."""
     lines = Path(path).read_text(encoding="utf-8").split("\n")
-    alerts, mentions = [], 0
+    alerts = []
+    for n in loose_alert_lines(lines):
+        if not ALERT.match(lines[n - 1]):
+            sys.exit(f"{path}:{n}: unsupported alert shape `{lines[n - 1].strip()}`: {SHAPE}")
     i = 0
     while i < len(lines):
         m = ALERT.match(lines[i])
         if not m:
             i += 1
             continue
-        mentions += 1
         indent = len(m.group(1))
         alert = {"name": m.group(2), "line": i + 1, "for": "", "severity": "", "expr": "", "annotations": {}}
         j = i + 1
@@ -57,7 +75,7 @@ def parse_rules(path):
                 key, value = k.group(2), k.group(3)
                 section = key
                 if key == "expr":
-                    if value.strip() in ("|", ">", "|-", ">-"):
+                    if BLOCK_SCALAR.match(value.strip()):
                         body = []
                         j += 1
                         while j < len(lines) and (
@@ -75,12 +93,19 @@ def parse_rules(path):
             elif k and lead == indent + 4 and section == "labels" and k.group(2) == "severity":
                 alert["severity"] = scalar(k.group(3))
             elif k and lead == indent + 4 and section == "annotations":
+                if BLOCK_SCALAR.match(k.group(3).strip()):
+                    sys.exit(
+                        f"{path}:{j + 1}: annotation {k.group(2)} is a block scalar ({k.group(3).strip()}); write a one-line value"
+                    )
                 alert["annotations"][k.group(2)] = scalar(k.group(3))
+            elif section == "annotations" and lead > indent + 4:
+                sys.exit(f"{path}:{j + 1}: annotation value continues on a second line; write a one-line value")
             j += 1
         alerts.append(alert)
         i = j
-    if mentions != len(alerts):
-        sys.exit(f"{path}: {mentions} alert lines, {len(alerts)} parsed")
+    found = len(loose_alert_lines(lines))
+    if found != len(alerts):
+        sys.exit(f"{path}: {found} `alert:` keys, {len(alerts)} parsed; {SHAPE}")
     return alerts
 
 
@@ -99,7 +124,7 @@ def lab_alert_files():
     for base in ("lab", "mon"):
         for path in sorted((ROOT / base).rglob("*")) if (ROOT / base).exists() else []:
             if path.suffix in (".yml", ".yaml") and "tests" not in path.parts and path.is_file():
-                if any(ALERT.match(line) for line in path.read_text(encoding="utf-8").split("\n")):
+                if loose_alert_lines(path.read_text(encoding="utf-8").split("\n")):
                     found.append(path)
     return found
 

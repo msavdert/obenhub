@@ -143,7 +143,7 @@ the held dependency update batch and closes a release.
       slower `sqlquery` tier for catalog-heavy queries moved to F1: no
       current query scales with the number of relations, so a tier now
       would be an empty placeholder
-- [ ] C6 `description` and `runbook_url` on every alert (94 today; all
+- [x] C6 `description` and `runbook_url` on every alert (94 today; all
       carry both and `lint:alert-docs` enforces it), a runbook page only
       for alerts a scenario fires, with the SQL or LogsQL to look at first;
       the runbook pages are in `docs/runbooks/`

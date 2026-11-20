@@ -29,7 +29,7 @@ pgbackrest --stanza=slice1 info
 grep 'invalid page checksum found' /var/log/pgbackrest/slice1-backup.log
 ```
 
-`pgbr` in `lab/slice1/scenarios/lib.sh`; the log path and message from `lab/slice1/scenarios/backup-checksum-error.sh`.
+`pgbr()` in `lab/slice1/scenarios/lib.sh` runs pgBackRest inside the primary container as the postgres user, and the log path is a path inside that container (the message and path are from `lab/slice1/scenarios/backup-checksum-error.sh`).
 
 Seen in the lab:
 
