@@ -72,6 +72,10 @@ run = "python3 -I scripts/check-config-files.py"
 description = "otelcol-contrib validate on every tracked Collector config and pack fragment, and lab blocks must match the pack fragments (pgha template rendered); needs docker"
 run = "scripts/lint-otelcol.sh"
 
+[tasks."deploy:install-test"]
+description = "install test of deploy/ against a plain PostgreSQL container (deploy/test/install-test.sh); needs docker, about 15 minutes, not part of check"
+run = "deploy/test/install-test.sh"
+
 [tasks."lint:deploy-pins"]
 description = "images and Helm chart pinned in deploy/ equal the lab's pins (no network)"
 run = "python3 -I scripts/check-deploy-pins.py"
