@@ -357,6 +357,17 @@
           "range": true,
           "instant": false,
           "legendFormat": "backlog"
+        },
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "vm"
+          },
+          "expr": "obenhub.postgresql.replay_backlog.limit or on() vector(268435456)",
+          "refId": "B",
+          "range": true,
+          "instant": false,
+          "legendFormat": "limit"
         }
       ],
       "fieldConfig": {
@@ -367,7 +378,7 @@
             "fillOpacity": 10,
             "showPoints": "never",
             "thresholdsStyle": {
-              "mode": "line"
+              "mode": "off"
             }
           },
           "thresholds": {
@@ -376,15 +387,45 @@
               {
                 "color": "green",
                 "value": null
-              },
-              {
-                "color": "red",
-                "value": 16777216
               }
             ]
           }
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "limit"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "red"
+                }
+              },
+              {
+                "id": "custom.lineStyle",
+                "value": {
+                  "fill": "dash",
+                  "dash": [
+                    10,
+                    10
+                  ]
+                }
+              },
+              {
+                "id": "custom.fillOpacity",
+                "value": 0
+              },
+              {
+                "id": "custom.lineWidth",
+                "value": 1
+              }
+            ]
+          }
+        ]
       },
       "options": {
         "legend": {
@@ -395,7 +436,7 @@
           "mode": "multi"
         }
       },
-      "description": "Received minus replayed WAL on a standby. Alert threshold 16 MiB."
+      "description": "Received minus replayed WAL on a standby. The dashed line is the limit of PostgresReplayBacklog: obenhub.postgresql.replay_backlog.limit, 256 MiB when the lab records none."
     },
     {
       "id": 6,
@@ -422,6 +463,17 @@
           "range": true,
           "instant": false,
           "legendFormat": "oldest age"
+        },
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "vm"
+          },
+          "expr": "obenhub.postgresql.snapshot_age.limit or on() vector(1800)",
+          "refId": "B",
+          "range": true,
+          "instant": false,
+          "legendFormat": "limit"
         }
       ],
       "fieldConfig": {
@@ -432,7 +484,7 @@
             "fillOpacity": 10,
             "showPoints": "never",
             "thresholdsStyle": {
-              "mode": "line"
+              "mode": "off"
             }
           },
           "thresholds": {
@@ -441,15 +493,45 @@
               {
                 "color": "green",
                 "value": null
-              },
-              {
-                "color": "red",
-                "value": 120
               }
             ]
           }
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "limit"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "red"
+                }
+              },
+              {
+                "id": "custom.lineStyle",
+                "value": {
+                  "fill": "dash",
+                  "dash": [
+                    10,
+                    10
+                  ]
+                }
+              },
+              {
+                "id": "custom.fillOpacity",
+                "value": 0
+              },
+              {
+                "id": "custom.lineWidth",
+                "value": 1
+              }
+            ]
+          }
+        ]
       },
       "options": {
         "legend": {
@@ -460,7 +542,7 @@
           "mode": "multi"
         }
       },
-      "description": "Age of the oldest client transaction holding a snapshot or xid. Lab alert threshold 120 s."
+      "description": "Age of the oldest client transaction holding a snapshot or xid. The dashed line is the limit of PostgresSnapshotHeldTooLong: obenhub.postgresql.snapshot_age.limit, 1800 s when the lab records none."
     },
     {
       "id": 104,
@@ -553,11 +635,11 @@
             "type": "victoriametrics-metrics-datasource",
             "uid": "vm"
           },
-          "expr": "0.85 * postgresql.client_connection.limit{obenhub.cluster.name=\"$cluster\", service.instance.id=\"$instance\"}",
+          "expr": "postgresql.client_connection.limit{obenhub.cluster.name=\"$cluster\", service.instance.id=\"$instance\"} * on() group_left() (obenhub.postgresql.connection_saturation.limit{severity=\"warning\"} or on() vector(0.85))",
           "refId": "C",
           "range": true,
           "instant": false,
-          "legendFormat": "alert threshold (85%)"
+          "legendFormat": "warning limit (85% by default)"
         }
       ],
       "fieldConfig": {
@@ -689,7 +771,7 @@
           "mode": "multi"
         }
       },
-      "description": "retained_wal is current LSN minus restart_lsn, all slots on all nodes, not filtered by the instance variable. PostgresReplicationSlotRetainingWAL uses 512 MiB on a primary; the logical slots have their own panel in the Logical replication row."
+      "description": "retained_wal is current LSN minus restart_lsn, all slots on all nodes, not filtered by the instance variable. PostgresReplicationSlotRetainingWAL fires above obenhub.postgresql.slot_retained_wal.limit (8 GiB by default) on a primary; the logical slots have their own panel in the Logical replication row."
     },
     {
       "id": 12,
@@ -733,11 +815,11 @@
             "type": "victoriametrics-metrics-datasource",
             "uid": "vm"
           },
-          "expr": "180",
+          "expr": "obenhub.postgresql.logical_slot_inactive_age.limit or on() vector(900)",
           "refId": "C",
           "range": true,
           "instant": false,
-          "legendFormat": "PostgresLogicalSlotStalled inactive threshold (s)"
+          "legendFormat": "PostgresLogicalSlotStalled inactive limit (s)"
         }
       ],
       "fieldConfig": {
@@ -869,6 +951,28 @@
           "range": true,
           "instant": false,
           "legendFormat": "mxid, oldest database"
+        },
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "vm"
+          },
+          "expr": "obenhub.postgresql.wraparound_ratio.limit{severity=\"warning\"} or on() vector(0.5)",
+          "refId": "C",
+          "range": true,
+          "instant": false,
+          "legendFormat": "warning limit"
+        },
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "vm"
+          },
+          "expr": "obenhub.postgresql.wraparound_ratio.limit{severity=\"critical\"} or on() vector(0.75)",
+          "refId": "D",
+          "range": true,
+          "instant": false,
+          "legendFormat": "critical limit"
         }
       ],
       "fieldConfig": {
@@ -879,7 +983,7 @@
             "fillOpacity": 10,
             "showPoints": "never",
             "thresholdsStyle": {
-              "mode": "line"
+              "mode": "off"
             }
           },
           "min": 0,
@@ -890,19 +994,78 @@
               {
                 "color": "green",
                 "value": null
-              },
-              {
-                "color": "orange",
-                "value": 0.5
-              },
-              {
-                "color": "red",
-                "value": 0.75
               }
             ]
           }
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "warning limit"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "orange"
+                }
+              },
+              {
+                "id": "custom.lineStyle",
+                "value": {
+                  "fill": "dash",
+                  "dash": [
+                    10,
+                    10
+                  ]
+                }
+              },
+              {
+                "id": "custom.fillOpacity",
+                "value": 0
+              },
+              {
+                "id": "custom.lineWidth",
+                "value": 1
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "critical limit"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "red"
+                }
+              },
+              {
+                "id": "custom.lineStyle",
+                "value": {
+                  "fill": "dash",
+                  "dash": [
+                    10,
+                    10
+                  ]
+                }
+              },
+              {
+                "id": "custom.fillOpacity",
+                "value": 0
+              },
+              {
+                "id": "custom.lineWidth",
+                "value": 1
+              }
+            ]
+          }
+        ]
       },
       "options": {
         "legend": {
@@ -913,7 +1076,7 @@
           "mode": "multi"
         }
       },
-      "description": "age(datfrozenxid) and mxid_age(datminmxid) of the oldest database, divided by 2^31 as PostgresTransactionIdWraparound does (the alert takes every database separately). Lines at its tiers: warning above 0.5, critical above 0.75, each held for 5 minutes, primary only. Autovacuum keeps the figure far below that in the labs."
+      "description": "age(datfrozenxid) and mxid_age(datminmxid) of the oldest database, divided by 2^31 as PostgresTransactionIdWraparound does (the alert takes every database separately). The dashed lines are its tiers, obenhub.postgresql.wraparound_ratio.limit by severity (0.5 and 0.75 when the lab records none), each held for 5 minutes, primary only. Autovacuum keeps the figure far below that in the labs."
     },
     {
       "id": 112,
@@ -940,6 +1103,28 @@
           "range": true,
           "instant": false,
           "legendFormat": "{{service.instance.id}}"
+        },
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "vm"
+          },
+          "expr": "obenhub.postgresql.idle_in_transaction_age.limit{severity=\"warning\"} or on() vector(300)",
+          "refId": "B",
+          "range": true,
+          "instant": false,
+          "legendFormat": "warning limit"
+        },
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "vm"
+          },
+          "expr": "obenhub.postgresql.idle_in_transaction_age.limit{severity=\"critical\"} or on() vector(1800)",
+          "refId": "C",
+          "range": true,
+          "instant": false,
+          "legendFormat": "critical limit"
         }
       ],
       "fieldConfig": {
@@ -950,7 +1135,7 @@
             "fillOpacity": 10,
             "showPoints": "never",
             "thresholdsStyle": {
-              "mode": "line"
+              "mode": "off"
             }
           },
           "thresholds": {
@@ -959,19 +1144,78 @@
               {
                 "color": "green",
                 "value": null
-              },
-              {
-                "color": "orange",
-                "value": 60
-              },
-              {
-                "color": "red",
-                "value": 180
               }
             ]
           }
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "warning limit"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "orange"
+                }
+              },
+              {
+                "id": "custom.lineStyle",
+                "value": {
+                  "fill": "dash",
+                  "dash": [
+                    10,
+                    10
+                  ]
+                }
+              },
+              {
+                "id": "custom.fillOpacity",
+                "value": 0
+              },
+              {
+                "id": "custom.lineWidth",
+                "value": 1
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "critical limit"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "red"
+                }
+              },
+              {
+                "id": "custom.lineStyle",
+                "value": {
+                  "fill": "dash",
+                  "dash": [
+                    10,
+                    10
+                  ]
+                }
+              },
+              {
+                "id": "custom.fillOpacity",
+                "value": 0
+              },
+              {
+                "id": "custom.lineWidth",
+                "value": 1
+              }
+            ]
+          }
+        ]
       },
       "options": {
         "legend": {
@@ -982,7 +1226,7 @@
           "mode": "multi"
         }
       },
-      "description": "Seconds the longest-idle session has been idle in a transaction (0 when there is none). Lines at the PostgresIdleInTransaction tiers: warning above 60 s, critical above 180 s, each held for 45 s."
+      "description": "Seconds the longest-idle session has been idle in a transaction (0 when there is none). The dashed lines are the PostgresIdleInTransaction tiers, obenhub.postgresql.idle_in_transaction_age.limit by severity (300 s and 1800 s when the lab records none), each held for 45 s."
     },
     {
       "id": 113,
@@ -1020,6 +1264,17 @@
           "range": true,
           "instant": false,
           "legendFormat": "waiting sessions"
+        },
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "vm"
+          },
+          "expr": "obenhub.postgresql.lock_wait_age.limit or on() vector(120)",
+          "refId": "C",
+          "range": true,
+          "instant": false,
+          "legendFormat": "limit"
         }
       ],
       "fieldConfig": {
@@ -1030,7 +1285,7 @@
             "fillOpacity": 10,
             "showPoints": "never",
             "thresholdsStyle": {
-              "mode": "line"
+              "mode": "off"
             }
           },
           "thresholds": {
@@ -1039,10 +1294,6 @@
               {
                 "color": "green",
                 "value": null
-              },
-              {
-                "color": "red",
-                "value": 30
               }
             ]
           }
@@ -1069,6 +1320,39 @@
                 }
               }
             ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "limit"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "red"
+                }
+              },
+              {
+                "id": "custom.lineStyle",
+                "value": {
+                  "fill": "dash",
+                  "dash": [
+                    10,
+                    10
+                  ]
+                }
+              },
+              {
+                "id": "custom.fillOpacity",
+                "value": 0
+              },
+              {
+                "id": "custom.lineWidth",
+                "value": 1
+              }
+            ]
           }
         ]
       },
@@ -1081,7 +1365,7 @@
           "mode": "multi"
         }
       },
-      "description": "The longest wait for a lock (seconds) and the number of sessions waiting (right axis). Alert: PostgresBlockedSessions (a wait over 30 s for 30 s, line at 30). A deadlock does not show here for long: PostgreSQL aborts one session after deadlock_timeout."
+      "description": "The longest wait for a lock (seconds) and the number of sessions waiting (right axis). The dashed line is the limit of PostgresBlockedSessions: obenhub.postgresql.lock_wait_age.limit, 120 s when the lab records none, held for 30 s. A deadlock does not show here for long: PostgreSQL aborts one session after deadlock_timeout."
     },
     {
       "id": 114,
@@ -1157,6 +1441,17 @@
           "range": true,
           "instant": false,
           "legendFormat": "{{type}}"
+        },
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "vm"
+          },
+          "expr": "obenhub.postgresql.requested_checkpoints.limit or on() vector(3)",
+          "refId": "B",
+          "range": true,
+          "instant": false,
+          "legendFormat": "limit"
         }
       ],
       "fieldConfig": {
@@ -1167,7 +1462,7 @@
             "fillOpacity": 10,
             "showPoints": "never",
             "thresholdsStyle": {
-              "mode": "line"
+              "mode": "off"
             }
           },
           "thresholds": {
@@ -1176,15 +1471,45 @@
               {
                 "color": "green",
                 "value": null
-              },
-              {
-                "color": "red",
-                "value": 3
               }
             ]
           }
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "limit"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "red"
+                }
+              },
+              {
+                "id": "custom.lineStyle",
+                "value": {
+                  "fill": "dash",
+                  "dash": [
+                    10,
+                    10
+                  ]
+                }
+              },
+              {
+                "id": "custom.fillOpacity",
+                "value": 0
+              },
+              {
+                "id": "custom.lineWidth",
+                "value": 1
+              }
+            ]
+          }
+        ]
       },
       "options": {
         "legend": {
@@ -1195,7 +1520,7 @@
           "mode": "multi"
         }
       },
-      "description": "Checkpoints per type over a sliding 5 minutes, as in PostgresCheckpointsRequested: more than 3 requested for 1 minute fires (line at 3). Requested ones come from WAL reaching max_wal_size, CHECKPOINT, base backups and promotion; scheduled ones from checkpoint_timeout. A standby counts restartpoints, so it stays near 0."
+      "description": "Checkpoints per type over a sliding 5 minutes, as in PostgresCheckpointsRequested: more requested than the dashed line (obenhub.postgresql.requested_checkpoints.limit, 3 when the lab records none) for 1 minute fires. Requested ones come from WAL reaching max_wal_size, CHECKPOINT, base backups and promotion; scheduled ones from checkpoint_timeout. A standby counts restartpoints, so it stays near 0."
     },
     {
       "id": 101,
@@ -1300,11 +1625,11 @@
                 "type": "victoriametrics-metrics-datasource",
                 "uid": "vm"
               },
-              "expr": "60",
+              "expr": "obenhub.postgresql.subscription_msg_age.limit or on() vector(300)",
               "refId": "B",
               "range": true,
               "instant": false,
-              "legendFormat": "PostgresLogicalSubscriptionNotStreaming threshold (s)"
+              "legendFormat": "PostgresLogicalSubscriptionNotStreaming limit (s)"
             }
           ],
           "fieldConfig": {
@@ -1431,11 +1756,11 @@
                 "type": "victoriametrics-metrics-datasource",
                 "uid": "vm"
               },
-              "expr": "128 * 1024 * 1024",
+              "expr": "obenhub.postgresql.logical_slot_unconfirmed_wal.limit or on() vector(4294967296)",
               "refId": "B",
               "range": true,
               "instant": false,
-              "legendFormat": "PostgresLogicalSlotStalled threshold, 128 MiB (logical slots only)"
+              "legendFormat": "PostgresLogicalSlotStalled unconfirmed limit (logical slots only)"
             }
           ],
           "fieldConfig": {
@@ -1458,7 +1783,7 @@
               "mode": "multi"
             }
           },
-          "description": "unconfirmed_wal (logical slots) is current LSN minus confirmed_flush_lsn. The 128 MiB line is the PostgresLogicalSlotStalled threshold (slice1 rules)."
+          "description": "unconfirmed_wal (logical slots) is current LSN minus confirmed_flush_lsn. The dashed line is the PostgresLogicalSlotStalled limit, obenhub.postgresql.logical_slot_unconfirmed_wal.limit (4 GiB by default)."
         }
       ]
     },
@@ -1647,11 +1972,11 @@
                 "type": "victoriametrics-metrics-datasource",
                 "uid": "vm"
               },
-              "expr": "vector(5)",
+              "expr": "obenhub.pgbouncer.oldest_wait_age.limit or on() vector(10)",
               "refId": "B",
               "range": true,
               "instant": false,
-              "legendFormat": "alert threshold (5 s)"
+              "legendFormat": "PgbouncerClientsWaiting limit (s)"
             }
           ],
           "fieldConfig": {

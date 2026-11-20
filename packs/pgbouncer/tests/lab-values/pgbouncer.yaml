@@ -1,0 +1,12 @@
+# Test fixture: the lab values of the PgBouncer pack thresholds, as the labs record them
+# (lab/slice1/vmalert/rules/postgresql.yml, group pgbouncer-parameters). The older tests of this pack encode lab values; they load this file
+# so they keep testing the rules at the values their scenarios use. The defaults
+# are tested without it in thresholds.yml. Not read by anything else; a lab test
+# (lab/*/tests) checks the real inventory.
+
+groups:
+  - name: pgbouncer-lab-values
+    interval: 15s
+    rules:
+      - record: obenhub.pgbouncer.oldest_wait_age.limit
+        expr: vector(5)

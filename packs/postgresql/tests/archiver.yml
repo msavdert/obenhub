@@ -1,6 +1,7 @@
 # Tests for PostgresArchivingFailing and PostgresArchiveBacklog (shared PostgreSQL pack).
 rule_files:
   - ../rules.yml
+  - lab-values/postgresql.yaml
 evaluation_interval: 15s
 
 tests:
@@ -62,14 +63,14 @@ tests:
               severity: warning
               service.instance.id: pg-primary
             exp_annotations:
-              summary: '12 WAL files on pg-primary are waiting for the archiver (lab threshold)'
-              description: "More than 8 WAL segments wait with a .ready file in pg_wal/archive_status for 2 minutes (lab threshold); they stay in pg_wal until archived and can fill the disk. Check pg_stat_archiver and the archive_command."
+              summary: '12 WAL files on pg-primary are waiting for the archiver'
+              description: "More WAL segments than the limit (64 unless the lab sets obenhub.postgresql.archive_ready_files.limit) wait with a .ready file in pg_wal/archive_status for 2 minutes; they stay in pg_wal until archived and can fill the disk. Check pg_stat_archiver and the archive_command."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgresarchivebacklog
           - exp_labels:
               obenhub.cluster.name: slice1
               severity: warning
               service.instance.id: pg-nine
             exp_annotations:
-              summary: '9 WAL files on pg-nine are waiting for the archiver (lab threshold)'
-              description: "More than 8 WAL segments wait with a .ready file in pg_wal/archive_status for 2 minutes (lab threshold); they stay in pg_wal until archived and can fill the disk. Check pg_stat_archiver and the archive_command."
+              summary: '9 WAL files on pg-nine are waiting for the archiver'
+              description: "More WAL segments than the limit (64 unless the lab sets obenhub.postgresql.archive_ready_files.limit) wait with a .ready file in pg_wal/archive_status for 2 minutes; they stay in pg_wal until archived and can fill the disk. Check pg_stat_archiver and the archive_command."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgresarchivebacklog

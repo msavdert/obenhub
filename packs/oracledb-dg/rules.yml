@@ -1,9 +1,24 @@
 # Oracle Data Guard pack rules, for lab/oracle (queries: queries.yaml next to
 # this file). The lab defines obenhub.expected_target{service.name="oracledb"}
 # in its inventory (lab/oracle/mon/vmalert/inventory.yml); OracleTargetAbsent
-# reads it. Names follow the naming contract (ADR 0006). Every threshold and
-# hold below is a lab threshold, chosen for a 15s collection interval, not a
-# recommendation. Each rule names the scenario that exercised it, if any.
+# reads it. Names follow the naming contract (ADR 0006). Every hold below is
+# chosen for a 15s collection interval. Each rule names the scenario that
+# exercised it, if any.
+# Thresholds (C4): a production default in the rule and an optional lab
+# parameter, the recorded series obenhub.oracledb.*.limit (ADR 0006), always
+# written as
+#   <expr> > on() group_left() (obenhub.oracledb.<thing>.limit{...} or on() vector(<default>))
+# lab/oracle records its lab values in an oracledb-dg-parameters group of its
+# inventory. Two tiers share one series name with a severity label; the
+# warning band ends at the critical limit. The collection interval of
+# OracleCollectionIntervalTooLong is structural and stays literal. Units of
+# the limit series, read by scripts/gen-pack-alerts.py for
+# docs/reference/oracledb-dg-pack-alerts.md:
+# unit obenhub.oracledb.standby_lag.limit s
+# unit obenhub.oracledb.standby_data_age.limit s
+# unit obenhub.oracledb.processes_ratio.limit 1
+# unit obenhub.oracledb.tablespace_ratio.limit 1
+# unit obenhub.oracledb.lock_wait_age.limit s
 #
 # Labels, read from the VictoriaMetrics of the Oracle lab on 2026-11-13 (a
 # healthy CDB19 / CDB19_STBY pair): every oracledb.* series carries
@@ -61,6 +76,7 @@ groups:
       # The heartbeat comes from the sql_query receivers at 15 s. The oracledb
       # receiver (30 s) and the RMAN backup queries (60 s) have their own
       # intervals, which their rules' windows already allow for (README).
+      # Structural, no override series: 20 s is the interval the windows of these rules assume (15 s) plus jitter.
       - alert: OracleCollectionIntervalTooLong
         expr: max by (obenhub.cluster.name, service.instance.id) (scrape_interval(oracledb.collection.heartbeat[5m])) > 20
         for: 10m
@@ -316,36 +332,43 @@ groups:
           description: "The managed recovery process of a standby is gone for 3 minutes: redo is received but no longer applied, and the lag will grow. Check V$DATAGUARD_PROCESS and the standby's alert log, then restart apply."
           runbook_url: https://msavdert.github.io/obenhub/runbooks/oracledb-dg/#oraclestandbyapplystopped
 
-      # Transport or apply lag above 60 seconds on a standby, per lag.type, for
+      # Transport or apply lag above 300 seconds on a standby (the labs record
+      # 60), per lag.type, for
       # 2m. V$DATAGUARD_STATS gives the lag as an interval, the query turns it
-      # into seconds. Lab threshold: the healthy pair reads 0.
+      # into seconds. The healthy pair reads 0.
       # Quiet at 0, for a spike shorter than 2m, and when the lag row is gone
       # (value NULL: that is OracleStandbyLagUnknown).
       # Scenario: apply-stopped (lab/oracle; single trial runs 2026-11-14, no suite yet).
       - alert: OracleStandbyLag
-        expr: last_over_time(oracledb.dataguard.lag[30s]) > 60
+        expr: |
+          last_over_time(oracledb.dataguard.lag[30s])
+            > on() group_left()
+          (obenhub.oracledb.standby_lag.limit or on() vector(300))
         for: 2m
         labels:
           severity: warning
         annotations:
-          summary: '{{ (index $labels "oracledb.dataguard.lag.type") }} lag on standby {{ (index $labels "service.instance.id") }} is {{ $value | printf "%.0f" }}s (lab threshold 60s)'
-          description: "Transport or apply lag on a standby is above 60 seconds for 2 minutes (lab threshold). Check V$DATAGUARD_STATS and whether redo still arrives (OracleStandbyDataStale) and is applied (OracleStandbyApplyStopped)."
+          summary: '{{ (index $labels "oracledb.dataguard.lag.type") }} lag on standby {{ (index $labels "service.instance.id") }} is {{ $value | printf "%.0f" }}s'
+          description: "Transport or apply lag on a standby is above the limit (300 s unless the lab sets obenhub.oracledb.standby_lag.limit) for 2 minutes. Check V$DATAGUARD_STATS and whether redo still arrives (OracleStandbyDataStale) and is applied (OracleStandbyApplyStopped)."
           runbook_url: https://msavdert.github.io/obenhub/runbooks/oracledb-dg/#oraclestandbylag
 
       # The lag value on a standby is stale: lag.data_age is the time since the
       # standby last received the data the lag is computed from (DATUM_TIME), so
       # it grows when redo stops arriving while the lag itself may stay low.
-      # Above 60 seconds for 2m. Lab threshold: the healthy pair reads 1.
+      # Above 300 seconds (the labs record 60) for 2m. The healthy pair reads 1.
       # Quiet at small values and when the series is gone.
       # Scenario: transport-cut (lab/oracle; single trial runs 2026-11-14, no suite yet).
       - alert: OracleStandbyDataStale
-        expr: last_over_time(oracledb.dataguard.lag.data_age[30s]) > 60
+        expr: |
+          last_over_time(oracledb.dataguard.lag.data_age[30s])
+            > on() group_left()
+          (obenhub.oracledb.standby_data_age.limit or on() vector(300))
         for: 2m
         labels:
           severity: warning
         annotations:
-          summary: 'Lag data of type {{ (index $labels "oracledb.dataguard.lag.type") }} on standby {{ (index $labels "service.instance.id") }} is {{ $value | printf "%.0f" }}s old (lab threshold 60s)'
-          description: "The data the standby's lag is computed from is older than 60 seconds for 2 minutes: redo has stopped arriving even if the lag itself is low. Check redo transport from the primary and the archive destination status there."
+          summary: 'Lag data of type {{ (index $labels "oracledb.dataguard.lag.type") }} on standby {{ (index $labels "service.instance.id") }} is {{ $value | printf "%.0f" }}s old'
+          description: "The data the standby's lag is computed from is older than the limit (300 s unless the lab sets obenhub.oracledb.standby_data_age.limit) for 2 minutes: redo has stopped arriving even if the lag itself is low. Check redo transport from the primary and the archive destination status there."
           runbook_url: https://msavdert.github.io/obenhub/runbooks/oracledb-dg/#oraclestandbydatastale
 
       # A reporting standby (apply.running seen in the last 30s) with fewer
@@ -533,12 +556,17 @@ groups:
             x = min_over_time(r[90s:30s]),
             n = count_over_time(r[90s:30s])
           )
-          ((x > 0.85) unless (x >= 0.95)) and (n >= 3)
+          (
+            (x > on() group_left() (obenhub.oracledb.processes_ratio.limit{severity="warning"} or on() vector(0.85)))
+              unless
+            (x >= on() group_left() (obenhub.oracledb.processes_ratio.limit{severity="critical"} or on() vector(0.95)))
+          )
+            and (n >= 3)
         labels:
           severity: warning
         annotations:
           summary: 'Oracle instance {{ (index $labels "service.instance.id") }} uses more than 85% of its PROCESSES limit'
-          description: "Instance process slots in use are above 85 % of the PROCESSES parameter (critical at 95 %); at the limit a new dedicated server process cannot start. Check V$RESOURCE_LIMIT and which sessions hold the processes."
+          description: "Instance process slots in use are above 85 % of the PROCESSES parameter (critical at 95 %), unless the lab sets obenhub.oracledb.processes_ratio.limit per severity; at the limit a new dedicated server process cannot start. Check V$RESOURCE_LIMIT and which sessions hold the processes."
           runbook_url: https://msavdert.github.io/obenhub/runbooks/oracledb-dg/#oracleprocessessaturation
 
       - alert: OracleProcessesSaturation
@@ -550,12 +578,13 @@ groups:
             x = min_over_time(r[90s:30s]),
             n = count_over_time(r[90s:30s])
           )
-          (x >= 0.95) and (n >= 3)
+          (x >= on() group_left() (obenhub.oracledb.processes_ratio.limit{severity="critical"} or on() vector(0.95)))
+            and (n >= 3)
         labels:
           severity: critical
         annotations:
           summary: 'Oracle instance {{ (index $labels "service.instance.id") }} uses 95% or more of its PROCESSES limit: new logins fail with ORA-00020'
-          description: "Instance process slots in use are above 85 % of the PROCESSES parameter (critical at 95 %); at the limit a new dedicated server process cannot start. Check V$RESOURCE_LIMIT and which sessions hold the processes."
+          description: "Instance process slots in use are above 85 % of the PROCESSES parameter (critical at 95 %), unless the lab sets obenhub.oracledb.processes_ratio.limit per severity; at the limit a new dedicated server process cannot start. Check V$RESOURCE_LIMIT and which sessions hold the processes."
           runbook_url: https://msavdert.github.io/obenhub/runbooks/oracledb-dg/#oracleprocessessaturation
 
       # oracledb.tablespace_size.usage / oracledb.tablespace_size.limit from
@@ -592,12 +621,17 @@ groups:
             x = min_over_time(r[90s:30s]),
             n = count_over_time(r[90s:30s])
           )
-          ((x > 0.85) unless (x >= 0.95)) and (n >= 3)
+          (
+            (x > on() group_left() (obenhub.oracledb.tablespace_ratio.limit{severity="warning"} or on() vector(0.85)))
+              unless
+            (x >= on() group_left() (obenhub.oracledb.tablespace_ratio.limit{severity="critical"} or on() vector(0.95)))
+          )
+            and (n >= 3)
         labels:
           severity: warning
         annotations:
           summary: 'Tablespace {{ (index $labels "tablespace_name") }} ({{ (index $labels "oracle.db.pdb") }}) of Oracle instance {{ (index $labels "service.instance.id") }} is more than 85% full of its maximum size'
-          description: "A tablespace is above 85 % of its limit (critical at 95 %). Check DBA_TABLESPACE_USAGE_METRICS for the tablespace and PDB named in the alert and add space or free it."
+          description: "A tablespace is above 85 % of its limit (critical at 95 %), unless the lab sets obenhub.oracledb.tablespace_ratio.limit per severity. Check DBA_TABLESPACE_USAGE_METRICS for the tablespace and PDB named in the alert and add space or free it."
           runbook_url: https://msavdert.github.io/obenhub/runbooks/oracledb-dg/#oracletablespaceusagehigh
 
       - alert: OracleTablespaceUsageHigh
@@ -609,24 +643,26 @@ groups:
             x = min_over_time(r[90s:30s]),
             n = count_over_time(r[90s:30s])
           )
-          (x >= 0.95) and (n >= 3)
+          (x >= on() group_left() (obenhub.oracledb.tablespace_ratio.limit{severity="critical"} or on() vector(0.95)))
+            and (n >= 3)
         labels:
           severity: critical
         annotations:
           summary: 'Tablespace {{ (index $labels "tablespace_name") }} ({{ (index $labels "oracle.db.pdb") }}) of Oracle instance {{ (index $labels "service.instance.id") }} is 95% or more full of its maximum size: at 100% a segment that needs a new extent fails with ORA-01653'
-          description: "A tablespace is above 85 % of its limit (critical at 95 %). Check DBA_TABLESPACE_USAGE_METRICS for the tablespace and PDB named in the alert and add space or free it."
+          description: "A tablespace is above 85 % of its limit (critical at 95 %), unless the lab sets obenhub.oracledb.tablespace_ratio.limit per severity. Check DBA_TABLESPACE_USAGE_METRICS for the tablespace and PDB named in the alert and add space or free it."
           runbook_url: https://msavdert.github.io/obenhub/runbooks/oracledb-dg/#oracletablespaceusagehigh
 
       # A session has waited for a lock held by another session:
       # oracledb.lock.oldest_wait_age (queries-primary.yaml: V$SESSION, wait
       # class Application, all containers, 15s collection, 0 when none). One
       # tier, as PostgresBlockedSessions in packs/postgresql/rules.yml: a
-      # wait is a symptom whose blocker the pack does not name. The lab
-      # threshold of 30 s is that rule's, assumed, not tuned to Oracle. Its
-      # 30s hold is written as the window of PostgresIdleInTransaction:
+      # wait is a symptom whose blocker the pack does not name. The
+      # default of 120 s is PostgresBlockedSessions's, assumed, not tuned to
+      # Oracle (the lab records 30 s). Its
+      # hold is written as the window of PostgresIdleInTransaction:
       # x = min_over_time over 45s is the lowest of three 15s points, so the
-      # oldest wait was above 30 s at each of them (the wait began more than
-      # 60 s before the alert fires), and n >= 3 keeps a series with fewer
+      # oldest wait was above the limit at each of them (the wait began more
+      # than 30 s before the alert fires), and n >= 3 keeps a series with fewer
       # points (a new Collector, a new series) quiet. max by (service.instance.id,
       # obenhub.cluster.name): the series also carries
       # oracledb.database.unique_name.
@@ -640,10 +676,11 @@ groups:
             x = min_over_time(r[45s:15s]),
             n = count_over_time(r[45s:15s])
           )
-          (x > 30) and (n >= 3)
+          (x > on() group_left() (obenhub.oracledb.lock_wait_age.limit or on() vector(120)))
+            and (n >= 3)
         labels:
           severity: warning
         annotations:
-          summary: 'A session on Oracle instance {{ (index $labels "service.instance.id") }} has waited {{ $value | humanizeDuration }} for a lock held by another session (lab threshold)'
-          description: "A session has waited more than 30 seconds for a lock held by another session (V$SESSION, wait class Application). The alert does not name the blocker; look for it in V$SESSION by blocking_session."
+          summary: 'A session on Oracle instance {{ (index $labels "service.instance.id") }} has waited {{ $value | humanizeDuration }} for a lock held by another session'
+          description: "A session has waited more than the limit (120 s unless the lab sets obenhub.oracledb.lock_wait_age.limit) for a lock held by another session (V$SESSION, wait class Application). The alert does not name the blocker; look for it in V$SESSION by blocking_session."
           runbook_url: https://msavdert.github.io/obenhub/runbooks/oracledb-dg/#oracleblockedsessions

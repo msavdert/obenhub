@@ -6,7 +6,15 @@
 # memoryscraper metadata.yaml); the series carry host.name and
 # service.instance.id from the Collector's resource attributes. The memory
 # metrics are off by default and are enabled in the Collector config
-# (lab/pgha/files/otelcol.yaml.tmpl). Thresholds are lab values.
+# (lab/pgha/files/otelcol.yaml.tmpl). Thresholds (C4): a production default in
+# the rule and an optional lab parameter, the recorded series
+# obenhub.host.*.limit (ADR 0006), always written as
+#   <expr> < on() group_left() (obenhub.host.<thing>.limit or on() vector(<default>))
+# The labs' values equal the defaults, so none records an override today.
+# Units of the limit series, read by scripts/gen-pack-alerts.py for
+# docs/reference/host-pack-alerts.md:
+# unit obenhub.host.filesystem_free_ratio.limit 1
+# unit obenhub.host.memory_available_ratio.limit 1
 # Both rules keep service.instance.id (the lab's Alertmanager groups by it) by
 # aggregating on it next to host.name; they need no other lab label.
 groups:
@@ -28,13 +36,14 @@ groups:
           sum by (host.name, service.instance.id, mountpoint) (system.filesystem.usage{state="free", type=~"ext4|xfs|btrfs"})
             /
           sum by (host.name, service.instance.id, mountpoint) (system.filesystem.usage{state=~"free|used", type=~"ext4|xfs|btrfs"})
-            < 0.10
+            < on() group_left()
+          (obenhub.host.filesystem_free_ratio.limit or on() vector(0.1))
         for: 2m
         labels:
           severity: warning
         annotations:
           summary: 'Less than 10 % of {{ (index $labels "mountpoint") }} is free on {{ (index $labels "host.name") }}'
-          description: "Under 10 % of a mounted ext4, xfs or btrfs filesystem is free for 2 minutes (system.filesystem.usage). Find what grows under the mount point named in the alert, for a PostgreSQL host start with the data and WAL directories."
+          description: "Under 10 % of a mounted ext4, xfs or btrfs filesystem is free for 2 minutes (system.filesystem.usage; 10 % unless the lab sets obenhub.host.filesystem_free_ratio.limit). Find what grows under the mount point named in the alert, for a PostgreSQL host start with the data and WAL directories."
           runbook_url: https://msavdert.github.io/obenhub/runbooks/host/#hostfilesystemspacelow
 
       # MemAvailable (the kernel's estimate of memory a new workload can get
@@ -47,15 +56,18 @@ groups:
           sum by (host.name, service.instance.id) (system.linux.memory.available)
             /
           sum by (host.name, service.instance.id) (system.memory.limit)
-            < 0.10
+            < on() group_left()
+          (obenhub.host.memory_available_ratio.limit or on() vector(0.1))
         for: 2m
         labels:
           severity: warning
         annotations:
           summary: 'Less than 10 % of memory is available on {{ (index $labels "host.name") }}'
-          description: "MemAvailable (system.linux.memory.available) is under 10 % of the host's memory for 2 minutes. Read MemAvailable and MemTotal in /proc/meminfo, then look for the process that grew."
+          description: "MemAvailable (system.linux.memory.available) is under 10 % of the host's memory for 2 minutes (10 % unless the lab sets obenhub.host.memory_available_ratio.limit). Read MemAvailable and MemTotal in /proc/meminfo, then look for the process that grew."
           runbook_url: https://msavdert.github.io/obenhub/runbooks/host/#hostmemoryavailablelow
 
+      # The 300 s are structural (the time from boot to the first scrape) and stay
+      # literal, as the collection interval of the *CollectionIntervalTooLong rules.
       # The host booted less than 5 m ago: a reset of any kind (watchdog, power,
       # operator). No "for": system.uptime is a continuous series; the expression
       # limits the alert to the first 5 m after a boot, so the alert is itself the

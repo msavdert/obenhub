@@ -1,0 +1,524 @@
+# Thresholds of the PostgreSQL pack, in the one form of C4: a production default in the
+# rule and an optional lab parameter, the recorded series obenhub.*.limit. Two tests:
+# defaults (no limit series: each rule fires just above its default and is quiet at it)
+# and override (limit series recorded: each rule fires above the override, and a value
+# between the default and the override stays quiet). For the tiered rules the override test moves the critical limit and checks that the warning band moves with it. The tests read the firing
+# alerts back as ALERTS series, so a quiet case is a series missing from the list.
+rule_files:
+  - ../rules.yml
+evaluation_interval: 15s
+
+tests:
+  - name: defaults - every limit series absent, fires just above the default, quiet at it
+    interval: 15s
+    input_series:
+      - series: 'postgresql.replay.backlog{obenhub.cluster.name="c1",service.instance.id="postgresreplaybacklog-hi"}'
+        values: '268435457x160'
+      - series: 'postgresql.recovery.active{obenhub.cluster.name="c1",service.instance.id="postgresreplaybacklog-hi"}'
+        values: '1x160'
+      - series: 'postgresql.replay.backlog{obenhub.cluster.name="c1",service.instance.id="postgresreplaybacklog-lo"}'
+        values: '268435456x160'
+      - series: 'postgresql.recovery.active{obenhub.cluster.name="c1",service.instance.id="postgresreplaybacklog-lo"}'
+        values: '1x160'
+      - series: 'postgresql.snapshot.oldest_age{obenhub.cluster.name="c1",service.instance.id="postgressnapshotheldtoolong-hi"}'
+        values: '1801x160'
+      - series: 'postgresql.snapshot.oldest_age{obenhub.cluster.name="c1",service.instance.id="postgressnapshotheldtoolong-lo"}'
+        values: '1800x160'
+      - series: 'postgresql.lock.oldest_wait_age{obenhub.cluster.name="c1",service.instance.id="postgresblockedsessions-hi"}'
+        values: '121x160'
+      - series: 'postgresql.lock.oldest_wait_age{obenhub.cluster.name="c1",service.instance.id="postgresblockedsessions-lo"}'
+        values: '120x160'
+      - series: 'postgresql.archiver.ready_file.count{obenhub.cluster.name="c1",service.instance.id="postgresarchivebacklog-hi"}'
+        values: '65x160'
+      - series: 'postgresql.archiver.ready_file.count{obenhub.cluster.name="c1",service.instance.id="postgresarchivebacklog-lo"}'
+        values: '64x160'
+      - series: 'postgresql.replication_slot.inactive_age{obenhub.cluster.name="c1",service.instance.id="postgresphysicalslotinactive-hi",postgresql.replication_slot.type="physical",postgresql.replication_slot.name="s1"}'
+        values: '901x160'
+      - series: 'postgresql.recovery.active{obenhub.cluster.name="c1",service.instance.id="postgresphysicalslotinactive-hi"}'
+        values: '0x160'
+      - series: 'postgresql.replication_slot.inactive_age{obenhub.cluster.name="c1",service.instance.id="postgresphysicalslotinactive-lo",postgresql.replication_slot.type="physical",postgresql.replication_slot.name="s1"}'
+        values: '900x160'
+      - series: 'postgresql.recovery.active{obenhub.cluster.name="c1",service.instance.id="postgresphysicalslotinactive-lo"}'
+        values: '0x160'
+      - series: 'postgresql.replication_slot.retained_wal{obenhub.cluster.name="c1",service.instance.id="postgresreplicationslotretainingwal-hi",postgresql.replication_slot.name="s1"}'
+        values: '8589934593x160'
+      - series: 'postgresql.recovery.active{obenhub.cluster.name="c1",service.instance.id="postgresreplicationslotretainingwal-hi"}'
+        values: '0x160'
+      - series: 'postgresql.replication_slot.retained_wal{obenhub.cluster.name="c1",service.instance.id="postgresreplicationslotretainingwal-lo",postgresql.replication_slot.name="s1"}'
+        values: '8589934592x160'
+      - series: 'postgresql.recovery.active{obenhub.cluster.name="c1",service.instance.id="postgresreplicationslotretainingwal-lo"}'
+        values: '0x160'
+      - series: 'postgresql.xmin_horizon.age{obenhub.cluster.name="c1",service.instance.id="xmin-hi"}'
+        values: '50000001x160'
+      - series: 'postgresql.xmin_horizon.age{obenhub.cluster.name="c1",service.instance.id="xmin-lo"}'
+        values: '50000000x160'
+      - series: 'postgresql.xmin_horizon.age{obenhub.cluster.name="c1",service.instance.id="xmin-held"}'
+        values: '60000000x160'
+      - series: 'postgresql.snapshot.oldest_age{obenhub.cluster.name="c1",service.instance.id="xmin-held"}'
+        values: '1801x160'
+      - series: 'postgresql.xmin_horizon.age{obenhub.cluster.name="c1",service.instance.id="xmin-clientold"}'
+        values: '60000000x160'
+      - series: 'postgresql.snapshot.oldest_age{obenhub.cluster.name="c1",service.instance.id="xmin-clientold"}'
+        values: '1800x160'
+      - series: 'postgresql.client_connection.count{obenhub.cluster.name="c1",service.instance.id="postgresconnectionsaturation-w-hi"}'
+        values: '851x160'
+      - series: 'postgresql.client_connection.limit{obenhub.cluster.name="c1",service.instance.id="postgresconnectionsaturation-w-hi"}'
+        values: '1000x160'
+      - series: 'postgresql.client_connection.count{obenhub.cluster.name="c1",service.instance.id="postgresconnectionsaturation-w-lo"}'
+        values: '850x160'
+      - series: 'postgresql.client_connection.limit{obenhub.cluster.name="c1",service.instance.id="postgresconnectionsaturation-w-lo"}'
+        values: '1000x160'
+      - series: 'postgresql.client_connection.count{obenhub.cluster.name="c1",service.instance.id="postgresconnectionsaturation-w-top"}'
+        values: '949x160'
+      - series: 'postgresql.client_connection.limit{obenhub.cluster.name="c1",service.instance.id="postgresconnectionsaturation-w-top"}'
+        values: '1000x160'
+      - series: 'postgresql.client_connection.count{obenhub.cluster.name="c1",service.instance.id="postgresconnectionsaturation-c-lo"}'
+        values: '950x160'
+      - series: 'postgresql.client_connection.limit{obenhub.cluster.name="c1",service.instance.id="postgresconnectionsaturation-c-lo"}'
+        values: '1000x160'
+      - series: 'postgresql.client_connection.count{obenhub.cluster.name="c1",service.instance.id="postgresconnectionsaturation-c-hi"}'
+        values: '951x160'
+      - series: 'postgresql.client_connection.limit{obenhub.cluster.name="c1",service.instance.id="postgresconnectionsaturation-c-hi"}'
+        values: '1000x160'
+      - series: 'postgresql.database.xid_age{obenhub.cluster.name="c1",service.instance.id="postgrestransactionidwraparound-w-hi",postgresql.database.name="db1"}'
+        values: '1073741825x160'
+      - series: 'postgresql.recovery.active{obenhub.cluster.name="c1",service.instance.id="postgrestransactionidwraparound-w-hi"}'
+        values: '0x160'
+      - series: 'postgresql.database.xid_age{obenhub.cluster.name="c1",service.instance.id="postgrestransactionidwraparound-w-lo",postgresql.database.name="db1"}'
+        values: '1073741824x160'
+      - series: 'postgresql.recovery.active{obenhub.cluster.name="c1",service.instance.id="postgrestransactionidwraparound-w-lo"}'
+        values: '0x160'
+      - series: 'postgresql.database.xid_age{obenhub.cluster.name="c1",service.instance.id="postgrestransactionidwraparound-w-top",postgresql.database.name="db1"}'
+        values: '1610612736x160'
+      - series: 'postgresql.recovery.active{obenhub.cluster.name="c1",service.instance.id="postgrestransactionidwraparound-w-top"}'
+        values: '0x160'
+      - series: 'postgresql.database.xid_age{obenhub.cluster.name="c1",service.instance.id="postgrestransactionidwraparound-c-hi",postgresql.database.name="db1"}'
+        values: '1610612737x160'
+      - series: 'postgresql.recovery.active{obenhub.cluster.name="c1",service.instance.id="postgrestransactionidwraparound-c-hi"}'
+        values: '0x160'
+      - series: 'postgresql.transaction.idle_age{obenhub.cluster.name="c1",service.instance.id="postgresidleintransaction-w-hi"}'
+        values: '301x160'
+      - series: 'postgresql.transaction.idle_age{obenhub.cluster.name="c1",service.instance.id="postgresidleintransaction-w-lo"}'
+        values: '300x160'
+      - series: 'postgresql.transaction.idle_age{obenhub.cluster.name="c1",service.instance.id="postgresidleintransaction-w-top"}'
+        values: '1800x160'
+      - series: 'postgresql.transaction.idle_age{obenhub.cluster.name="c1",service.instance.id="postgresidleintransaction-c-hi"}'
+        values: '1801x160'
+      - series: 'postgresql.bgwriter.checkpoint.count{obenhub.cluster.name="c1",service.instance.id="checkpoints-hi",type="requested"}'
+        values: '0x30 4x160'
+      - series: 'postgresql.recovery.active{obenhub.cluster.name="c1",service.instance.id="checkpoints-hi"}'
+        values: '0x160'
+      - series: 'postgresql.bgwriter.checkpoint.count{obenhub.cluster.name="c1",service.instance.id="checkpoints-lo",type="requested"}'
+        values: '0x30 3x160'
+      - series: 'postgresql.recovery.active{obenhub.cluster.name="c1",service.instance.id="checkpoints-lo"}'
+        values: '0x160'
+      - series: 'postgresql.subscription.apply_error{obenhub.cluster.name="c1",service.instance.id="errors-hi",postgresql.subscription.name="sub1"}'
+        values: '0x30 2x160'
+      - series: 'postgresql.subscription.sync_error{obenhub.cluster.name="c1",service.instance.id="errors-hi",postgresql.subscription.name="sub1"}'
+        values: '0x160'
+      - series: 'postgresql.subscription.apply_error{obenhub.cluster.name="c1",service.instance.id="errors-lo",postgresql.subscription.name="sub1"}'
+        values: '0x30 1x160'
+      - series: 'postgresql.subscription.sync_error{obenhub.cluster.name="c1",service.instance.id="errors-lo",postgresql.subscription.name="sub1"}'
+        values: '0x160'
+      - series: 'postgresql.subscription.enabled{obenhub.cluster.name="c1",service.instance.id="notstreaming-hi",postgresql.subscription.name="sub1"}'
+        values: '1x160'
+      - series: 'postgresql.subscription.apply_worker_running{obenhub.cluster.name="c1",service.instance.id="notstreaming-hi",postgresql.subscription.name="sub1"}'
+        values: '1x160'
+      - series: 'postgresql.subscription.last_msg_age{obenhub.cluster.name="c1",service.instance.id="notstreaming-hi",postgresql.subscription.name="sub1"}'
+        values: '301x160'
+      - series: 'postgresql.collection.heartbeat{obenhub.cluster.name="c1",service.instance.id="notstreaming-hi"}'
+        values: '1x160'
+      - series: 'postgresql.subscription.enabled{obenhub.cluster.name="c1",service.instance.id="notstreaming-lo",postgresql.subscription.name="sub1"}'
+        values: '1x160'
+      - series: 'postgresql.subscription.apply_worker_running{obenhub.cluster.name="c1",service.instance.id="notstreaming-lo",postgresql.subscription.name="sub1"}'
+        values: '1x160'
+      - series: 'postgresql.subscription.last_msg_age{obenhub.cluster.name="c1",service.instance.id="notstreaming-lo",postgresql.subscription.name="sub1"}'
+        values: '300x160'
+      - series: 'postgresql.collection.heartbeat{obenhub.cluster.name="c1",service.instance.id="notstreaming-lo"}'
+        values: '1x160'
+      - series: 'postgresql.subscription.enabled{obenhub.cluster.name="c1",service.instance.id="notstreaming-err2",postgresql.subscription.name="sub1"}'
+        values: '1x160'
+      - series: 'postgresql.subscription.apply_worker_running{obenhub.cluster.name="c1",service.instance.id="notstreaming-err2",postgresql.subscription.name="sub1"}'
+        values: '1x160'
+      - series: 'postgresql.subscription.last_msg_age{obenhub.cluster.name="c1",service.instance.id="notstreaming-err2",postgresql.subscription.name="sub1"}'
+        values: '301x160'
+      - series: 'postgresql.collection.heartbeat{obenhub.cluster.name="c1",service.instance.id="notstreaming-err2"}'
+        values: '1x160'
+      - series: 'postgresql.subscription.apply_error{obenhub.cluster.name="c1",service.instance.id="notstreaming-err2",postgresql.subscription.name="sub1"}'
+        values: '0x30 2x160'
+      - series: 'postgresql.subscription.sync_error{obenhub.cluster.name="c1",service.instance.id="notstreaming-err2",postgresql.subscription.name="sub1"}'
+        values: '0x160'
+      - series: 'postgresql.subscription.enabled{obenhub.cluster.name="c1",service.instance.id="notstreaming-err1",postgresql.subscription.name="sub1"}'
+        values: '1x160'
+      - series: 'postgresql.subscription.apply_worker_running{obenhub.cluster.name="c1",service.instance.id="notstreaming-err1",postgresql.subscription.name="sub1"}'
+        values: '1x160'
+      - series: 'postgresql.subscription.last_msg_age{obenhub.cluster.name="c1",service.instance.id="notstreaming-err1",postgresql.subscription.name="sub1"}'
+        values: '301x160'
+      - series: 'postgresql.collection.heartbeat{obenhub.cluster.name="c1",service.instance.id="notstreaming-err1"}'
+        values: '1x160'
+      - series: 'postgresql.subscription.apply_error{obenhub.cluster.name="c1",service.instance.id="notstreaming-err1",postgresql.subscription.name="sub1"}'
+        values: '0x30 1x160'
+      - series: 'postgresql.subscription.sync_error{obenhub.cluster.name="c1",service.instance.id="notstreaming-err1",postgresql.subscription.name="sub1"}'
+        values: '0x160'
+      - series: 'postgresql.replication_slot.inactive_age{obenhub.cluster.name="c1",service.instance.id="logicalslot-age-hi",postgresql.replication_slot.type="logical",postgresql.replication_slot.name="ls1"}'
+        values: '901x160'
+      - series: 'postgresql.replication_slot.inactive_age{obenhub.cluster.name="c1",service.instance.id="logicalslot-age-lo",postgresql.replication_slot.type="logical",postgresql.replication_slot.name="ls1"}'
+        values: '900x160'
+      - series: 'postgresql.replication_slot.unconfirmed_wal{obenhub.cluster.name="c1",service.instance.id="logicalslot-wal-hi",postgresql.replication_slot.type="logical",postgresql.replication_slot.name="ls1"}'
+        values: '4294967297x160'
+      - series: 'postgresql.replication_slot.unconfirmed_wal{obenhub.cluster.name="c1",service.instance.id="logicalslot-wal-lo",postgresql.replication_slot.type="logical",postgresql.replication_slot.name="ls1"}'
+        values: '4294967296x160'
+    metricsql_expr_test:
+      - expr: ALERTS{alertname="PostgresReplayBacklog", alertstate="firing"}
+        eval_time: 10m
+        exp_samples:
+          - labels: 'ALERTS{alertname="PostgresReplayBacklog", alertgroup="postgresql", alertstate="firing", obenhub.cluster.name="c1", service.instance.id="postgresreplaybacklog-hi", severity="warning"}'
+            value: 1
+      - expr: ALERTS{alertname="PostgresSnapshotHeldTooLong", alertstate="firing"}
+        eval_time: 10m
+        exp_samples:
+          - labels: 'ALERTS{alertname="PostgresSnapshotHeldTooLong", alertgroup="postgresql", alertstate="firing", obenhub.cluster.name="c1", service.instance.id="postgressnapshotheldtoolong-hi", severity="warning"}'
+            value: 1
+          - labels: 'ALERTS{alertname="PostgresSnapshotHeldTooLong", alertgroup="postgresql", alertstate="firing", obenhub.cluster.name="c1", service.instance.id="xmin-held", severity="warning"}'
+            value: 1
+      - expr: ALERTS{alertname="PostgresBlockedSessions", alertstate="firing"}
+        eval_time: 10m
+        exp_samples:
+          - labels: 'ALERTS{alertname="PostgresBlockedSessions", alertgroup="postgresql", alertstate="firing", obenhub.cluster.name="c1", service.instance.id="postgresblockedsessions-hi", severity="warning"}'
+            value: 1
+      - expr: ALERTS{alertname="PostgresArchiveBacklog", alertstate="firing"}
+        eval_time: 10m
+        exp_samples:
+          - labels: 'ALERTS{alertname="PostgresArchiveBacklog", alertgroup="postgresql", alertstate="firing", obenhub.cluster.name="c1", service.instance.id="postgresarchivebacklog-hi", severity="warning"}'
+            value: 1
+      - expr: ALERTS{alertname="PostgresPhysicalSlotInactive", alertstate="firing"}
+        eval_time: 10m
+        exp_samples:
+          - labels: 'ALERTS{alertname="PostgresPhysicalSlotInactive", alertgroup="postgresql", alertstate="firing", obenhub.cluster.name="c1", service.instance.id="postgresphysicalslotinactive-hi", postgresql.replication_slot.type="physical", postgresql.replication_slot.name="s1", severity="warning"}'
+            value: 1
+      - expr: ALERTS{alertname="PostgresReplicationSlotRetainingWAL", alertstate="firing"}
+        eval_time: 10m
+        exp_samples:
+          - labels: 'ALERTS{alertname="PostgresReplicationSlotRetainingWAL", alertgroup="postgresql", alertstate="firing", obenhub.cluster.name="c1", service.instance.id="postgresreplicationslotretainingwal-hi", postgresql.replication_slot.name="s1", severity="warning"}'
+            value: 1
+      - expr: ALERTS{alertname="PostgresXminHorizonHeld", alertstate="firing"}
+        eval_time: 10m
+        exp_samples:
+          - labels: 'ALERTS{alertname="PostgresXminHorizonHeld", alertgroup="postgresql", alertstate="firing", obenhub.cluster.name="c1", service.instance.id="xmin-hi", severity="warning"}'
+            value: 1
+          - labels: 'ALERTS{alertname="PostgresXminHorizonHeld", alertgroup="postgresql", alertstate="firing", obenhub.cluster.name="c1", service.instance.id="xmin-clientold", severity="warning"}'
+            value: 1
+      - expr: ALERTS{alertname="PostgresConnectionSaturation", alertstate="firing"}
+        eval_time: 10m
+        exp_samples:
+          - labels: 'ALERTS{alertname="PostgresConnectionSaturation", alertgroup="postgresql", alertstate="firing", obenhub.cluster.name="c1", service.instance.id="postgresconnectionsaturation-w-hi", severity="warning"}'
+            value: 1
+          - labels: 'ALERTS{alertname="PostgresConnectionSaturation", alertgroup="postgresql", alertstate="firing", obenhub.cluster.name="c1", service.instance.id="postgresconnectionsaturation-w-top", severity="warning"}'
+            value: 1
+          - labels: 'ALERTS{alertname="PostgresConnectionSaturation", alertgroup="postgresql", alertstate="firing", obenhub.cluster.name="c1", service.instance.id="postgresconnectionsaturation-c-lo", severity="critical"}'
+            value: 1
+          - labels: 'ALERTS{alertname="PostgresConnectionSaturation", alertgroup="postgresql", alertstate="firing", obenhub.cluster.name="c1", service.instance.id="postgresconnectionsaturation-c-hi", severity="critical"}'
+            value: 1
+      - expr: ALERTS{alertname="PostgresTransactionIdWraparound", alertstate="firing"}
+        eval_time: 10m
+        exp_samples:
+          - labels: 'ALERTS{alertname="PostgresTransactionIdWraparound", alertgroup="postgresql", alertstate="firing", obenhub.cluster.name="c1", service.instance.id="postgrestransactionidwraparound-w-hi", postgresql.database.name="db1", kind="xid", severity="warning"}'
+            value: 1
+          - labels: 'ALERTS{alertname="PostgresTransactionIdWraparound", alertgroup="postgresql", alertstate="firing", obenhub.cluster.name="c1", service.instance.id="postgrestransactionidwraparound-w-top", postgresql.database.name="db1", kind="xid", severity="warning"}'
+            value: 1
+          - labels: 'ALERTS{alertname="PostgresTransactionIdWraparound", alertgroup="postgresql", alertstate="firing", obenhub.cluster.name="c1", service.instance.id="postgrestransactionidwraparound-c-hi", postgresql.database.name="db1", kind="xid", severity="critical"}'
+            value: 1
+      - expr: ALERTS{alertname="PostgresIdleInTransaction", alertstate="firing"}
+        eval_time: 10m
+        exp_samples:
+          - labels: 'ALERTS{alertname="PostgresIdleInTransaction", alertgroup="postgresql", alertstate="firing", obenhub.cluster.name="c1", service.instance.id="postgresidleintransaction-w-hi", severity="warning"}'
+            value: 1
+          - labels: 'ALERTS{alertname="PostgresIdleInTransaction", alertgroup="postgresql", alertstate="firing", obenhub.cluster.name="c1", service.instance.id="postgresidleintransaction-w-top", severity="warning"}'
+            value: 1
+          - labels: 'ALERTS{alertname="PostgresIdleInTransaction", alertgroup="postgresql", alertstate="firing", obenhub.cluster.name="c1", service.instance.id="postgresidleintransaction-c-hi", severity="critical"}'
+            value: 1
+      - expr: ALERTS{alertname="PostgresCheckpointsRequested", alertstate="firing"}
+        eval_time: 10m
+        exp_samples:
+          - labels: 'ALERTS{alertname="PostgresCheckpointsRequested", alertgroup="postgresql", alertstate="firing", obenhub.cluster.name="c1", service.instance.id="checkpoints-hi", type="requested", severity="warning"}'
+            value: 1
+      - expr: ALERTS{alertname="PostgresLogicalApplyErrors", alertstate="firing"}
+        eval_time: 10m
+        exp_samples:
+          - labels: 'ALERTS{alertname="PostgresLogicalApplyErrors", alertgroup="logical-replication", alertstate="firing", obenhub.cluster.name="c1", service.instance.id="errors-hi", postgresql.subscription.name="sub1", severity="critical"}'
+            value: 1
+          - labels: 'ALERTS{alertname="PostgresLogicalApplyErrors", alertgroup="logical-replication", alertstate="firing", obenhub.cluster.name="c1", service.instance.id="notstreaming-err2", postgresql.subscription.name="sub1", severity="critical"}'
+            value: 1
+      - expr: ALERTS{alertname="PostgresLogicalSubscriptionNotStreaming", alertstate="firing"}
+        eval_time: 10m
+        exp_samples:
+          - labels: 'ALERTS{alertname="PostgresLogicalSubscriptionNotStreaming", alertgroup="logical-replication", alertstate="firing", obenhub.cluster.name="c1", service.instance.id="notstreaming-hi", postgresql.subscription.name="sub1", severity="critical"}'
+            value: 1
+          - labels: 'ALERTS{alertname="PostgresLogicalSubscriptionNotStreaming", alertgroup="logical-replication", alertstate="firing", obenhub.cluster.name="c1", service.instance.id="notstreaming-err1", postgresql.subscription.name="sub1", severity="critical"}'
+            value: 1
+      - expr: ALERTS{alertname="PostgresLogicalSlotStalled", alertstate="firing"}
+        eval_time: 10m
+        exp_samples:
+          - labels: 'ALERTS{alertname="PostgresLogicalSlotStalled", alertgroup="logical-replication", alertstate="firing", obenhub.cluster.name="c1", service.instance.id="logicalslot-age-hi", postgresql.replication_slot.type="logical", postgresql.replication_slot.name="ls1", severity="warning"}'
+            value: 1
+          - labels: 'ALERTS{alertname="PostgresLogicalSlotStalled", alertgroup="logical-replication", alertstate="firing", obenhub.cluster.name="c1", service.instance.id="logicalslot-wal-hi", postgresql.replication_slot.type="logical", postgresql.replication_slot.name="ls1", severity="warning"}'
+            value: 1
+
+  - name: override - limit series recorded, fires above the override, the default is ignored
+    interval: 15s
+    input_series:
+      - series: 'obenhub.postgresql.replay_backlog.limit'
+        values: '536870912x160'
+      - series: 'postgresql.replay.backlog{obenhub.cluster.name="c1",service.instance.id="postgresreplaybacklog-mid"}'
+        values: '400000000x160'
+      - series: 'postgresql.recovery.active{obenhub.cluster.name="c1",service.instance.id="postgresreplaybacklog-mid"}'
+        values: '1x160'
+      - series: 'postgresql.replay.backlog{obenhub.cluster.name="c1",service.instance.id="postgresreplaybacklog-top"}'
+        values: '536870913x160'
+      - series: 'postgresql.recovery.active{obenhub.cluster.name="c1",service.instance.id="postgresreplaybacklog-top"}'
+        values: '1x160'
+      - series: 'obenhub.postgresql.snapshot_age.limit'
+        values: '3600x160'
+      - series: 'postgresql.snapshot.oldest_age{obenhub.cluster.name="c1",service.instance.id="postgressnapshotheldtoolong-mid"}'
+        values: '2700x160'
+      - series: 'postgresql.snapshot.oldest_age{obenhub.cluster.name="c1",service.instance.id="postgressnapshotheldtoolong-top"}'
+        values: '3601x160'
+      - series: 'obenhub.postgresql.lock_wait_age.limit'
+        values: '240x160'
+      - series: 'postgresql.lock.oldest_wait_age{obenhub.cluster.name="c1",service.instance.id="postgresblockedsessions-mid"}'
+        values: '180x160'
+      - series: 'postgresql.lock.oldest_wait_age{obenhub.cluster.name="c1",service.instance.id="postgresblockedsessions-top"}'
+        values: '241x160'
+      - series: 'obenhub.postgresql.archive_ready_files.limit'
+        values: '128x160'
+      - series: 'postgresql.archiver.ready_file.count{obenhub.cluster.name="c1",service.instance.id="postgresarchivebacklog-mid"}'
+        values: '96x160'
+      - series: 'postgresql.archiver.ready_file.count{obenhub.cluster.name="c1",service.instance.id="postgresarchivebacklog-top"}'
+        values: '129x160'
+      - series: 'obenhub.postgresql.physical_slot_inactive_age.limit'
+        values: '1800x160'
+      - series: 'postgresql.replication_slot.inactive_age{obenhub.cluster.name="c1",service.instance.id="postgresphysicalslotinactive-mid",postgresql.replication_slot.type="physical",postgresql.replication_slot.name="s1"}'
+        values: '1200x160'
+      - series: 'postgresql.recovery.active{obenhub.cluster.name="c1",service.instance.id="postgresphysicalslotinactive-mid"}'
+        values: '0x160'
+      - series: 'postgresql.replication_slot.inactive_age{obenhub.cluster.name="c1",service.instance.id="postgresphysicalslotinactive-top",postgresql.replication_slot.type="physical",postgresql.replication_slot.name="s1"}'
+        values: '1801x160'
+      - series: 'postgresql.recovery.active{obenhub.cluster.name="c1",service.instance.id="postgresphysicalslotinactive-top"}'
+        values: '0x160'
+      - series: 'obenhub.postgresql.slot_retained_wal.limit'
+        values: '17179869184x160'
+      - series: 'postgresql.replication_slot.retained_wal{obenhub.cluster.name="c1",service.instance.id="postgresreplicationslotretainingwal-mid",postgresql.replication_slot.name="s1"}'
+        values: '12884901888x160'
+      - series: 'postgresql.recovery.active{obenhub.cluster.name="c1",service.instance.id="postgresreplicationslotretainingwal-mid"}'
+        values: '0x160'
+      - series: 'postgresql.replication_slot.retained_wal{obenhub.cluster.name="c1",service.instance.id="postgresreplicationslotretainingwal-top",postgresql.replication_slot.name="s1"}'
+        values: '17179869185x160'
+      - series: 'postgresql.recovery.active{obenhub.cluster.name="c1",service.instance.id="postgresreplicationslotretainingwal-top"}'
+        values: '0x160'
+      - series: 'obenhub.postgresql.xmin_horizon_age.limit'
+        values: '100000000x160'
+      - series: 'obenhub.postgresql.snapshot_age.limit'
+        values: '3600x160'
+      - series: 'postgresql.xmin_horizon.age{obenhub.cluster.name="c1",service.instance.id="xmin-mid"}'
+        values: '70000000x160'
+      - series: 'postgresql.xmin_horizon.age{obenhub.cluster.name="c1",service.instance.id="xmin-top"}'
+        values: '100000001x160'
+      - series: 'postgresql.xmin_horizon.age{obenhub.cluster.name="c1",service.instance.id="xmin-held"}'
+        values: '100000001x160'
+      - series: 'postgresql.snapshot.oldest_age{obenhub.cluster.name="c1",service.instance.id="xmin-held"}'
+        values: '3601x160'
+      - series: 'postgresql.xmin_horizon.age{obenhub.cluster.name="c1",service.instance.id="xmin-clientmid"}'
+        values: '100000001x160'
+      - series: 'postgresql.snapshot.oldest_age{obenhub.cluster.name="c1",service.instance.id="xmin-clientmid"}'
+        values: '2700x160'
+      - series: 'obenhub.postgresql.connection_saturation.limit{severity="warning"}'
+        values: '0.91x160'
+      - series: 'obenhub.postgresql.connection_saturation.limit{severity="critical"}'
+        values: '0.985x160'
+      - series: 'postgresql.client_connection.count{obenhub.cluster.name="c1",service.instance.id="postgresconnectionsaturation-w-mid"}'
+        values: '900x160'
+      - series: 'postgresql.client_connection.limit{obenhub.cluster.name="c1",service.instance.id="postgresconnectionsaturation-w-mid"}'
+        values: '1000x160'
+      - series: 'postgresql.client_connection.count{obenhub.cluster.name="c1",service.instance.id="postgresconnectionsaturation-w-top"}'
+        values: '920x160'
+      - series: 'postgresql.client_connection.limit{obenhub.cluster.name="c1",service.instance.id="postgresconnectionsaturation-w-top"}'
+        values: '1000x160'
+      - series: 'postgresql.client_connection.count{obenhub.cluster.name="c1",service.instance.id="postgresconnectionsaturation-c-mid"}'
+        values: '980x160'
+      - series: 'postgresql.client_connection.limit{obenhub.cluster.name="c1",service.instance.id="postgresconnectionsaturation-c-mid"}'
+        values: '1000x160'
+      - series: 'postgresql.client_connection.count{obenhub.cluster.name="c1",service.instance.id="postgresconnectionsaturation-c-top"}'
+        values: '990x160'
+      - series: 'postgresql.client_connection.limit{obenhub.cluster.name="c1",service.instance.id="postgresconnectionsaturation-c-top"}'
+        values: '1000x160'
+      - series: 'obenhub.postgresql.wraparound_ratio.limit{severity="warning"}'
+        values: '0.6x160'
+      - series: 'obenhub.postgresql.wraparound_ratio.limit{severity="critical"}'
+        values: '0.9x160'
+      - series: 'postgresql.database.xid_age{obenhub.cluster.name="c1",service.instance.id="postgrestransactionidwraparound-w-mid",postgresql.database.name="db1"}'
+        values: '1073741825x160'
+      - series: 'postgresql.recovery.active{obenhub.cluster.name="c1",service.instance.id="postgrestransactionidwraparound-w-mid"}'
+        values: '0x160'
+      - series: 'postgresql.database.xid_age{obenhub.cluster.name="c1",service.instance.id="postgrestransactionidwraparound-w-top",postgresql.database.name="db1"}'
+        values: '1300000000x160'
+      - series: 'postgresql.recovery.active{obenhub.cluster.name="c1",service.instance.id="postgrestransactionidwraparound-w-top"}'
+        values: '0x160'
+      - series: 'postgresql.database.xid_age{obenhub.cluster.name="c1",service.instance.id="postgrestransactionidwraparound-c-mid",postgresql.database.name="db1"}'
+        values: '1700000000x160'
+      - series: 'postgresql.recovery.active{obenhub.cluster.name="c1",service.instance.id="postgrestransactionidwraparound-c-mid"}'
+        values: '0x160'
+      - series: 'postgresql.database.xid_age{obenhub.cluster.name="c1",service.instance.id="postgrestransactionidwraparound-c-top",postgresql.database.name="db1"}'
+        values: '1950000000x160'
+      - series: 'postgresql.recovery.active{obenhub.cluster.name="c1",service.instance.id="postgrestransactionidwraparound-c-top"}'
+        values: '0x160'
+      - series: 'obenhub.postgresql.idle_in_transaction_age.limit{severity="warning"}'
+        values: '600x160'
+      - series: 'obenhub.postgresql.idle_in_transaction_age.limit{severity="critical"}'
+        values: '3600x160'
+      - series: 'postgresql.transaction.idle_age{obenhub.cluster.name="c1",service.instance.id="postgresidleintransaction-w-mid"}'
+        values: '400x160'
+      - series: 'postgresql.transaction.idle_age{obenhub.cluster.name="c1",service.instance.id="postgresidleintransaction-w-top"}'
+        values: '601x160'
+      - series: 'postgresql.transaction.idle_age{obenhub.cluster.name="c1",service.instance.id="postgresidleintransaction-c-mid"}'
+        values: '2500x160'
+      - series: 'postgresql.transaction.idle_age{obenhub.cluster.name="c1",service.instance.id="postgresidleintransaction-c-top"}'
+        values: '3601x160'
+      - series: 'obenhub.postgresql.requested_checkpoints.limit'
+        values: '6x160'
+      - series: 'postgresql.bgwriter.checkpoint.count{obenhub.cluster.name="c1",service.instance.id="checkpoints-mid",type="requested"}'
+        values: '0x30 5x160'
+      - series: 'postgresql.recovery.active{obenhub.cluster.name="c1",service.instance.id="checkpoints-mid"}'
+        values: '0x160'
+      - series: 'postgresql.bgwriter.checkpoint.count{obenhub.cluster.name="c1",service.instance.id="checkpoints-top",type="requested"}'
+        values: '0x30 7x160'
+      - series: 'postgresql.recovery.active{obenhub.cluster.name="c1",service.instance.id="checkpoints-top"}'
+        values: '0x160'
+      - series: 'obenhub.postgresql.apply_errors.limit'
+        values: '4x160'
+      - series: 'postgresql.subscription.apply_error{obenhub.cluster.name="c1",service.instance.id="errors-mid",postgresql.subscription.name="sub1"}'
+        values: '0x30 3x160'
+      - series: 'postgresql.subscription.sync_error{obenhub.cluster.name="c1",service.instance.id="errors-mid",postgresql.subscription.name="sub1"}'
+        values: '0x160'
+      - series: 'postgresql.subscription.apply_error{obenhub.cluster.name="c1",service.instance.id="errors-top",postgresql.subscription.name="sub1"}'
+        values: '0x30 4x160'
+      - series: 'postgresql.subscription.sync_error{obenhub.cluster.name="c1",service.instance.id="errors-top",postgresql.subscription.name="sub1"}'
+        values: '0x160'
+      - series: 'obenhub.postgresql.subscription_msg_age.limit'
+        values: '600x160'
+      - series: 'postgresql.subscription.enabled{obenhub.cluster.name="c1",service.instance.id="notstreaming-mid",postgresql.subscription.name="sub1"}'
+        values: '1x160'
+      - series: 'postgresql.subscription.apply_worker_running{obenhub.cluster.name="c1",service.instance.id="notstreaming-mid",postgresql.subscription.name="sub1"}'
+        values: '1x160'
+      - series: 'postgresql.subscription.last_msg_age{obenhub.cluster.name="c1",service.instance.id="notstreaming-mid",postgresql.subscription.name="sub1"}'
+        values: '400x160'
+      - series: 'postgresql.collection.heartbeat{obenhub.cluster.name="c1",service.instance.id="notstreaming-mid"}'
+        values: '1x160'
+      - series: 'postgresql.subscription.enabled{obenhub.cluster.name="c1",service.instance.id="notstreaming-top",postgresql.subscription.name="sub1"}'
+        values: '1x160'
+      - series: 'postgresql.subscription.apply_worker_running{obenhub.cluster.name="c1",service.instance.id="notstreaming-top",postgresql.subscription.name="sub1"}'
+        values: '1x160'
+      - series: 'postgresql.subscription.last_msg_age{obenhub.cluster.name="c1",service.instance.id="notstreaming-top",postgresql.subscription.name="sub1"}'
+        values: '601x160'
+      - series: 'postgresql.collection.heartbeat{obenhub.cluster.name="c1",service.instance.id="notstreaming-top"}'
+        values: '1x160'
+      - series: 'obenhub.postgresql.logical_slot_inactive_age.limit'
+        values: '1800x160'
+      - series: 'obenhub.postgresql.logical_slot_unconfirmed_wal.limit'
+        values: '8589934592x160'
+      - series: 'postgresql.replication_slot.inactive_age{obenhub.cluster.name="c1",service.instance.id="logicalslot-age-mid",postgresql.replication_slot.type="logical",postgresql.replication_slot.name="ls1"}'
+        values: '1200x160'
+      - series: 'postgresql.replication_slot.inactive_age{obenhub.cluster.name="c1",service.instance.id="logicalslot-age-top",postgresql.replication_slot.type="logical",postgresql.replication_slot.name="ls1"}'
+        values: '1801x160'
+      - series: 'postgresql.replication_slot.unconfirmed_wal{obenhub.cluster.name="c1",service.instance.id="logicalslot-wal-mid",postgresql.replication_slot.type="logical",postgresql.replication_slot.name="ls1"}'
+        values: '6000000000x160'
+      - series: 'postgresql.replication_slot.unconfirmed_wal{obenhub.cluster.name="c1",service.instance.id="logicalslot-wal-top",postgresql.replication_slot.type="logical",postgresql.replication_slot.name="ls1"}'
+        values: '8589934593x160'
+    metricsql_expr_test:
+      - expr: ALERTS{alertname="PostgresReplayBacklog", alertstate="firing"}
+        eval_time: 10m
+        exp_samples:
+          - labels: 'ALERTS{alertname="PostgresReplayBacklog", alertgroup="postgresql", alertstate="firing", obenhub.cluster.name="c1", service.instance.id="postgresreplaybacklog-top", severity="warning"}'
+            value: 1
+      - expr: ALERTS{alertname="PostgresSnapshotHeldTooLong", alertstate="firing"}
+        eval_time: 10m
+        exp_samples:
+          - labels: 'ALERTS{alertname="PostgresSnapshotHeldTooLong", alertgroup="postgresql", alertstate="firing", obenhub.cluster.name="c1", service.instance.id="postgressnapshotheldtoolong-top", severity="warning"}'
+            value: 1
+          - labels: 'ALERTS{alertname="PostgresSnapshotHeldTooLong", alertgroup="postgresql", alertstate="firing", obenhub.cluster.name="c1", service.instance.id="xmin-held", severity="warning"}'
+            value: 1
+      - expr: ALERTS{alertname="PostgresBlockedSessions", alertstate="firing"}
+        eval_time: 10m
+        exp_samples:
+          - labels: 'ALERTS{alertname="PostgresBlockedSessions", alertgroup="postgresql", alertstate="firing", obenhub.cluster.name="c1", service.instance.id="postgresblockedsessions-top", severity="warning"}'
+            value: 1
+      - expr: ALERTS{alertname="PostgresArchiveBacklog", alertstate="firing"}
+        eval_time: 10m
+        exp_samples:
+          - labels: 'ALERTS{alertname="PostgresArchiveBacklog", alertgroup="postgresql", alertstate="firing", obenhub.cluster.name="c1", service.instance.id="postgresarchivebacklog-top", severity="warning"}'
+            value: 1
+      - expr: ALERTS{alertname="PostgresPhysicalSlotInactive", alertstate="firing"}
+        eval_time: 10m
+        exp_samples:
+          - labels: 'ALERTS{alertname="PostgresPhysicalSlotInactive", alertgroup="postgresql", alertstate="firing", obenhub.cluster.name="c1", service.instance.id="postgresphysicalslotinactive-top", postgresql.replication_slot.type="physical", postgresql.replication_slot.name="s1", severity="warning"}'
+            value: 1
+      - expr: ALERTS{alertname="PostgresReplicationSlotRetainingWAL", alertstate="firing"}
+        eval_time: 10m
+        exp_samples:
+          - labels: 'ALERTS{alertname="PostgresReplicationSlotRetainingWAL", alertgroup="postgresql", alertstate="firing", obenhub.cluster.name="c1", service.instance.id="postgresreplicationslotretainingwal-top", postgresql.replication_slot.name="s1", severity="warning"}'
+            value: 1
+      - expr: ALERTS{alertname="PostgresXminHorizonHeld", alertstate="firing"}
+        eval_time: 10m
+        exp_samples:
+          - labels: 'ALERTS{alertname="PostgresXminHorizonHeld", alertgroup="postgresql", alertstate="firing", obenhub.cluster.name="c1", service.instance.id="xmin-top", severity="warning"}'
+            value: 1
+          - labels: 'ALERTS{alertname="PostgresXminHorizonHeld", alertgroup="postgresql", alertstate="firing", obenhub.cluster.name="c1", service.instance.id="xmin-clientmid", severity="warning"}'
+            value: 1
+      - expr: ALERTS{alertname="PostgresConnectionSaturation", alertstate="firing"}
+        eval_time: 10m
+        exp_samples:
+          - labels: 'ALERTS{alertname="PostgresConnectionSaturation", alertgroup="postgresql", alertstate="firing", obenhub.cluster.name="c1", service.instance.id="postgresconnectionsaturation-w-top", severity="warning"}'
+            value: 1
+          - labels: 'ALERTS{alertname="PostgresConnectionSaturation", alertgroup="postgresql", alertstate="firing", obenhub.cluster.name="c1", service.instance.id="postgresconnectionsaturation-c-mid", severity="warning"}'
+            value: 1
+          - labels: 'ALERTS{alertname="PostgresConnectionSaturation", alertgroup="postgresql", alertstate="firing", obenhub.cluster.name="c1", service.instance.id="postgresconnectionsaturation-c-top", severity="critical"}'
+            value: 1
+      - expr: ALERTS{alertname="PostgresTransactionIdWraparound", alertstate="firing"}
+        eval_time: 10m
+        exp_samples:
+          - labels: 'ALERTS{alertname="PostgresTransactionIdWraparound", alertgroup="postgresql", alertstate="firing", obenhub.cluster.name="c1", service.instance.id="postgrestransactionidwraparound-w-top", postgresql.database.name="db1", kind="xid", severity="warning"}'
+            value: 1
+          - labels: 'ALERTS{alertname="PostgresTransactionIdWraparound", alertgroup="postgresql", alertstate="firing", obenhub.cluster.name="c1", service.instance.id="postgrestransactionidwraparound-c-mid", postgresql.database.name="db1", kind="xid", severity="warning"}'
+            value: 1
+          - labels: 'ALERTS{alertname="PostgresTransactionIdWraparound", alertgroup="postgresql", alertstate="firing", obenhub.cluster.name="c1", service.instance.id="postgrestransactionidwraparound-c-top", postgresql.database.name="db1", kind="xid", severity="critical"}'
+            value: 1
+      - expr: ALERTS{alertname="PostgresIdleInTransaction", alertstate="firing"}
+        eval_time: 10m
+        exp_samples:
+          - labels: 'ALERTS{alertname="PostgresIdleInTransaction", alertgroup="postgresql", alertstate="firing", obenhub.cluster.name="c1", service.instance.id="postgresidleintransaction-w-top", severity="warning"}'
+            value: 1
+          - labels: 'ALERTS{alertname="PostgresIdleInTransaction", alertgroup="postgresql", alertstate="firing", obenhub.cluster.name="c1", service.instance.id="postgresidleintransaction-c-mid", severity="warning"}'
+            value: 1
+          - labels: 'ALERTS{alertname="PostgresIdleInTransaction", alertgroup="postgresql", alertstate="firing", obenhub.cluster.name="c1", service.instance.id="postgresidleintransaction-c-top", severity="critical"}'
+            value: 1
+      - expr: ALERTS{alertname="PostgresCheckpointsRequested", alertstate="firing"}
+        eval_time: 10m
+        exp_samples:
+          - labels: 'ALERTS{alertname="PostgresCheckpointsRequested", alertgroup="postgresql", alertstate="firing", obenhub.cluster.name="c1", service.instance.id="checkpoints-top", type="requested", severity="warning"}'
+            value: 1
+      - expr: ALERTS{alertname="PostgresLogicalApplyErrors", alertstate="firing"}
+        eval_time: 10m
+        exp_samples:
+          - labels: 'ALERTS{alertname="PostgresLogicalApplyErrors", alertgroup="logical-replication", alertstate="firing", obenhub.cluster.name="c1", service.instance.id="errors-top", postgresql.subscription.name="sub1", severity="critical"}'
+            value: 1
+      - expr: ALERTS{alertname="PostgresLogicalSubscriptionNotStreaming", alertstate="firing"}
+        eval_time: 10m
+        exp_samples:
+          - labels: 'ALERTS{alertname="PostgresLogicalSubscriptionNotStreaming", alertgroup="logical-replication", alertstate="firing", obenhub.cluster.name="c1", service.instance.id="notstreaming-top", postgresql.subscription.name="sub1", severity="critical"}'
+            value: 1
+      - expr: ALERTS{alertname="PostgresLogicalSlotStalled", alertstate="firing"}
+        eval_time: 10m
+        exp_samples:
+          - labels: 'ALERTS{alertname="PostgresLogicalSlotStalled", alertgroup="logical-replication", alertstate="firing", obenhub.cluster.name="c1", service.instance.id="logicalslot-age-top", postgresql.replication_slot.type="logical", postgresql.replication_slot.name="ls1", severity="warning"}'
+            value: 1
+          - labels: 'ALERTS{alertname="PostgresLogicalSlotStalled", alertgroup="logical-replication", alertstate="firing", obenhub.cluster.name="c1", service.instance.id="logicalslot-wal-top", postgresql.replication_slot.type="logical", postgresql.replication_slot.name="ls1", severity="warning"}'
+            value: 1

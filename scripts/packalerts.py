@@ -109,6 +109,49 @@ def parse_rules(path):
     return alerts
 
 
+LIMIT_NAME = re.compile(r"obenhub\.[a-z0-9_.]*\.limit(?![\w.])")
+# The one form of a threshold (C4): <expr> <op> on() group_left() (<series>{<selector>} or on() vector(<default>))
+LIMIT_FORM = re.compile(
+    r"(?P<op>>=|<=|>|<) on\(\) group_left\(\) \("
+    r"(?P<series>obenhub\.[a-z0-9_.]*\.limit)(?P<sel>\{[^{}]*\})? or on\(\) vector\((?P<default>[0-9]+(?:\.[0-9]+)?)\)\)"
+)
+UNIT_LINE = re.compile(r"^# unit (obenhub\.[a-z0-9_.]*\.limit) (\S+)$")
+OPS = {">": "above", ">=": "at or above", "<": "below", "<=": "at or below"}
+
+
+def alert_limits(path, alert):
+    """The limit series an alert's expression reads, as dicts (series, selector, default, op), in expression order.
+
+    Every `obenhub.*.limit` name in an expression must sit in the one form
+    `<op> on() group_left() (<series>{<selector>} or on() vector(<default>))`
+    (whitespace is free, tokens are not); anything else exits with the alert named.
+    """
+    expr = " ".join(alert["expr"].split())
+    names = LIMIT_NAME.findall(expr)
+    found = list(LIMIT_FORM.finditer(expr))
+    if len(found) != len(names):
+        sys.exit(
+            f"{path}:{alert['line']}: {alert['name']}: {len(names)} obenhub.*.limit names but {len(found)} in the form "
+            "`<op> on() group_left() (obenhub.<component>.<thing>.limit{...} or on() vector(<default>))`"
+        )
+    return [
+        {"series": m["series"], "selector": (m["sel"] or "")[1:-1], "default": m["default"], "op": m["op"]}
+        for m in found
+    ]
+
+
+def units(path):
+    """{series: unit} from the `# unit obenhub.<...>.limit <unit>` lines of a rules file."""
+    found = {}
+    for line in Path(path).read_text(encoding="utf-8").split("\n"):
+        m = UNIT_LINE.match(line)
+        if m:
+            if m.group(1) in found:
+                sys.exit(f"{path}: unit of {m.group(1)} given twice")
+            found[m.group(1)] = m.group(2)
+    return found
+
+
 def packs_with_rules():
     return sorted(p.parent.name for p in (ROOT / "packs").glob("*/rules.yml"))
 

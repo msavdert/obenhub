@@ -20,3 +20,39 @@ groups:
             label_set(vector(1), "service.namespace", "obenhub-lab", "service.name", "postgresql", "obenhub.cluster.name", "slice1-subscriber", "service.instance.id", "pg-subscriber", "obenhub.collector", "otelcol-slice1"),
             label_set(vector(1), "service.namespace", "obenhub-lab", "service.name", "pgbouncer", "obenhub.cluster.name", "slice1", "service.instance.id", "pgbouncer", "obenhub.collector", "otelcol-slice1")
           )
+  # PostgreSQL thresholds: lab values, chosen so the scenario fires within its limit;
+  # the production default is in the pack rule (packs/postgresql/rules.yml).
+  - name: postgresql-parameters
+    interval: 15s
+    rules:
+      - record: obenhub.postgresql.replay_backlog.limit
+        expr: vector(16777216)
+      - record: obenhub.postgresql.snapshot_age.limit
+        expr: vector(120)
+      - record: obenhub.postgresql.xmin_horizon_age.limit
+        expr: vector(10000000)
+      - record: obenhub.postgresql.idle_in_transaction_age.limit
+        expr: label_set(vector(60), "severity", "warning")
+      - record: obenhub.postgresql.idle_in_transaction_age.limit
+        expr: label_set(vector(180), "severity", "critical")
+      - record: obenhub.postgresql.lock_wait_age.limit
+        expr: vector(30)
+      - record: obenhub.postgresql.physical_slot_inactive_age.limit
+        expr: vector(120)
+      - record: obenhub.postgresql.slot_retained_wal.limit
+        expr: vector(536870912)
+      - record: obenhub.postgresql.archive_ready_files.limit
+        expr: vector(8)
+      - record: obenhub.postgresql.subscription_msg_age.limit
+        expr: vector(60)
+      - record: obenhub.postgresql.logical_slot_inactive_age.limit
+        expr: vector(180)
+      - record: obenhub.postgresql.logical_slot_unconfirmed_wal.limit
+        expr: vector(134217728)
+  # PgBouncer thresholds: lab values, chosen so the scenario fires within its limit;
+  # the production default is in the pack rule (packs/pgbouncer/rules.yml).
+  - name: pgbouncer-parameters
+    interval: 15s
+    rules:
+      - record: obenhub.pgbouncer.oldest_wait_age.limit
+        expr: vector(5)

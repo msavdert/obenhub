@@ -572,9 +572,20 @@
           "range": true,
           "instant": false,
           "legendFormat": "{{service.instance.id}}"
+        },
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "vm"
+          },
+          "expr": "obenhub.postgresql.replay_backlog.limit or on() vector(268435456)",
+          "refId": "B",
+          "range": true,
+          "instant": false,
+          "legendFormat": "limit"
         }
       ],
-      "description": "Received minus replayed WAL (pack, from PostgreSQL). Grows when replay is paused; Patroni's position above does not.",
+      "description": "Received minus replayed WAL (pack, from PostgreSQL). Grows when replay is paused; Patroni's position above does not. The dashed line is the limit of PostgresReplayBacklog: obenhub.postgresql.replay_backlog.limit, 256 MiB when the lab records none.",
       "fieldConfig": {
         "defaults": {
           "unit": "bytes",
@@ -583,7 +594,7 @@
             "fillOpacity": 10,
             "showPoints": "never",
             "thresholdsStyle": {
-              "mode": "line"
+              "mode": "off"
             }
           },
           "thresholds": {
@@ -592,15 +603,45 @@
               {
                 "color": "green",
                 "value": null
-              },
-              {
-                "color": "red",
-                "value": 16777216
               }
             ]
           }
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "limit"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "red"
+                }
+              },
+              {
+                "id": "custom.lineStyle",
+                "value": {
+                  "fill": "dash",
+                  "dash": [
+                    10,
+                    10
+                  ]
+                }
+              },
+              {
+                "id": "custom.fillOpacity",
+                "value": 0
+              },
+              {
+                "id": "custom.lineWidth",
+                "value": 1
+              }
+            ]
+          }
+        ]
       },
       "options": {
         "legend": {

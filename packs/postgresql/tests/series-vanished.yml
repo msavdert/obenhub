@@ -2,6 +2,7 @@
 # PostgresSeriesVanished: a pack metric disappears while the heartbeat lives.
 rule_files:
   - ../rules.yml
+  - lab-values/postgresql.yaml
 evaluation_interval: 15s
 
 tests:

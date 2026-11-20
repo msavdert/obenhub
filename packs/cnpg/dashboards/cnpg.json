@@ -238,7 +238,7 @@
               },
               {
                 "color": "red",
-                "value": 536870912
+                "value": 8589934592
               }
             ]
           },
@@ -258,7 +258,7 @@
         "graphMode": "none",
         "textMode": "value"
       },
-      "description": "Largest postgresql.replication_slot.retained_wal on a primary, invalidated slots excluded: the selection of PostgresReplicationSlotRetainingWAL, which fires above 512 MiB for 2 m. Replicas hold copies of the slots and are left out."
+      "description": "Largest postgresql.replication_slot.retained_wal on a primary, invalidated slots excluded: the selection of PostgresReplicationSlotRetainingWAL, which fires above its limit (8 GiB by default; the labs record 512 MiB) for 2 m. Replicas hold copies of the slots and are left out."
     },
     {
       "id": 5,
@@ -530,11 +530,11 @@
             "type": "victoriametrics-metrics-datasource",
             "uid": "vm"
           },
-          "expr": "512 * 1024 * 1024",
+          "expr": "obenhub.postgresql.slot_retained_wal.limit or on() vector(8589934592)",
           "refId": "B",
           "range": true,
           "instant": false,
-          "legendFormat": "PostgresReplicationSlotRetainingWAL threshold"
+          "legendFormat": "PostgresReplicationSlotRetainingWAL limit"
         }
       ],
       "fieldConfig": {

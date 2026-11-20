@@ -1,0 +1,242 @@
+# Thresholds of the PgBouncer pack, in the one form of C4: a production default in the
+# rule and an optional lab parameter, the recorded series obenhub.*.limit. Two tests:
+# defaults (no limit series: each rule fires just above its default and is quiet at it)
+# and override (limit series recorded: each rule fires above the override, and a value
+# between the default and the override stays quiet). PgbouncerClientsWaiting and PgbouncerWaitTime share obenhub.pgbouncer.oldest_wait_age.limit; the silencing of PgbouncerWaitTime is tested at both limits. The tests read the firing
+# alerts back as ALERTS series, so a quiet case is a series missing from the list.
+rule_files:
+  - ../rules.yml
+evaluation_interval: 15s
+
+tests:
+  - name: defaults - every limit series absent, fires just above the default, quiet at it
+    interval: 15s
+    input_series:
+      - series: 'pgbouncer.pool.oldest_wait_age{obenhub.cluster.name="c1",service.instance.id="waiting-hi",pgbouncer.database.name="app",user.name="u1"}'
+        values: '10x160'
+      - series: 'pgbouncer.pool.oldest_wait_subsecond_age{obenhub.cluster.name="c1",service.instance.id="waiting-hi",pgbouncer.database.name="app",user.name="u1"}'
+        values: '0.5x160'
+      - series: 'pgbouncer.list.item.count{obenhub.cluster.name="c1",service.instance.id="waiting-hi",pgbouncer.list.name="databases"}'
+        values: '1x160'
+      - series: 'pgbouncer.pool.oldest_wait_age{obenhub.cluster.name="c1",service.instance.id="waiting-lo",pgbouncer.database.name="app",user.name="u1"}'
+        values: '10x160'
+      - series: 'pgbouncer.pool.oldest_wait_subsecond_age{obenhub.cluster.name="c1",service.instance.id="waiting-lo",pgbouncer.database.name="app",user.name="u1"}'
+        values: '0x160'
+      - series: 'pgbouncer.list.item.count{obenhub.cluster.name="c1",service.instance.id="waiting-lo",pgbouncer.list.name="databases"}'
+        values: '1x160'
+      - series: 'pgbouncer.pool.active_server.count{obenhub.cluster.name="c1",service.instance.id="pool-hi",pgbouncer.database.name="app",user.name="u1"}'
+        values: '91x160'
+      - series: 'pgbouncer.database.server_connection.limit{obenhub.cluster.name="c1",service.instance.id="pool-hi",pgbouncer.database.name="app"}'
+        values: '100x160'
+      - series: 'pgbouncer.list.item.count{obenhub.cluster.name="c1",service.instance.id="pool-hi",pgbouncer.list.name="databases"}'
+        values: '1x160'
+      - series: 'pgbouncer.pool.active_server.count{obenhub.cluster.name="c1",service.instance.id="pool-lo",pgbouncer.database.name="app",user.name="u1"}'
+        values: '89x160'
+      - series: 'pgbouncer.database.server_connection.limit{obenhub.cluster.name="c1",service.instance.id="pool-lo",pgbouncer.database.name="app"}'
+        values: '100x160'
+      - series: 'pgbouncer.list.item.count{obenhub.cluster.name="c1",service.instance.id="pool-lo",pgbouncer.list.name="databases"}'
+        values: '1x160'
+      - series: 'pgbouncer.list.item.count{obenhub.cluster.name="c1",service.instance.id="clients-w-hi",pgbouncer.list.name="used_clients"}'
+        values: '851x160'
+      - series: 'pgbouncer.client_connection.limit{obenhub.cluster.name="c1",service.instance.id="clients-w-hi"}'
+        values: '1000x160'
+      - series: 'pgbouncer.list.item.count{obenhub.cluster.name="c1",service.instance.id="clients-w-hi",pgbouncer.list.name="databases"}'
+        values: '1x160'
+      - series: 'pgbouncer.list.item.count{obenhub.cluster.name="c1",service.instance.id="clients-w-lo",pgbouncer.list.name="used_clients"}'
+        values: '850x160'
+      - series: 'pgbouncer.client_connection.limit{obenhub.cluster.name="c1",service.instance.id="clients-w-lo"}'
+        values: '1000x160'
+      - series: 'pgbouncer.list.item.count{obenhub.cluster.name="c1",service.instance.id="clients-w-lo",pgbouncer.list.name="databases"}'
+        values: '1x160'
+      - series: 'pgbouncer.list.item.count{obenhub.cluster.name="c1",service.instance.id="clients-w-top",pgbouncer.list.name="used_clients"}'
+        values: '949x160'
+      - series: 'pgbouncer.client_connection.limit{obenhub.cluster.name="c1",service.instance.id="clients-w-top"}'
+        values: '1000x160'
+      - series: 'pgbouncer.list.item.count{obenhub.cluster.name="c1",service.instance.id="clients-w-top",pgbouncer.list.name="databases"}'
+        values: '1x160'
+      - series: 'pgbouncer.list.item.count{obenhub.cluster.name="c1",service.instance.id="clients-c-lo",pgbouncer.list.name="used_clients"}'
+        values: '950x160'
+      - series: 'pgbouncer.client_connection.limit{obenhub.cluster.name="c1",service.instance.id="clients-c-lo"}'
+        values: '1000x160'
+      - series: 'pgbouncer.list.item.count{obenhub.cluster.name="c1",service.instance.id="clients-c-lo",pgbouncer.list.name="databases"}'
+        values: '1x160'
+      - series: 'pgbouncer.list.item.count{obenhub.cluster.name="c1",service.instance.id="clients-c-hi",pgbouncer.list.name="used_clients"}'
+        values: '951x160'
+      - series: 'pgbouncer.client_connection.limit{obenhub.cluster.name="c1",service.instance.id="clients-c-hi"}'
+        values: '1000x160'
+      - series: 'pgbouncer.list.item.count{obenhub.cluster.name="c1",service.instance.id="clients-c-hi",pgbouncer.list.name="databases"}'
+        values: '1x160'
+      - series: 'pgbouncer.stats.wait_time{obenhub.cluster.name="c1",service.instance.id="waittime-hi",pgbouncer.database.name="app"}'
+        values: '0+1.01x160'
+      - series: 'pgbouncer.stats.server_assignment{obenhub.cluster.name="c1",service.instance.id="waittime-hi",pgbouncer.database.name="app"}'
+        values: '0+10x160'
+      - series: 'pgbouncer.list.item.count{obenhub.cluster.name="c1",service.instance.id="waittime-hi",pgbouncer.list.name="databases"}'
+        values: '1x160'
+      - series: 'pgbouncer.stats.wait_time{obenhub.cluster.name="c1",service.instance.id="waittime-lo",pgbouncer.database.name="app"}'
+        values: '0+0.99x160'
+      - series: 'pgbouncer.stats.server_assignment{obenhub.cluster.name="c1",service.instance.id="waittime-lo",pgbouncer.database.name="app"}'
+        values: '0+10x160'
+      - series: 'pgbouncer.list.item.count{obenhub.cluster.name="c1",service.instance.id="waittime-lo",pgbouncer.list.name="databases"}'
+        values: '1x160'
+      - series: 'pgbouncer.stats.wait_time{obenhub.cluster.name="c1",service.instance.id="waittime-silenced",pgbouncer.database.name="app"}'
+        values: '0+2x160'
+      - series: 'pgbouncer.stats.server_assignment{obenhub.cluster.name="c1",service.instance.id="waittime-silenced",pgbouncer.database.name="app"}'
+        values: '0+10x160'
+      - series: 'pgbouncer.pool.oldest_wait_age{obenhub.cluster.name="c1",service.instance.id="waittime-silenced",pgbouncer.database.name="app",user.name="u1"}'
+        values: '10x160'
+      - series: 'pgbouncer.list.item.count{obenhub.cluster.name="c1",service.instance.id="waittime-silenced",pgbouncer.list.name="databases"}'
+        values: '1x160'
+      - series: 'pgbouncer.stats.wait_time{obenhub.cluster.name="c1",service.instance.id="waittime-notsilenced",pgbouncer.database.name="app"}'
+        values: '0+2x160'
+      - series: 'pgbouncer.stats.server_assignment{obenhub.cluster.name="c1",service.instance.id="waittime-notsilenced",pgbouncer.database.name="app"}'
+        values: '0+10x160'
+      - series: 'pgbouncer.pool.oldest_wait_age{obenhub.cluster.name="c1",service.instance.id="waittime-notsilenced",pgbouncer.database.name="app",user.name="u1"}'
+        values: '9.9x160'
+      - series: 'pgbouncer.list.item.count{obenhub.cluster.name="c1",service.instance.id="waittime-notsilenced",pgbouncer.list.name="databases"}'
+        values: '1x160'
+    metricsql_expr_test:
+      - expr: ALERTS{alertname="PgbouncerClientsWaiting", alertstate="firing"}
+        eval_time: 10m
+        exp_samples:
+          - labels: 'ALERTS{alertname="PgbouncerClientsWaiting", alertgroup="pgbouncer", alertstate="firing", obenhub.cluster.name="c1", service.instance.id="waiting-hi", pgbouncer.database.name="app", user.name="u1", severity="warning"}'
+            value: 1
+      - expr: ALERTS{alertname="PgbouncerPoolSaturated", alertstate="firing"}
+        eval_time: 10m
+        exp_samples:
+          - labels: 'ALERTS{alertname="PgbouncerPoolSaturated", alertgroup="pgbouncer", alertstate="firing", obenhub.cluster.name="c1", service.instance.id="pool-hi", pgbouncer.database.name="app", user.name="u1", severity="warning"}'
+            value: 1
+      - expr: ALERTS{alertname="PgbouncerClientSaturation", alertstate="firing"}
+        eval_time: 10m
+        exp_samples:
+          - labels: 'ALERTS{alertname="PgbouncerClientSaturation", alertgroup="pgbouncer", alertstate="firing", obenhub.cluster.name="c1", service.instance.id="clients-w-hi", severity="warning"}'
+            value: 1
+          - labels: 'ALERTS{alertname="PgbouncerClientSaturation", alertgroup="pgbouncer", alertstate="firing", obenhub.cluster.name="c1", service.instance.id="clients-w-top", severity="warning"}'
+            value: 1
+          - labels: 'ALERTS{alertname="PgbouncerClientSaturation", alertgroup="pgbouncer", alertstate="firing", obenhub.cluster.name="c1", service.instance.id="clients-c-lo", severity="critical"}'
+            value: 1
+          - labels: 'ALERTS{alertname="PgbouncerClientSaturation", alertgroup="pgbouncer", alertstate="firing", obenhub.cluster.name="c1", service.instance.id="clients-c-hi", severity="critical"}'
+            value: 1
+      - expr: ALERTS{alertname="PgbouncerWaitTime", alertstate="firing"}
+        eval_time: 10m
+        exp_samples:
+          - labels: 'ALERTS{alertname="PgbouncerWaitTime", alertgroup="pgbouncer", alertstate="firing", obenhub.cluster.name="c1", service.instance.id="waittime-hi", pgbouncer.database.name="app", severity="warning"}'
+            value: 1
+          - labels: 'ALERTS{alertname="PgbouncerWaitTime", alertgroup="pgbouncer", alertstate="firing", obenhub.cluster.name="c1", service.instance.id="waittime-notsilenced", pgbouncer.database.name="app", severity="warning"}'
+            value: 1
+
+  - name: override - limit series recorded, fires above the override, the default is ignored
+    interval: 15s
+    input_series:
+      - series: 'obenhub.pgbouncer.oldest_wait_age.limit'
+        values: '20x160'
+      - series: 'pgbouncer.pool.oldest_wait_age{obenhub.cluster.name="c1",service.instance.id="waiting-mid",pgbouncer.database.name="app",user.name="u1"}'
+        values: '15x160'
+      - series: 'pgbouncer.pool.oldest_wait_subsecond_age{obenhub.cluster.name="c1",service.instance.id="waiting-mid",pgbouncer.database.name="app",user.name="u1"}'
+        values: '0x160'
+      - series: 'pgbouncer.list.item.count{obenhub.cluster.name="c1",service.instance.id="waiting-mid",pgbouncer.list.name="databases"}'
+        values: '1x160'
+      - series: 'pgbouncer.pool.oldest_wait_age{obenhub.cluster.name="c1",service.instance.id="waiting-top",pgbouncer.database.name="app",user.name="u1"}'
+        values: '20x160'
+      - series: 'pgbouncer.pool.oldest_wait_subsecond_age{obenhub.cluster.name="c1",service.instance.id="waiting-top",pgbouncer.database.name="app",user.name="u1"}'
+        values: '0.5x160'
+      - series: 'pgbouncer.list.item.count{obenhub.cluster.name="c1",service.instance.id="waiting-top",pgbouncer.list.name="databases"}'
+        values: '1x160'
+      - series: 'obenhub.pgbouncer.pool_usage_ratio.limit'
+        values: '0.95x160'
+      - series: 'pgbouncer.pool.active_server.count{obenhub.cluster.name="c1",service.instance.id="pool-mid",pgbouncer.database.name="app",user.name="u1"}'
+        values: '92x160'
+      - series: 'pgbouncer.database.server_connection.limit{obenhub.cluster.name="c1",service.instance.id="pool-mid",pgbouncer.database.name="app"}'
+        values: '100x160'
+      - series: 'pgbouncer.list.item.count{obenhub.cluster.name="c1",service.instance.id="pool-mid",pgbouncer.list.name="databases"}'
+        values: '1x160'
+      - series: 'pgbouncer.pool.active_server.count{obenhub.cluster.name="c1",service.instance.id="pool-top",pgbouncer.database.name="app",user.name="u1"}'
+        values: '96x160'
+      - series: 'pgbouncer.database.server_connection.limit{obenhub.cluster.name="c1",service.instance.id="pool-top",pgbouncer.database.name="app"}'
+        values: '100x160'
+      - series: 'pgbouncer.list.item.count{obenhub.cluster.name="c1",service.instance.id="pool-top",pgbouncer.list.name="databases"}'
+        values: '1x160'
+      - series: 'obenhub.pgbouncer.client_connection_ratio.limit{severity="warning"}'
+        values: '0.91x160'
+      - series: 'obenhub.pgbouncer.client_connection_ratio.limit{severity="critical"}'
+        values: '0.985x160'
+      - series: 'pgbouncer.list.item.count{obenhub.cluster.name="c1",service.instance.id="clients-w-mid",pgbouncer.list.name="used_clients"}'
+        values: '900x160'
+      - series: 'pgbouncer.client_connection.limit{obenhub.cluster.name="c1",service.instance.id="clients-w-mid"}'
+        values: '1000x160'
+      - series: 'pgbouncer.list.item.count{obenhub.cluster.name="c1",service.instance.id="clients-w-mid",pgbouncer.list.name="databases"}'
+        values: '1x160'
+      - series: 'pgbouncer.list.item.count{obenhub.cluster.name="c1",service.instance.id="clients-w-top",pgbouncer.list.name="used_clients"}'
+        values: '920x160'
+      - series: 'pgbouncer.client_connection.limit{obenhub.cluster.name="c1",service.instance.id="clients-w-top"}'
+        values: '1000x160'
+      - series: 'pgbouncer.list.item.count{obenhub.cluster.name="c1",service.instance.id="clients-w-top",pgbouncer.list.name="databases"}'
+        values: '1x160'
+      - series: 'pgbouncer.list.item.count{obenhub.cluster.name="c1",service.instance.id="clients-c-mid",pgbouncer.list.name="used_clients"}'
+        values: '980x160'
+      - series: 'pgbouncer.client_connection.limit{obenhub.cluster.name="c1",service.instance.id="clients-c-mid"}'
+        values: '1000x160'
+      - series: 'pgbouncer.list.item.count{obenhub.cluster.name="c1",service.instance.id="clients-c-mid",pgbouncer.list.name="databases"}'
+        values: '1x160'
+      - series: 'pgbouncer.list.item.count{obenhub.cluster.name="c1",service.instance.id="clients-c-top",pgbouncer.list.name="used_clients"}'
+        values: '990x160'
+      - series: 'pgbouncer.client_connection.limit{obenhub.cluster.name="c1",service.instance.id="clients-c-top"}'
+        values: '1000x160'
+      - series: 'pgbouncer.list.item.count{obenhub.cluster.name="c1",service.instance.id="clients-c-top",pgbouncer.list.name="databases"}'
+        values: '1x160'
+      - series: 'obenhub.pgbouncer.avg_wait_time.limit'
+        values: '0.5x160'
+      - series: 'pgbouncer.stats.wait_time{obenhub.cluster.name="c1",service.instance.id="waittime-mid",pgbouncer.database.name="app"}'
+        values: '0+3x160'
+      - series: 'pgbouncer.stats.server_assignment{obenhub.cluster.name="c1",service.instance.id="waittime-mid",pgbouncer.database.name="app"}'
+        values: '0+10x160'
+      - series: 'pgbouncer.list.item.count{obenhub.cluster.name="c1",service.instance.id="waittime-mid",pgbouncer.list.name="databases"}'
+        values: '1x160'
+      - series: 'pgbouncer.stats.wait_time{obenhub.cluster.name="c1",service.instance.id="waittime-top",pgbouncer.database.name="app"}'
+        values: '0+5.1x160'
+      - series: 'pgbouncer.stats.server_assignment{obenhub.cluster.name="c1",service.instance.id="waittime-top",pgbouncer.database.name="app"}'
+        values: '0+10x160'
+      - series: 'pgbouncer.list.item.count{obenhub.cluster.name="c1",service.instance.id="waittime-top",pgbouncer.list.name="databases"}'
+        values: '1x160'
+      - series: 'pgbouncer.stats.wait_time{obenhub.cluster.name="c1",service.instance.id="waittime-silenced",pgbouncer.database.name="app"}'
+        values: '0+6x160'
+      - series: 'pgbouncer.stats.server_assignment{obenhub.cluster.name="c1",service.instance.id="waittime-silenced",pgbouncer.database.name="app"}'
+        values: '0+10x160'
+      - series: 'pgbouncer.pool.oldest_wait_age{obenhub.cluster.name="c1",service.instance.id="waittime-silenced",pgbouncer.database.name="app",user.name="u1"}'
+        values: '20x160'
+      - series: 'pgbouncer.list.item.count{obenhub.cluster.name="c1",service.instance.id="waittime-silenced",pgbouncer.list.name="databases"}'
+        values: '1x160'
+      - series: 'pgbouncer.stats.wait_time{obenhub.cluster.name="c1",service.instance.id="waittime-notsilenced",pgbouncer.database.name="app"}'
+        values: '0+6x160'
+      - series: 'pgbouncer.stats.server_assignment{obenhub.cluster.name="c1",service.instance.id="waittime-notsilenced",pgbouncer.database.name="app"}'
+        values: '0+10x160'
+      - series: 'pgbouncer.pool.oldest_wait_age{obenhub.cluster.name="c1",service.instance.id="waittime-notsilenced",pgbouncer.database.name="app",user.name="u1"}'
+        values: '19.9x160'
+      - series: 'pgbouncer.list.item.count{obenhub.cluster.name="c1",service.instance.id="waittime-notsilenced",pgbouncer.list.name="databases"}'
+        values: '1x160'
+    metricsql_expr_test:
+      - expr: ALERTS{alertname="PgbouncerClientsWaiting", alertstate="firing"}
+        eval_time: 10m
+        exp_samples:
+          - labels: 'ALERTS{alertname="PgbouncerClientsWaiting", alertgroup="pgbouncer", alertstate="firing", obenhub.cluster.name="c1", service.instance.id="waiting-top", pgbouncer.database.name="app", user.name="u1", severity="warning"}'
+            value: 1
+      - expr: ALERTS{alertname="PgbouncerPoolSaturated", alertstate="firing"}
+        eval_time: 10m
+        exp_samples:
+          - labels: 'ALERTS{alertname="PgbouncerPoolSaturated", alertgroup="pgbouncer", alertstate="firing", obenhub.cluster.name="c1", service.instance.id="pool-top", pgbouncer.database.name="app", user.name="u1", severity="warning"}'
+            value: 1
+      - expr: ALERTS{alertname="PgbouncerClientSaturation", alertstate="firing"}
+        eval_time: 10m
+        exp_samples:
+          - labels: 'ALERTS{alertname="PgbouncerClientSaturation", alertgroup="pgbouncer", alertstate="firing", obenhub.cluster.name="c1", service.instance.id="clients-w-top", severity="warning"}'
+            value: 1
+          - labels: 'ALERTS{alertname="PgbouncerClientSaturation", alertgroup="pgbouncer", alertstate="firing", obenhub.cluster.name="c1", service.instance.id="clients-c-mid", severity="warning"}'
+            value: 1
+          - labels: 'ALERTS{alertname="PgbouncerClientSaturation", alertgroup="pgbouncer", alertstate="firing", obenhub.cluster.name="c1", service.instance.id="clients-c-top", severity="critical"}'
+            value: 1
+      - expr: ALERTS{alertname="PgbouncerWaitTime", alertstate="firing"}
+        eval_time: 10m
+        exp_samples:
+          - labels: 'ALERTS{alertname="PgbouncerWaitTime", alertgroup="pgbouncer", alertstate="firing", obenhub.cluster.name="c1", service.instance.id="waittime-top", pgbouncer.database.name="app", severity="warning"}'
+            value: 1
+          - labels: 'ALERTS{alertname="PgbouncerWaitTime", alertgroup="pgbouncer", alertstate="firing", obenhub.cluster.name="c1", service.instance.id="waittime-notsilenced", pgbouncer.database.name="app", severity="warning"}'
+            value: 1

@@ -30,8 +30,8 @@ and the firing alerts; `lab/oracle/mon` mounts it into Grafana.
 
 `rules.yml` holds 20 rules, 18 alert names (group `oracledb-dg`; `OracleProcessesSaturation` and `OracleTablespaceUsageHigh` have a warning and a critical tier, as `PostgresConnectionSaturation`), unit-tested in `tests/`
 (`mise run lab:oracle:rules-test`). Each rule comment names the lab/oracle
-scenario that exercised it, or says that none has; the thresholds are lab
-thresholds.
+scenario that exercised it, or says that none has; the lab values of the
+thresholds are recorded by the lab, the defaults are in the rules.
 `OracleTargetAbsent` reads `obenhub.expected_target` from the lab's
 inventory (`lab/oracle/mon/vmalert/inventory.yml`).
 
@@ -62,6 +62,10 @@ queries run at 60 s and are read as instant values
 collections of its own source. `OracleCollectionIntervalTooLong` fires when
 the samples of `oracledb.collection.heartbeat` (the 15 s `sql_query`
 receiver) are on average more than 20 s apart.
+
+## Thresholds
+
+Every policy threshold is a production default in the rule that a lab can override with a recorded series; the series, defaults and units are in the generated table [oracledb-dg-pack-alerts.md#thresholds](../../docs/reference/oracledb-dg-pack-alerts.md#thresholds).
 
 ## Collector fragment
 

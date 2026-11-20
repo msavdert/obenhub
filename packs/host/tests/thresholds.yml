@@ -1,0 +1,66 @@
+# Thresholds of the host pack, in the one form of C4: a production default in the
+# rule and an optional lab parameter, the recorded series obenhub.*.limit. Two tests:
+# defaults (no limit series: each rule fires just above its default and is quiet at it)
+# and override (limit series recorded: each rule fires above the override, and a value
+# between the default and the override stays quiet). The tests read the firing
+# alerts back as ALERTS series, so a quiet case is a series missing from the list.
+rule_files:
+  - ../rules.yml
+evaluation_interval: 15s
+
+tests:
+  - name: defaults - free space 9.9 % and available memory 9.9 % fire, 10 % does not
+    interval: 15s
+    input_series:
+      - series: 'system.filesystem.usage{host.name="h-hi",service.instance.id="h-hi",mountpoint="/",type="ext4",state="free"}'
+        values: '99x160'
+      - series: 'system.filesystem.usage{host.name="h-hi",service.instance.id="h-hi",mountpoint="/",type="ext4",state="used"}'
+        values: '901x160'
+      - series: 'system.linux.memory.available{host.name="h-hi",service.instance.id="h-hi"}'
+        values: '99x160'
+      - series: 'system.memory.limit{host.name="h-hi",service.instance.id="h-hi"}'
+        values: '1000x160'
+      - series: 'system.filesystem.usage{host.name="h-lo",service.instance.id="h-lo",mountpoint="/",type="ext4",state="free"}'
+        values: '100x160'
+      - series: 'system.filesystem.usage{host.name="h-lo",service.instance.id="h-lo",mountpoint="/",type="ext4",state="used"}'
+        values: '900x160'
+      - series: 'system.linux.memory.available{host.name="h-lo",service.instance.id="h-lo"}'
+        values: '100x160'
+      - series: 'system.memory.limit{host.name="h-lo",service.instance.id="h-lo"}'
+        values: '1000x160'
+    metricsql_expr_test:
+      - expr: ALERTS{alertname="HostFilesystemSpaceLow", alertstate="firing"}
+        eval_time: 10m
+        exp_samples:
+          - labels: 'ALERTS{alertname="HostFilesystemSpaceLow", alertgroup="host", alertstate="firing", host.name="h-hi", service.instance.id="h-hi", mountpoint="/", severity="warning"}'
+            value: 1
+      - expr: ALERTS{alertname="HostMemoryAvailableLow", alertstate="firing"}
+        eval_time: 10m
+        exp_samples:
+          - labels: 'ALERTS{alertname="HostMemoryAvailableLow", alertgroup="host", alertstate="firing", host.name="h-hi", service.instance.id="h-hi", severity="warning"}'
+            value: 1
+
+  - name: override - a limit of 0.25 fires at 20 % free, a limit of 0.05 stays quiet at 9.9 % available
+    interval: 15s
+    input_series:
+      - series: 'obenhub.host.filesystem_free_ratio.limit'
+        values: '0.25x160'
+      - series: 'obenhub.host.memory_available_ratio.limit'
+        values: '0.05x160'
+      - series: 'system.filesystem.usage{host.name="h1",service.instance.id="h1",mountpoint="/",type="ext4",state="free"}'
+        values: '200x160'
+      - series: 'system.filesystem.usage{host.name="h1",service.instance.id="h1",mountpoint="/",type="ext4",state="used"}'
+        values: '800x160'
+      - series: 'system.linux.memory.available{host.name="h1",service.instance.id="h1"}'
+        values: '99x160'
+      - series: 'system.memory.limit{host.name="h1",service.instance.id="h1"}'
+        values: '1000x160'
+    metricsql_expr_test:
+      - expr: ALERTS{alertname="HostFilesystemSpaceLow", alertstate="firing"}
+        eval_time: 10m
+        exp_samples:
+          - labels: 'ALERTS{alertname="HostFilesystemSpaceLow", alertgroup="host", alertstate="firing", host.name="h1", service.instance.id="h1", mountpoint="/", severity="warning"}'
+            value: 1
+      - expr: ALERTS{alertname="HostMemoryAvailableLow", alertstate="firing"}
+        eval_time: 10m
+        exp_samples: []

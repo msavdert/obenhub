@@ -38,7 +38,7 @@ tests:
               severity: warning
             exp_annotations:
               summary: 'Less than 10 % of / is free on pgha-1'
-              description: "Under 10 % of a mounted ext4, xfs or btrfs filesystem is free for 2 minutes (system.filesystem.usage). Find what grows under the mount point named in the alert, for a PostgreSQL host start with the data and WAL directories."
+              description: "Under 10 % of a mounted ext4, xfs or btrfs filesystem is free for 2 minutes (system.filesystem.usage; 10 % unless the lab sets obenhub.host.filesystem_free_ratio.limit). Find what grows under the mount point named in the alert, for a PostgreSQL host start with the data and WAL directories."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/host/#hostfilesystemspacelow
       - eval_time: 12m
         groupname: host
@@ -99,7 +99,7 @@ tests:
               severity: warning
             exp_annotations:
               summary: 'Less than 10 % of memory is available on pgha-1'
-              description: "MemAvailable (system.linux.memory.available) is under 10 % of the host's memory for 2 minutes. Read MemAvailable and MemTotal in /proc/meminfo, then look for the process that grew."
+              description: "MemAvailable (system.linux.memory.available) is under 10 % of the host's memory for 2 minutes (10 % unless the lab sets obenhub.host.memory_available_ratio.limit). Read MemAvailable and MemTotal in /proc/meminfo, then look for the process that grew."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/host/#hostmemoryavailablelow
       - eval_time: 12m
         groupname: host

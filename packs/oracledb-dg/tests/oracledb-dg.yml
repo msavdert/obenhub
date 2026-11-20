@@ -10,6 +10,7 @@
 # shapes yet.
 rule_files:
   - ../rules.yml
+  - lab-values/oracledb-dg.yaml
   - ../../../lab/oracle/mon/vmalert/inventory.yml
 evaluation_interval: 15s
 
@@ -2052,8 +2053,8 @@ tests:
         exp_alerts:
           - exp_labels: {obenhub.cluster.name: cdb19, service.instance.id: CDB19_STBY, service.name: oracledb, service.namespace: obenhub-lab, oracledb.database.unique_name: CDB19_STBY, oracledb.dataguard.lag.type: apply, severity: warning}
             exp_annotations:
-              summary: "apply lag on standby CDB19_STBY is 90s (lab threshold 60s)"
-              description: "Transport or apply lag on a standby is above 60 seconds for 2 minutes (lab threshold). Check V$DATAGUARD_STATS and whether redo still arrives (OracleStandbyDataStale) and is applied (OracleStandbyApplyStopped)."
+              summary: "apply lag on standby CDB19_STBY is 90s"
+              description: "Transport or apply lag on a standby is above the limit (300 s unless the lab sets obenhub.oracledb.standby_lag.limit) for 2 minutes. Check V$DATAGUARD_STATS and whether redo still arrives (OracleStandbyDataStale) and is applied (OracleStandbyApplyStopped)."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/oracledb-dg/#oraclestandbylag
 
   - name: "a lag of 30s is quiet"
@@ -2175,8 +2176,8 @@ tests:
         exp_alerts:
           - exp_labels: {obenhub.cluster.name: cdb19, service.instance.id: CDB19_STBY, service.name: oracledb, service.namespace: obenhub-lab, oracledb.database.unique_name: CDB19_STBY, oracledb.dataguard.lag.type: transport, severity: warning}
             exp_annotations:
-              summary: "Lag data of type transport on standby CDB19_STBY is 120s old (lab threshold 60s)"
-              description: "The data the standby's lag is computed from is older than 60 seconds for 2 minutes: redo has stopped arriving even if the lag itself is low. Check redo transport from the primary and the archive destination status there."
+              summary: "Lag data of type transport on standby CDB19_STBY is 120s old"
+              description: "The data the standby's lag is computed from is older than the limit (300 s unless the lab sets obenhub.oracledb.standby_data_age.limit) for 2 minutes: redo has stopped arriving even if the lag itself is low. Check redo transport from the primary and the archive destination status there."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/oracledb-dg/#oraclestandbydatastale
 
   - name: "a standby with no transport lag row fires OracleStandbyLagUnknown"
@@ -2937,7 +2938,7 @@ tests:
           - exp_labels: {obenhub.cluster.name: cdb19, service.instance.id: CDB19, severity: critical}
             exp_annotations:
               summary: 'Oracle instance CDB19 uses 95% or more of its PROCESSES limit: new logins fail with ORA-00020'
-              description: "Instance process slots in use are above 85 % of the PROCESSES parameter (critical at 95 %); at the limit a new dedicated server process cannot start. Check V$RESOURCE_LIMIT and which sessions hold the processes."
+              description: "Instance process slots in use are above 85 % of the PROCESSES parameter (critical at 95 %), unless the lab sets obenhub.oracledb.processes_ratio.limit per severity; at the limit a new dedicated server process cannot start. Check V$RESOURCE_LIMIT and which sessions hold the processes."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/oracledb-dg/#oracleprocessessaturation
       - eval_time: 7m45s
         groupname: oracledb-dg
@@ -2946,7 +2947,7 @@ tests:
           - exp_labels: {obenhub.cluster.name: cdb19, service.instance.id: CDB19, severity: critical}
             exp_annotations:
               summary: 'Oracle instance CDB19 uses 95% or more of its PROCESSES limit: new logins fail with ORA-00020'
-              description: "Instance process slots in use are above 85 % of the PROCESSES parameter (critical at 95 %); at the limit a new dedicated server process cannot start. Check V$RESOURCE_LIMIT and which sessions hold the processes."
+              description: "Instance process slots in use are above 85 % of the PROCESSES parameter (critical at 95 %), unless the lab sets obenhub.oracledb.processes_ratio.limit per severity; at the limit a new dedicated server process cannot start. Check V$RESOURCE_LIMIT and which sessions hold the processes."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/oracledb-dg/#oracleprocessessaturation
       - eval_time: 8m
         groupname: oracledb-dg
@@ -2977,7 +2978,7 @@ tests:
           - exp_labels: {obenhub.cluster.name: cdb19, service.instance.id: CDB19, severity: critical}
             exp_annotations:
               summary: 'Oracle instance CDB19 uses 95% or more of its PROCESSES limit: new logins fail with ORA-00020'
-              description: "Instance process slots in use are above 85 % of the PROCESSES parameter (critical at 95 %); at the limit a new dedicated server process cannot start. Check V$RESOURCE_LIMIT and which sessions hold the processes."
+              description: "Instance process slots in use are above 85 % of the PROCESSES parameter (critical at 95 %), unless the lab sets obenhub.oracledb.processes_ratio.limit per severity; at the limit a new dedicated server process cannot start. Check V$RESOURCE_LIMIT and which sessions hold the processes."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/oracledb-dg/#oracleprocessessaturation
 
   - name: "processes: warm-up, a new series at 0.90 stays quiet until its window is full"
@@ -3007,7 +3008,7 @@ tests:
           - exp_labels: {obenhub.cluster.name: cdb19, service.instance.id: CDB19, severity: warning}
             exp_annotations:
               summary: 'Oracle instance CDB19 uses more than 85% of its PROCESSES limit'
-              description: "Instance process slots in use are above 85 % of the PROCESSES parameter (critical at 95 %); at the limit a new dedicated server process cannot start. Check V$RESOURCE_LIMIT and which sessions hold the processes."
+              description: "Instance process slots in use are above 85 % of the PROCESSES parameter (critical at 95 %), unless the lab sets obenhub.oracledb.processes_ratio.limit per severity; at the limit a new dedicated server process cannot start. Check V$RESOURCE_LIMIT and which sessions hold the processes."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/oracledb-dg/#oracleprocessessaturation
 
   - name: "processes: one collection at the limit does not fire"
@@ -3071,17 +3072,17 @@ tests:
           - exp_labels: {obenhub.cluster.name: cdb19, service.instance.id: b-273, severity: warning}
             exp_annotations:
               summary: 'Oracle instance b-273 uses more than 85% of its PROCESSES limit'
-              description: "Instance process slots in use are above 85 % of the PROCESSES parameter (critical at 95 %); at the limit a new dedicated server process cannot start. Check V$RESOURCE_LIMIT and which sessions hold the processes."
+              description: "Instance process slots in use are above 85 % of the PROCESSES parameter (critical at 95 %), unless the lab sets obenhub.oracledb.processes_ratio.limit per severity; at the limit a new dedicated server process cannot start. Check V$RESOURCE_LIMIT and which sessions hold the processes."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/oracledb-dg/#oracleprocessessaturation
           - exp_labels: {obenhub.cluster.name: cdb19, service.instance.id: c-303, severity: warning}
             exp_annotations:
               summary: 'Oracle instance c-303 uses more than 85% of its PROCESSES limit'
-              description: "Instance process slots in use are above 85 % of the PROCESSES parameter (critical at 95 %); at the limit a new dedicated server process cannot start. Check V$RESOURCE_LIMIT and which sessions hold the processes."
+              description: "Instance process slots in use are above 85 % of the PROCESSES parameter (critical at 95 %), unless the lab sets obenhub.oracledb.processes_ratio.limit per severity; at the limit a new dedicated server process cannot start. Check V$RESOURCE_LIMIT and which sessions hold the processes."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/oracledb-dg/#oracleprocessessaturation
           - exp_labels: {obenhub.cluster.name: cdb19, service.instance.id: d-304, severity: critical}
             exp_annotations:
               summary: 'Oracle instance d-304 uses 95% or more of its PROCESSES limit: new logins fail with ORA-00020'
-              description: "Instance process slots in use are above 85 % of the PROCESSES parameter (critical at 95 %); at the limit a new dedicated server process cannot start. Check V$RESOURCE_LIMIT and which sessions hold the processes."
+              description: "Instance process slots in use are above 85 % of the PROCESSES parameter (critical at 95 %), unless the lab sets obenhub.oracledb.processes_ratio.limit per severity; at the limit a new dedicated server process cannot start. Check V$RESOURCE_LIMIT and which sessions hold the processes."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/oracledb-dg/#oracleprocessessaturation
 
   - name: "processes: an instance with no limit series, or no usage series, is quiet"
@@ -3113,7 +3114,7 @@ tests:
           - exp_labels: {obenhub.cluster.name: cdb19, service.instance.id: CDB19, severity: warning}
             exp_annotations:
               summary: 'Oracle instance CDB19 uses more than 85% of its PROCESSES limit'
-              description: "Instance process slots in use are above 85 % of the PROCESSES parameter (critical at 95 %); at the limit a new dedicated server process cannot start. Check V$RESOURCE_LIMIT and which sessions hold the processes."
+              description: "Instance process slots in use are above 85 % of the PROCESSES parameter (critical at 95 %), unless the lab sets obenhub.oracledb.processes_ratio.limit per severity; at the limit a new dedicated server process cannot start. Check V$RESOURCE_LIMIT and which sessions hold the processes."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/oracledb-dg/#oracleprocessessaturation
       - eval_time: 4m15s
         groupname: oracledb-dg
@@ -3122,7 +3123,7 @@ tests:
           - exp_labels: {obenhub.cluster.name: cdb19, service.instance.id: CDB19, severity: warning}
             exp_annotations:
               summary: 'Oracle instance CDB19 uses more than 85% of its PROCESSES limit'
-              description: "Instance process slots in use are above 85 % of the PROCESSES parameter (critical at 95 %); at the limit a new dedicated server process cannot start. Check V$RESOURCE_LIMIT and which sessions hold the processes."
+              description: "Instance process slots in use are above 85 % of the PROCESSES parameter (critical at 95 %), unless the lab sets obenhub.oracledb.processes_ratio.limit per severity; at the limit a new dedicated server process cannot start. Check V$RESOURCE_LIMIT and which sessions hold the processes."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/oracledb-dg/#oracleprocessessaturation
       - eval_time: 4m30s
         groupname: oracledb-dg
@@ -3131,7 +3132,7 @@ tests:
           - exp_labels: {obenhub.cluster.name: cdb19, service.instance.id: CDB19, severity: warning}
             exp_annotations:
               summary: 'Oracle instance CDB19 uses more than 85% of its PROCESSES limit'
-              description: "Instance process slots in use are above 85 % of the PROCESSES parameter (critical at 95 %); at the limit a new dedicated server process cannot start. Check V$RESOURCE_LIMIT and which sessions hold the processes."
+              description: "Instance process slots in use are above 85 % of the PROCESSES parameter (critical at 95 %), unless the lab sets obenhub.oracledb.processes_ratio.limit per severity; at the limit a new dedicated server process cannot start. Check V$RESOURCE_LIMIT and which sessions hold the processes."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/oracledb-dg/#oracleprocessessaturation
       - eval_time: 4m45s
         groupname: oracledb-dg
@@ -3140,7 +3141,7 @@ tests:
           - exp_labels: {obenhub.cluster.name: cdb19, service.instance.id: CDB19, severity: warning}
             exp_annotations:
               summary: 'Oracle instance CDB19 uses more than 85% of its PROCESSES limit'
-              description: "Instance process slots in use are above 85 % of the PROCESSES parameter (critical at 95 %); at the limit a new dedicated server process cannot start. Check V$RESOURCE_LIMIT and which sessions hold the processes."
+              description: "Instance process slots in use are above 85 % of the PROCESSES parameter (critical at 95 %), unless the lab sets obenhub.oracledb.processes_ratio.limit per severity; at the limit a new dedicated server process cannot start. Check V$RESOURCE_LIMIT and which sessions hold the processes."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/oracledb-dg/#oracleprocessessaturation
       - eval_time: 5m
         groupname: oracledb-dg
@@ -3149,7 +3150,7 @@ tests:
           - exp_labels: {obenhub.cluster.name: cdb19, service.instance.id: CDB19, severity: warning}
             exp_annotations:
               summary: 'Oracle instance CDB19 uses more than 85% of its PROCESSES limit'
-              description: "Instance process slots in use are above 85 % of the PROCESSES parameter (critical at 95 %); at the limit a new dedicated server process cannot start. Check V$RESOURCE_LIMIT and which sessions hold the processes."
+              description: "Instance process slots in use are above 85 % of the PROCESSES parameter (critical at 95 %), unless the lab sets obenhub.oracledb.processes_ratio.limit per severity; at the limit a new dedicated server process cannot start. Check V$RESOURCE_LIMIT and which sessions hold the processes."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/oracledb-dg/#oracleprocessessaturation
       - eval_time: 5m15s
         groupname: oracledb-dg
@@ -3158,7 +3159,7 @@ tests:
           - exp_labels: {obenhub.cluster.name: cdb19, service.instance.id: CDB19, severity: warning}
             exp_annotations:
               summary: 'Oracle instance CDB19 uses more than 85% of its PROCESSES limit'
-              description: "Instance process slots in use are above 85 % of the PROCESSES parameter (critical at 95 %); at the limit a new dedicated server process cannot start. Check V$RESOURCE_LIMIT and which sessions hold the processes."
+              description: "Instance process slots in use are above 85 % of the PROCESSES parameter (critical at 95 %), unless the lab sets obenhub.oracledb.processes_ratio.limit per severity; at the limit a new dedicated server process cannot start. Check V$RESOURCE_LIMIT and which sessions hold the processes."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/oracledb-dg/#oracleprocessessaturation
       - eval_time: 5m30s
         groupname: oracledb-dg
@@ -3167,7 +3168,7 @@ tests:
           - exp_labels: {obenhub.cluster.name: cdb19, service.instance.id: CDB19, severity: warning}
             exp_annotations:
               summary: 'Oracle instance CDB19 uses more than 85% of its PROCESSES limit'
-              description: "Instance process slots in use are above 85 % of the PROCESSES parameter (critical at 95 %); at the limit a new dedicated server process cannot start. Check V$RESOURCE_LIMIT and which sessions hold the processes."
+              description: "Instance process slots in use are above 85 % of the PROCESSES parameter (critical at 95 %), unless the lab sets obenhub.oracledb.processes_ratio.limit per severity; at the limit a new dedicated server process cannot start. Check V$RESOURCE_LIMIT and which sessions hold the processes."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/oracledb-dg/#oracleprocessessaturation
       - eval_time: 5m45s
         groupname: oracledb-dg
@@ -3176,7 +3177,7 @@ tests:
           - exp_labels: {obenhub.cluster.name: cdb19, service.instance.id: CDB19, severity: warning}
             exp_annotations:
               summary: 'Oracle instance CDB19 uses more than 85% of its PROCESSES limit'
-              description: "Instance process slots in use are above 85 % of the PROCESSES parameter (critical at 95 %); at the limit a new dedicated server process cannot start. Check V$RESOURCE_LIMIT and which sessions hold the processes."
+              description: "Instance process slots in use are above 85 % of the PROCESSES parameter (critical at 95 %), unless the lab sets obenhub.oracledb.processes_ratio.limit per severity; at the limit a new dedicated server process cannot start. Check V$RESOURCE_LIMIT and which sessions hold the processes."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/oracledb-dg/#oracleprocessessaturation
       - eval_time: 6m
         groupname: oracledb-dg
@@ -3185,7 +3186,7 @@ tests:
           - exp_labels: {obenhub.cluster.name: cdb19, service.instance.id: CDB19, severity: warning}
             exp_annotations:
               summary: 'Oracle instance CDB19 uses more than 85% of its PROCESSES limit'
-              description: "Instance process slots in use are above 85 % of the PROCESSES parameter (critical at 95 %); at the limit a new dedicated server process cannot start. Check V$RESOURCE_LIMIT and which sessions hold the processes."
+              description: "Instance process slots in use are above 85 % of the PROCESSES parameter (critical at 95 %), unless the lab sets obenhub.oracledb.processes_ratio.limit per severity; at the limit a new dedicated server process cannot start. Check V$RESOURCE_LIMIT and which sessions hold the processes."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/oracledb-dg/#oracleprocessessaturation
       - eval_time: 6m15s
         groupname: oracledb-dg
@@ -3194,7 +3195,7 @@ tests:
           - exp_labels: {obenhub.cluster.name: cdb19, service.instance.id: CDB19, severity: warning}
             exp_annotations:
               summary: 'Oracle instance CDB19 uses more than 85% of its PROCESSES limit'
-              description: "Instance process slots in use are above 85 % of the PROCESSES parameter (critical at 95 %); at the limit a new dedicated server process cannot start. Check V$RESOURCE_LIMIT and which sessions hold the processes."
+              description: "Instance process slots in use are above 85 % of the PROCESSES parameter (critical at 95 %), unless the lab sets obenhub.oracledb.processes_ratio.limit per severity; at the limit a new dedicated server process cannot start. Check V$RESOURCE_LIMIT and which sessions hold the processes."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/oracledb-dg/#oracleprocessessaturation
       - eval_time: 6m30s
         groupname: oracledb-dg
@@ -3203,7 +3204,7 @@ tests:
           - exp_labels: {obenhub.cluster.name: cdb19, service.instance.id: CDB19, severity: critical}
             exp_annotations:
               summary: 'Oracle instance CDB19 uses 95% or more of its PROCESSES limit: new logins fail with ORA-00020'
-              description: "Instance process slots in use are above 85 % of the PROCESSES parameter (critical at 95 %); at the limit a new dedicated server process cannot start. Check V$RESOURCE_LIMIT and which sessions hold the processes."
+              description: "Instance process slots in use are above 85 % of the PROCESSES parameter (critical at 95 %), unless the lab sets obenhub.oracledb.processes_ratio.limit per severity; at the limit a new dedicated server process cannot start. Check V$RESOURCE_LIMIT and which sessions hold the processes."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/oracledb-dg/#oracleprocessessaturation
       - eval_time: 6m45s
         groupname: oracledb-dg
@@ -3212,7 +3213,7 @@ tests:
           - exp_labels: {obenhub.cluster.name: cdb19, service.instance.id: CDB19, severity: critical}
             exp_annotations:
               summary: 'Oracle instance CDB19 uses 95% or more of its PROCESSES limit: new logins fail with ORA-00020'
-              description: "Instance process slots in use are above 85 % of the PROCESSES parameter (critical at 95 %); at the limit a new dedicated server process cannot start. Check V$RESOURCE_LIMIT and which sessions hold the processes."
+              description: "Instance process slots in use are above 85 % of the PROCESSES parameter (critical at 95 %), unless the lab sets obenhub.oracledb.processes_ratio.limit per severity; at the limit a new dedicated server process cannot start. Check V$RESOURCE_LIMIT and which sessions hold the processes."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/oracledb-dg/#oracleprocessessaturation
       - eval_time: 7m
         groupname: oracledb-dg
@@ -3221,7 +3222,7 @@ tests:
           - exp_labels: {obenhub.cluster.name: cdb19, service.instance.id: CDB19, severity: critical}
             exp_annotations:
               summary: 'Oracle instance CDB19 uses 95% or more of its PROCESSES limit: new logins fail with ORA-00020'
-              description: "Instance process slots in use are above 85 % of the PROCESSES parameter (critical at 95 %); at the limit a new dedicated server process cannot start. Check V$RESOURCE_LIMIT and which sessions hold the processes."
+              description: "Instance process slots in use are above 85 % of the PROCESSES parameter (critical at 95 %), unless the lab sets obenhub.oracledb.processes_ratio.limit per severity; at the limit a new dedicated server process cannot start. Check V$RESOURCE_LIMIT and which sessions hold the processes."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/oracledb-dg/#oracleprocessessaturation
       - eval_time: 7m15s
         groupname: oracledb-dg
@@ -3230,7 +3231,7 @@ tests:
           - exp_labels: {obenhub.cluster.name: cdb19, service.instance.id: CDB19, severity: critical}
             exp_annotations:
               summary: 'Oracle instance CDB19 uses 95% or more of its PROCESSES limit: new logins fail with ORA-00020'
-              description: "Instance process slots in use are above 85 % of the PROCESSES parameter (critical at 95 %); at the limit a new dedicated server process cannot start. Check V$RESOURCE_LIMIT and which sessions hold the processes."
+              description: "Instance process slots in use are above 85 % of the PROCESSES parameter (critical at 95 %), unless the lab sets obenhub.oracledb.processes_ratio.limit per severity; at the limit a new dedicated server process cannot start. Check V$RESOURCE_LIMIT and which sessions hold the processes."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/oracledb-dg/#oracleprocessessaturation
       - eval_time: 7m30s
         groupname: oracledb-dg
@@ -3239,7 +3240,7 @@ tests:
           - exp_labels: {obenhub.cluster.name: cdb19, service.instance.id: CDB19, severity: critical}
             exp_annotations:
               summary: 'Oracle instance CDB19 uses 95% or more of its PROCESSES limit: new logins fail with ORA-00020'
-              description: "Instance process slots in use are above 85 % of the PROCESSES parameter (critical at 95 %); at the limit a new dedicated server process cannot start. Check V$RESOURCE_LIMIT and which sessions hold the processes."
+              description: "Instance process slots in use are above 85 % of the PROCESSES parameter (critical at 95 %), unless the lab sets obenhub.oracledb.processes_ratio.limit per severity; at the limit a new dedicated server process cannot start. Check V$RESOURCE_LIMIT and which sessions hold the processes."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/oracledb-dg/#oracleprocessessaturation
       - eval_time: 7m45s
         groupname: oracledb-dg
@@ -3248,7 +3249,7 @@ tests:
           - exp_labels: {obenhub.cluster.name: cdb19, service.instance.id: CDB19, severity: critical}
             exp_annotations:
               summary: 'Oracle instance CDB19 uses 95% or more of its PROCESSES limit: new logins fail with ORA-00020'
-              description: "Instance process slots in use are above 85 % of the PROCESSES parameter (critical at 95 %); at the limit a new dedicated server process cannot start. Check V$RESOURCE_LIMIT and which sessions hold the processes."
+              description: "Instance process slots in use are above 85 % of the PROCESSES parameter (critical at 95 %), unless the lab sets obenhub.oracledb.processes_ratio.limit per severity; at the limit a new dedicated server process cannot start. Check V$RESOURCE_LIMIT and which sessions hold the processes."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/oracledb-dg/#oracleprocessessaturation
       - eval_time: 8m
         groupname: oracledb-dg
@@ -3257,7 +3258,7 @@ tests:
           - exp_labels: {obenhub.cluster.name: cdb19, service.instance.id: CDB19, severity: critical}
             exp_annotations:
               summary: 'Oracle instance CDB19 uses 95% or more of its PROCESSES limit: new logins fail with ORA-00020'
-              description: "Instance process slots in use are above 85 % of the PROCESSES parameter (critical at 95 %); at the limit a new dedicated server process cannot start. Check V$RESOURCE_LIMIT and which sessions hold the processes."
+              description: "Instance process slots in use are above 85 % of the PROCESSES parameter (critical at 95 %), unless the lab sets obenhub.oracledb.processes_ratio.limit per severity; at the limit a new dedicated server process cannot start. Check V$RESOURCE_LIMIT and which sessions hold the processes."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/oracledb-dg/#oracleprocessessaturation
 
   # The oracledb receiver reads the role and open mode once at start, and the
@@ -3284,7 +3285,7 @@ tests:
           - exp_labels: {obenhub.cluster.name: cdb19, service.instance.id: CDB19, severity: critical}
             exp_annotations:
               summary: 'Oracle instance CDB19 uses 95% or more of its PROCESSES limit: new logins fail with ORA-00020'
-              description: "Instance process slots in use are above 85 % of the PROCESSES parameter (critical at 95 %); at the limit a new dedicated server process cannot start. Check V$RESOURCE_LIMIT and which sessions hold the processes."
+              description: "Instance process slots in use are above 85 % of the PROCESSES parameter (critical at 95 %), unless the lab sets obenhub.oracledb.processes_ratio.limit per severity; at the limit a new dedicated server process cannot start. Check V$RESOURCE_LIMIT and which sessions hold the processes."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/oracledb-dg/#oracleprocessessaturation
 
   # OracleTablespaceUsageHigh. oracledb.tablespace_size.* come from the
@@ -3342,7 +3343,7 @@ tests:
           - exp_labels: {obenhub.cluster.name: cdb19, service.instance.id: CDB19, tablespace_name: OBENHUB_FILL, oracle.db.pdb: PDB19, severity: critical}
             exp_annotations:
               summary: 'Tablespace OBENHUB_FILL (PDB19) of Oracle instance CDB19 is 95% or more full of its maximum size: at 100% a segment that needs a new extent fails with ORA-01653'
-              description: "A tablespace is above 85 % of its limit (critical at 95 %). Check DBA_TABLESPACE_USAGE_METRICS for the tablespace and PDB named in the alert and add space or free it."
+              description: "A tablespace is above 85 % of its limit (critical at 95 %), unless the lab sets obenhub.oracledb.tablespace_ratio.limit per severity. Check DBA_TABLESPACE_USAGE_METRICS for the tablespace and PDB named in the alert and add space or free it."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/oracledb-dg/#oracletablespaceusagehigh
       - eval_time: 7m45s
         groupname: oracledb-dg
@@ -3351,7 +3352,7 @@ tests:
           - exp_labels: {obenhub.cluster.name: cdb19, service.instance.id: CDB19, tablespace_name: OBENHUB_FILL, oracle.db.pdb: PDB19, severity: critical}
             exp_annotations:
               summary: 'Tablespace OBENHUB_FILL (PDB19) of Oracle instance CDB19 is 95% or more full of its maximum size: at 100% a segment that needs a new extent fails with ORA-01653'
-              description: "A tablespace is above 85 % of its limit (critical at 95 %). Check DBA_TABLESPACE_USAGE_METRICS for the tablespace and PDB named in the alert and add space or free it."
+              description: "A tablespace is above 85 % of its limit (critical at 95 %), unless the lab sets obenhub.oracledb.tablespace_ratio.limit per severity. Check DBA_TABLESPACE_USAGE_METRICS for the tablespace and PDB named in the alert and add space or free it."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/oracledb-dg/#oracletablespaceusagehigh
       - eval_time: 8m
         groupname: oracledb-dg
@@ -3379,7 +3380,7 @@ tests:
           - exp_labels: {obenhub.cluster.name: cdb19, service.instance.id: CDB19, tablespace_name: USERS, oracle.db.pdb: PDB19, severity: critical}
             exp_annotations:
               summary: 'Tablespace USERS (PDB19) of Oracle instance CDB19 is 95% or more full of its maximum size: at 100% a segment that needs a new extent fails with ORA-01653'
-              description: "A tablespace is above 85 % of its limit (critical at 95 %). Check DBA_TABLESPACE_USAGE_METRICS for the tablespace and PDB named in the alert and add space or free it."
+              description: "A tablespace is above 85 % of its limit (critical at 95 %), unless the lab sets obenhub.oracledb.tablespace_ratio.limit per severity. Check DBA_TABLESPACE_USAGE_METRICS for the tablespace and PDB named in the alert and add space or free it."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/oracledb-dg/#oracletablespaceusagehigh
 
   # Tier boundaries on 20 MB (20971520 bytes): 0.85 is 17825792 (stays quiet,
@@ -3417,17 +3418,17 @@ tests:
           - exp_labels: {obenhub.cluster.name: cdb19, service.instance.id: CDB19, tablespace_name: T_085_PLUS, oracle.db.pdb: PDB19, severity: warning}
             exp_annotations:
               summary: 'Tablespace T_085_PLUS (PDB19) of Oracle instance CDB19 is more than 85% full of its maximum size'
-              description: "A tablespace is above 85 % of its limit (critical at 95 %). Check DBA_TABLESPACE_USAGE_METRICS for the tablespace and PDB named in the alert and add space or free it."
+              description: "A tablespace is above 85 % of its limit (critical at 95 %), unless the lab sets obenhub.oracledb.tablespace_ratio.limit per severity. Check DBA_TABLESPACE_USAGE_METRICS for the tablespace and PDB named in the alert and add space or free it."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/oracledb-dg/#oracletablespaceusagehigh
           - exp_labels: {obenhub.cluster.name: cdb19, service.instance.id: CDB19, tablespace_name: T_095_MINUS, oracle.db.pdb: PDB19, severity: warning}
             exp_annotations:
               summary: 'Tablespace T_095_MINUS (PDB19) of Oracle instance CDB19 is more than 85% full of its maximum size'
-              description: "A tablespace is above 85 % of its limit (critical at 95 %). Check DBA_TABLESPACE_USAGE_METRICS for the tablespace and PDB named in the alert and add space or free it."
+              description: "A tablespace is above 85 % of its limit (critical at 95 %), unless the lab sets obenhub.oracledb.tablespace_ratio.limit per severity. Check DBA_TABLESPACE_USAGE_METRICS for the tablespace and PDB named in the alert and add space or free it."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/oracledb-dg/#oracletablespaceusagehigh
           - exp_labels: {obenhub.cluster.name: cdb19, service.instance.id: CDB19, tablespace_name: T_095, oracle.db.pdb: PDB19, severity: critical}
             exp_annotations:
               summary: 'Tablespace T_095 (PDB19) of Oracle instance CDB19 is 95% or more full of its maximum size: at 100% a segment that needs a new extent fails with ORA-01653'
-              description: "A tablespace is above 85 % of its limit (critical at 95 %). Check DBA_TABLESPACE_USAGE_METRICS for the tablespace and PDB named in the alert and add space or free it."
+              description: "A tablespace is above 85 % of its limit (critical at 95 %), unless the lab sets obenhub.oracledb.tablespace_ratio.limit per severity. Check DBA_TABLESPACE_USAGE_METRICS for the tablespace and PDB named in the alert and add space or free it."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/oracledb-dg/#oracletablespaceusagehigh
 
   # The series starts full (a new tablespace, or a restarted Collector): the
@@ -3460,7 +3461,7 @@ tests:
           - exp_labels: {obenhub.cluster.name: cdb19, service.instance.id: CDB19, tablespace_name: OBENHUB_FILL, oracle.db.pdb: PDB19, severity: critical}
             exp_annotations:
               summary: 'Tablespace OBENHUB_FILL (PDB19) of Oracle instance CDB19 is 95% or more full of its maximum size: at 100% a segment that needs a new extent fails with ORA-01653'
-              description: "A tablespace is above 85 % of its limit (critical at 95 %). Check DBA_TABLESPACE_USAGE_METRICS for the tablespace and PDB named in the alert and add space or free it."
+              description: "A tablespace is above 85 % of its limit (critical at 95 %), unless the lab sets obenhub.oracledb.tablespace_ratio.limit per severity. Check DBA_TABLESPACE_USAGE_METRICS for the tablespace and PDB named in the alert and add space or free it."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/oracledb-dg/#oracletablespaceusagehigh
 
   - name: "tablespace: warm-up, a new series at 0.90 stays quiet until its window is full"
@@ -3490,7 +3491,7 @@ tests:
           - exp_labels: {obenhub.cluster.name: cdb19, service.instance.id: CDB19, tablespace_name: OBENHUB_FILL, oracle.db.pdb: PDB19, severity: warning}
             exp_annotations:
               summary: 'Tablespace OBENHUB_FILL (PDB19) of Oracle instance CDB19 is more than 85% full of its maximum size'
-              description: "A tablespace is above 85 % of its limit (critical at 95 %). Check DBA_TABLESPACE_USAGE_METRICS for the tablespace and PDB named in the alert and add space or free it."
+              description: "A tablespace is above 85 % of its limit (critical at 95 %), unless the lab sets obenhub.oracledb.tablespace_ratio.limit per severity. Check DBA_TABLESPACE_USAGE_METRICS for the tablespace and PDB named in the alert and add space or free it."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/oracledb-dg/#oracletablespaceusagehigh
 
   # One collection near full does not fire: the window needs three points.
@@ -3571,8 +3572,8 @@ tests:
         exp_alerts:
           - exp_labels: {obenhub.cluster.name: cdb19, service.instance.id: CDB19, severity: warning}
             exp_annotations:
-              summary: 'A session on Oracle instance CDB19 has waited 35s for a lock held by another session (lab threshold)'
-              description: "A session has waited more than 30 seconds for a lock held by another session (V$SESSION, wait class Application). The alert does not name the blocker; look for it in V$SESSION by blocking_session."
+              summary: 'A session on Oracle instance CDB19 has waited 35s for a lock held by another session'
+              description: "A session has waited more than the limit (120 s unless the lab sets obenhub.oracledb.lock_wait_age.limit) for a lock held by another session (V$SESSION, wait class Application). The alert does not name the blocker; look for it in V$SESSION by blocking_session."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/oracledb-dg/#oracleblockedsessions
       - eval_time: 7m
         groupname: oracledb-dg
@@ -3580,8 +3581,8 @@ tests:
         exp_alerts:
           - exp_labels: {obenhub.cluster.name: cdb19, service.instance.id: CDB19, severity: warning}
             exp_annotations:
-              summary: 'A session on Oracle instance CDB19 has waited 4m 20s for a lock held by another session (lab threshold)'
-              description: "A session has waited more than 30 seconds for a lock held by another session (V$SESSION, wait class Application). The alert does not name the blocker; look for it in V$SESSION by blocking_session."
+              summary: 'A session on Oracle instance CDB19 has waited 4m 20s for a lock held by another session'
+              description: "A session has waited more than the limit (120 s unless the lab sets obenhub.oracledb.lock_wait_age.limit) for a lock held by another session (V$SESSION, wait class Application). The alert does not name the blocker; look for it in V$SESSION by blocking_session."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/oracledb-dg/#oracleblockedsessions
       - eval_time: 7m15s
         groupname: oracledb-dg
@@ -3589,8 +3590,8 @@ tests:
         exp_alerts:
           - exp_labels: {obenhub.cluster.name: cdb19, service.instance.id: CDB19, severity: warning}
             exp_annotations:
-              summary: 'A session on Oracle instance CDB19 has waited 4m 35s for a lock held by another session (lab threshold)'
-              description: "A session has waited more than 30 seconds for a lock held by another session (V$SESSION, wait class Application). The alert does not name the blocker; look for it in V$SESSION by blocking_session."
+              summary: 'A session on Oracle instance CDB19 has waited 4m 35s for a lock held by another session'
+              description: "A session has waited more than the limit (120 s unless the lab sets obenhub.oracledb.lock_wait_age.limit) for a lock held by another session (V$SESSION, wait class Application). The alert does not name the blocker; look for it in V$SESSION by blocking_session."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/oracledb-dg/#oracleblockedsessions
       - eval_time: 7m30s
         groupname: oracledb-dg
@@ -3612,8 +3613,8 @@ tests:
         exp_alerts:
           - exp_labels: {obenhub.cluster.name: cdb19, service.instance.id: CDB19B, severity: warning}
             exp_annotations:
-              summary: 'A session on Oracle instance CDB19B has waited 31s for a lock held by another session (lab threshold)'
-              description: "A session has waited more than 30 seconds for a lock held by another session (V$SESSION, wait class Application). The alert does not name the blocker; look for it in V$SESSION by blocking_session."
+              summary: 'A session on Oracle instance CDB19B has waited 31s for a lock held by another session'
+              description: "A session has waited more than the limit (120 s unless the lab sets obenhub.oracledb.lock_wait_age.limit) for a lock held by another session (V$SESSION, wait class Application). The alert does not name the blocker; look for it in V$SESSION by blocking_session."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/oracledb-dg/#oracleblockedsessions
 
   # The series starts above the threshold (a new series, or a restarted
@@ -3639,8 +3640,8 @@ tests:
         exp_alerts:
           - exp_labels: {obenhub.cluster.name: cdb19, service.instance.id: CDB19, severity: warning}
             exp_annotations:
-              summary: 'A session on Oracle instance CDB19 has waited 1m 30s for a lock held by another session (lab threshold)'
-              description: "A session has waited more than 30 seconds for a lock held by another session (V$SESSION, wait class Application). The alert does not name the blocker; look for it in V$SESSION by blocking_session."
+              summary: 'A session on Oracle instance CDB19 has waited 1m 30s for a lock held by another session'
+              description: "A session has waited more than the limit (120 s unless the lab sets obenhub.oracledb.lock_wait_age.limit) for a lock held by another session (V$SESSION, wait class Application). The alert does not name the blocker; look for it in V$SESSION by blocking_session."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/oracledb-dg/#oracleblockedsessions
 
   # One or two collections above 30 s between zeros do not fire: the lowest

@@ -300,11 +300,11 @@
             "type": "victoriametrics-metrics-datasource",
             "uid": "vm"
           },
-          "expr": "0.10",
+          "expr": "obenhub.host.filesystem_free_ratio.limit or on() vector(0.10)",
           "refId": "B",
           "range": true,
           "instant": false,
-          "legendFormat": "HostFilesystemSpaceLow threshold"
+          "legendFormat": "HostFilesystemSpaceLow limit"
         }
       ],
       "fieldConfig": {
@@ -362,11 +362,11 @@
             "type": "victoriametrics-metrics-datasource",
             "uid": "vm"
           },
-          "expr": "0.10",
+          "expr": "obenhub.host.memory_available_ratio.limit or on() vector(0.10)",
           "refId": "B",
           "range": true,
           "instant": false,
-          "legendFormat": "HostMemoryAvailableLow threshold"
+          "legendFormat": "HostMemoryAvailableLow limit"
         }
       ],
       "fieldConfig": {

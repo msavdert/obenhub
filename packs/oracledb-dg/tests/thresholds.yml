@@ -1,0 +1,200 @@
+# Thresholds of the Oracle Data Guard pack, in the one form of C4: a production default in the
+# rule and an optional lab parameter, the recorded series obenhub.*.limit. Two tests:
+# defaults (no limit series: each rule fires just above its default and is quiet at it)
+# and override (limit series recorded: each rule fires above the override, and a value
+# between the default and the override stays quiet). The tests read the firing
+# alerts back as ALERTS series, so a quiet case is a series missing from the list.
+rule_files:
+  - ../rules.yml
+evaluation_interval: 15s
+
+tests:
+  - name: defaults - every limit series absent, fires just above the default, quiet at it
+    interval: 15s
+    input_series:
+      - series: 'oracledb.dataguard.lag{obenhub.cluster.name="c1",service.instance.id="oraclestandbylag-hi",oracledb.dataguard.lag.type="apply"}'
+        values: '301x160'
+      - series: 'oracledb.dataguard.lag{obenhub.cluster.name="c1",service.instance.id="oraclestandbylag-lo",oracledb.dataguard.lag.type="apply"}'
+        values: '300x160'
+      - series: 'oracledb.dataguard.lag.data_age{obenhub.cluster.name="c1",service.instance.id="oraclestandbydatastale-hi",oracledb.dataguard.lag.type="transport"}'
+        values: '301x160'
+      - series: 'oracledb.dataguard.lag.data_age{obenhub.cluster.name="c1",service.instance.id="oraclestandbydatastale-lo",oracledb.dataguard.lag.type="transport"}'
+        values: '300x160'
+      - series: 'oracledb.lock.oldest_wait_age{obenhub.cluster.name="c1",service.instance.id="oracleblockedsessions-hi"}'
+        values: '121x160'
+      - series: 'oracledb.lock.oldest_wait_age{obenhub.cluster.name="c1",service.instance.id="oracleblockedsessions-lo"}'
+        values: '120x160'
+      - series: 'oracledb.processes.usage{obenhub.cluster.name="c1",service.instance.id="oracleprocessessaturation-w-hi"}'
+        values: '851x160'
+      - series: 'oracledb.processes.limit{obenhub.cluster.name="c1",service.instance.id="oracleprocessessaturation-w-hi"}'
+        values: '1000x160'
+      - series: 'oracledb.processes.usage{obenhub.cluster.name="c1",service.instance.id="oracleprocessessaturation-w-lo"}'
+        values: '850x160'
+      - series: 'oracledb.processes.limit{obenhub.cluster.name="c1",service.instance.id="oracleprocessessaturation-w-lo"}'
+        values: '1000x160'
+      - series: 'oracledb.processes.usage{obenhub.cluster.name="c1",service.instance.id="oracleprocessessaturation-w-top"}'
+        values: '949x160'
+      - series: 'oracledb.processes.limit{obenhub.cluster.name="c1",service.instance.id="oracleprocessessaturation-w-top"}'
+        values: '1000x160'
+      - series: 'oracledb.processes.usage{obenhub.cluster.name="c1",service.instance.id="oracleprocessessaturation-c-lo"}'
+        values: '950x160'
+      - series: 'oracledb.processes.limit{obenhub.cluster.name="c1",service.instance.id="oracleprocessessaturation-c-lo"}'
+        values: '1000x160'
+      - series: 'oracledb.processes.usage{obenhub.cluster.name="c1",service.instance.id="oracleprocessessaturation-c-hi"}'
+        values: '951x160'
+      - series: 'oracledb.processes.limit{obenhub.cluster.name="c1",service.instance.id="oracleprocessessaturation-c-hi"}'
+        values: '1000x160'
+      - series: 'oracledb.tablespace_size.usage{obenhub.cluster.name="c1",service.instance.id="oracletablespaceusagehigh-w-hi",tablespace_name="USERS",oracle.db.pdb="PDB19"}'
+        values: '851x160'
+      - series: 'oracledb.tablespace_size.limit{obenhub.cluster.name="c1",service.instance.id="oracletablespaceusagehigh-w-hi",tablespace_name="USERS",oracle.db.pdb="PDB19"}'
+        values: '1000x160'
+      - series: 'oracledb.tablespace_size.usage{obenhub.cluster.name="c1",service.instance.id="oracletablespaceusagehigh-w-lo",tablespace_name="USERS",oracle.db.pdb="PDB19"}'
+        values: '850x160'
+      - series: 'oracledb.tablespace_size.limit{obenhub.cluster.name="c1",service.instance.id="oracletablespaceusagehigh-w-lo",tablespace_name="USERS",oracle.db.pdb="PDB19"}'
+        values: '1000x160'
+      - series: 'oracledb.tablespace_size.usage{obenhub.cluster.name="c1",service.instance.id="oracletablespaceusagehigh-w-top",tablespace_name="USERS",oracle.db.pdb="PDB19"}'
+        values: '949x160'
+      - series: 'oracledb.tablespace_size.limit{obenhub.cluster.name="c1",service.instance.id="oracletablespaceusagehigh-w-top",tablespace_name="USERS",oracle.db.pdb="PDB19"}'
+        values: '1000x160'
+      - series: 'oracledb.tablespace_size.usage{obenhub.cluster.name="c1",service.instance.id="oracletablespaceusagehigh-c-lo",tablespace_name="USERS",oracle.db.pdb="PDB19"}'
+        values: '950x160'
+      - series: 'oracledb.tablespace_size.limit{obenhub.cluster.name="c1",service.instance.id="oracletablespaceusagehigh-c-lo",tablespace_name="USERS",oracle.db.pdb="PDB19"}'
+        values: '1000x160'
+      - series: 'oracledb.tablespace_size.usage{obenhub.cluster.name="c1",service.instance.id="oracletablespaceusagehigh-c-hi",tablespace_name="USERS",oracle.db.pdb="PDB19"}'
+        values: '951x160'
+      - series: 'oracledb.tablespace_size.limit{obenhub.cluster.name="c1",service.instance.id="oracletablespaceusagehigh-c-hi",tablespace_name="USERS",oracle.db.pdb="PDB19"}'
+        values: '1000x160'
+    metricsql_expr_test:
+      - expr: ALERTS{alertname="OracleStandbyLag", alertstate="firing"}
+        eval_time: 10m
+        exp_samples:
+          - labels: 'ALERTS{alertname="OracleStandbyLag", alertgroup="oracledb-dg", alertstate="firing", obenhub.cluster.name="c1", service.instance.id="oraclestandbylag-hi", oracledb.dataguard.lag.type="apply", severity="warning"}'
+            value: 1
+      - expr: ALERTS{alertname="OracleStandbyDataStale", alertstate="firing"}
+        eval_time: 10m
+        exp_samples:
+          - labels: 'ALERTS{alertname="OracleStandbyDataStale", alertgroup="oracledb-dg", alertstate="firing", obenhub.cluster.name="c1", service.instance.id="oraclestandbydatastale-hi", oracledb.dataguard.lag.type="transport", severity="warning"}'
+            value: 1
+      - expr: ALERTS{alertname="OracleBlockedSessions", alertstate="firing"}
+        eval_time: 10m
+        exp_samples:
+          - labels: 'ALERTS{alertname="OracleBlockedSessions", alertgroup="oracledb-dg", alertstate="firing", obenhub.cluster.name="c1", service.instance.id="oracleblockedsessions-hi", severity="warning"}'
+            value: 1
+      - expr: ALERTS{alertname="OracleProcessesSaturation", alertstate="firing"}
+        eval_time: 10m
+        exp_samples:
+          - labels: 'ALERTS{alertname="OracleProcessesSaturation", alertgroup="oracledb-dg", alertstate="firing", obenhub.cluster.name="c1", service.instance.id="oracleprocessessaturation-w-hi", severity="warning"}'
+            value: 1
+          - labels: 'ALERTS{alertname="OracleProcessesSaturation", alertgroup="oracledb-dg", alertstate="firing", obenhub.cluster.name="c1", service.instance.id="oracleprocessessaturation-w-top", severity="warning"}'
+            value: 1
+          - labels: 'ALERTS{alertname="OracleProcessesSaturation", alertgroup="oracledb-dg", alertstate="firing", obenhub.cluster.name="c1", service.instance.id="oracleprocessessaturation-c-lo", severity="critical"}'
+            value: 1
+          - labels: 'ALERTS{alertname="OracleProcessesSaturation", alertgroup="oracledb-dg", alertstate="firing", obenhub.cluster.name="c1", service.instance.id="oracleprocessessaturation-c-hi", severity="critical"}'
+            value: 1
+      - expr: ALERTS{alertname="OracleTablespaceUsageHigh", alertstate="firing"}
+        eval_time: 10m
+        exp_samples:
+          - labels: 'ALERTS{alertname="OracleTablespaceUsageHigh", alertgroup="oracledb-dg", alertstate="firing", obenhub.cluster.name="c1", service.instance.id="oracletablespaceusagehigh-w-hi", tablespace_name="USERS", oracle.db.pdb="PDB19", severity="warning"}'
+            value: 1
+          - labels: 'ALERTS{alertname="OracleTablespaceUsageHigh", alertgroup="oracledb-dg", alertstate="firing", obenhub.cluster.name="c1", service.instance.id="oracletablespaceusagehigh-w-top", tablespace_name="USERS", oracle.db.pdb="PDB19", severity="warning"}'
+            value: 1
+          - labels: 'ALERTS{alertname="OracleTablespaceUsageHigh", alertgroup="oracledb-dg", alertstate="firing", obenhub.cluster.name="c1", service.instance.id="oracletablespaceusagehigh-c-lo", tablespace_name="USERS", oracle.db.pdb="PDB19", severity="critical"}'
+            value: 1
+          - labels: 'ALERTS{alertname="OracleTablespaceUsageHigh", alertgroup="oracledb-dg", alertstate="firing", obenhub.cluster.name="c1", service.instance.id="oracletablespaceusagehigh-c-hi", tablespace_name="USERS", oracle.db.pdb="PDB19", severity="critical"}'
+            value: 1
+
+  - name: override - limit series recorded, fires above the override, the default is ignored
+    interval: 15s
+    input_series:
+      - series: 'obenhub.oracledb.standby_lag.limit'
+        values: '600x160'
+      - series: 'oracledb.dataguard.lag{obenhub.cluster.name="c1",service.instance.id="oraclestandbylag-mid",oracledb.dataguard.lag.type="apply"}'
+        values: '450x160'
+      - series: 'oracledb.dataguard.lag{obenhub.cluster.name="c1",service.instance.id="oraclestandbylag-top",oracledb.dataguard.lag.type="apply"}'
+        values: '601x160'
+      - series: 'obenhub.oracledb.standby_data_age.limit'
+        values: '600x160'
+      - series: 'oracledb.dataguard.lag.data_age{obenhub.cluster.name="c1",service.instance.id="oraclestandbydatastale-mid",oracledb.dataguard.lag.type="transport"}'
+        values: '450x160'
+      - series: 'oracledb.dataguard.lag.data_age{obenhub.cluster.name="c1",service.instance.id="oraclestandbydatastale-top",oracledb.dataguard.lag.type="transport"}'
+        values: '601x160'
+      - series: 'obenhub.oracledb.lock_wait_age.limit'
+        values: '240x160'
+      - series: 'oracledb.lock.oldest_wait_age{obenhub.cluster.name="c1",service.instance.id="oracleblockedsessions-mid"}'
+        values: '180x160'
+      - series: 'oracledb.lock.oldest_wait_age{obenhub.cluster.name="c1",service.instance.id="oracleblockedsessions-top"}'
+        values: '241x160'
+      - series: 'obenhub.oracledb.processes_ratio.limit{severity="warning"}'
+        values: '0.91x160'
+      - series: 'obenhub.oracledb.processes_ratio.limit{severity="critical"}'
+        values: '0.985x160'
+      - series: 'oracledb.processes.usage{obenhub.cluster.name="c1",service.instance.id="oracleprocessessaturation-w-mid"}'
+        values: '900x160'
+      - series: 'oracledb.processes.limit{obenhub.cluster.name="c1",service.instance.id="oracleprocessessaturation-w-mid"}'
+        values: '1000x160'
+      - series: 'oracledb.processes.usage{obenhub.cluster.name="c1",service.instance.id="oracleprocessessaturation-w-top"}'
+        values: '920x160'
+      - series: 'oracledb.processes.limit{obenhub.cluster.name="c1",service.instance.id="oracleprocessessaturation-w-top"}'
+        values: '1000x160'
+      - series: 'oracledb.processes.usage{obenhub.cluster.name="c1",service.instance.id="oracleprocessessaturation-c-mid"}'
+        values: '980x160'
+      - series: 'oracledb.processes.limit{obenhub.cluster.name="c1",service.instance.id="oracleprocessessaturation-c-mid"}'
+        values: '1000x160'
+      - series: 'oracledb.processes.usage{obenhub.cluster.name="c1",service.instance.id="oracleprocessessaturation-c-top"}'
+        values: '990x160'
+      - series: 'oracledb.processes.limit{obenhub.cluster.name="c1",service.instance.id="oracleprocessessaturation-c-top"}'
+        values: '1000x160'
+      - series: 'obenhub.oracledb.tablespace_ratio.limit{severity="warning"}'
+        values: '0.91x160'
+      - series: 'obenhub.oracledb.tablespace_ratio.limit{severity="critical"}'
+        values: '0.985x160'
+      - series: 'oracledb.tablespace_size.usage{obenhub.cluster.name="c1",service.instance.id="oracletablespaceusagehigh-w-mid",tablespace_name="USERS",oracle.db.pdb="PDB19"}'
+        values: '900x160'
+      - series: 'oracledb.tablespace_size.limit{obenhub.cluster.name="c1",service.instance.id="oracletablespaceusagehigh-w-mid",tablespace_name="USERS",oracle.db.pdb="PDB19"}'
+        values: '1000x160'
+      - series: 'oracledb.tablespace_size.usage{obenhub.cluster.name="c1",service.instance.id="oracletablespaceusagehigh-w-top",tablespace_name="USERS",oracle.db.pdb="PDB19"}'
+        values: '920x160'
+      - series: 'oracledb.tablespace_size.limit{obenhub.cluster.name="c1",service.instance.id="oracletablespaceusagehigh-w-top",tablespace_name="USERS",oracle.db.pdb="PDB19"}'
+        values: '1000x160'
+      - series: 'oracledb.tablespace_size.usage{obenhub.cluster.name="c1",service.instance.id="oracletablespaceusagehigh-c-mid",tablespace_name="USERS",oracle.db.pdb="PDB19"}'
+        values: '980x160'
+      - series: 'oracledb.tablespace_size.limit{obenhub.cluster.name="c1",service.instance.id="oracletablespaceusagehigh-c-mid",tablespace_name="USERS",oracle.db.pdb="PDB19"}'
+        values: '1000x160'
+      - series: 'oracledb.tablespace_size.usage{obenhub.cluster.name="c1",service.instance.id="oracletablespaceusagehigh-c-top",tablespace_name="USERS",oracle.db.pdb="PDB19"}'
+        values: '990x160'
+      - series: 'oracledb.tablespace_size.limit{obenhub.cluster.name="c1",service.instance.id="oracletablespaceusagehigh-c-top",tablespace_name="USERS",oracle.db.pdb="PDB19"}'
+        values: '1000x160'
+    metricsql_expr_test:
+      - expr: ALERTS{alertname="OracleStandbyLag", alertstate="firing"}
+        eval_time: 10m
+        exp_samples:
+          - labels: 'ALERTS{alertname="OracleStandbyLag", alertgroup="oracledb-dg", alertstate="firing", obenhub.cluster.name="c1", service.instance.id="oraclestandbylag-top", oracledb.dataguard.lag.type="apply", severity="warning"}'
+            value: 1
+      - expr: ALERTS{alertname="OracleStandbyDataStale", alertstate="firing"}
+        eval_time: 10m
+        exp_samples:
+          - labels: 'ALERTS{alertname="OracleStandbyDataStale", alertgroup="oracledb-dg", alertstate="firing", obenhub.cluster.name="c1", service.instance.id="oraclestandbydatastale-top", oracledb.dataguard.lag.type="transport", severity="warning"}'
+            value: 1
+      - expr: ALERTS{alertname="OracleBlockedSessions", alertstate="firing"}
+        eval_time: 10m
+        exp_samples:
+          - labels: 'ALERTS{alertname="OracleBlockedSessions", alertgroup="oracledb-dg", alertstate="firing", obenhub.cluster.name="c1", service.instance.id="oracleblockedsessions-top", severity="warning"}'
+            value: 1
+      - expr: ALERTS{alertname="OracleProcessesSaturation", alertstate="firing"}
+        eval_time: 10m
+        exp_samples:
+          - labels: 'ALERTS{alertname="OracleProcessesSaturation", alertgroup="oracledb-dg", alertstate="firing", obenhub.cluster.name="c1", service.instance.id="oracleprocessessaturation-w-top", severity="warning"}'
+            value: 1
+          - labels: 'ALERTS{alertname="OracleProcessesSaturation", alertgroup="oracledb-dg", alertstate="firing", obenhub.cluster.name="c1", service.instance.id="oracleprocessessaturation-c-mid", severity="warning"}'
+            value: 1
+          - labels: 'ALERTS{alertname="OracleProcessesSaturation", alertgroup="oracledb-dg", alertstate="firing", obenhub.cluster.name="c1", service.instance.id="oracleprocessessaturation-c-top", severity="critical"}'
+            value: 1
+      - expr: ALERTS{alertname="OracleTablespaceUsageHigh", alertstate="firing"}
+        eval_time: 10m
+        exp_samples:
+          - labels: 'ALERTS{alertname="OracleTablespaceUsageHigh", alertgroup="oracledb-dg", alertstate="firing", obenhub.cluster.name="c1", service.instance.id="oracletablespaceusagehigh-w-top", tablespace_name="USERS", oracle.db.pdb="PDB19", severity="warning"}'
+            value: 1
+          - labels: 'ALERTS{alertname="OracleTablespaceUsageHigh", alertgroup="oracledb-dg", alertstate="firing", obenhub.cluster.name="c1", service.instance.id="oracletablespaceusagehigh-c-mid", tablespace_name="USERS", oracle.db.pdb="PDB19", severity="warning"}'
+            value: 1
+          - labels: 'ALERTS{alertname="OracleTablespaceUsageHigh", alertgroup="oracledb-dg", alertstate="firing", obenhub.cluster.name="c1", service.instance.id="oracletablespaceusagehigh-c-top", tablespace_name="USERS", oracle.db.pdb="PDB19", severity="critical"}'
+            value: 1

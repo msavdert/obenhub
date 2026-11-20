@@ -102,7 +102,7 @@ tests:
           - exp_labels: {severity: warning, obenhub.cluster.name: a}
             exp_annotations:
               summary: 3 leader changes of etcd cluster a within 5 minutes
-              description: "Three or more leader changes of one etcd cluster within 5 minutes (increase of etcd_server_leader_changes_seen_total). Run etcdctl endpoint status for the current leader, and look at the members for restarts, slow disks (EtcdHighFsyncDurations) or network trouble between them."
+              description: "Three or more leader changes of one etcd cluster within 5 minutes (3 unless the lab sets obenhub.etcd.leader_changes.limit; increase of etcd_server_leader_changes_seen_total). Run etcdctl endpoint status for the current leader, and look at the members for restarts, slow disks (EtcdHighFsyncDurations) or network trouble between them."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/etcd/#etcdhighleaderchanges
 
   - name: a member without obenhub.cluster.name fires EtcdClusterNameMissing after 5 m

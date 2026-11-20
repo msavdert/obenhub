@@ -220,6 +220,10 @@ run = [
   "python3 scripts/gen-pack-alerts.py --check",
 ]
 
+[tasks."lint:lab-parameters"]
+description = "fail when a pack test fixture of lab values differs from the lab inventories, or a lab limits.yml misses an override record"
+run = "python3 scripts/check-lab-parameters.py"
+
 [tasks."lint:alert-docs"]
 description = "fail when an alert lacks description or runbook_url, the URL does not fit (runbook page when a scenario fires the alert, else reference page), its anchor is missing, or a runbook section exists for an alert no scenario fires, or a scenario-fired alert has no runbook section"
 run = "python3 scripts/check-alert-docs.py"
@@ -252,6 +256,7 @@ depends = [
   "lint:pack-names",
   "lint:series-vanished",
   "lint:alert-docs",
+  "lint:lab-parameters",
   "docs:reference-check",
   "docs:nav-check",
   "lab:pack:rules-test",
