@@ -147,9 +147,12 @@ the held dependency update batch and closes a release.
       carry both and `lint:alert-docs` enforces it), a runbook page only
       for alerts a scenario fires, with the SQL or LogsQL to look at first;
       the runbook pages are in `docs/runbooks/`
-- [ ] C7 One complete Collector fragment per pack, checked by
+- [x] C7 One complete Collector fragment per pack, checked by
       `lint:otelcol`, and inventories generated from a target list,
-      byte-equal to the hand-written ones
+      byte-equal to the hand-written ones; the fragments are
+      `packs/<pack>/otelcol.yaml` on `packs/otelcol-base.yaml` (VM) or
+      `packs/otelcol-base-k8s.yaml`, the target lists `lab/<lab>/targets.json`
+      (`lab:inventory-check`)
 
 ### D. Install path
 
