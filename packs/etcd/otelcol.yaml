@@ -1,0 +1,37 @@
+# Collector fragment of the etcd pack: the generic prometheus receiver scraping
+# one member's /metrics and the identity of that member. Variables: README.md,
+# "Collector fragment". Base: ../otelcol-base.yaml.
+# etcd is its own cluster (ADR 0006 decision 7): OBENHUB_ETCD_CLUSTER_NAME is
+# not the name of the PostgreSQL cluster. The scrape endpoint and the identity
+# port are separate variables: etcd may serve /metrics on a loopback listener
+# (--listen-metrics-urls) while the member's client port is 2379.
+receivers:
+  prometheus/obenhub-etcd:
+    config:
+      scrape_configs:
+        - job_name: etcd
+          scrape_interval: 15s
+          scrape_timeout: 10s
+          static_configs:
+            - targets: ['${env:OBENHUB_ETCD_METRICS_ENDPOINT}']
+
+processors:
+  memory_limiter/obenhub:
+    check_interval: 1s
+    limit_mib: 256
+  batch/obenhub: {}
+  resource/obenhub-etcd:
+    attributes:
+      - {key: service.namespace, value: "${env:OBENHUB_SERVICE_NAMESPACE}", action: upsert}
+      - {key: service.name, value: etcd, action: upsert}
+      - {key: service.instance.id, value: "${env:OBENHUB_ETCD_INSTANCE_ID}", action: upsert}
+      - {key: server.address, value: "${env:OBENHUB_ETCD_HOST}", action: upsert}
+      - {key: server.port, value: "${env:OBENHUB_ETCD_PORT}", action: upsert}
+      - {key: obenhub.cluster.name, value: "${env:OBENHUB_ETCD_CLUSTER_NAME}", action: upsert}
+
+service:
+  pipelines:
+    metrics/obenhub-etcd:
+      receivers: [prometheus/obenhub-etcd]
+      processors: [memory_limiter/obenhub, resource/obenhub-etcd, batch/obenhub]
+      exporters: [otlp/obenhub]

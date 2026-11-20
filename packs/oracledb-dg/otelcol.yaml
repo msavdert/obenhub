@@ -1,0 +1,155 @@
+# Collector fragment of the Oracle Data Guard pack: the contrib oracledb
+# receiver, the pack's sql_query lists (queries.yaml on every database,
+# queries-primary.yaml on the primary only), a TCP probe of the listener, the
+# text alert log, and the identity of one database. Variables: README.md,
+# "Collector fragment". Base: ../otelcol-base.yaml.
+# One database per Collector process (the labs run one set per database under
+# other component names). The alert log is read on the database's own VM; the
+# other receivers connect over the network and may run elsewhere (ADR 0008
+# decision 2), so an installer places them in the processes it wants.
+# The data source option "DBA PRIVILEGE" is parsed by go-ora; "#" in the user
+# name is percent-encoded in the URL, so OBENHUB_ORACLE_DG_USER is the encoded
+# form (C%23%23OBENHUB_DG).
+receivers:
+  oracledb/obenhub-oracledb-dg:
+    endpoint: ${env:OBENHUB_ORACLE_HOST}:${env:OBENHUB_ORACLE_PORT}
+    service: ${env:OBENHUB_ORACLE_SERVICE}
+    username: ${env:OBENHUB_ORACLE_MON_USER}
+    password: ${env:OBENHUB_ORACLE_MON_PASSWORD}
+    collection_interval: 30s
+    # On a CDB-root connection one data point per container is emitted and,
+    # without oracle.db.pdb, the root's SYSTEM and the PDB's SYSTEM collapse
+    # into one averaged series (read in the lab on 2026-11-14).
+    metrics:
+      oracledb.tablespace_size.usage:
+        attributes: [tablespace_name, oracle.db.pdb]
+      oracledb.tablespace_size.limit:
+        attributes: [tablespace_name, oracle.db.pdb]
+  # Every sql_query receiver caps its pool at 3 connections; the receiver's
+  # default is unlimited (ADR 0003).
+  sql_query/obenhub-oracledb-dg:
+    driver: oracle
+    max_open_conn: 3
+    datasource: "oracle://${env:OBENHUB_ORACLE_DG_USER}:${env:OBENHUB_ORACLE_DG_PASSWORD}@${env:OBENHUB_ORACLE_HOST}:${env:OBENHUB_ORACLE_PORT}/${env:OBENHUB_ORACLE_SERVICE}?DBA%20PRIVILEGE=SYSDG"
+    collection_interval: 15s
+    queries: ${file:/etc/otelcol-contrib/packs/oracledb-dg/queries.yaml}
+  # State of the C##OBENHUB_* accounts from DBA_USERS: the primary only, a
+  # mounted standby cannot read that view.
+  sql_query/obenhub-oracledb-dg-account:
+    driver: oracle
+    max_open_conn: 3
+    datasource: "oracle://${env:OBENHUB_ORACLE_DG_USER}:${env:OBENHUB_ORACLE_DG_PASSWORD}@${env:OBENHUB_ORACLE_HOST}:${env:OBENHUB_ORACLE_PORT}/${env:OBENHUB_ORACLE_SERVICE}?DBA%20PRIVILEGE=SYSDG"
+    collection_interval: 15s
+    queries: ${file:/etc/otelcol-contrib/packs/oracledb-dg/queries-primary.yaml}
+  # tcpcheck.status is 1 when the connect succeeded, else 0; the dialer timeout
+  # stays under the interval. A connect only, no login, no pool.
+  tcp_check/obenhub-oracledb-dg:
+    collection_interval: 15s
+    targets:
+      - endpoint: ${env:OBENHUB_ORACLE_HOST}:${env:OBENHUB_ORACLE_PORT}
+        dialer:
+          timeout: 5s
+  # An alert log entry is an ISO 8601 timestamp line followed by one or more
+  # message lines. The recombine, timestamp and ORA- code operators and the
+  # severity statements are from the alert log receiver of the owner's
+  # predecessor dbsight (collector/oracle.yaml at ad450d7, Apache-2.0).
+  file_log/obenhub-oracledb-dg-alert:
+    include: ["${env:OBENHUB_ORACLE_ALERT_LOG}"]
+    storage: file_storage/obenhub
+    # assumption: history is not wanted, only entries written after the
+    # Collector starts
+    start_at: end
+    include_file_path: true
+    include_file_name: false
+    operators:
+      - type: recombine
+        combine_field: body
+        combine_with: "\n"
+        is_first_entry: body matches "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}"
+        # the newest entry waits for the next timestamp line, at most this long
+        force_flush_period: 2s
+        source_identifier: attributes["log.file.path"]
+      - type: regex_parser
+        regex: '^(?P<alert_time>\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2}))\n?(?P<message>(?s).*)$'
+        on_error: send_quiet
+        timestamp:
+          parse_from: attributes.alert_time
+          layout_type: gotime
+          layout: '2006-01-02T15:04:05.999999999Z07:00'
+      - type: move
+        from: attributes.message
+        to: body
+        on_error: send_quiet
+      - type: remove
+        field: attributes.alert_time
+        on_error: send_quiet
+      # Number of the first ORA- code of the entry. Live alert logs write some
+      # codes unpadded (ORA-3136) and some padded (ORA-00313), so one to five
+      # digits match and transform/obenhub-oracledb-dg-alert pads to five.
+      - type: regex_parser
+        if: body matches "\\bORA-\\d{1,5}\\b"
+        regex: '\bORA-(?P<ora_number>\d{1,5})\b'
+
+processors:
+  memory_limiter/obenhub:
+    check_interval: 1s
+    limit_mib: 256
+  batch/obenhub: {}
+  # db.response.status_code is ORA- plus the number padded to five digits.
+  # Assumption: that is the fitting semantic-conventions name; not checked
+  # against the registry. An entry without a code is INFO, with a code ERROR,
+  # except the codes that report a client or application event (WARN).
+  # Statements copied from dbsight collector/oracle.yaml at ad450d7 (Apache-2.0).
+  transform/obenhub-oracledb-dg-alert:
+    error_mode: ignore
+    log_statements:
+      - context: log
+        statements:
+          - set(log.attributes["db.response.status_code"], Format("ORA-%05d", [Int(log.attributes["ora_number"])])) where log.attributes["ora_number"] != nil
+          - delete_key(log.attributes, "ora_number")
+          - set(log.severity_number, SEVERITY_NUMBER_ERROR) where log.attributes["db.response.status_code"] != nil
+          - set(log.severity_text, "ERROR") where log.attributes["db.response.status_code"] != nil
+          - set(log.severity_number, SEVERITY_NUMBER_WARN) where IsMatch(log.attributes["db.response.status_code"], "^ORA-(00060|00028|01013|02396|03136)$")
+          - set(log.severity_text, "WARN") where IsMatch(log.attributes["db.response.status_code"], "^ORA-(00060|00028|01013|02396|03136)$")
+          - set(log.severity_number, SEVERITY_NUMBER_INFO) where log.attributes["db.response.status_code"] == nil
+          - set(log.severity_text, "INFO") where log.attributes["db.response.status_code"] == nil
+  # host.name from the OS; override false keeps the journal's own host.name
+  resource_detection/obenhub-oracledb-dg:
+    detectors: [system]
+    system:
+      hostname_sources: [os]
+    override: false
+  # server.address is the host a receiver connects to, not a role: roles move
+  # and are read from the oracledb.database.primary metric.
+  resource/obenhub-oracledb-dg:
+    attributes:
+      - {key: service.namespace, value: "${env:OBENHUB_SERVICE_NAMESPACE}", action: upsert}
+      - {key: service.name, value: oracledb, action: upsert}
+      - {key: service.instance.id, value: "${env:OBENHUB_ORACLE_DB_UNIQUE_NAME}", action: upsert}
+      - {key: server.address, value: "${env:OBENHUB_ORACLE_HOST}", action: upsert}
+      - {key: server.port, value: "${env:OBENHUB_ORACLE_PORT}", action: upsert}
+      - {key: db.system.name, value: oracle.db, action: upsert}
+      - {key: obenhub.cluster.name, value: "${env:OBENHUB_CLUSTER_NAME}", action: upsert}
+  # As above, plus oracledb.database.unique_name, the attribute the pack uses
+  # for the same database; service.instance.id equals it.
+  resource/obenhub-oracledb-dg-alert:
+    attributes:
+      - {key: service.namespace, value: "${env:OBENHUB_SERVICE_NAMESPACE}", action: upsert}
+      - {key: service.name, value: oracledb, action: upsert}
+      - {key: service.instance.id, value: "${env:OBENHUB_ORACLE_DB_UNIQUE_NAME}", action: upsert}
+      - {key: oracledb.database.unique_name, value: "${env:OBENHUB_ORACLE_DB_UNIQUE_NAME}", action: upsert}
+      - {key: server.address, value: "${env:OBENHUB_ORACLE_HOST}", action: upsert}
+      - {key: server.port, value: "${env:OBENHUB_ORACLE_PORT}", action: upsert}
+      - {key: db.system.name, value: oracle.db, action: upsert}
+      - {key: obenhub.cluster.name, value: "${env:OBENHUB_CLUSTER_NAME}", action: upsert}
+
+service:
+  pipelines:
+    metrics/obenhub-oracledb-dg:
+      receivers: [oracledb/obenhub-oracledb-dg, sql_query/obenhub-oracledb-dg, sql_query/obenhub-oracledb-dg-account, tcp_check/obenhub-oracledb-dg]
+      processors: [memory_limiter/obenhub, resource/obenhub-oracledb-dg, batch/obenhub]
+      exporters: [otlp/obenhub]
+    logs/obenhub-oracledb-dg-alert:
+      receivers: [file_log/obenhub-oracledb-dg-alert]
+      processors: [memory_limiter/obenhub, transform/obenhub-oracledb-dg-alert, resource_detection/obenhub-oracledb-dg, resource/obenhub-oracledb-dg-alert, batch/obenhub]
+      exporters: [otlp/obenhub]

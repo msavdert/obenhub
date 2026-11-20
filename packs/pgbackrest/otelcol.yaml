@@ -1,0 +1,40 @@
+# Collector fragment of the pgBackRest pack: the generic prometheus receiver
+# scraping woblerr/pgbackrest_exporter (ADR 0007), keeping only the series the
+# pack's alerts read, and the identity of one exporter. Variables: README.md,
+# "Collector fragment". Base: ../otelcol-base.yaml.
+# The exporter refreshes its data every 30 s (--collect.interval), so scraping
+# faster gains nothing.
+receivers:
+  prometheus/obenhub-pgbackrest:
+    config:
+      scrape_configs:
+        - job_name: pgbackrest
+          scrape_interval: 30s
+          scrape_timeout: 10s
+          static_configs:
+            - targets: ['${env:OBENHUB_PGBACKREST_HOST}:${env:OBENHUB_PGBACKREST_PORT}']
+          metric_relabel_configs:
+            - source_labels: [__name__]
+              regex: 'up|pgbackrest_(backup_since_last_completion_seconds|backup_last_error_status|stanza_status|repo_status|exporter_status|version_info)'
+              action: keep
+
+processors:
+  memory_limiter/obenhub:
+    check_interval: 1s
+    limit_mib: 256
+  batch/obenhub: {}
+  resource/obenhub-pgbackrest:
+    attributes:
+      - {key: service.namespace, value: "${env:OBENHUB_SERVICE_NAMESPACE}", action: upsert}
+      - {key: service.name, value: pgbackrest, action: upsert}
+      - {key: service.instance.id, value: "${env:OBENHUB_PGBACKREST_INSTANCE_ID}", action: upsert}
+      - {key: server.address, value: "${env:OBENHUB_PGBACKREST_HOST}", action: upsert}
+      - {key: server.port, value: "${env:OBENHUB_PGBACKREST_PORT}", action: upsert}
+      - {key: obenhub.cluster.name, value: "${env:OBENHUB_CLUSTER_NAME}", action: upsert}
+
+service:
+  pipelines:
+    metrics/obenhub-pgbackrest:
+      receivers: [prometheus/obenhub-pgbackrest]
+      processors: [memory_limiter/obenhub, resource/obenhub-pgbackrest, batch/obenhub]
+      exporters: [otlp/obenhub]

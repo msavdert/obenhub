@@ -1,0 +1,35 @@
+# The base a pack's Collector fragment (packs/<pack>/otelcol.yaml) expects. It is
+# what an installer provides around the fragments, and what lint:otelcol merges
+# with each fragment to validate it (`otelcol-contrib validate --config=<base>
+# --config=<fragment>`). A fragment adds receivers, processors and pipelines
+# named `*obenhub-<pack>` (maps merge by key); it never touches
+# `service.extensions`, because a list replaces the base's.
+#   exporter otlp/obenhub        every fragment pipeline exports here; point it at
+#                                the backend or the gateway of the installation
+#   extension file_storage/obenhub  checkpoint store of file_log and journald
+#                                receivers (storage: file_storage/obenhub)
+#   extension k8s_observer/obenhub  pod observer of the receiver_creator
+#                                receivers of the cnpg pack
+# The nop pipeline keeps a fragment that has no pipeline of its own (collector)
+# valid; an installer does not need it.
+extensions:
+  file_storage/obenhub:
+    directory: ${env:OBENHUB_STORAGE_DIR}
+    create_directory: true
+  k8s_observer/obenhub:
+    auth_type: serviceAccount
+    observe_pods: true
+
+receivers:
+  nop: {}
+
+exporters:
+  otlp/obenhub:
+    endpoint: ${env:OBENHUB_GATEWAY_ENDPOINT}
+
+service:
+  extensions: [file_storage/obenhub, k8s_observer/obenhub]
+  pipelines:
+    metrics/obenhub-base:
+      receivers: [nop]
+      exporters: [otlp/obenhub]

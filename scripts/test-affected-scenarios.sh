@@ -85,7 +85,7 @@ echo 'groups: []' >packs/u/rules.yml
 printf 'groups:\n  - name: lg\n    interval: 15s\n    rules:\n      - alert: LabAlert\n        expr: 1\n' >lab/x/vmalert/rules/r.yml
 echo 'groups: []' >lab/x/mon/vmalert/inventory.yml
 for f in packs/p/tests/t.yml lab/x/vmalert/tests/t.yml lab/x/mon/vmalert/tests/t.yml \
-  packs/p/dashboards/d.json \
+  packs/p/dashboards/d.json packs/p/otelcol.yaml packs/otelcol-base.yaml \
   lab/x/README.md lab/x/results/runs.jsonl lab/other/f lab/scenarios/guard.sh lab/mon/alertmanager.yml; do
   echo 1 >"$f"
 done
@@ -142,6 +142,8 @@ case_ "rule unit test of a pack" - "chg packs/p/tests/t.yml"
 case_ "rule unit test of the lab" - "chg lab/x/vmalert/tests/t.yml"
 case_ "rule unit test under mon" - "chg lab/x/mon/vmalert/tests/t.yml"
 case_ "lab dashboard" PANELS "chg lab/x/grafana/dashboards/d.json"
+case_ "pack Collector fragment, pack used" - "chg packs/p/otelcol.yaml"
+case_ "pack Collector base" - "chg packs/otelcol-base.yaml"
 case_ "pack dashboard, pack used" PANELS "chg packs/p/dashboards/d.json"
 case_ "pack dashboard, pack not used" - "chg packs/q/dashboards/d.json"
 case_ "pack mounted as a directory" ALL "chg packs/p/rules.yml"

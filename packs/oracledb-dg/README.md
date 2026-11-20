@@ -62,3 +62,25 @@ queries run at 60 s and are read as instant values
 collections of its own source. `OracleCollectionIntervalTooLong` fires when
 the samples of `oracledb.collection.heartbeat` (the 15 s `sql_query`
 receiver) are on average more than 20 s apart.
+
+## Collector fragment
+
+`otelcol.yaml` is the Collector fragment of this pack: receivers, processors and the pipelines named `*/obenhub-oracledb-dg*`, exporting to `otlp/obenhub`. It needs the base in [`../otelcol-base.yaml`](../otelcol-base.yaml) (exporter and extensions) and the files of this pack at `/etc/otelcol-contrib/packs/oracledb-dg/`. The lab Collector configurations stay hand-written; `mise run lint:otelcol` validates the fragment and fails when a lab block differs from it in more than endpoints, credentials, TLS and identity ([ADR 0005](../../docs/adr/0005-lab-collection-topology-and-packs.md) decision 3).
+
+One database per Collector process; the alert log is read on the database VM, the other receivers may run elsewhere.
+
+Variables:
+
+| Variable | Meaning | Example |
+| --- | --- | --- |
+| `OBENHUB_CLUSTER_NAME` | obenhub.cluster.name, unique within the backend (ADR 0006 decision 7) | `pgha` |
+| `OBENHUB_ORACLE_ALERT_LOG` | absolute path of the instance alert log | `/u01/app/oracle/diag/rdbms/cdb19/CDB19/trace/alert_CDB19.log` |
+| `OBENHUB_ORACLE_DB_UNIQUE_NAME` | db_unique_name; service.instance.id | `CDB19` |
+| `OBENHUB_ORACLE_DG_PASSWORD` | its password |  |
+| `OBENHUB_ORACLE_DG_USER` | account of the sql_query receivers, percent-encoded for the URL | `C%23%23OBENHUB_DG` |
+| `OBENHUB_ORACLE_HOST` | listener host; also server.address | `ora-au-lab.lab.local` |
+| `OBENHUB_ORACLE_MON_PASSWORD` | its password |  |
+| `OBENHUB_ORACLE_MON_USER` | account of the oracledb receiver | `C##OBENHUB_MON` |
+| `OBENHUB_ORACLE_PORT` | listener port; also server.port | `1521` |
+| `OBENHUB_ORACLE_SERVICE` | service name the receivers connect to | `CDB19` |
+| `OBENHUB_SERVICE_NAMESPACE` | service.namespace of every series | `obenhub-lab` |

@@ -1,0 +1,66 @@
+# Collector fragment of the host pack: operating-system metrics (hostmetrics,
+# scrapers and the optional metrics the pack's alerts read), the journal and
+# the identity of one machine. Variables: README.md, "Collector fragment".
+# Base: ../otelcol-base.yaml. Host series do not carry obenhub.cluster.name
+# (ADR 0006 decision 7).
+receivers:
+  host_metrics/obenhub-host:
+    collection_interval: 15s
+    scrapers:
+      cpu: {}
+      load: {}
+      # system.linux.memory.available (MemAvailable) and system.memory.limit
+      # (MemTotal) are off by default; HostMemoryAvailableLow reads them.
+      memory:
+        metrics:
+          system.linux.memory.available:
+            enabled: true
+          system.memory.limit:
+            enabled: true
+      paging: {}
+      filesystem: {}
+      disk: {}
+      network: {}
+      processes: {}
+      # system.uptime (gauge, seconds), read by HostRebooted
+      system: {}
+
+  # Multiple filter options are combined with AND (journaldreceiver README), so
+  # units and the kernel ring buffer are two receivers. The Collector's user
+  # needs the systemd-journal group.
+  journald/obenhub-host-units:
+    units: ${env:OBENHUB_HOST_JOURNAL_UNITS}
+    storage: file_storage/obenhub
+    convert_to_semantic_conventions: true
+  journald/obenhub-host-kernel:
+    dmesg: true
+    storage: file_storage/obenhub
+    convert_to_semantic_conventions: true
+
+processors:
+  memory_limiter/obenhub:
+    check_interval: 1s
+    limit_mib: 256
+  batch/obenhub: {}
+  resource/obenhub-host:
+    attributes:
+      - {key: service.namespace, value: "${env:OBENHUB_SERVICE_NAMESPACE}", action: upsert}
+      - {key: service.name, value: host, action: upsert}
+      - {key: service.instance.id, value: "${env:OBENHUB_HOST_INSTANCE_ID}", action: upsert}
+  # host.name from the OS; override false keeps the journal's own host.name
+  resource_detection/obenhub-host:
+    detectors: [system]
+    system:
+      hostname_sources: [os]
+    override: false
+
+service:
+  pipelines:
+    metrics/obenhub-host:
+      receivers: [host_metrics/obenhub-host]
+      processors: [memory_limiter/obenhub, resource_detection/obenhub-host, resource/obenhub-host, batch/obenhub]
+      exporters: [otlp/obenhub]
+    logs/obenhub-host:
+      receivers: [journald/obenhub-host-units, journald/obenhub-host-kernel]
+      processors: [memory_limiter/obenhub, resource_detection/obenhub-host, resource/obenhub-host, batch/obenhub]
+      exporters: [otlp/obenhub]

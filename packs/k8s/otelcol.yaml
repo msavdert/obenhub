@@ -1,0 +1,50 @@
+# Collector fragment of the Kubernetes pack: kubelet metrics per node and
+# cluster-wide object state. Variables: README.md, "Collector fragment".
+# Base: ../otelcol-base.yaml.
+# metrics/obenhub-k8s-node runs on every node (a DaemonSet); metrics/obenhub-
+# k8s-cluster must run in exactly one replica, or every series is duplicated.
+# Kubernetes node series do not carry obenhub.cluster.name (ADR 0006 decision 7).
+# Assumption: the values of kubeletstats and k8s_cluster other than
+# insecure_skip_verify are the defaults the opentelemetry-collector chart's
+# presets render (chart 0.178.3); the chart was not rendered when this was
+# written, so they are unverified. The lab sets only insecure_skip_verify.
+receivers:
+  kubeletstats/obenhub-k8s:
+    collection_interval: 20s
+    auth_type: serviceAccount
+    endpoint: ${env:OBENHUB_K8S_NODE_NAME}:10250
+    # a kind kubelet serves a self-signed certificate
+    insecure_skip_verify: ${env:OBENHUB_K8S_KUBELET_INSECURE}
+  k8s_cluster/obenhub-k8s:
+    collection_interval: 10s
+    auth_type: serviceAccount
+
+processors:
+  memory_limiter/obenhub:
+    check_interval: 1s
+    limit_mib: 256
+  batch/obenhub: {}
+  k8s_attributes/obenhub-k8s:
+    passthrough: false
+    extract:
+      metadata:
+        - k8s.namespace.name
+        - k8s.pod.name
+        - k8s.pod.uid
+        - k8s.node.name
+        - k8s.deployment.name
+        - k8s.statefulset.name
+        - k8s.daemonset.name
+        - k8s.job.name
+        - k8s.cronjob.name
+
+service:
+  pipelines:
+    metrics/obenhub-k8s-node:
+      receivers: [kubeletstats/obenhub-k8s]
+      processors: [memory_limiter/obenhub, k8s_attributes/obenhub-k8s, batch/obenhub]
+      exporters: [otlp/obenhub]
+    metrics/obenhub-k8s-cluster:
+      receivers: [k8s_cluster/obenhub-k8s]
+      processors: [memory_limiter/obenhub, k8s_attributes/obenhub-k8s, batch/obenhub]
+      exporters: [otlp/obenhub]
