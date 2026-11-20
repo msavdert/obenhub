@@ -45,3 +45,14 @@ groups:
         expr: label_set(vector(93600), "oracledb.backup.kind", "database")
       - record: obenhub.backup_age.limit
         expr: label_set(vector(18000), "oracledb.backup.kind", "archivelog")
+  # Oracle Data Guard thresholds: lab values, chosen so the scenario fires within its limit;
+  # the production default is in the pack rule (packs/oracledb-dg/rules.yml).
+  - name: oracledb-dg-parameters
+    interval: 15s
+    rules:
+      - record: obenhub.oracledb.standby_lag.limit
+        expr: vector(60)
+      - record: obenhub.oracledb.standby_data_age.limit
+        expr: vector(60)
+      - record: obenhub.oracledb.lock_wait_age.limit
+        expr: vector(30)

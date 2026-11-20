@@ -24,7 +24,7 @@ form of the names.
 `rules.yml` holds the `pgbouncer` group (`PgbouncerTargetAbsent`,
 `PgbouncerClientsWaiting`, `PgbouncerPoolSaturated`,
 `PgbouncerClientSaturation` in two tiers, `PgbouncerWaitTime`), unit-tested in
-`tests/` (`mise run lab:pgbouncer:rules-test`). Thresholds are lab values.
+`tests/` (`mise run lab:pgbouncer:rules-test`).
 `PgbouncerTargetAbsent` reads `obenhub.expected_target` from the lab's
 inventory (`lab/slice1/vmalert/rules/postgresql.yml`) and the Collector's own
 `otelcol_process_uptime` (the `collector` pack's prerequisite), matched on the
@@ -38,6 +38,10 @@ collections (`[75s:15s]` and `[75s]` in the saturation and wait rules).
 `PgbouncerCollectionIntervalTooLong` fires when the samples of the heartbeat
 row (`pgbouncer.list.item.count`, list `databases`) are on average more than
 20 s apart; widen the windows before collecting slower.
+
+## Thresholds
+
+Every policy threshold is a production default in the rule that a lab can override with a recorded series; the series, defaults and units are in the generated table [pgbouncer-pack-alerts.md#thresholds](../../docs/reference/pgbouncer-pack-alerts.md#thresholds).
 
 ## Collector fragment
 

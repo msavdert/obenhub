@@ -38,6 +38,9 @@
 # lab/slice1/vmalert/rules/pgbackrest.yml). Without that series the default of
 # 93600 s (26 h: a daily backup plus 2 h) applies. The default is an
 # assumption for a daily backup schedule, not a measured value.
+# Units of the limit series, read by scripts/gen-pack-alerts.py for
+# docs/reference/pgbackrest-pack-alerts.md:
+# unit obenhub.backup_age.limit s
 groups:
   - name: pgbackrest
     interval: 15s
@@ -63,7 +66,7 @@ groups:
         expr: |
           pgbackrest_backup_since_last_completion_seconds{backup_type="incr"}
             > on() group_left()
-          (obenhub.backup_age.limit or vector(93600))
+          (obenhub.backup_age.limit or on() vector(93600))
         for: 1m
         labels:
           severity: warning

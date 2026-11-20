@@ -12,7 +12,9 @@
 # below apply, sized from the lab schedule (lab/oracle/README.md, Backups): a
 # daily database backup plus 2 h (26 h = 93600 s), and an archived log backup
 # every 4 h plus 1 h (5 h = 18000 s). They are assumptions for that schedule,
-# not measured values.
+# not measured values. Units of the limit series, read by
+# scripts/gen-pack-alerts.py for docs/reference/oracledb-backup-pack-alerts.md:
+# unit obenhub.backup_age.limit s
 # Scenarios (lab/oracle/scenarios): backup-failed has delivered OracleBackupFailed
 # in trial runs; backup-stale is written for OracleBackupStale but only its
 # trial mode (no alert) has run, the real path has not; archiver-stuck makes

@@ -2,6 +2,7 @@
 # PostgresSnapshotHeldTooLong, PostgresXminHorizonHeld and PostgresConnectionSaturation.
 rule_files:
   - ../rules.yml
+  - lab-values/postgresql.yaml
 evaluation_interval: 15s
 
 tests:
@@ -26,8 +27,8 @@ tests:
               severity: warning
               service.instance.id: pg-primary
             exp_annotations:
-              summary: 'A snapshot on pg-primary is 2m 10s old (lab threshold)'
-              description: "A snapshot on the instance is older than 120 seconds for 30 seconds (lab threshold), which holds back the xmin horizon. Look for the oldest transaction in pg_stat_activity by xact_start and backend_xmin."
+              summary: 'A snapshot on pg-primary is 2m 10s old'
+              description: "A snapshot on the instance is older than the limit (1800 s unless the lab sets obenhub.postgresql.snapshot_age.limit) for 30 seconds, which holds back the xmin horizon. Look for the oldest transaction in pg_stat_activity by xact_start and backend_xmin."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgressnapshotheldtoolong
 
   - name: no snapshot data does not fire
@@ -66,8 +67,8 @@ tests:
               severity: warning
               service.instance.id: pg-primary
             exp_annotations:
-              summary: 'pg-primary client connections above 85% of capacity'
-              description: "Client connections are above 85 % of the connection limit (critical at 95 %), as the lowest value over the last 75 seconds. Count sessions in pg_stat_activity by state and application to find who holds them."
+              summary: 'pg-primary client connections above the warning limit of capacity (85% by default)'
+              description: "Client connections are above 85 % of the connection limit (critical at 95 %), unless the lab sets obenhub.postgresql.connection_saturation.limit per severity, as the lowest value over the last 75 seconds. Count sessions in pg_stat_activity by state and application to find who holds them."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgresconnectionsaturation
 
   - name: saturation at 80 percent or with a missing capacity series does not fire
@@ -119,32 +120,32 @@ tests:
               severity: critical
               service.instance.id: pg-crit
             exp_annotations:
-              summary: 'pg-crit client connections at or above 95% of capacity'
-              description: "Client connections are above 85 % of the connection limit (critical at 95 %), as the lowest value over the last 75 seconds. Count sessions in pg_stat_activity by state and application to find who holds them."
+              summary: 'pg-crit client connections at or above the critical limit of capacity (95% by default)'
+              description: "Client connections are above 85 % of the connection limit (critical at 95 %), unless the lab sets obenhub.postgresql.connection_saturation.limit per severity, as the lowest value over the last 75 seconds. Count sessions in pg_stat_activity by state and application to find who holds them."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgresconnectionsaturation
           - exp_labels:
               obenhub.cluster.name: slice1
               severity: critical
               service.instance.id: pg-edge
             exp_annotations:
-              summary: 'pg-edge client connections at or above 95% of capacity'
-              description: "Client connections are above 85 % of the connection limit (critical at 95 %), as the lowest value over the last 75 seconds. Count sessions in pg_stat_activity by state and application to find who holds them."
+              summary: 'pg-edge client connections at or above the critical limit of capacity (95% by default)'
+              description: "Client connections are above 85 % of the connection limit (critical at 95 %), unless the lab sets obenhub.postgresql.connection_saturation.limit per severity, as the lowest value over the last 75 seconds. Count sessions in pg_stat_activity by state and application to find who holds them."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgresconnectionsaturation
           - exp_labels:
               obenhub.cluster.name: slice1
               severity: warning
               service.instance.id: pg-esc
             exp_annotations:
-              summary: 'pg-esc client connections above 85% of capacity'
-              description: "Client connections are above 85 % of the connection limit (critical at 95 %), as the lowest value over the last 75 seconds. Count sessions in pg_stat_activity by state and application to find who holds them."
+              summary: 'pg-esc client connections above the warning limit of capacity (85% by default)'
+              description: "Client connections are above 85 % of the connection limit (critical at 95 %), unless the lab sets obenhub.postgresql.connection_saturation.limit per severity, as the lowest value over the last 75 seconds. Count sessions in pg_stat_activity by state and application to find who holds them."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgresconnectionsaturation
           - exp_labels:
               obenhub.cluster.name: slice1
               severity: warning
               service.instance.id: pg-warn
             exp_annotations:
-              summary: 'pg-warn client connections above 85% of capacity'
-              description: "Client connections are above 85 % of the connection limit (critical at 95 %), as the lowest value over the last 75 seconds. Count sessions in pg_stat_activity by state and application to find who holds them."
+              summary: 'pg-warn client connections above the warning limit of capacity (85% by default)'
+              description: "Client connections are above 85 % of the connection limit (critical at 95 %), unless the lab sets obenhub.postgresql.connection_saturation.limit per severity, as the lowest value over the last 75 seconds. Count sessions in pg_stat_activity by state and application to find who holds them."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgresconnectionsaturation
       # ... then the critical only (steady state)
       - eval_time: 5m
@@ -156,32 +157,32 @@ tests:
               severity: critical
               service.instance.id: pg-crit
             exp_annotations:
-              summary: 'pg-crit client connections at or above 95% of capacity'
-              description: "Client connections are above 85 % of the connection limit (critical at 95 %), as the lowest value over the last 75 seconds. Count sessions in pg_stat_activity by state and application to find who holds them."
+              summary: 'pg-crit client connections at or above the critical limit of capacity (95% by default)'
+              description: "Client connections are above 85 % of the connection limit (critical at 95 %), unless the lab sets obenhub.postgresql.connection_saturation.limit per severity, as the lowest value over the last 75 seconds. Count sessions in pg_stat_activity by state and application to find who holds them."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgresconnectionsaturation
           - exp_labels:
               obenhub.cluster.name: slice1
               severity: critical
               service.instance.id: pg-edge
             exp_annotations:
-              summary: 'pg-edge client connections at or above 95% of capacity'
-              description: "Client connections are above 85 % of the connection limit (critical at 95 %), as the lowest value over the last 75 seconds. Count sessions in pg_stat_activity by state and application to find who holds them."
+              summary: 'pg-edge client connections at or above the critical limit of capacity (95% by default)'
+              description: "Client connections are above 85 % of the connection limit (critical at 95 %), unless the lab sets obenhub.postgresql.connection_saturation.limit per severity, as the lowest value over the last 75 seconds. Count sessions in pg_stat_activity by state and application to find who holds them."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgresconnectionsaturation
           - exp_labels:
               obenhub.cluster.name: slice1
               severity: critical
               service.instance.id: pg-esc
             exp_annotations:
-              summary: 'pg-esc client connections at or above 95% of capacity'
-              description: "Client connections are above 85 % of the connection limit (critical at 95 %), as the lowest value over the last 75 seconds. Count sessions in pg_stat_activity by state and application to find who holds them."
+              summary: 'pg-esc client connections at or above the critical limit of capacity (95% by default)'
+              description: "Client connections are above 85 % of the connection limit (critical at 95 %), unless the lab sets obenhub.postgresql.connection_saturation.limit per severity, as the lowest value over the last 75 seconds. Count sessions in pg_stat_activity by state and application to find who holds them."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgresconnectionsaturation
           - exp_labels:
               obenhub.cluster.name: slice1
               severity: warning
               service.instance.id: pg-warn
             exp_annotations:
-              summary: 'pg-warn client connections above 85% of capacity'
-              description: "Client connections are above 85 % of the connection limit (critical at 95 %), as the lowest value over the last 75 seconds. Count sessions in pg_stat_activity by state and application to find who holds them."
+              summary: 'pg-warn client connections above the warning limit of capacity (85% by default)'
+              description: "Client connections are above 85 % of the connection limit (critical at 95 %), unless the lab sets obenhub.postgresql.connection_saturation.limit per severity, as the lowest value over the last 75 seconds. Count sessions in pg_stat_activity by state and application to find who holds them."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgresconnectionsaturation
 
   # The ratio is 0.98 from 3m15s; the critical needs five samples (the old 1m for) and appears at 4m15s, the warning is up until then.
@@ -202,8 +203,8 @@ tests:
               severity: warning
               service.instance.id: a
             exp_annotations:
-              summary: 'a client connections above 85% of capacity'
-              description: "Client connections are above 85 % of the connection limit (critical at 95 %), as the lowest value over the last 75 seconds. Count sessions in pg_stat_activity by state and application to find who holds them."
+              summary: 'a client connections above the warning limit of capacity (85% by default)'
+              description: "Client connections are above 85 % of the connection limit (critical at 95 %), unless the lab sets obenhub.postgresql.connection_saturation.limit per severity, as the lowest value over the last 75 seconds. Count sessions in pg_stat_activity by state and application to find who holds them."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgresconnectionsaturation
       - eval_time: 3m15s
         groupname: postgresql
@@ -214,8 +215,8 @@ tests:
               severity: warning
               service.instance.id: a
             exp_annotations:
-              summary: 'a client connections above 85% of capacity'
-              description: "Client connections are above 85 % of the connection limit (critical at 95 %), as the lowest value over the last 75 seconds. Count sessions in pg_stat_activity by state and application to find who holds them."
+              summary: 'a client connections above the warning limit of capacity (85% by default)'
+              description: "Client connections are above 85 % of the connection limit (critical at 95 %), unless the lab sets obenhub.postgresql.connection_saturation.limit per severity, as the lowest value over the last 75 seconds. Count sessions in pg_stat_activity by state and application to find who holds them."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgresconnectionsaturation
       - eval_time: 3m30s
         groupname: postgresql
@@ -226,8 +227,8 @@ tests:
               severity: warning
               service.instance.id: a
             exp_annotations:
-              summary: 'a client connections above 85% of capacity'
-              description: "Client connections are above 85 % of the connection limit (critical at 95 %), as the lowest value over the last 75 seconds. Count sessions in pg_stat_activity by state and application to find who holds them."
+              summary: 'a client connections above the warning limit of capacity (85% by default)'
+              description: "Client connections are above 85 % of the connection limit (critical at 95 %), unless the lab sets obenhub.postgresql.connection_saturation.limit per severity, as the lowest value over the last 75 seconds. Count sessions in pg_stat_activity by state and application to find who holds them."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgresconnectionsaturation
       - eval_time: 3m45s
         groupname: postgresql
@@ -238,8 +239,8 @@ tests:
               severity: warning
               service.instance.id: a
             exp_annotations:
-              summary: 'a client connections above 85% of capacity'
-              description: "Client connections are above 85 % of the connection limit (critical at 95 %), as the lowest value over the last 75 seconds. Count sessions in pg_stat_activity by state and application to find who holds them."
+              summary: 'a client connections above the warning limit of capacity (85% by default)'
+              description: "Client connections are above 85 % of the connection limit (critical at 95 %), unless the lab sets obenhub.postgresql.connection_saturation.limit per severity, as the lowest value over the last 75 seconds. Count sessions in pg_stat_activity by state and application to find who holds them."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgresconnectionsaturation
       - eval_time: 4m
         groupname: postgresql
@@ -250,8 +251,8 @@ tests:
               severity: warning
               service.instance.id: a
             exp_annotations:
-              summary: 'a client connections above 85% of capacity'
-              description: "Client connections are above 85 % of the connection limit (critical at 95 %), as the lowest value over the last 75 seconds. Count sessions in pg_stat_activity by state and application to find who holds them."
+              summary: 'a client connections above the warning limit of capacity (85% by default)'
+              description: "Client connections are above 85 % of the connection limit (critical at 95 %), unless the lab sets obenhub.postgresql.connection_saturation.limit per severity, as the lowest value over the last 75 seconds. Count sessions in pg_stat_activity by state and application to find who holds them."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgresconnectionsaturation
       - eval_time: 4m15s
         groupname: postgresql
@@ -262,8 +263,8 @@ tests:
               severity: critical
               service.instance.id: a
             exp_annotations:
-              summary: 'a client connections at or above 95% of capacity'
-              description: "Client connections are above 85 % of the connection limit (critical at 95 %), as the lowest value over the last 75 seconds. Count sessions in pg_stat_activity by state and application to find who holds them."
+              summary: 'a client connections at or above the critical limit of capacity (95% by default)'
+              description: "Client connections are above 85 % of the connection limit (critical at 95 %), unless the lab sets obenhub.postgresql.connection_saturation.limit per severity, as the lowest value over the last 75 seconds. Count sessions in pg_stat_activity by state and application to find who holds them."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgresconnectionsaturation
       - eval_time: 4m30s
         groupname: postgresql
@@ -274,8 +275,8 @@ tests:
               severity: critical
               service.instance.id: a
             exp_annotations:
-              summary: 'a client connections at or above 95% of capacity'
-              description: "Client connections are above 85 % of the connection limit (critical at 95 %), as the lowest value over the last 75 seconds. Count sessions in pg_stat_activity by state and application to find who holds them."
+              summary: 'a client connections at or above the critical limit of capacity (95% by default)'
+              description: "Client connections are above 85 % of the connection limit (critical at 95 %), unless the lab sets obenhub.postgresql.connection_saturation.limit per severity, as the lowest value over the last 75 seconds. Count sessions in pg_stat_activity by state and application to find who holds them."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgresconnectionsaturation
       - eval_time: 4m45s
         groupname: postgresql
@@ -286,8 +287,8 @@ tests:
               severity: critical
               service.instance.id: a
             exp_annotations:
-              summary: 'a client connections at or above 95% of capacity'
-              description: "Client connections are above 85 % of the connection limit (critical at 95 %), as the lowest value over the last 75 seconds. Count sessions in pg_stat_activity by state and application to find who holds them."
+              summary: 'a client connections at or above the critical limit of capacity (95% by default)'
+              description: "Client connections are above 85 % of the connection limit (critical at 95 %), unless the lab sets obenhub.postgresql.connection_saturation.limit per severity, as the lowest value over the last 75 seconds. Count sessions in pg_stat_activity by state and application to find who holds them."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgresconnectionsaturation
       - eval_time: 5m
         groupname: postgresql
@@ -298,8 +299,8 @@ tests:
               severity: critical
               service.instance.id: a
             exp_annotations:
-              summary: 'a client connections at or above 95% of capacity'
-              description: "Client connections are above 85 % of the connection limit (critical at 95 %), as the lowest value over the last 75 seconds. Count sessions in pg_stat_activity by state and application to find who holds them."
+              summary: 'a client connections at or above the critical limit of capacity (95% by default)'
+              description: "Client connections are above 85 % of the connection limit (critical at 95 %), unless the lab sets obenhub.postgresql.connection_saturation.limit per severity, as the lowest value over the last 75 seconds. Count sessions in pg_stat_activity by state and application to find who holds them."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgresconnectionsaturation
 
   - name: saturation tiers - de-escalation, the warning follows the critical at once
@@ -319,8 +320,8 @@ tests:
               severity: critical
               service.instance.id: a
             exp_annotations:
-              summary: 'a client connections at or above 95% of capacity'
-              description: "Client connections are above 85 % of the connection limit (critical at 95 %), as the lowest value over the last 75 seconds. Count sessions in pg_stat_activity by state and application to find who holds them."
+              summary: 'a client connections at or above the critical limit of capacity (95% by default)'
+              description: "Client connections are above 85 % of the connection limit (critical at 95 %), unless the lab sets obenhub.postgresql.connection_saturation.limit per severity, as the lowest value over the last 75 seconds. Count sessions in pg_stat_activity by state and application to find who holds them."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgresconnectionsaturation
       - eval_time: 4m45s
         groupname: postgresql
@@ -331,8 +332,8 @@ tests:
               severity: critical
               service.instance.id: a
             exp_annotations:
-              summary: 'a client connections at or above 95% of capacity'
-              description: "Client connections are above 85 % of the connection limit (critical at 95 %), as the lowest value over the last 75 seconds. Count sessions in pg_stat_activity by state and application to find who holds them."
+              summary: 'a client connections at or above the critical limit of capacity (95% by default)'
+              description: "Client connections are above 85 % of the connection limit (critical at 95 %), unless the lab sets obenhub.postgresql.connection_saturation.limit per severity, as the lowest value over the last 75 seconds. Count sessions in pg_stat_activity by state and application to find who holds them."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgresconnectionsaturation
       - eval_time: 5m
         groupname: postgresql
@@ -343,8 +344,8 @@ tests:
               severity: critical
               service.instance.id: a
             exp_annotations:
-              summary: 'a client connections at or above 95% of capacity'
-              description: "Client connections are above 85 % of the connection limit (critical at 95 %), as the lowest value over the last 75 seconds. Count sessions in pg_stat_activity by state and application to find who holds them."
+              summary: 'a client connections at or above the critical limit of capacity (95% by default)'
+              description: "Client connections are above 85 % of the connection limit (critical at 95 %), unless the lab sets obenhub.postgresql.connection_saturation.limit per severity, as the lowest value over the last 75 seconds. Count sessions in pg_stat_activity by state and application to find who holds them."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgresconnectionsaturation
       - eval_time: 5m15s
         groupname: postgresql
@@ -355,8 +356,8 @@ tests:
               severity: warning
               service.instance.id: a
             exp_annotations:
-              summary: 'a client connections above 85% of capacity'
-              description: "Client connections are above 85 % of the connection limit (critical at 95 %), as the lowest value over the last 75 seconds. Count sessions in pg_stat_activity by state and application to find who holds them."
+              summary: 'a client connections above the warning limit of capacity (85% by default)'
+              description: "Client connections are above 85 % of the connection limit (critical at 95 %), unless the lab sets obenhub.postgresql.connection_saturation.limit per severity, as the lowest value over the last 75 seconds. Count sessions in pg_stat_activity by state and application to find who holds them."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgresconnectionsaturation
       - eval_time: 5m30s
         groupname: postgresql
@@ -367,8 +368,8 @@ tests:
               severity: warning
               service.instance.id: a
             exp_annotations:
-              summary: 'a client connections above 85% of capacity'
-              description: "Client connections are above 85 % of the connection limit (critical at 95 %), as the lowest value over the last 75 seconds. Count sessions in pg_stat_activity by state and application to find who holds them."
+              summary: 'a client connections above the warning limit of capacity (85% by default)'
+              description: "Client connections are above 85 % of the connection limit (critical at 95 %), unless the lab sets obenhub.postgresql.connection_saturation.limit per severity, as the lowest value over the last 75 seconds. Count sessions in pg_stat_activity by state and application to find who holds them."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgresconnectionsaturation
       - eval_time: 5m45s
         groupname: postgresql
@@ -379,8 +380,8 @@ tests:
               severity: warning
               service.instance.id: a
             exp_annotations:
-              summary: 'a client connections above 85% of capacity'
-              description: "Client connections are above 85 % of the connection limit (critical at 95 %), as the lowest value over the last 75 seconds. Count sessions in pg_stat_activity by state and application to find who holds them."
+              summary: 'a client connections above the warning limit of capacity (85% by default)'
+              description: "Client connections are above 85 % of the connection limit (critical at 95 %), unless the lab sets obenhub.postgresql.connection_saturation.limit per severity, as the lowest value over the last 75 seconds. Count sessions in pg_stat_activity by state and application to find who holds them."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgresconnectionsaturation
       - eval_time: 6m
         groupname: postgresql
@@ -391,8 +392,8 @@ tests:
               severity: warning
               service.instance.id: a
             exp_annotations:
-              summary: 'a client connections above 85% of capacity'
-              description: "Client connections are above 85 % of the connection limit (critical at 95 %), as the lowest value over the last 75 seconds. Count sessions in pg_stat_activity by state and application to find who holds them."
+              summary: 'a client connections above the warning limit of capacity (85% by default)'
+              description: "Client connections are above 85 % of the connection limit (critical at 95 %), unless the lab sets obenhub.postgresql.connection_saturation.limit per severity, as the lowest value over the last 75 seconds. Count sessions in pg_stat_activity by state and application to find who holds them."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgresconnectionsaturation
       - eval_time: 6m15s
         groupname: postgresql
@@ -403,8 +404,8 @@ tests:
               severity: warning
               service.instance.id: a
             exp_annotations:
-              summary: 'a client connections above 85% of capacity'
-              description: "Client connections are above 85 % of the connection limit (critical at 95 %), as the lowest value over the last 75 seconds. Count sessions in pg_stat_activity by state and application to find who holds them."
+              summary: 'a client connections above the warning limit of capacity (85% by default)'
+              description: "Client connections are above 85 % of the connection limit (critical at 95 %), unless the lab sets obenhub.postgresql.connection_saturation.limit per severity, as the lowest value over the last 75 seconds. Count sessions in pg_stat_activity by state and application to find who holds them."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgresconnectionsaturation
 
   - name: saturation tiers - a single dip while critical shows the warning for the window, then the critical returns
@@ -424,8 +425,8 @@ tests:
               severity: critical
               service.instance.id: a
             exp_annotations:
-              summary: 'a client connections at or above 95% of capacity'
-              description: "Client connections are above 85 % of the connection limit (critical at 95 %), as the lowest value over the last 75 seconds. Count sessions in pg_stat_activity by state and application to find who holds them."
+              summary: 'a client connections at or above the critical limit of capacity (95% by default)'
+              description: "Client connections are above 85 % of the connection limit (critical at 95 %), unless the lab sets obenhub.postgresql.connection_saturation.limit per severity, as the lowest value over the last 75 seconds. Count sessions in pg_stat_activity by state and application to find who holds them."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgresconnectionsaturation
       - eval_time: 4m45s
         groupname: postgresql
@@ -436,8 +437,8 @@ tests:
               severity: critical
               service.instance.id: a
             exp_annotations:
-              summary: 'a client connections at or above 95% of capacity'
-              description: "Client connections are above 85 % of the connection limit (critical at 95 %), as the lowest value over the last 75 seconds. Count sessions in pg_stat_activity by state and application to find who holds them."
+              summary: 'a client connections at or above the critical limit of capacity (95% by default)'
+              description: "Client connections are above 85 % of the connection limit (critical at 95 %), unless the lab sets obenhub.postgresql.connection_saturation.limit per severity, as the lowest value over the last 75 seconds. Count sessions in pg_stat_activity by state and application to find who holds them."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgresconnectionsaturation
       - eval_time: 5m
         groupname: postgresql
@@ -448,8 +449,8 @@ tests:
               severity: critical
               service.instance.id: a
             exp_annotations:
-              summary: 'a client connections at or above 95% of capacity'
-              description: "Client connections are above 85 % of the connection limit (critical at 95 %), as the lowest value over the last 75 seconds. Count sessions in pg_stat_activity by state and application to find who holds them."
+              summary: 'a client connections at or above the critical limit of capacity (95% by default)'
+              description: "Client connections are above 85 % of the connection limit (critical at 95 %), unless the lab sets obenhub.postgresql.connection_saturation.limit per severity, as the lowest value over the last 75 seconds. Count sessions in pg_stat_activity by state and application to find who holds them."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgresconnectionsaturation
       - eval_time: 5m15s
         groupname: postgresql
@@ -460,8 +461,8 @@ tests:
               severity: warning
               service.instance.id: a
             exp_annotations:
-              summary: 'a client connections above 85% of capacity'
-              description: "Client connections are above 85 % of the connection limit (critical at 95 %), as the lowest value over the last 75 seconds. Count sessions in pg_stat_activity by state and application to find who holds them."
+              summary: 'a client connections above the warning limit of capacity (85% by default)'
+              description: "Client connections are above 85 % of the connection limit (critical at 95 %), unless the lab sets obenhub.postgresql.connection_saturation.limit per severity, as the lowest value over the last 75 seconds. Count sessions in pg_stat_activity by state and application to find who holds them."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgresconnectionsaturation
       - eval_time: 5m30s
         groupname: postgresql
@@ -472,8 +473,8 @@ tests:
               severity: warning
               service.instance.id: a
             exp_annotations:
-              summary: 'a client connections above 85% of capacity'
-              description: "Client connections are above 85 % of the connection limit (critical at 95 %), as the lowest value over the last 75 seconds. Count sessions in pg_stat_activity by state and application to find who holds them."
+              summary: 'a client connections above the warning limit of capacity (85% by default)'
+              description: "Client connections are above 85 % of the connection limit (critical at 95 %), unless the lab sets obenhub.postgresql.connection_saturation.limit per severity, as the lowest value over the last 75 seconds. Count sessions in pg_stat_activity by state and application to find who holds them."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgresconnectionsaturation
       - eval_time: 5m45s
         groupname: postgresql
@@ -484,8 +485,8 @@ tests:
               severity: warning
               service.instance.id: a
             exp_annotations:
-              summary: 'a client connections above 85% of capacity'
-              description: "Client connections are above 85 % of the connection limit (critical at 95 %), as the lowest value over the last 75 seconds. Count sessions in pg_stat_activity by state and application to find who holds them."
+              summary: 'a client connections above the warning limit of capacity (85% by default)'
+              description: "Client connections are above 85 % of the connection limit (critical at 95 %), unless the lab sets obenhub.postgresql.connection_saturation.limit per severity, as the lowest value over the last 75 seconds. Count sessions in pg_stat_activity by state and application to find who holds them."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgresconnectionsaturation
       - eval_time: 6m
         groupname: postgresql
@@ -496,8 +497,8 @@ tests:
               severity: warning
               service.instance.id: a
             exp_annotations:
-              summary: 'a client connections above 85% of capacity'
-              description: "Client connections are above 85 % of the connection limit (critical at 95 %), as the lowest value over the last 75 seconds. Count sessions in pg_stat_activity by state and application to find who holds them."
+              summary: 'a client connections above the warning limit of capacity (85% by default)'
+              description: "Client connections are above 85 % of the connection limit (critical at 95 %), unless the lab sets obenhub.postgresql.connection_saturation.limit per severity, as the lowest value over the last 75 seconds. Count sessions in pg_stat_activity by state and application to find who holds them."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgresconnectionsaturation
       - eval_time: 6m15s
         groupname: postgresql
@@ -508,8 +509,8 @@ tests:
               severity: warning
               service.instance.id: a
             exp_annotations:
-              summary: 'a client connections above 85% of capacity'
-              description: "Client connections are above 85 % of the connection limit (critical at 95 %), as the lowest value over the last 75 seconds. Count sessions in pg_stat_activity by state and application to find who holds them."
+              summary: 'a client connections above the warning limit of capacity (85% by default)'
+              description: "Client connections are above 85 % of the connection limit (critical at 95 %), unless the lab sets obenhub.postgresql.connection_saturation.limit per severity, as the lowest value over the last 75 seconds. Count sessions in pg_stat_activity by state and application to find who holds them."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgresconnectionsaturation
       - eval_time: 6m30s
         groupname: postgresql
@@ -520,8 +521,8 @@ tests:
               severity: critical
               service.instance.id: a
             exp_annotations:
-              summary: 'a client connections at or above 95% of capacity'
-              description: "Client connections are above 85 % of the connection limit (critical at 95 %), as the lowest value over the last 75 seconds. Count sessions in pg_stat_activity by state and application to find who holds them."
+              summary: 'a client connections at or above the critical limit of capacity (95% by default)'
+              description: "Client connections are above 85 % of the connection limit (critical at 95 %), unless the lab sets obenhub.postgresql.connection_saturation.limit per severity, as the lowest value over the last 75 seconds. Count sessions in pg_stat_activity by state and application to find who holds them."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgresconnectionsaturation
       - eval_time: 6m45s
         groupname: postgresql
@@ -532,8 +533,8 @@ tests:
               severity: critical
               service.instance.id: a
             exp_annotations:
-              summary: 'a client connections at or above 95% of capacity'
-              description: "Client connections are above 85 % of the connection limit (critical at 95 %), as the lowest value over the last 75 seconds. Count sessions in pg_stat_activity by state and application to find who holds them."
+              summary: 'a client connections at or above the critical limit of capacity (95% by default)'
+              description: "Client connections are above 85 % of the connection limit (critical at 95 %), unless the lab sets obenhub.postgresql.connection_saturation.limit per severity, as the lowest value over the last 75 seconds. Count sessions in pg_stat_activity by state and application to find who holds them."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgresconnectionsaturation
       - eval_time: 7m
         groupname: postgresql
@@ -544,8 +545,8 @@ tests:
               severity: critical
               service.instance.id: a
             exp_annotations:
-              summary: 'a client connections at or above 95% of capacity'
-              description: "Client connections are above 85 % of the connection limit (critical at 95 %), as the lowest value over the last 75 seconds. Count sessions in pg_stat_activity by state and application to find who holds them."
+              summary: 'a client connections at or above the critical limit of capacity (95% by default)'
+              description: "Client connections are above 85 % of the connection limit (critical at 95 %), unless the lab sets obenhub.postgresql.connection_saturation.limit per severity, as the lowest value over the last 75 seconds. Count sessions in pg_stat_activity by state and application to find who holds them."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgresconnectionsaturation
 
   - name: saturation tiers - a jump from below the warning threshold straight above the critical one never shows the warning
@@ -585,8 +586,8 @@ tests:
               severity: critical
               service.instance.id: a
             exp_annotations:
-              summary: 'a client connections at or above 95% of capacity'
-              description: "Client connections are above 85 % of the connection limit (critical at 95 %), as the lowest value over the last 75 seconds. Count sessions in pg_stat_activity by state and application to find who holds them."
+              summary: 'a client connections at or above the critical limit of capacity (95% by default)'
+              description: "Client connections are above 85 % of the connection limit (critical at 95 %), unless the lab sets obenhub.postgresql.connection_saturation.limit per severity, as the lowest value over the last 75 seconds. Count sessions in pg_stat_activity by state and application to find who holds them."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgresconnectionsaturation
       - eval_time: 4m30s
         groupname: postgresql
@@ -597,8 +598,8 @@ tests:
               severity: critical
               service.instance.id: a
             exp_annotations:
-              summary: 'a client connections at or above 95% of capacity'
-              description: "Client connections are above 85 % of the connection limit (critical at 95 %), as the lowest value over the last 75 seconds. Count sessions in pg_stat_activity by state and application to find who holds them."
+              summary: 'a client connections at or above the critical limit of capacity (95% by default)'
+              description: "Client connections are above 85 % of the connection limit (critical at 95 %), unless the lab sets obenhub.postgresql.connection_saturation.limit per severity, as the lowest value over the last 75 seconds. Count sessions in pg_stat_activity by state and application to find who holds them."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgresconnectionsaturation
       - eval_time: 4m45s
         groupname: postgresql
@@ -609,8 +610,8 @@ tests:
               severity: critical
               service.instance.id: a
             exp_annotations:
-              summary: 'a client connections at or above 95% of capacity'
-              description: "Client connections are above 85 % of the connection limit (critical at 95 %), as the lowest value over the last 75 seconds. Count sessions in pg_stat_activity by state and application to find who holds them."
+              summary: 'a client connections at or above the critical limit of capacity (95% by default)'
+              description: "Client connections are above 85 % of the connection limit (critical at 95 %), unless the lab sets obenhub.postgresql.connection_saturation.limit per severity, as the lowest value over the last 75 seconds. Count sessions in pg_stat_activity by state and application to find who holds them."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgresconnectionsaturation
 
   # The first sample is at 1m. The old 1m for fired at 2m; so does the full-window guard (five points). Without the guard the critical fired at 1m.
@@ -647,8 +648,8 @@ tests:
               severity: critical
               service.instance.id: a
             exp_annotations:
-              summary: 'a client connections at or above 95% of capacity'
-              description: "Client connections are above 85 % of the connection limit (critical at 95 %), as the lowest value over the last 75 seconds. Count sessions in pg_stat_activity by state and application to find who holds them."
+              summary: 'a client connections at or above the critical limit of capacity (95% by default)'
+              description: "Client connections are above 85 % of the connection limit (critical at 95 %), unless the lab sets obenhub.postgresql.connection_saturation.limit per severity, as the lowest value over the last 75 seconds. Count sessions in pg_stat_activity by state and application to find who holds them."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgresconnectionsaturation
       - eval_time: 2m15s
         groupname: postgresql
@@ -659,8 +660,8 @@ tests:
               severity: critical
               service.instance.id: a
             exp_annotations:
-              summary: 'a client connections at or above 95% of capacity'
-              description: "Client connections are above 85 % of the connection limit (critical at 95 %), as the lowest value over the last 75 seconds. Count sessions in pg_stat_activity by state and application to find who holds them."
+              summary: 'a client connections at or above the critical limit of capacity (95% by default)'
+              description: "Client connections are above 85 % of the connection limit (critical at 95 %), unless the lab sets obenhub.postgresql.connection_saturation.limit per severity, as the lowest value over the last 75 seconds. Count sessions in pg_stat_activity by state and application to find who holds them."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgresconnectionsaturation
       - eval_time: 2m30s
         groupname: postgresql
@@ -671,8 +672,8 @@ tests:
               severity: critical
               service.instance.id: a
             exp_annotations:
-              summary: 'a client connections at or above 95% of capacity'
-              description: "Client connections are above 85 % of the connection limit (critical at 95 %), as the lowest value over the last 75 seconds. Count sessions in pg_stat_activity by state and application to find who holds them."
+              summary: 'a client connections at or above the critical limit of capacity (95% by default)'
+              description: "Client connections are above 85 % of the connection limit (critical at 95 %), unless the lab sets obenhub.postgresql.connection_saturation.limit per severity, as the lowest value over the last 75 seconds. Count sessions in pg_stat_activity by state and application to find who holds them."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgresconnectionsaturation
 
   # Data runs from 1m to 4m, stops until 11m45s and resumes: silent for the full window again, critical from 12m45s.
@@ -693,8 +694,8 @@ tests:
               severity: critical
               service.instance.id: a
             exp_annotations:
-              summary: 'a client connections at or above 95% of capacity'
-              description: "Client connections are above 85 % of the connection limit (critical at 95 %), as the lowest value over the last 75 seconds. Count sessions in pg_stat_activity by state and application to find who holds them."
+              summary: 'a client connections at or above the critical limit of capacity (95% by default)'
+              description: "Client connections are above 85 % of the connection limit (critical at 95 %), unless the lab sets obenhub.postgresql.connection_saturation.limit per severity, as the lowest value over the last 75 seconds. Count sessions in pg_stat_activity by state and application to find who holds them."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgresconnectionsaturation
       - eval_time: 4m
         groupname: postgresql
@@ -705,8 +706,8 @@ tests:
               severity: critical
               service.instance.id: a
             exp_annotations:
-              summary: 'a client connections at or above 95% of capacity'
-              description: "Client connections are above 85 % of the connection limit (critical at 95 %), as the lowest value over the last 75 seconds. Count sessions in pg_stat_activity by state and application to find who holds them."
+              summary: 'a client connections at or above the critical limit of capacity (95% by default)'
+              description: "Client connections are above 85 % of the connection limit (critical at 95 %), unless the lab sets obenhub.postgresql.connection_saturation.limit per severity, as the lowest value over the last 75 seconds. Count sessions in pg_stat_activity by state and application to find who holds them."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgresconnectionsaturation
       - eval_time: 4m15s
         groupname: postgresql
@@ -717,8 +718,8 @@ tests:
               severity: critical
               service.instance.id: a
             exp_annotations:
-              summary: 'a client connections at or above 95% of capacity'
-              description: "Client connections are above 85 % of the connection limit (critical at 95 %), as the lowest value over the last 75 seconds. Count sessions in pg_stat_activity by state and application to find who holds them."
+              summary: 'a client connections at or above the critical limit of capacity (95% by default)'
+              description: "Client connections are above 85 % of the connection limit (critical at 95 %), unless the lab sets obenhub.postgresql.connection_saturation.limit per severity, as the lowest value over the last 75 seconds. Count sessions in pg_stat_activity by state and application to find who holds them."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgresconnectionsaturation
       - eval_time: 4m30s
         groupname: postgresql
@@ -753,8 +754,8 @@ tests:
               severity: critical
               service.instance.id: a
             exp_annotations:
-              summary: 'a client connections at or above 95% of capacity'
-              description: "Client connections are above 85 % of the connection limit (critical at 95 %), as the lowest value over the last 75 seconds. Count sessions in pg_stat_activity by state and application to find who holds them."
+              summary: 'a client connections at or above the critical limit of capacity (95% by default)'
+              description: "Client connections are above 85 % of the connection limit (critical at 95 %), unless the lab sets obenhub.postgresql.connection_saturation.limit per severity, as the lowest value over the last 75 seconds. Count sessions in pg_stat_activity by state and application to find who holds them."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgresconnectionsaturation
       - eval_time: 13m
         groupname: postgresql
@@ -765,8 +766,8 @@ tests:
               severity: critical
               service.instance.id: a
             exp_annotations:
-              summary: 'a client connections at or above 95% of capacity'
-              description: "Client connections are above 85 % of the connection limit (critical at 95 %), as the lowest value over the last 75 seconds. Count sessions in pg_stat_activity by state and application to find who holds them."
+              summary: 'a client connections at or above the critical limit of capacity (95% by default)'
+              description: "Client connections are above 85 % of the connection limit (critical at 95 %), unless the lab sets obenhub.postgresql.connection_saturation.limit per severity, as the lowest value over the last 75 seconds. Count sessions in pg_stat_activity by state and application to find who holds them."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgresconnectionsaturation
 
   - name: saturation warm-up - one lost sample does not restart the window
@@ -786,8 +787,8 @@ tests:
               severity: critical
               service.instance.id: a
             exp_annotations:
-              summary: 'a client connections at or above 95% of capacity'
-              description: "Client connections are above 85 % of the connection limit (critical at 95 %), as the lowest value over the last 75 seconds. Count sessions in pg_stat_activity by state and application to find who holds them."
+              summary: 'a client connections at or above the critical limit of capacity (95% by default)'
+              description: "Client connections are above 85 % of the connection limit (critical at 95 %), unless the lab sets obenhub.postgresql.connection_saturation.limit per severity, as the lowest value over the last 75 seconds. Count sessions in pg_stat_activity by state and application to find who holds them."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgresconnectionsaturation
       - eval_time: 2m15s
         groupname: postgresql
@@ -798,8 +799,8 @@ tests:
               severity: critical
               service.instance.id: a
             exp_annotations:
-              summary: 'a client connections at or above 95% of capacity'
-              description: "Client connections are above 85 % of the connection limit (critical at 95 %), as the lowest value over the last 75 seconds. Count sessions in pg_stat_activity by state and application to find who holds them."
+              summary: 'a client connections at or above the critical limit of capacity (95% by default)'
+              description: "Client connections are above 85 % of the connection limit (critical at 95 %), unless the lab sets obenhub.postgresql.connection_saturation.limit per severity, as the lowest value over the last 75 seconds. Count sessions in pg_stat_activity by state and application to find who holds them."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgresconnectionsaturation
       - eval_time: 2m30s
         groupname: postgresql
@@ -810,8 +811,8 @@ tests:
               severity: critical
               service.instance.id: a
             exp_annotations:
-              summary: 'a client connections at or above 95% of capacity'
-              description: "Client connections are above 85 % of the connection limit (critical at 95 %), as the lowest value over the last 75 seconds. Count sessions in pg_stat_activity by state and application to find who holds them."
+              summary: 'a client connections at or above the critical limit of capacity (95% by default)'
+              description: "Client connections are above 85 % of the connection limit (critical at 95 %), unless the lab sets obenhub.postgresql.connection_saturation.limit per severity, as the lowest value over the last 75 seconds. Count sessions in pg_stat_activity by state and application to find who holds them."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgresconnectionsaturation
       - eval_time: 2m45s
         groupname: postgresql
@@ -822,8 +823,8 @@ tests:
               severity: critical
               service.instance.id: a
             exp_annotations:
-              summary: 'a client connections at or above 95% of capacity'
-              description: "Client connections are above 85 % of the connection limit (critical at 95 %), as the lowest value over the last 75 seconds. Count sessions in pg_stat_activity by state and application to find who holds them."
+              summary: 'a client connections at or above the critical limit of capacity (95% by default)'
+              description: "Client connections are above 85 % of the connection limit (critical at 95 %), unless the lab sets obenhub.postgresql.connection_saturation.limit per severity, as the lowest value over the last 75 seconds. Count sessions in pg_stat_activity by state and application to find who holds them."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgresconnectionsaturation
       - eval_time: 3m
         groupname: postgresql
@@ -834,8 +835,8 @@ tests:
               severity: critical
               service.instance.id: a
             exp_annotations:
-              summary: 'a client connections at or above 95% of capacity'
-              description: "Client connections are above 85 % of the connection limit (critical at 95 %), as the lowest value over the last 75 seconds. Count sessions in pg_stat_activity by state and application to find who holds them."
+              summary: 'a client connections at or above the critical limit of capacity (95% by default)'
+              description: "Client connections are above 85 % of the connection limit (critical at 95 %), unless the lab sets obenhub.postgresql.connection_saturation.limit per severity, as the lowest value over the last 75 seconds. Count sessions in pg_stat_activity by state and application to find who holds them."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgresconnectionsaturation
       - eval_time: 3m15s
         groupname: postgresql
@@ -846,8 +847,8 @@ tests:
               severity: critical
               service.instance.id: a
             exp_annotations:
-              summary: 'a client connections at or above 95% of capacity'
-              description: "Client connections are above 85 % of the connection limit (critical at 95 %), as the lowest value over the last 75 seconds. Count sessions in pg_stat_activity by state and application to find who holds them."
+              summary: 'a client connections at or above the critical limit of capacity (95% by default)'
+              description: "Client connections are above 85 % of the connection limit (critical at 95 %), unless the lab sets obenhub.postgresql.connection_saturation.limit per severity, as the lowest value over the last 75 seconds. Count sessions in pg_stat_activity by state and application to find who holds them."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgresconnectionsaturation
       - eval_time: 3m30s
         groupname: postgresql
@@ -858,8 +859,8 @@ tests:
               severity: critical
               service.instance.id: a
             exp_annotations:
-              summary: 'a client connections at or above 95% of capacity'
-              description: "Client connections are above 85 % of the connection limit (critical at 95 %), as the lowest value over the last 75 seconds. Count sessions in pg_stat_activity by state and application to find who holds them."
+              summary: 'a client connections at or above the critical limit of capacity (95% by default)'
+              description: "Client connections are above 85 % of the connection limit (critical at 95 %), unless the lab sets obenhub.postgresql.connection_saturation.limit per severity, as the lowest value over the last 75 seconds. Count sessions in pg_stat_activity by state and application to find who holds them."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgresconnectionsaturation
       - eval_time: 3m45s
         groupname: postgresql
@@ -870,8 +871,8 @@ tests:
               severity: critical
               service.instance.id: a
             exp_annotations:
-              summary: 'a client connections at or above 95% of capacity'
-              description: "Client connections are above 85 % of the connection limit (critical at 95 %), as the lowest value over the last 75 seconds. Count sessions in pg_stat_activity by state and application to find who holds them."
+              summary: 'a client connections at or above the critical limit of capacity (95% by default)'
+              description: "Client connections are above 85 % of the connection limit (critical at 95 %), unless the lab sets obenhub.postgresql.connection_saturation.limit per severity, as the lowest value over the last 75 seconds. Count sessions in pg_stat_activity by state and application to find who holds them."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgresconnectionsaturation
       - eval_time: 4m
         groupname: postgresql
@@ -882,8 +883,8 @@ tests:
               severity: critical
               service.instance.id: a
             exp_annotations:
-              summary: 'a client connections at or above 95% of capacity'
-              description: "Client connections are above 85 % of the connection limit (critical at 95 %), as the lowest value over the last 75 seconds. Count sessions in pg_stat_activity by state and application to find who holds them."
+              summary: 'a client connections at or above the critical limit of capacity (95% by default)'
+              description: "Client connections are above 85 % of the connection limit (critical at 95 %), unless the lab sets obenhub.postgresql.connection_saturation.limit per severity, as the lowest value over the last 75 seconds. Count sessions in pg_stat_activity by state and application to find who holds them."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgresconnectionsaturation
       - eval_time: 4m15s
         groupname: postgresql
@@ -894,8 +895,8 @@ tests:
               severity: critical
               service.instance.id: a
             exp_annotations:
-              summary: 'a client connections at or above 95% of capacity'
-              description: "Client connections are above 85 % of the connection limit (critical at 95 %), as the lowest value over the last 75 seconds. Count sessions in pg_stat_activity by state and application to find who holds them."
+              summary: 'a client connections at or above the critical limit of capacity (95% by default)'
+              description: "Client connections are above 85 % of the connection limit (critical at 95 %), unless the lab sets obenhub.postgresql.connection_saturation.limit per severity, as the lowest value over the last 75 seconds. Count sessions in pg_stat_activity by state and application to find who holds them."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgresconnectionsaturation
       - eval_time: 4m30s
         groupname: postgresql
@@ -906,8 +907,8 @@ tests:
               severity: critical
               service.instance.id: a
             exp_annotations:
-              summary: 'a client connections at or above 95% of capacity'
-              description: "Client connections are above 85 % of the connection limit (critical at 95 %), as the lowest value over the last 75 seconds. Count sessions in pg_stat_activity by state and application to find who holds them."
+              summary: 'a client connections at or above the critical limit of capacity (95% by default)'
+              description: "Client connections are above 85 % of the connection limit (critical at 95 %), unless the lab sets obenhub.postgresql.connection_saturation.limit per severity, as the lowest value over the last 75 seconds. Count sessions in pg_stat_activity by state and application to find who holds them."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgresconnectionsaturation
       - eval_time: 4m45s
         groupname: postgresql
@@ -918,8 +919,8 @@ tests:
               severity: critical
               service.instance.id: a
             exp_annotations:
-              summary: 'a client connections at or above 95% of capacity'
-              description: "Client connections are above 85 % of the connection limit (critical at 95 %), as the lowest value over the last 75 seconds. Count sessions in pg_stat_activity by state and application to find who holds them."
+              summary: 'a client connections at or above the critical limit of capacity (95% by default)'
+              description: "Client connections are above 85 % of the connection limit (critical at 95 %), unless the lab sets obenhub.postgresql.connection_saturation.limit per severity, as the lowest value over the last 75 seconds. Count sessions in pg_stat_activity by state and application to find who holds them."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgresconnectionsaturation
       - eval_time: 5m
         groupname: postgresql
@@ -930,8 +931,8 @@ tests:
               severity: critical
               service.instance.id: a
             exp_annotations:
-              summary: 'a client connections at or above 95% of capacity'
-              description: "Client connections are above 85 % of the connection limit (critical at 95 %), as the lowest value over the last 75 seconds. Count sessions in pg_stat_activity by state and application to find who holds them."
+              summary: 'a client connections at or above the critical limit of capacity (95% by default)'
+              description: "Client connections are above 85 % of the connection limit (critical at 95 %), unless the lab sets obenhub.postgresql.connection_saturation.limit per severity, as the lowest value over the last 75 seconds. Count sessions in pg_stat_activity by state and application to find who holds them."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgresconnectionsaturation
       - eval_time: 5m15s
         groupname: postgresql
@@ -942,8 +943,8 @@ tests:
               severity: critical
               service.instance.id: a
             exp_annotations:
-              summary: 'a client connections at or above 95% of capacity'
-              description: "Client connections are above 85 % of the connection limit (critical at 95 %), as the lowest value over the last 75 seconds. Count sessions in pg_stat_activity by state and application to find who holds them."
+              summary: 'a client connections at or above the critical limit of capacity (95% by default)'
+              description: "Client connections are above 85 % of the connection limit (critical at 95 %), unless the lab sets obenhub.postgresql.connection_saturation.limit per severity, as the lowest value over the last 75 seconds. Count sessions in pg_stat_activity by state and application to find who holds them."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgresconnectionsaturation
       - eval_time: 5m30s
         groupname: postgresql
@@ -954,8 +955,8 @@ tests:
               severity: critical
               service.instance.id: a
             exp_annotations:
-              summary: 'a client connections at or above 95% of capacity'
-              description: "Client connections are above 85 % of the connection limit (critical at 95 %), as the lowest value over the last 75 seconds. Count sessions in pg_stat_activity by state and application to find who holds them."
+              summary: 'a client connections at or above the critical limit of capacity (95% by default)'
+              description: "Client connections are above 85 % of the connection limit (critical at 95 %), unless the lab sets obenhub.postgresql.connection_saturation.limit per severity, as the lowest value over the last 75 seconds. Count sessions in pg_stat_activity by state and application to find who holds them."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgresconnectionsaturation
       - eval_time: 5m45s
         groupname: postgresql
@@ -966,8 +967,8 @@ tests:
               severity: critical
               service.instance.id: a
             exp_annotations:
-              summary: 'a client connections at or above 95% of capacity'
-              description: "Client connections are above 85 % of the connection limit (critical at 95 %), as the lowest value over the last 75 seconds. Count sessions in pg_stat_activity by state and application to find who holds them."
+              summary: 'a client connections at or above the critical limit of capacity (95% by default)'
+              description: "Client connections are above 85 % of the connection limit (critical at 95 %), unless the lab sets obenhub.postgresql.connection_saturation.limit per severity, as the lowest value over the last 75 seconds. Count sessions in pg_stat_activity by state and application to find who holds them."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgresconnectionsaturation
       - eval_time: 6m
         groupname: postgresql
@@ -978,8 +979,8 @@ tests:
               severity: critical
               service.instance.id: a
             exp_annotations:
-              summary: 'a client connections at or above 95% of capacity'
-              description: "Client connections are above 85 % of the connection limit (critical at 95 %), as the lowest value over the last 75 seconds. Count sessions in pg_stat_activity by state and application to find who holds them."
+              summary: 'a client connections at or above the critical limit of capacity (95% by default)'
+              description: "Client connections are above 85 % of the connection limit (critical at 95 %), unless the lab sets obenhub.postgresql.connection_saturation.limit per severity, as the lowest value over the last 75 seconds. Count sessions in pg_stat_activity by state and application to find who holds them."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgresconnectionsaturation
 
   - name: a held xmin horizon fires after 5m unless a client snapshot over 120s explains it
@@ -1014,6 +1015,6 @@ tests:
               severity: warning
               service.instance.id: pg-primary
             exp_annotations:
-              summary: 'The xmin horizon on pg-primary is 20M transactions old with no client snapshot over 120 s: check replication slots, standby feedback and prepared transactions (assumed threshold)'
-              description: "The xmin horizon is more than 10 million transactions old for 5 minutes with no client snapshot over 120 s to explain it, so something else pins old row versions. Check pg_replication_slots (xmin, catalog_xmin), pg_stat_replication (backend_xmin) and pg_prepared_xacts."
+              summary: 'The xmin horizon on pg-primary is 20M transactions old with no client snapshot over its limit: check replication slots, standby feedback and prepared transactions (assumed threshold)'
+              description: "The xmin horizon is older than the limit (50 million transactions unless the lab sets obenhub.postgresql.xmin_horizon_age.limit) for 5 minutes with no client snapshot over its limit (1800 s unless the lab sets obenhub.postgresql.snapshot_age.limit) to explain it, so something else pins old row versions. Check pg_replication_slots (xmin, catalog_xmin), pg_stat_replication (backend_xmin) and pg_prepared_xacts."
               runbook_url: https://msavdert.github.io/obenhub/reference/postgresql-pack-alerts/#postgresxminhorizonheld

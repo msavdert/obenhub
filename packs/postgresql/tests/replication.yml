@@ -4,6 +4,7 @@
 # PostgresMultiplePrimaries is at the end.
 rule_files:
   - ../rules.yml
+  - lab-values/postgresql.yaml
 evaluation_interval: 15s
 
 tests:
@@ -116,7 +117,7 @@ tests:
               service.instance.id: pg-standby
             exp_annotations:
               summary: pg-standby replay backlog is 19.07MiB
-              description: "A standby has received more than 16 MiB of WAL it has not replayed, for a minute. Check pg_get_wal_replay_pause_state() on the standby."
+              description: "A standby has received more WAL than the limit (256 MiB unless the lab sets obenhub.postgresql.replay_backlog.limit) that it has not replayed, for a minute. Check pg_get_wal_replay_pause_state() on the standby."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgresreplaybacklog
 
   - name: backlog exactly at the threshold or below does not fire

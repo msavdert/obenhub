@@ -6,6 +6,7 @@
 # at the end.
 rule_files:
   - ../rules.yml
+  - lab-values/postgresql.yaml
 evaluation_interval: 15s
 
 tests:
@@ -96,8 +97,8 @@ tests:
               severity: warning
               service.instance.id: pg-1
             exp_annotations:
-              summary: 'pg-1 client connections above 85% of capacity'
-              description: "Client connections are above 85 % of the connection limit (critical at 95 %), as the lowest value over the last 75 seconds. Count sessions in pg_stat_activity by state and application to find who holds them."
+              summary: 'pg-1 client connections above the warning limit of capacity (85% by default)'
+              description: "Client connections are above 85 % of the connection limit (critical at 95 %), unless the lab sets obenhub.postgresql.connection_saturation.limit per severity, as the lowest value over the last 75 seconds. Count sessions in pg_stat_activity by state and application to find who holds them."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgresconnectionsaturation
 
   - name: two clusters share pg-1 - the other cluster's heartbeat does not hide a dead target
@@ -161,8 +162,8 @@ tests:
               postgresql.replication_slot.name: s1
               postgresql.replication_slot.type: physical
             exp_annotations:
-              summary: 'Slot s1 on pg-1 retains 600MiB of WAL (lab threshold)'
-              description: "A valid slot on a primary holds back more than 512 MiB of WAL for 2 minutes (lab threshold), so the volume is filling. Check pg_replication_slots (retained WAL, active) and bring the consumer back or drop the slot."
+              summary: 'Slot s1 on pg-1 retains 600MiB of WAL'
+              description: "A valid slot on a primary holds back more than the limit of WAL (8 GiB unless the lab sets obenhub.postgresql.slot_retained_wal.limit) for 2 minutes, so the volume is filling. Check pg_replication_slots (retained WAL, active) and bring the consumer back or drop the slot."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgresreplicationslotretainingwal
 
   - name: two clusters share pg-1 - an inactive physical slot of a fires on a's primary only
@@ -189,8 +190,8 @@ tests:
               postgresql.replication_slot.name: s1
               postgresql.replication_slot.type: physical
             exp_annotations:
-              summary: 'Physical slot s1 on pg-1 has been inactive for 5m 0s (lab threshold)'
-              description: "A physical replication slot on the primary has had no consumer for more than 120 seconds and is not invalidated, so it keeps WAL. Check pg_replication_slots and whether its standby is still connected."
+              summary: 'Physical slot s1 on pg-1 has been inactive for 5m 0s'
+              description: "A physical replication slot on the primary has had no consumer for more than the limit (900 s unless the lab sets obenhub.postgresql.physical_slot_inactive_age.limit) and is not invalidated, so it keeps WAL. Check pg_replication_slots and whether its standby is still connected."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgresphysicalslotinactive
 
   - name: two clusters share pg-1 - a metric vanished in a is not hidden by b's series of the same name
@@ -244,8 +245,8 @@ tests:
               service.instance.id: pg-1
               k8s.pod.uid: new
             exp_annotations:
-              summary: 'pg-1 client connections at or above 95% of capacity'
-              description: "Client connections are above 85 % of the connection limit (critical at 95 %), as the lowest value over the last 75 seconds. Count sessions in pg_stat_activity by state and application to find who holds them."
+              summary: 'pg-1 client connections at or above the critical limit of capacity (95% by default)'
+              description: "Client connections are above 85 % of the connection limit (critical at 95 %), unless the lab sets obenhub.postgresql.connection_saturation.limit per severity, as the lowest value over the last 75 seconds. Count sessions in pg_stat_activity by state and application to find who holds them."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgresconnectionsaturation
 
   - name: two pod uids for one instance - the old pod's synchronous standby count does not pair with the new pod's requirement

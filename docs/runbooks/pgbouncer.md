@@ -22,7 +22,7 @@ Seen in the lab:
 
 ## PgbouncerClientsWaiting
 
-A client has waited over 5 seconds for a server connection: the pool is at `pool_size` with clients queued. Reference: [PgbouncerClientsWaiting](../reference/pgbouncer-pack-alerts.md#pgbouncerclientswaiting).
+A client has waited over its limit (10 s unless the lab sets `obenhub.pgbouncer.oldest_wait_age.limit`) for a server connection: the pool is at `pool_size` with clients queued. Reference: [PgbouncerClientsWaiting](../reference/pgbouncer-pack-alerts.md#pgbouncerclientswaiting).
 
 Look first: On the PgBouncer console.
 
@@ -73,7 +73,7 @@ Seen in the lab:
 
 ## PgbouncerWaitTime
 
-Clients wait more than 0.1 seconds on average for a server assignment over 5 minutes, below the 5 s of `PgbouncerClientsWaiting`. Reference: [PgbouncerWaitTime](../reference/pgbouncer-pack-alerts.md#pgbouncerwaittime).
+Clients wait more than 0.1 seconds on average for a server assignment over 5 minutes, below the oldest wait limit of `PgbouncerClientsWaiting`. Reference: [PgbouncerWaitTime](../reference/pgbouncer-pack-alerts.md#pgbouncerwaittime).
 
 Look first: On the PgBouncer console.
 

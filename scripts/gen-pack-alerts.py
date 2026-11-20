@@ -10,11 +10,17 @@ lowercased name (the toc extension's id; `#postgrestargetabsent`). That anchor
 is what the `runbook_url` annotation of an alert no scenario fires points to
 (scripts/check-alert-docs.py). An alert with two severities is one section
 with one entry per tier.
+
+A pack with thresholds that a lab can override gets a `## Thresholds` table, parsed from
+the rule expressions (the one form `<op> on() group_left() (obenhub.*.limit{...} or on()
+vector(<default>))`, see packs/etcd/rules.yml), with the unit of each series from the
+`# unit <series> <unit>` lines of the rules file. An expression that mentions a limit
+series in any other form, or a series without a unit line, fails here.
 """
 
 import sys
 
-from packalerts import ROOT, pack_alerts
+from packalerts import OPS, ROOT, alert_limits, pack_alerts, units
 
 TITLES = {
     "cnpg": "CloudNativePG pack alerts",
@@ -31,6 +37,45 @@ TITLES = {
 }
 
 
+def thresholds(pack, alerts):
+    """Rows (alert, series, selector, default, unit, comparison) in rule order, one per distinct entry."""
+    path = ROOT / "packs" / pack / "rules.yml"
+    unit = units(path)
+    rows = []
+    for a in alerts:
+        for lim in alert_limits(path, a):
+            if lim["series"] not in unit:
+                sys.exit(f"{path}: no `# unit {lim['series']} <unit>` line")
+            row = (a["name"], lim["series"], lim["selector"], lim["default"], unit[lim["series"]], OPS[lim["op"]])
+            if row not in rows:
+                rows.append(row)
+    used = {r[1] for r in rows}
+    for series in unit:
+        if series not in used:
+            sys.exit(f"{path}: `# unit {series}` line without a rule that reads the series")
+    return rows
+
+
+def render_thresholds(rows):
+    if not rows:
+        return []
+    out = [
+        "## Thresholds\n",
+        "Each row is a limit a rule compares against: the default is in the rule, and a lab "
+        "overrides it by recording the series (ADR 0006, lab parameters). A tiered alert "
+        "reads one series with a `severity` label per tier. The selector is the label "
+        "matcher of the series the rule reads.\n",
+        "| Alert | Series | Selector | Default | Unit | Fires when the value is |",
+        "| --- | --- | --- | --- | --- | --- |",
+    ]
+    for alert, series, sel, default, unit, op in rows:
+        out.append(
+            f"| {alert} | `{series}` | {'`' + sel + '`' if sel else ''} | {default} | `{unit}` | {op} the limit |"
+        )
+    out.append("")
+    return out
+
+
 def render(pack, alerts):
     if pack not in TITLES:
         sys.exit(
@@ -42,6 +87,7 @@ def render(pack, alerts):
         "Each alert is a heading named as the alert, so its anchor is the lowercased name. "
         "An alert with two severities has one entry per tier.\n",
     ]
+    out.extend(render_thresholds(thresholds(pack, alerts)))
     names = []
     for a in alerts:
         if a["name"] not in names:

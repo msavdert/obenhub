@@ -83,7 +83,7 @@ Seen in the lab:
 
 ## OracleStandbyLag
 
-Transport or apply lag on a standby is above 60 seconds (lab threshold). Reference: [OracleStandbyLag](../reference/oracledb-dg-pack-alerts.md#oraclestandbylag).
+Transport or apply lag on a standby is above its limit (300 s unless the lab sets `obenhub.oracledb.standby_lag.limit`). Reference: [OracleStandbyLag](../reference/oracledb-dg-pack-alerts.md#oraclestandbylag).
 
 Look first: On the standby.
 
@@ -99,7 +99,7 @@ Seen in the lab:
 
 ## OracleStandbyDataStale
 
-The data the standby's lag is computed from is older than 60 seconds: redo has stopped arriving even if the lag value is low. Reference: [OracleStandbyDataStale](../reference/oracledb-dg-pack-alerts.md#oraclestandbydatastale).
+The data the standby's lag is computed from is older than its limit (300 s unless the lab sets `obenhub.oracledb.standby_data_age.limit`): redo has stopped arriving even if the lag value is low. Reference: [OracleStandbyDataStale](../reference/oracledb-dg-pack-alerts.md#oraclestandbydatastale).
 
 Look first: On the standby, then on the primary.
 
@@ -200,7 +200,7 @@ Seen in the lab:
 
 ## OracleBlockedSessions
 
-A session has waited more than 30 seconds for a lock held by another session; the alert does not name the blocker. Reference: [OracleBlockedSessions](../reference/oracledb-dg-pack-alerts.md#oracleblockedsessions).
+A session has waited more than its limit (120 s unless the lab sets `obenhub.oracledb.lock_wait_age.limit`) for a lock held by another session; the alert does not name the blocker. Reference: [OracleBlockedSessions](../reference/oracledb-dg-pack-alerts.md#oracleblockedsessions).
 
 Look first: On the primary, from the CDB root.
 

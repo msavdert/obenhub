@@ -141,6 +141,7 @@ groups:
       # 15 s apart; at the lab's load that skew stays well below the threshold
       # (assumption, checked by the control). A paused replay does not move
       # this value while the WAL receiver keeps receiving.
+      # Structural, no override series: 16777216 must equal Patroni's maximum_lag_on_failover.
       - alert: PatroniReplicaNotEligible
         expr: |
           (
@@ -243,6 +244,7 @@ groups:
       # window holds one sample, fires: the threshold of 20 s leaves room for
       # jitter at 15 s.
       # max by (...): one value per target.
+      # Structural, no override series: 20 s is the interval the windows of these rules assume (15 s) plus jitter.
       - alert: PatroniCollectionIntervalTooLong
         expr: max by (obenhub.cluster.name, service.instance.id) (scrape_interval(up{service.name="patroni"}[5m])) > 20
         for: 10m

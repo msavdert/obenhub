@@ -1,0 +1,34 @@
+# Test fixture: the lab values of the PostgreSQL pack thresholds, as the labs record them
+# (lab/*/vmalert inventories, group postgresql-parameters). The older tests of this pack encode lab values; they load this file
+# so they keep testing the rules at the values their scenarios use. The defaults
+# are tested without it in thresholds.yml. Not read by anything else; a lab test
+# (lab/*/tests) checks the real inventory.
+
+groups:
+  - name: postgresql-lab-values
+    interval: 15s
+    rules:
+      - record: obenhub.postgresql.replay_backlog.limit
+        expr: vector(16777216)
+      - record: obenhub.postgresql.snapshot_age.limit
+        expr: vector(120)
+      - record: obenhub.postgresql.xmin_horizon_age.limit
+        expr: vector(10000000)
+      - record: obenhub.postgresql.idle_in_transaction_age.limit
+        expr: label_set(vector(60), "severity", "warning")
+      - record: obenhub.postgresql.idle_in_transaction_age.limit
+        expr: label_set(vector(180), "severity", "critical")
+      - record: obenhub.postgresql.lock_wait_age.limit
+        expr: vector(30)
+      - record: obenhub.postgresql.physical_slot_inactive_age.limit
+        expr: vector(120)
+      - record: obenhub.postgresql.slot_retained_wal.limit
+        expr: vector(536870912)
+      - record: obenhub.postgresql.archive_ready_files.limit
+        expr: vector(8)
+      - record: obenhub.postgresql.subscription_msg_age.limit
+        expr: vector(60)
+      - record: obenhub.postgresql.logical_slot_inactive_age.limit
+        expr: vector(180)
+      - record: obenhub.postgresql.logical_slot_unconfirmed_wal.limit
+        expr: vector(134217728)

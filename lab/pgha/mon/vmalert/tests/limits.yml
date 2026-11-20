@@ -1,0 +1,108 @@
+# The lab overrides of the PostgreSQL thresholds (postgresql-parameters group of the inventory): the lab values
+# fire where the production defaults of the pack would stay quiet. Pack defaults are
+# tested in packs/postgresql/tests/thresholds.yml.
+
+rule_files:
+  - ../inventory.yml
+  - ../../../../../packs/postgresql/rules.yml
+evaluation_interval: 15s
+
+tests:
+  - name: pgha lab values - a lock wait of 31 s and a snapshot of 121 s fire, 29 s and 119 s do not
+    interval: 15s
+    input_series:
+      - series: 'postgresql.lock.oldest_wait_age{obenhub.cluster.name="pgha",service.instance.id="pgha-a"}'
+        values: '31x40'
+      - series: 'postgresql.lock.oldest_wait_age{obenhub.cluster.name="pgha",service.instance.id="pgha-b"}'
+        values: '29x40'
+      - series: 'postgresql.snapshot.oldest_age{obenhub.cluster.name="pgha",service.instance.id="pgha-a"}'
+        values: '121x40'
+      - series: 'postgresql.snapshot.oldest_age{obenhub.cluster.name="pgha",service.instance.id="pgha-b"}'
+        values: '119x40'
+    metricsql_expr_test:
+      - expr: ALERTS{alertname="PostgresBlockedSessions", alertstate="firing"}
+        eval_time: 5m
+        exp_samples:
+          - labels: 'ALERTS{alertname="PostgresBlockedSessions", alertgroup="postgresql", alertstate="firing", obenhub.cluster.name="pgha", service.instance.id="pgha-a", severity="warning"}'
+            value: 1
+      - expr: ALERTS{alertname="PostgresSnapshotHeldTooLong", alertstate="firing"}
+        eval_time: 5m
+        exp_samples:
+          - labels: 'ALERTS{alertname="PostgresSnapshotHeldTooLong", alertgroup="postgresql", alertstate="firing", obenhub.cluster.name="pgha", service.instance.id="pgha-a", severity="warning"}'
+            value: 1
+
+  # One entry per record of a *-parameters group of the inventory: exact series name,
+  # labels and value. scripts/check-lab-parameters.py fails when one is missing.
+  - name: pgha inventory records every override with its name, labels and value
+    interval: 15s
+    metricsql_expr_test:
+      - expr: obenhub.etcd.commit_duration.limit
+        eval_time: 1m
+        exp_samples:
+          - labels: 'obenhub.etcd.commit_duration.limit'
+            value: 1.0
+      - expr: obenhub.etcd.fsync_duration.limit
+        eval_time: 1m
+        exp_samples:
+          - labels: 'obenhub.etcd.fsync_duration.limit'
+            value: 1.0
+      - expr: obenhub.postgresql.replay_backlog.limit
+        eval_time: 1m
+        exp_samples:
+          - labels: 'obenhub.postgresql.replay_backlog.limit'
+            value: 16777216
+      - expr: obenhub.postgresql.snapshot_age.limit
+        eval_time: 1m
+        exp_samples:
+          - labels: 'obenhub.postgresql.snapshot_age.limit'
+            value: 120
+      - expr: obenhub.postgresql.xmin_horizon_age.limit
+        eval_time: 1m
+        exp_samples:
+          - labels: 'obenhub.postgresql.xmin_horizon_age.limit'
+            value: 10000000
+      - expr: obenhub.postgresql.idle_in_transaction_age.limit{severity="warning"}
+        eval_time: 1m
+        exp_samples:
+          - labels: 'obenhub.postgresql.idle_in_transaction_age.limit{severity="warning"}'
+            value: 60
+      - expr: obenhub.postgresql.idle_in_transaction_age.limit{severity="critical"}
+        eval_time: 1m
+        exp_samples:
+          - labels: 'obenhub.postgresql.idle_in_transaction_age.limit{severity="critical"}'
+            value: 180
+      - expr: obenhub.postgresql.lock_wait_age.limit
+        eval_time: 1m
+        exp_samples:
+          - labels: 'obenhub.postgresql.lock_wait_age.limit'
+            value: 30
+      - expr: obenhub.postgresql.physical_slot_inactive_age.limit
+        eval_time: 1m
+        exp_samples:
+          - labels: 'obenhub.postgresql.physical_slot_inactive_age.limit'
+            value: 120
+      - expr: obenhub.postgresql.slot_retained_wal.limit
+        eval_time: 1m
+        exp_samples:
+          - labels: 'obenhub.postgresql.slot_retained_wal.limit'
+            value: 536870912
+      - expr: obenhub.postgresql.archive_ready_files.limit
+        eval_time: 1m
+        exp_samples:
+          - labels: 'obenhub.postgresql.archive_ready_files.limit'
+            value: 8
+      - expr: obenhub.postgresql.subscription_msg_age.limit
+        eval_time: 1m
+        exp_samples:
+          - labels: 'obenhub.postgresql.subscription_msg_age.limit'
+            value: 60
+      - expr: obenhub.postgresql.logical_slot_inactive_age.limit
+        eval_time: 1m
+        exp_samples:
+          - labels: 'obenhub.postgresql.logical_slot_inactive_age.limit'
+            value: 180
+      - expr: obenhub.postgresql.logical_slot_unconfirmed_wal.limit
+        eval_time: 1m
+        exp_samples:
+          - labels: 'obenhub.postgresql.logical_slot_unconfirmed_wal.limit'
+            value: 134217728

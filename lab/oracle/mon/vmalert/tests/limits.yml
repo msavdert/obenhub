@@ -1,0 +1,63 @@
+# The lab overrides of the Oracle Data Guard thresholds (oracledb-dg-parameters group of the inventory): the lab values
+# fire where the production defaults of the pack would stay quiet. Pack defaults are
+# tested in packs/oracledb-dg/tests/thresholds.yml.
+
+rule_files:
+  - ../inventory.yml
+  - ../../../../../packs/oracledb-dg/rules.yml
+evaluation_interval: 15s
+
+tests:
+  - name: oracle lab values - a lock wait of 31 s and a standby lag of 61 s fire, 29 s and 59 s do not
+    interval: 15s
+    input_series:
+      - series: 'oracledb.lock.oldest_wait_age{obenhub.cluster.name="cdb19",service.instance.id="CDB19-A"}'
+        values: '31x40'
+      - series: 'oracledb.lock.oldest_wait_age{obenhub.cluster.name="cdb19",service.instance.id="CDB19-B"}'
+        values: '29x40'
+      - series: 'oracledb.dataguard.lag{obenhub.cluster.name="cdb19",service.instance.id="CDB19-A",oracledb.dataguard.lag.type="apply"}'
+        values: '61x40'
+      - series: 'oracledb.dataguard.lag{obenhub.cluster.name="cdb19",service.instance.id="CDB19-B",oracledb.dataguard.lag.type="apply"}'
+        values: '59x40'
+    metricsql_expr_test:
+      - expr: ALERTS{alertname="OracleBlockedSessions", alertstate="firing"}
+        eval_time: 5m
+        exp_samples:
+          - labels: 'ALERTS{alertname="OracleBlockedSessions", alertgroup="oracledb-dg", alertstate="firing", obenhub.cluster.name="cdb19", service.instance.id="CDB19-A", severity="warning"}'
+            value: 1
+      - expr: ALERTS{alertname="OracleStandbyLag", alertstate="firing"}
+        eval_time: 5m
+        exp_samples:
+          - labels: 'ALERTS{alertname="OracleStandbyLag", alertgroup="oracledb-dg", alertstate="firing", obenhub.cluster.name="cdb19", service.instance.id="CDB19-A", oracledb.dataguard.lag.type="apply", severity="warning"}'
+            value: 1
+
+  # One entry per record of a *-parameters group of the inventory: exact series name,
+  # labels and value. scripts/check-lab-parameters.py fails when one is missing.
+  - name: oracle inventory records every override with its name, labels and value
+    interval: 15s
+    metricsql_expr_test:
+      - expr: obenhub.backup_age.limit{oracledb.backup.kind="database"}
+        eval_time: 1m
+        exp_samples:
+          - labels: 'obenhub.backup_age.limit{oracledb.backup.kind="database"}'
+            value: 93600
+      - expr: obenhub.backup_age.limit{oracledb.backup.kind="archivelog"}
+        eval_time: 1m
+        exp_samples:
+          - labels: 'obenhub.backup_age.limit{oracledb.backup.kind="archivelog"}'
+            value: 18000
+      - expr: obenhub.oracledb.standby_lag.limit
+        eval_time: 1m
+        exp_samples:
+          - labels: 'obenhub.oracledb.standby_lag.limit'
+            value: 60
+      - expr: obenhub.oracledb.standby_data_age.limit
+        eval_time: 1m
+        exp_samples:
+          - labels: 'obenhub.oracledb.standby_data_age.limit'
+            value: 60
+      - expr: obenhub.oracledb.lock_wait_age.limit
+        eval_time: 1m
+        exp_samples:
+          - labels: 'obenhub.oracledb.lock_wait_age.limit'
+            value: 30

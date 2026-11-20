@@ -4,6 +4,7 @@
 # the lab cannot reach those ages.
 rule_files:
   - ../rules.yml
+  - lab-values/postgresql.yaml
 evaluation_interval: 15s
 
 tests:
@@ -37,7 +38,7 @@ tests:
               kind: xid
             exp_annotations:
               summary: 'xid age of app on pg-primary is 51.22% of the wraparound limit'
-              description: "The age of a database's datfrozenxid (kind xid) or datminmxid (kind mxid) is above 50 % of the wraparound limit 2^31 (critical above 75 %). Check pg_database for the database and whether autovacuum freezing can progress."
+              description: "The age of a database's datfrozenxid (kind xid) or datminmxid (kind mxid) is above 50 % of the wraparound limit 2^31 (critical above 75 %), unless the lab sets obenhub.postgresql.wraparound_ratio.limit per severity. Check pg_database for the database and whether autovacuum freezing can progress."
               runbook_url: https://msavdert.github.io/obenhub/reference/postgresql-pack-alerts/#postgrestransactionidwraparound
           # xid exactly 0.75 of postgres: still warning
           - exp_labels:
@@ -48,7 +49,7 @@ tests:
               kind: xid
             exp_annotations:
               summary: 'xid age of postgres on pg-primary is 75% of the wraparound limit'
-              description: "The age of a database's datfrozenxid (kind xid) or datminmxid (kind mxid) is above 50 % of the wraparound limit 2^31 (critical above 75 %). Check pg_database for the database and whether autovacuum freezing can progress."
+              description: "The age of a database's datfrozenxid (kind xid) or datminmxid (kind mxid) is above 50 % of the wraparound limit 2^31 (critical above 75 %), unless the lab sets obenhub.postgresql.wraparound_ratio.limit per severity. Check pg_database for the database and whether autovacuum freezing can progress."
               runbook_url: https://msavdert.github.io/obenhub/reference/postgresql-pack-alerts/#postgrestransactionidwraparound
           # mxid 0.79 of app: critical
           - exp_labels:
@@ -59,7 +60,7 @@ tests:
               kind: mxid
             exp_annotations:
               summary: 'mxid age of app on pg-primary is 79.16% of the wraparound limit'
-              description: "The age of a database's datfrozenxid (kind xid) or datminmxid (kind mxid) is above 50 % of the wraparound limit 2^31 (critical above 75 %). Check pg_database for the database and whether autovacuum freezing can progress."
+              description: "The age of a database's datfrozenxid (kind xid) or datminmxid (kind mxid) is above 50 % of the wraparound limit 2^31 (critical above 75 %), unless the lab sets obenhub.postgresql.wraparound_ratio.limit per severity. Check pg_database for the database and whether autovacuum freezing can progress."
               runbook_url: https://msavdert.github.io/obenhub/reference/postgresql-pack-alerts/#postgrestransactionidwraparound
               # xid exactly 0.5 of template1 (not above): no alert
 
@@ -89,24 +90,24 @@ tests:
               severity: warning
               service.instance.id: pg-warn
             exp_annotations:
-              summary: 'A session on pg-warn has been idle in a transaction for 1m 30s (lab threshold)'
-              description: "A session has been idle in a transaction for more than 60 seconds (critical over 180 s; lab thresholds). Find it in pg_stat_activity where state is idle in transaction, ordered by state_change."
+              summary: 'A session on pg-warn has been idle in a transaction for 1m 30s'
+              description: "A session has been idle in a transaction for more than 300 seconds (critical over 1800 s) unless the lab sets obenhub.postgresql.idle_in_transaction_age.limit per severity. Find it in pg_stat_activity where state is idle in transaction, ordered by state_change."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgresidleintransaction
           - exp_labels:
               obenhub.cluster.name: slice1
               severity: critical
               service.instance.id: pg-crit
             exp_annotations:
-              summary: 'A session on pg-crit has been idle in a transaction for 3m 20s (lab threshold)'
-              description: "A session has been idle in a transaction for more than 60 seconds (critical over 180 s; lab thresholds). Find it in pg_stat_activity where state is idle in transaction, ordered by state_change."
+              summary: 'A session on pg-crit has been idle in a transaction for 3m 20s'
+              description: "A session has been idle in a transaction for more than 300 seconds (critical over 1800 s) unless the lab sets obenhub.postgresql.idle_in_transaction_age.limit per severity. Find it in pg_stat_activity where state is idle in transaction, ordered by state_change."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgresidleintransaction
           - exp_labels:
               obenhub.cluster.name: slice1
               severity: warning
               service.instance.id: pg-high-edge
             exp_annotations:
-              summary: 'A session on pg-high-edge has been idle in a transaction for 3m 0s (lab threshold)'
-              description: "A session has been idle in a transaction for more than 60 seconds (critical over 180 s; lab thresholds). Find it in pg_stat_activity where state is idle in transaction, ordered by state_change."
+              summary: 'A session on pg-high-edge has been idle in a transaction for 3m 0s'
+              description: "A session has been idle in a transaction for more than 300 seconds (critical over 1800 s) unless the lab sets obenhub.postgresql.idle_in_transaction_age.limit per severity. Find it in pg_stat_activity where state is idle in transaction, ordered by state_change."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgresidleintransaction
 
   - name: blocked sessions fire after a 30 s wait that lasts 30 s
@@ -130,8 +131,8 @@ tests:
               severity: warning
               service.instance.id: pg-primary
             exp_annotations:
-              summary: 'A session on pg-primary has waited 40s for a lock (lab threshold)'
-              description: "A session has waited more than 30 seconds for a lock (lab threshold). Join pg_locks with pg_stat_activity or call pg_blocking_pids() to find the blocker."
+              summary: 'A session on pg-primary has waited 40s for a lock'
+              description: "A session has waited more than the limit (120 s unless the lab sets obenhub.postgresql.lock_wait_age.limit) for a lock. Join pg_locks with pg_stat_activity or call pg_blocking_pids() to find the blocker."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgresblockedsessions
 
   - name: a deadlock fires at once and resolves once it has left the five minute window; a flat counter never fires
@@ -228,8 +229,8 @@ tests:
               service.instance.id: pg-primary
               type: requested
             exp_annotations:
-              summary: 'pg-primary had 8 requested checkpoints in 5 minutes (lab threshold)'
-              description: "More than 3 requested checkpoints in 5 minutes on a primary (lab threshold). Usually WAL reached max_wal_size before checkpoint_timeout, but CHECKPOINT, CREATE DATABASE, base backups, promotion and shutdown also request one. Check pg_stat_checkpointer, max_wal_size against the WAL volume and what writes it."
+              summary: 'pg-primary had 8 requested checkpoints in 5 minutes'
+              description: "More than 3 requested checkpoints in 5 minutes on a primary (3 unless the lab sets obenhub.postgresql.requested_checkpoints.limit). Usually WAL reached max_wal_size before checkpoint_timeout, but CHECKPOINT, CREATE DATABASE, base backups, promotion and shutdown also request one. Check pg_stat_checkpointer, max_wal_size against the WAL volume and what writes it."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgrescheckpointsrequested
       - eval_time: 20m
         groupname: postgresql
@@ -268,8 +269,8 @@ tests:
               postgresql.replication_slot.name: spare
               postgresql.replication_slot.type: physical
             exp_annotations:
-              summary: 'Physical slot spare on pg-primary has been inactive for 2m 30s (lab threshold)'
-              description: "A physical replication slot on the primary has had no consumer for more than 120 seconds and is not invalidated, so it keeps WAL. Check pg_replication_slots and whether its standby is still connected."
+              summary: 'Physical slot spare on pg-primary has been inactive for 2m 30s'
+              description: "A physical replication slot on the primary has had no consumer for more than the limit (900 s unless the lab sets obenhub.postgresql.physical_slot_inactive_age.limit) and is not invalidated, so it keeps WAL. Check pg_replication_slots and whether its standby is still connected."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgresphysicalslotinactive
 
   - name: an inactive but invalidated physical slot does not fire PostgresPhysicalSlotInactive
@@ -298,8 +299,8 @@ tests:
               postgresql.replication_slot.name: spare
               postgresql.replication_slot.type: physical
             exp_annotations:
-              summary: 'Physical slot spare on pg-primary has been inactive for 8m 20s (lab threshold)'
-              description: "A physical replication slot on the primary has had no consumer for more than 120 seconds and is not invalidated, so it keeps WAL. Check pg_replication_slots and whether its standby is still connected."
+              summary: 'Physical slot spare on pg-primary has been inactive for 8m 20s'
+              description: "A physical replication slot on the primary has had no consumer for more than the limit (900 s unless the lab sets obenhub.postgresql.physical_slot_inactive_age.limit) and is not invalidated, so it keeps WAL. Check pg_replication_slots and whether its standby is still connected."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgresphysicalslotinactive
 
   - name: an invalidated slot is critical, with the reason; a valid slot is not
@@ -348,8 +349,8 @@ tests:
               severity: warning
               service.instance.id: a
             exp_annotations:
-              summary: 'A session on a has been idle in a transaction for 1m 30s (lab threshold)'
-              description: "A session has been idle in a transaction for more than 60 seconds (critical over 180 s; lab thresholds). Find it in pg_stat_activity where state is idle in transaction, ordered by state_change."
+              summary: 'A session on a has been idle in a transaction for 1m 30s'
+              description: "A session has been idle in a transaction for more than 300 seconds (critical over 1800 s) unless the lab sets obenhub.postgresql.idle_in_transaction_age.limit per severity. Find it in pg_stat_activity where state is idle in transaction, ordered by state_change."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgresidleintransaction
       - eval_time: 3m15s
         groupname: postgresql
@@ -360,8 +361,8 @@ tests:
               severity: warning
               service.instance.id: a
             exp_annotations:
-              summary: 'A session on a has been idle in a transaction for 1m 30s (lab threshold)'
-              description: "A session has been idle in a transaction for more than 60 seconds (critical over 180 s; lab thresholds). Find it in pg_stat_activity where state is idle in transaction, ordered by state_change."
+              summary: 'A session on a has been idle in a transaction for 1m 30s'
+              description: "A session has been idle in a transaction for more than 300 seconds (critical over 1800 s) unless the lab sets obenhub.postgresql.idle_in_transaction_age.limit per severity. Find it in pg_stat_activity where state is idle in transaction, ordered by state_change."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgresidleintransaction
       - eval_time: 3m30s
         groupname: postgresql
@@ -372,8 +373,8 @@ tests:
               severity: warning
               service.instance.id: a
             exp_annotations:
-              summary: 'A session on a has been idle in a transaction for 1m 30s (lab threshold)'
-              description: "A session has been idle in a transaction for more than 60 seconds (critical over 180 s; lab thresholds). Find it in pg_stat_activity where state is idle in transaction, ordered by state_change."
+              summary: 'A session on a has been idle in a transaction for 1m 30s'
+              description: "A session has been idle in a transaction for more than 300 seconds (critical over 1800 s) unless the lab sets obenhub.postgresql.idle_in_transaction_age.limit per severity. Find it in pg_stat_activity where state is idle in transaction, ordered by state_change."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgresidleintransaction
       - eval_time: 3m45s
         groupname: postgresql
@@ -384,8 +385,8 @@ tests:
               severity: critical
               service.instance.id: a
             exp_annotations:
-              summary: 'A session on a has been idle in a transaction for 3m 20s (lab threshold)'
-              description: "A session has been idle in a transaction for more than 60 seconds (critical over 180 s; lab thresholds). Find it in pg_stat_activity where state is idle in transaction, ordered by state_change."
+              summary: 'A session on a has been idle in a transaction for 3m 20s'
+              description: "A session has been idle in a transaction for more than 300 seconds (critical over 1800 s) unless the lab sets obenhub.postgresql.idle_in_transaction_age.limit per severity. Find it in pg_stat_activity where state is idle in transaction, ordered by state_change."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgresidleintransaction
       - eval_time: 4m
         groupname: postgresql
@@ -396,8 +397,8 @@ tests:
               severity: critical
               service.instance.id: a
             exp_annotations:
-              summary: 'A session on a has been idle in a transaction for 3m 20s (lab threshold)'
-              description: "A session has been idle in a transaction for more than 60 seconds (critical over 180 s; lab thresholds). Find it in pg_stat_activity where state is idle in transaction, ordered by state_change."
+              summary: 'A session on a has been idle in a transaction for 3m 20s'
+              description: "A session has been idle in a transaction for more than 300 seconds (critical over 1800 s) unless the lab sets obenhub.postgresql.idle_in_transaction_age.limit per severity. Find it in pg_stat_activity where state is idle in transaction, ordered by state_change."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgresidleintransaction
       - eval_time: 4m15s
         groupname: postgresql
@@ -408,8 +409,8 @@ tests:
               severity: critical
               service.instance.id: a
             exp_annotations:
-              summary: 'A session on a has been idle in a transaction for 3m 20s (lab threshold)'
-              description: "A session has been idle in a transaction for more than 60 seconds (critical over 180 s; lab thresholds). Find it in pg_stat_activity where state is idle in transaction, ordered by state_change."
+              summary: 'A session on a has been idle in a transaction for 3m 20s'
+              description: "A session has been idle in a transaction for more than 300 seconds (critical over 1800 s) unless the lab sets obenhub.postgresql.idle_in_transaction_age.limit per severity. Find it in pg_stat_activity where state is idle in transaction, ordered by state_change."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgresidleintransaction
       - eval_time: 4m30s
         groupname: postgresql
@@ -420,8 +421,8 @@ tests:
               severity: critical
               service.instance.id: a
             exp_annotations:
-              summary: 'A session on a has been idle in a transaction for 3m 20s (lab threshold)'
-              description: "A session has been idle in a transaction for more than 60 seconds (critical over 180 s; lab thresholds). Find it in pg_stat_activity where state is idle in transaction, ordered by state_change."
+              summary: 'A session on a has been idle in a transaction for 3m 20s'
+              description: "A session has been idle in a transaction for more than 300 seconds (critical over 1800 s) unless the lab sets obenhub.postgresql.idle_in_transaction_age.limit per severity. Find it in pg_stat_activity where state is idle in transaction, ordered by state_change."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgresidleintransaction
 
   - name: idle in transaction tiers - de-escalation, the warning follows the critical at once
@@ -439,8 +440,8 @@ tests:
               severity: critical
               service.instance.id: a
             exp_annotations:
-              summary: 'A session on a has been idle in a transaction for 3m 20s (lab threshold)'
-              description: "A session has been idle in a transaction for more than 60 seconds (critical over 180 s; lab thresholds). Find it in pg_stat_activity where state is idle in transaction, ordered by state_change."
+              summary: 'A session on a has been idle in a transaction for 3m 20s'
+              description: "A session has been idle in a transaction for more than 300 seconds (critical over 1800 s) unless the lab sets obenhub.postgresql.idle_in_transaction_age.limit per severity. Find it in pg_stat_activity where state is idle in transaction, ordered by state_change."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgresidleintransaction
       - eval_time: 5m
         groupname: postgresql
@@ -451,8 +452,8 @@ tests:
               severity: critical
               service.instance.id: a
             exp_annotations:
-              summary: 'A session on a has been idle in a transaction for 3m 20s (lab threshold)'
-              description: "A session has been idle in a transaction for more than 60 seconds (critical over 180 s; lab thresholds). Find it in pg_stat_activity where state is idle in transaction, ordered by state_change."
+              summary: 'A session on a has been idle in a transaction for 3m 20s'
+              description: "A session has been idle in a transaction for more than 300 seconds (critical over 1800 s) unless the lab sets obenhub.postgresql.idle_in_transaction_age.limit per severity. Find it in pg_stat_activity where state is idle in transaction, ordered by state_change."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgresidleintransaction
       - eval_time: 5m15s
         groupname: postgresql
@@ -463,8 +464,8 @@ tests:
               severity: warning
               service.instance.id: a
             exp_annotations:
-              summary: 'A session on a has been idle in a transaction for 1m 30s (lab threshold)'
-              description: "A session has been idle in a transaction for more than 60 seconds (critical over 180 s; lab thresholds). Find it in pg_stat_activity where state is idle in transaction, ordered by state_change."
+              summary: 'A session on a has been idle in a transaction for 1m 30s'
+              description: "A session has been idle in a transaction for more than 300 seconds (critical over 1800 s) unless the lab sets obenhub.postgresql.idle_in_transaction_age.limit per severity. Find it in pg_stat_activity where state is idle in transaction, ordered by state_change."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgresidleintransaction
       - eval_time: 5m30s
         groupname: postgresql
@@ -475,8 +476,8 @@ tests:
               severity: warning
               service.instance.id: a
             exp_annotations:
-              summary: 'A session on a has been idle in a transaction for 1m 30s (lab threshold)'
-              description: "A session has been idle in a transaction for more than 60 seconds (critical over 180 s; lab thresholds). Find it in pg_stat_activity where state is idle in transaction, ordered by state_change."
+              summary: 'A session on a has been idle in a transaction for 1m 30s'
+              description: "A session has been idle in a transaction for more than 300 seconds (critical over 1800 s) unless the lab sets obenhub.postgresql.idle_in_transaction_age.limit per severity. Find it in pg_stat_activity where state is idle in transaction, ordered by state_change."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgresidleintransaction
       - eval_time: 5m45s
         groupname: postgresql
@@ -487,8 +488,8 @@ tests:
               severity: warning
               service.instance.id: a
             exp_annotations:
-              summary: 'A session on a has been idle in a transaction for 1m 30s (lab threshold)'
-              description: "A session has been idle in a transaction for more than 60 seconds (critical over 180 s; lab thresholds). Find it in pg_stat_activity where state is idle in transaction, ordered by state_change."
+              summary: 'A session on a has been idle in a transaction for 1m 30s'
+              description: "A session has been idle in a transaction for more than 300 seconds (critical over 1800 s) unless the lab sets obenhub.postgresql.idle_in_transaction_age.limit per severity. Find it in pg_stat_activity where state is idle in transaction, ordered by state_change."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgresidleintransaction
       - eval_time: 6m
         groupname: postgresql
@@ -499,8 +500,8 @@ tests:
               severity: warning
               service.instance.id: a
             exp_annotations:
-              summary: 'A session on a has been idle in a transaction for 1m 30s (lab threshold)'
-              description: "A session has been idle in a transaction for more than 60 seconds (critical over 180 s; lab thresholds). Find it in pg_stat_activity where state is idle in transaction, ordered by state_change."
+              summary: 'A session on a has been idle in a transaction for 1m 30s'
+              description: "A session has been idle in a transaction for more than 300 seconds (critical over 1800 s) unless the lab sets obenhub.postgresql.idle_in_transaction_age.limit per severity. Find it in pg_stat_activity where state is idle in transaction, ordered by state_change."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgresidleintransaction
 
   - name: idle in transaction tiers - a single dip while critical shows the warning for the window, then the critical returns
@@ -518,8 +519,8 @@ tests:
               severity: critical
               service.instance.id: a
             exp_annotations:
-              summary: 'A session on a has been idle in a transaction for 3m 20s (lab threshold)'
-              description: "A session has been idle in a transaction for more than 60 seconds (critical over 180 s; lab thresholds). Find it in pg_stat_activity where state is idle in transaction, ordered by state_change."
+              summary: 'A session on a has been idle in a transaction for 3m 20s'
+              description: "A session has been idle in a transaction for more than 300 seconds (critical over 1800 s) unless the lab sets obenhub.postgresql.idle_in_transaction_age.limit per severity. Find it in pg_stat_activity where state is idle in transaction, ordered by state_change."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgresidleintransaction
       - eval_time: 5m
         groupname: postgresql
@@ -530,8 +531,8 @@ tests:
               severity: critical
               service.instance.id: a
             exp_annotations:
-              summary: 'A session on a has been idle in a transaction for 3m 20s (lab threshold)'
-              description: "A session has been idle in a transaction for more than 60 seconds (critical over 180 s; lab thresholds). Find it in pg_stat_activity where state is idle in transaction, ordered by state_change."
+              summary: 'A session on a has been idle in a transaction for 3m 20s'
+              description: "A session has been idle in a transaction for more than 300 seconds (critical over 1800 s) unless the lab sets obenhub.postgresql.idle_in_transaction_age.limit per severity. Find it in pg_stat_activity where state is idle in transaction, ordered by state_change."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgresidleintransaction
       - eval_time: 5m15s
         groupname: postgresql
@@ -542,8 +543,8 @@ tests:
               severity: warning
               service.instance.id: a
             exp_annotations:
-              summary: 'A session on a has been idle in a transaction for 1m 30s (lab threshold)'
-              description: "A session has been idle in a transaction for more than 60 seconds (critical over 180 s; lab thresholds). Find it in pg_stat_activity where state is idle in transaction, ordered by state_change."
+              summary: 'A session on a has been idle in a transaction for 1m 30s'
+              description: "A session has been idle in a transaction for more than 300 seconds (critical over 1800 s) unless the lab sets obenhub.postgresql.idle_in_transaction_age.limit per severity. Find it in pg_stat_activity where state is idle in transaction, ordered by state_change."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgresidleintransaction
       - eval_time: 5m30s
         groupname: postgresql
@@ -554,8 +555,8 @@ tests:
               severity: warning
               service.instance.id: a
             exp_annotations:
-              summary: 'A session on a has been idle in a transaction for 1m 30s (lab threshold)'
-              description: "A session has been idle in a transaction for more than 60 seconds (critical over 180 s; lab thresholds). Find it in pg_stat_activity where state is idle in transaction, ordered by state_change."
+              summary: 'A session on a has been idle in a transaction for 1m 30s'
+              description: "A session has been idle in a transaction for more than 300 seconds (critical over 1800 s) unless the lab sets obenhub.postgresql.idle_in_transaction_age.limit per severity. Find it in pg_stat_activity where state is idle in transaction, ordered by state_change."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgresidleintransaction
       - eval_time: 5m45s
         groupname: postgresql
@@ -566,8 +567,8 @@ tests:
               severity: warning
               service.instance.id: a
             exp_annotations:
-              summary: 'A session on a has been idle in a transaction for 1m 30s (lab threshold)'
-              description: "A session has been idle in a transaction for more than 60 seconds (critical over 180 s; lab thresholds). Find it in pg_stat_activity where state is idle in transaction, ordered by state_change."
+              summary: 'A session on a has been idle in a transaction for 1m 30s'
+              description: "A session has been idle in a transaction for more than 300 seconds (critical over 1800 s) unless the lab sets obenhub.postgresql.idle_in_transaction_age.limit per severity. Find it in pg_stat_activity where state is idle in transaction, ordered by state_change."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgresidleintransaction
       - eval_time: 6m
         groupname: postgresql
@@ -578,8 +579,8 @@ tests:
               severity: critical
               service.instance.id: a
             exp_annotations:
-              summary: 'A session on a has been idle in a transaction for 3m 20s (lab threshold)'
-              description: "A session has been idle in a transaction for more than 60 seconds (critical over 180 s; lab thresholds). Find it in pg_stat_activity where state is idle in transaction, ordered by state_change."
+              summary: 'A session on a has been idle in a transaction for 3m 20s'
+              description: "A session has been idle in a transaction for more than 300 seconds (critical over 1800 s) unless the lab sets obenhub.postgresql.idle_in_transaction_age.limit per severity. Find it in pg_stat_activity where state is idle in transaction, ordered by state_change."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgresidleintransaction
       - eval_time: 6m15s
         groupname: postgresql
@@ -590,8 +591,8 @@ tests:
               severity: critical
               service.instance.id: a
             exp_annotations:
-              summary: 'A session on a has been idle in a transaction for 3m 20s (lab threshold)'
-              description: "A session has been idle in a transaction for more than 60 seconds (critical over 180 s; lab thresholds). Find it in pg_stat_activity where state is idle in transaction, ordered by state_change."
+              summary: 'A session on a has been idle in a transaction for 3m 20s'
+              description: "A session has been idle in a transaction for more than 300 seconds (critical over 1800 s) unless the lab sets obenhub.postgresql.idle_in_transaction_age.limit per severity. Find it in pg_stat_activity where state is idle in transaction, ordered by state_change."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgresidleintransaction
       - eval_time: 6m30s
         groupname: postgresql
@@ -602,8 +603,8 @@ tests:
               severity: critical
               service.instance.id: a
             exp_annotations:
-              summary: 'A session on a has been idle in a transaction for 3m 20s (lab threshold)'
-              description: "A session has been idle in a transaction for more than 60 seconds (critical over 180 s; lab thresholds). Find it in pg_stat_activity where state is idle in transaction, ordered by state_change."
+              summary: 'A session on a has been idle in a transaction for 3m 20s'
+              description: "A session has been idle in a transaction for more than 300 seconds (critical over 1800 s) unless the lab sets obenhub.postgresql.idle_in_transaction_age.limit per severity. Find it in pg_stat_activity where state is idle in transaction, ordered by state_change."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgresidleintransaction
 
   - name: idle in transaction tiers - a jump from below the warning threshold straight above the critical one never shows the warning
@@ -633,8 +634,8 @@ tests:
               severity: critical
               service.instance.id: a
             exp_annotations:
-              summary: 'A session on a has been idle in a transaction for 3m 20s (lab threshold)'
-              description: "A session has been idle in a transaction for more than 60 seconds (critical over 180 s; lab thresholds). Find it in pg_stat_activity where state is idle in transaction, ordered by state_change."
+              summary: 'A session on a has been idle in a transaction for 3m 20s'
+              description: "A session has been idle in a transaction for more than 300 seconds (critical over 1800 s) unless the lab sets obenhub.postgresql.idle_in_transaction_age.limit per severity. Find it in pg_stat_activity where state is idle in transaction, ordered by state_change."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgresidleintransaction
       - eval_time: 4m
         groupname: postgresql
@@ -645,8 +646,8 @@ tests:
               severity: critical
               service.instance.id: a
             exp_annotations:
-              summary: 'A session on a has been idle in a transaction for 3m 20s (lab threshold)'
-              description: "A session has been idle in a transaction for more than 60 seconds (critical over 180 s; lab thresholds). Find it in pg_stat_activity where state is idle in transaction, ordered by state_change."
+              summary: 'A session on a has been idle in a transaction for 3m 20s'
+              description: "A session has been idle in a transaction for more than 300 seconds (critical over 1800 s) unless the lab sets obenhub.postgresql.idle_in_transaction_age.limit per severity. Find it in pg_stat_activity where state is idle in transaction, ordered by state_change."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgresidleintransaction
       - eval_time: 4m15s
         groupname: postgresql
@@ -657,8 +658,8 @@ tests:
               severity: critical
               service.instance.id: a
             exp_annotations:
-              summary: 'A session on a has been idle in a transaction for 3m 20s (lab threshold)'
-              description: "A session has been idle in a transaction for more than 60 seconds (critical over 180 s; lab thresholds). Find it in pg_stat_activity where state is idle in transaction, ordered by state_change."
+              summary: 'A session on a has been idle in a transaction for 3m 20s'
+              description: "A session has been idle in a transaction for more than 300 seconds (critical over 1800 s) unless the lab sets obenhub.postgresql.idle_in_transaction_age.limit per severity. Find it in pg_stat_activity where state is idle in transaction, ordered by state_change."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgresidleintransaction
 
   # xid_age is 0.79 of the limit from 10m15s; the critical needs 21 samples (old 5m for plus a step) and appears at 15m15s.
@@ -682,7 +683,7 @@ tests:
               kind: xid
             exp_annotations:
               summary: 'xid age of app on pg-primary is 55.88% of the wraparound limit'
-              description: "The age of a database's datfrozenxid (kind xid) or datminmxid (kind mxid) is above 50 % of the wraparound limit 2^31 (critical above 75 %). Check pg_database for the database and whether autovacuum freezing can progress."
+              description: "The age of a database's datfrozenxid (kind xid) or datminmxid (kind mxid) is above 50 % of the wraparound limit 2^31 (critical above 75 %), unless the lab sets obenhub.postgresql.wraparound_ratio.limit per severity. Check pg_database for the database and whether autovacuum freezing can progress."
               runbook_url: https://msavdert.github.io/obenhub/reference/postgresql-pack-alerts/#postgrestransactionidwraparound
       - eval_time: 14m45s
         groupname: postgresql
@@ -696,7 +697,7 @@ tests:
               kind: xid
             exp_annotations:
               summary: 'xid age of app on pg-primary is 55.88% of the wraparound limit'
-              description: "The age of a database's datfrozenxid (kind xid) or datminmxid (kind mxid) is above 50 % of the wraparound limit 2^31 (critical above 75 %). Check pg_database for the database and whether autovacuum freezing can progress."
+              description: "The age of a database's datfrozenxid (kind xid) or datminmxid (kind mxid) is above 50 % of the wraparound limit 2^31 (critical above 75 %), unless the lab sets obenhub.postgresql.wraparound_ratio.limit per severity. Check pg_database for the database and whether autovacuum freezing can progress."
               runbook_url: https://msavdert.github.io/obenhub/reference/postgresql-pack-alerts/#postgrestransactionidwraparound
       - eval_time: 15m
         groupname: postgresql
@@ -710,7 +711,7 @@ tests:
               kind: xid
             exp_annotations:
               summary: 'xid age of app on pg-primary is 55.88% of the wraparound limit'
-              description: "The age of a database's datfrozenxid (kind xid) or datminmxid (kind mxid) is above 50 % of the wraparound limit 2^31 (critical above 75 %). Check pg_database for the database and whether autovacuum freezing can progress."
+              description: "The age of a database's datfrozenxid (kind xid) or datminmxid (kind mxid) is above 50 % of the wraparound limit 2^31 (critical above 75 %), unless the lab sets obenhub.postgresql.wraparound_ratio.limit per severity. Check pg_database for the database and whether autovacuum freezing can progress."
               runbook_url: https://msavdert.github.io/obenhub/reference/postgresql-pack-alerts/#postgrestransactionidwraparound
       - eval_time: 15m15s
         groupname: postgresql
@@ -724,7 +725,7 @@ tests:
               kind: xid
             exp_annotations:
               summary: 'xid age of app on pg-primary is 79.16% of the wraparound limit'
-              description: "The age of a database's datfrozenxid (kind xid) or datminmxid (kind mxid) is above 50 % of the wraparound limit 2^31 (critical above 75 %). Check pg_database for the database and whether autovacuum freezing can progress."
+              description: "The age of a database's datfrozenxid (kind xid) or datminmxid (kind mxid) is above 50 % of the wraparound limit 2^31 (critical above 75 %), unless the lab sets obenhub.postgresql.wraparound_ratio.limit per severity. Check pg_database for the database and whether autovacuum freezing can progress."
               runbook_url: https://msavdert.github.io/obenhub/reference/postgresql-pack-alerts/#postgrestransactionidwraparound
       - eval_time: 15m30s
         groupname: postgresql
@@ -738,7 +739,7 @@ tests:
               kind: xid
             exp_annotations:
               summary: 'xid age of app on pg-primary is 79.16% of the wraparound limit'
-              description: "The age of a database's datfrozenxid (kind xid) or datminmxid (kind mxid) is above 50 % of the wraparound limit 2^31 (critical above 75 %). Check pg_database for the database and whether autovacuum freezing can progress."
+              description: "The age of a database's datfrozenxid (kind xid) or datminmxid (kind mxid) is above 50 % of the wraparound limit 2^31 (critical above 75 %), unless the lab sets obenhub.postgresql.wraparound_ratio.limit per severity. Check pg_database for the database and whether autovacuum freezing can progress."
               runbook_url: https://msavdert.github.io/obenhub/reference/postgresql-pack-alerts/#postgrestransactionidwraparound
       - eval_time: 15m45s
         groupname: postgresql
@@ -752,7 +753,7 @@ tests:
               kind: xid
             exp_annotations:
               summary: 'xid age of app on pg-primary is 79.16% of the wraparound limit'
-              description: "The age of a database's datfrozenxid (kind xid) or datminmxid (kind mxid) is above 50 % of the wraparound limit 2^31 (critical above 75 %). Check pg_database for the database and whether autovacuum freezing can progress."
+              description: "The age of a database's datfrozenxid (kind xid) or datminmxid (kind mxid) is above 50 % of the wraparound limit 2^31 (critical above 75 %), unless the lab sets obenhub.postgresql.wraparound_ratio.limit per severity. Check pg_database for the database and whether autovacuum freezing can progress."
               runbook_url: https://msavdert.github.io/obenhub/reference/postgresql-pack-alerts/#postgrestransactionidwraparound
 
   - name: wraparound tiers - a jump from below the warning threshold straight above the critical one never shows the warning
@@ -787,7 +788,7 @@ tests:
               kind: xid
             exp_annotations:
               summary: 'xid age of app on pg-primary is 79.16% of the wraparound limit'
-              description: "The age of a database's datfrozenxid (kind xid) or datminmxid (kind mxid) is above 50 % of the wraparound limit 2^31 (critical above 75 %). Check pg_database for the database and whether autovacuum freezing can progress."
+              description: "The age of a database's datfrozenxid (kind xid) or datminmxid (kind mxid) is above 50 % of the wraparound limit 2^31 (critical above 75 %), unless the lab sets obenhub.postgresql.wraparound_ratio.limit per severity. Check pg_database for the database and whether autovacuum freezing can progress."
               runbook_url: https://msavdert.github.io/obenhub/reference/postgresql-pack-alerts/#postgrestransactionidwraparound
       - eval_time: 15m30s
         groupname: postgresql
@@ -801,7 +802,7 @@ tests:
               kind: xid
             exp_annotations:
               summary: 'xid age of app on pg-primary is 79.16% of the wraparound limit'
-              description: "The age of a database's datfrozenxid (kind xid) or datminmxid (kind mxid) is above 50 % of the wraparound limit 2^31 (critical above 75 %). Check pg_database for the database and whether autovacuum freezing can progress."
+              description: "The age of a database's datfrozenxid (kind xid) or datminmxid (kind mxid) is above 50 % of the wraparound limit 2^31 (critical above 75 %), unless the lab sets obenhub.postgresql.wraparound_ratio.limit per severity. Check pg_database for the database and whether autovacuum freezing can progress."
               runbook_url: https://msavdert.github.io/obenhub/reference/postgresql-pack-alerts/#postgrestransactionidwraparound
       - eval_time: 15m45s
         groupname: postgresql
@@ -815,7 +816,7 @@ tests:
               kind: xid
             exp_annotations:
               summary: 'xid age of app on pg-primary is 79.16% of the wraparound limit'
-              description: "The age of a database's datfrozenxid (kind xid) or datminmxid (kind mxid) is above 50 % of the wraparound limit 2^31 (critical above 75 %). Check pg_database for the database and whether autovacuum freezing can progress."
+              description: "The age of a database's datfrozenxid (kind xid) or datminmxid (kind mxid) is above 50 % of the wraparound limit 2^31 (critical above 75 %), unless the lab sets obenhub.postgresql.wraparound_ratio.limit per severity. Check pg_database for the database and whether autovacuum freezing can progress."
               runbook_url: https://msavdert.github.io/obenhub/reference/postgresql-pack-alerts/#postgrestransactionidwraparound
 
   - name: wraparound on a standby never fires, the same age on the primary does
@@ -845,7 +846,7 @@ tests:
               kind: xid
             exp_annotations:
               summary: 'xid age of app on pg-primary is 79.16% of the wraparound limit'
-              description: "The age of a database's datfrozenxid (kind xid) or datminmxid (kind mxid) is above 50 % of the wraparound limit 2^31 (critical above 75 %). Check pg_database for the database and whether autovacuum freezing can progress."
+              description: "The age of a database's datfrozenxid (kind xid) or datminmxid (kind mxid) is above 50 % of the wraparound limit 2^31 (critical above 75 %), unless the lab sets obenhub.postgresql.wraparound_ratio.limit per severity. Check pg_database for the database and whether autovacuum freezing can progress."
               runbook_url: https://msavdert.github.io/obenhub/reference/postgresql-pack-alerts/#postgrestransactionidwraparound
 
   # The first sample is at 1m; three points make a full window (the old 30s for).
@@ -872,8 +873,8 @@ tests:
               severity: critical
               service.instance.id: a
             exp_annotations:
-              summary: 'A session on a has been idle in a transaction for 3m 20s (lab threshold)'
-              description: "A session has been idle in a transaction for more than 60 seconds (critical over 180 s; lab thresholds). Find it in pg_stat_activity where state is idle in transaction, ordered by state_change."
+              summary: 'A session on a has been idle in a transaction for 3m 20s'
+              description: "A session has been idle in a transaction for more than 300 seconds (critical over 1800 s) unless the lab sets obenhub.postgresql.idle_in_transaction_age.limit per severity. Find it in pg_stat_activity where state is idle in transaction, ordered by state_change."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgresidleintransaction
       - eval_time: 1m45s
         groupname: postgresql
@@ -884,8 +885,8 @@ tests:
               severity: critical
               service.instance.id: a
             exp_annotations:
-              summary: 'A session on a has been idle in a transaction for 3m 20s (lab threshold)'
-              description: "A session has been idle in a transaction for more than 60 seconds (critical over 180 s; lab thresholds). Find it in pg_stat_activity where state is idle in transaction, ordered by state_change."
+              summary: 'A session on a has been idle in a transaction for 3m 20s'
+              description: "A session has been idle in a transaction for more than 300 seconds (critical over 1800 s) unless the lab sets obenhub.postgresql.idle_in_transaction_age.limit per severity. Find it in pg_stat_activity where state is idle in transaction, ordered by state_change."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgresidleintransaction
       - eval_time: 2m
         groupname: postgresql
@@ -896,8 +897,8 @@ tests:
               severity: critical
               service.instance.id: a
             exp_annotations:
-              summary: 'A session on a has been idle in a transaction for 3m 20s (lab threshold)'
-              description: "A session has been idle in a transaction for more than 60 seconds (critical over 180 s; lab thresholds). Find it in pg_stat_activity where state is idle in transaction, ordered by state_change."
+              summary: 'A session on a has been idle in a transaction for 3m 20s'
+              description: "A session has been idle in a transaction for more than 300 seconds (critical over 1800 s) unless the lab sets obenhub.postgresql.idle_in_transaction_age.limit per severity. Find it in pg_stat_activity where state is idle in transaction, ordered by state_change."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgresidleintransaction
 
   # The first sample is at 1m; 21 points make a full window (the old 5m for), so the critical comes at 6m.
@@ -949,7 +950,7 @@ tests:
               kind: xid
             exp_annotations:
               summary: 'xid age of app on pg-primary is 79.16% of the wraparound limit'
-              description: "The age of a database's datfrozenxid (kind xid) or datminmxid (kind mxid) is above 50 % of the wraparound limit 2^31 (critical above 75 %). Check pg_database for the database and whether autovacuum freezing can progress."
+              description: "The age of a database's datfrozenxid (kind xid) or datminmxid (kind mxid) is above 50 % of the wraparound limit 2^31 (critical above 75 %), unless the lab sets obenhub.postgresql.wraparound_ratio.limit per severity. Check pg_database for the database and whether autovacuum freezing can progress."
               runbook_url: https://msavdert.github.io/obenhub/reference/postgresql-pack-alerts/#postgrestransactionidwraparound
       - eval_time: 6m15s
         groupname: postgresql
@@ -963,7 +964,7 @@ tests:
               kind: xid
             exp_annotations:
               summary: 'xid age of app on pg-primary is 79.16% of the wraparound limit'
-              description: "The age of a database's datfrozenxid (kind xid) or datminmxid (kind mxid) is above 50 % of the wraparound limit 2^31 (critical above 75 %). Check pg_database for the database and whether autovacuum freezing can progress."
+              description: "The age of a database's datfrozenxid (kind xid) or datminmxid (kind mxid) is above 50 % of the wraparound limit 2^31 (critical above 75 %), unless the lab sets obenhub.postgresql.wraparound_ratio.limit per severity. Check pg_database for the database and whether autovacuum freezing can progress."
               runbook_url: https://msavdert.github.io/obenhub/reference/postgresql-pack-alerts/#postgrestransactionidwraparound
       - eval_time: 6m30s
         groupname: postgresql
@@ -977,7 +978,7 @@ tests:
               kind: xid
             exp_annotations:
               summary: 'xid age of app on pg-primary is 79.16% of the wraparound limit'
-              description: "The age of a database's datfrozenxid (kind xid) or datminmxid (kind mxid) is above 50 % of the wraparound limit 2^31 (critical above 75 %). Check pg_database for the database and whether autovacuum freezing can progress."
+              description: "The age of a database's datfrozenxid (kind xid) or datminmxid (kind mxid) is above 50 % of the wraparound limit 2^31 (critical above 75 %), unless the lab sets obenhub.postgresql.wraparound_ratio.limit per severity. Check pg_database for the database and whether autovacuum freezing can progress."
               runbook_url: https://msavdert.github.io/obenhub/reference/postgresql-pack-alerts/#postgrestransactionidwraparound
 
   # --- PostgresReplicationSlotRetainingWAL (threshold 512 MiB = 536870912, hold 2m) ---
@@ -1020,8 +1021,8 @@ tests:
               postgresql.replication_slot.name: _cnpg_pg_2
               postgresql.replication_slot.type: physical
             exp_annotations:
-              summary: 'Slot _cnpg_pg_2 on pg-1 retains 600MiB of WAL (lab threshold)'
-              description: "A valid slot on a primary holds back more than 512 MiB of WAL for 2 minutes (lab threshold), so the volume is filling. Check pg_replication_slots (retained WAL, active) and bring the consumer back or drop the slot."
+              summary: 'Slot _cnpg_pg_2 on pg-1 retains 600MiB of WAL'
+              description: "A valid slot on a primary holds back more than the limit of WAL (8 GiB unless the lab sets obenhub.postgresql.slot_retained_wal.limit) for 2 minutes, so the volume is filling. Check pg_replication_slots (retained WAL, active) and bring the consumer back or drop the slot."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgresreplicationslotretainingwal
       - eval_time: 4m
         groupname: postgresql
@@ -1034,8 +1035,8 @@ tests:
               postgresql.replication_slot.name: _cnpg_pg_2
               postgresql.replication_slot.type: physical
             exp_annotations:
-              summary: 'Slot _cnpg_pg_2 on pg-1 retains 600MiB of WAL (lab threshold)'
-              description: "A valid slot on a primary holds back more than 512 MiB of WAL for 2 minutes (lab threshold), so the volume is filling. Check pg_replication_slots (retained WAL, active) and bring the consumer back or drop the slot."
+              summary: 'Slot _cnpg_pg_2 on pg-1 retains 600MiB of WAL'
+              description: "A valid slot on a primary holds back more than the limit of WAL (8 GiB unless the lab sets obenhub.postgresql.slot_retained_wal.limit) for 2 minutes, so the volume is filling. Check pg_replication_slots (retained WAL, active) and bring the consumer back or drop the slot."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgresreplicationslotretainingwal
 
   - name: a slot that crosses the threshold for less than the hold, or sits exactly at it, does not fire; it resolves when the slot catches up
@@ -1064,8 +1065,8 @@ tests:
               postgresql.replication_slot.name: lag
               postgresql.replication_slot.type: physical
             exp_annotations:
-              summary: 'Slot lag on pg-1 retains 600MiB of WAL (lab threshold)'
-              description: "A valid slot on a primary holds back more than 512 MiB of WAL for 2 minutes (lab threshold), so the volume is filling. Check pg_replication_slots (retained WAL, active) and bring the consumer back or drop the slot."
+              summary: 'Slot lag on pg-1 retains 600MiB of WAL'
+              description: "A valid slot on a primary holds back more than the limit of WAL (8 GiB unless the lab sets obenhub.postgresql.slot_retained_wal.limit) for 2 minutes, so the volume is filling. Check pg_replication_slots (retained WAL, active) and bring the consumer back or drop the slot."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgresreplicationslotretainingwal
       - eval_time: 7m
         groupname: postgresql

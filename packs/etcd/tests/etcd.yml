@@ -197,7 +197,7 @@ tests:
           - exp_labels: {severity: warning, obenhub.cluster.name: stage3-etcd}
             exp_annotations:
               summary: 4 leader changes of etcd cluster stage3-etcd within 5 minutes
-              description: "Three or more leader changes of one etcd cluster within 5 minutes (increase of etcd_server_leader_changes_seen_total). Run etcdctl endpoint status for the current leader, and look at the members for restarts, slow disks (EtcdHighFsyncDurations) or network trouble between them."
+              description: "Three or more leader changes of one etcd cluster within 5 minutes (3 unless the lab sets obenhub.etcd.leader_changes.limit; increase of etcd_server_leader_changes_seen_total). Run etcdctl endpoint status for the current leader, and look at the members for restarts, slow disks (EtcdHighFsyncDurations) or network trouble between them."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/etcd/#etcdhighleaderchanges
       - eval_time: 14m   # the window has moved past the changes
         groupname: etcd
@@ -244,7 +244,7 @@ tests:
           - exp_labels: {severity: warning, obenhub.cluster.name: stage3-etcd}
             exp_annotations:
               summary: 3 leader changes of etcd cluster stage3-etcd within 5 minutes
-              description: "Three or more leader changes of one etcd cluster within 5 minutes (increase of etcd_server_leader_changes_seen_total). Run etcdctl endpoint status for the current leader, and look at the members for restarts, slow disks (EtcdHighFsyncDurations) or network trouble between them."
+              description: "Three or more leader changes of one etcd cluster within 5 minutes (3 unless the lab sets obenhub.etcd.leader_changes.limit; increase of etcd_server_leader_changes_seen_total). Run etcdctl endpoint status for the current leader, and look at the members for restarts, slow disks (EtcdHighFsyncDurations) or network trouble between them."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/etcd/#etcdhighleaderchanges
 
   # No etcd `up` series at all while the Collector lives: count() is empty and

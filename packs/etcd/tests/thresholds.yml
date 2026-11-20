@@ -1,0 +1,40 @@
+# Thresholds of the etcd pack, in the one form of C4: a production default in the
+# rule and an optional lab parameter, the recorded series obenhub.*.limit. Two tests:
+# defaults (no limit series: each rule fires just above its default and is quiet at it)
+# and override (limit series recorded: each rule fires above the override, and a value
+# between the default and the override stays quiet). The fsync and commit limits are tested in etcd-defaults.yml and etcd-lab-override.yml. The tests read the firing
+# alerts back as ALERTS series, so a quiet case is a series missing from the list.
+rule_files:
+  - ../rules.yml
+evaluation_interval: 15s
+
+tests:
+  - name: defaults - 3 leader changes in 5 minutes fire, 2 do not
+    interval: 15s
+    input_series:
+      - series: 'etcd_server_leader_changes_seen_total{obenhub.cluster.name="leader-hi",service.instance.id="etcd-1"}'
+        values: '0x30 3x160'
+      - series: 'etcd_server_leader_changes_seen_total{obenhub.cluster.name="leader-lo",service.instance.id="etcd-1"}'
+        values: '0x30 2x160'
+    metricsql_expr_test:
+      - expr: ALERTS{alertname="EtcdHighLeaderChanges", alertstate="firing"}
+        eval_time: 10m
+        exp_samples:
+          - labels: 'ALERTS{alertname="EtcdHighLeaderChanges", alertgroup="etcd", alertstate="firing", obenhub.cluster.name="leader-hi", severity="warning"}'
+            value: 1
+
+  - name: override - a limit of 5 leader changes, 4 stay quiet and 5 fire
+    interval: 15s
+    input_series:
+      - series: 'obenhub.etcd.leader_changes.limit'
+        values: '5x160'
+      - series: 'etcd_server_leader_changes_seen_total{obenhub.cluster.name="leader-mid",service.instance.id="etcd-1"}'
+        values: '0x30 4x160'
+      - series: 'etcd_server_leader_changes_seen_total{obenhub.cluster.name="leader-top",service.instance.id="etcd-1"}'
+        values: '0x30 5x160'
+    metricsql_expr_test:
+      - expr: ALERTS{alertname="EtcdHighLeaderChanges", alertstate="firing"}
+        eval_time: 10m
+        exp_samples:
+          - labels: 'ALERTS{alertname="EtcdHighLeaderChanges", alertgroup="etcd", alertstate="firing", obenhub.cluster.name="leader-top", severity="warning"}'
+            value: 1

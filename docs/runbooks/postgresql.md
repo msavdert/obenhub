@@ -95,7 +95,7 @@ Seen in the lab:
 
 ## PostgresSnapshotHeldTooLong
 
-A client transaction or prepared transaction has held a snapshot or an xid for longer than the lab threshold, which holds back the xmin horizon. Reference: [PostgresSnapshotHeldTooLong](../reference/postgresql-pack-alerts.md#postgressnapshotheldtoolong).
+A client transaction or prepared transaction has held a snapshot or an xid for longer than its limit (1800 s unless the lab sets `obenhub.postgresql.snapshot_age.limit`), which holds back the xmin horizon. Reference: [PostgresSnapshotHeldTooLong](../reference/postgresql-pack-alerts.md#postgressnapshotheldtoolong).
 
 Look first: On the instance named in the alert.
 
@@ -136,7 +136,7 @@ Seen in the lab:
 
 ## PostgresIdleInTransaction
 
-A client session has been idle in a transaction for more than 60 seconds (critical over 180 s). Reference: [PostgresIdleInTransaction](../reference/postgresql-pack-alerts.md#postgresidleintransaction).
+A client session has been idle in a transaction for more than 300 seconds (critical over 1800 s) unless the lab sets `obenhub.postgresql.idle_in_transaction_age.limit` per severity. Reference: [PostgresIdleInTransaction](../reference/postgresql-pack-alerts.md#postgresidleintransaction).
 
 Look first: On the instance named in the alert.
 
@@ -157,7 +157,7 @@ Seen in the lab:
 
 ## PostgresBlockedSessions
 
-A session has waited more than 30 seconds for a lock. Reference: [PostgresBlockedSessions](../reference/postgresql-pack-alerts.md#postgresblockedsessions).
+A session has waited more than its limit (120 s unless the lab sets `obenhub.postgresql.lock_wait_age.limit`) for a lock. Reference: [PostgresBlockedSessions](../reference/postgresql-pack-alerts.md#postgresblockedsessions).
 
 Look first: On the instance named in the alert.
 
@@ -209,7 +209,7 @@ Seen in the lab:
 
 ## PostgresPhysicalSlotInactive
 
-A physical replication slot has had no consumer for more than 120 seconds and keeps WAL. Reference: [PostgresPhysicalSlotInactive](../reference/postgresql-pack-alerts.md#postgresphysicalslotinactive).
+A physical replication slot has had no consumer for more than its limit (900 s unless the lab sets `obenhub.postgresql.physical_slot_inactive_age.limit`) and keeps WAL. Reference: [PostgresPhysicalSlotInactive](../reference/postgresql-pack-alerts.md#postgresphysicalslotinactive).
 
 Look first: On the primary, the slot query (see the top of this page).
 
@@ -231,7 +231,7 @@ Seen in the lab:
 
 ## PostgresReplicationSlotRetainingWAL
 
-A valid slot holds back more than 512 MiB of WAL, so the WAL volume is filling. Reference: [PostgresReplicationSlotRetainingWAL](../reference/postgresql-pack-alerts.md#postgresreplicationslotretainingwal).
+A valid slot holds back more than its limit of WAL (8 GiB unless the lab sets `obenhub.postgresql.slot_retained_wal.limit`), so the WAL volume is filling. Reference: [PostgresReplicationSlotRetainingWAL](../reference/postgresql-pack-alerts.md#postgresreplicationslotretainingwal).
 
 Look first: On the primary, the slot query (see the top of this page); `retained_wal` is the value the alert reads.
 
@@ -258,7 +258,7 @@ Seen in the lab:
 
 ## PostgresArchiveBacklog
 
-More than 8 WAL segments wait for the archiver, so they stay in `pg_wal` and can fill the disk. Reference: [PostgresArchiveBacklog](../reference/postgresql-pack-alerts.md#postgresarchivebacklog).
+More WAL segments than the limit (64 unless the lab sets `obenhub.postgresql.archive_ready_files.limit`) wait for the archiver, so they stay in `pg_wal` and can fill the disk. Reference: [PostgresArchiveBacklog](../reference/postgresql-pack-alerts.md#postgresarchivebacklog).
 
 Look first: On the primary.
 
@@ -307,7 +307,7 @@ Seen in the lab:
 
 ## PostgresLogicalSubscriptionNotStreaming
 
-An enabled subscription has no apply worker, or no message for over 60 seconds, without errors that `PostgresLogicalApplyErrors` would own. Reference: [PostgresLogicalSubscriptionNotStreaming](../reference/postgresql-pack-alerts.md#postgreslogicalsubscriptionnotstreaming).
+An enabled subscription has no apply worker, or no message for over its limit (300 s unless the lab sets `obenhub.postgresql.subscription_msg_age.limit`), without errors that `PostgresLogicalApplyErrors` would own. Reference: [PostgresLogicalSubscriptionNotStreaming](../reference/postgresql-pack-alerts.md#postgreslogicalsubscriptionnotstreaming).
 
 Look first: On the subscriber.
 
@@ -324,7 +324,7 @@ Seen in the lab:
 
 ## PostgresLogicalSlotStalled
 
-A logical slot on the publisher has been inactive for over 180 seconds, or has more than 128 MiB of WAL unconfirmed. Reference: [PostgresLogicalSlotStalled](../reference/postgresql-pack-alerts.md#postgreslogicalslotstalled).
+A logical slot on the publisher has been inactive for over its limit (900 s unless the lab sets `obenhub.postgresql.logical_slot_inactive_age.limit`), or has more WAL unconfirmed than its limit (4 GiB unless the lab sets `obenhub.postgresql.logical_slot_unconfirmed_wal.limit`). Reference: [PostgresLogicalSlotStalled](../reference/postgresql-pack-alerts.md#postgreslogicalslotstalled).
 
 Look first: On the publisher.
 

@@ -1216,7 +1216,7 @@
           "legendFormat": "{{obenhub.cluster.name}} {{service.instance.id}}"
         }
       ],
-      "description": "Longest current wait of a session for a lock held by another session (V$SESSION, wait class Application, all containers of the primary), from the primary-only sql_query of the oracledb-dg pack, 15 s; 0 when none. Alert: OracleBlockedSessions (warning when the wait has been above 30 s for 30 s).",
+      "description": "Longest current wait of a session for a lock held by another session (V$SESSION, wait class Application, all containers of the primary), from the primary-only sql_query of the oracledb-dg pack, 15 s; 0 when none. Alert: OracleBlockedSessions (warning when the wait has been above obenhub.oracledb.lock_wait_age.limit, 120 s by default).",
       "fieldConfig": {
         "defaults": {
           "custom": {

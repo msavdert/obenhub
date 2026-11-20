@@ -120,14 +120,24 @@ the held dependency update batch and closes a release.
       are `packs/{postgresql,patroni,etcd}/tests/*identity.yml`; the stage3
       and pgha etcd resources now carry `stage3-etcd` and `pgha-etcd`, and
       the lab suites run in the chain
-- [ ] C4 Thresholds: a production default in the rule and an optional
-      override series, in one form everywhere, as `packs/etcd/rules.yml`
-      does since #113. About 30 literal values in the postgresql, patroni,
-      oracledb-dg, host and etcd packs; the labs keep today's values as
-      overrides in their inventories; dashboards read the same series; each
-      pack README gets a generated threshold table. The owner sets each
-      production value. Done when every pack has a defaults test and an
-      override test
+- [x] C4 Thresholds: a production default in the rule and an optional
+      override series, in one form everywhere, `<expr> > on() group_left()
+      (obenhub.<component>.<thing>.limit{...} or on() vector(<default>))`,
+      as `packs/etcd/rules.yml` does since #113. 29 limit series in the
+      postgresql, oracledb-dg, host, etcd and pgbouncer packs (the patroni
+      pack has none: `PatroniReplicaNotEligible` must equal Patroni's
+      `maximum_lag_on_failover` and the collection interval and boot window
+      stay literal, each with its reason beside it); the owner set each
+      production value on 2026-11-20. The labs keep today's values as
+      override series in a `<component>-parameters` group of their
+      inventory; the dashboards draw the same series (with the same fallback)
+      as a dashed line. `docs/reference/<pack>-pack-alerts.md` has a
+      generated Thresholds table (series, selector, default, unit,
+      comparison) and `scripts/gen-pack-alerts.py` fails on a `.limit`
+      series in any other form. Every pack has `tests/thresholds.yml` (the
+      defaults, and an override that moves the limit; a tiered rule's
+      warning band follows its critical limit) and every lab a
+      `limits.yml` test of its own values
 - [x] C5 Collection interval: the rules assume 15 s (windows of 30 s in 17
       places, which cannot hold at 60 s). Each pack README that sizes windows
       to its interval (postgresql, pgbouncer, patroni, cnpg, oracledb-dg,
