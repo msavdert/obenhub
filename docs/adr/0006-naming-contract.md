@@ -85,8 +85,9 @@ Kubernetes attributes) are used as they arrive.
    runs one Cluster, `pg`).
    - `obenhub.cluster.name` is mandatory on every series of the engine and
      cluster components: PostgreSQL, PgBouncer, pgBackRest, Patroni, etcd,
-     CloudNativePG and Oracle. Host, Collector and Kubernetes node series
-     describe shared infrastructure and do not carry it.
+     CloudNativePG and Oracle. Host, Collector and Kubernetes node series are
+     exempt: they need not carry it, and no rule relies on it (pgha and
+     oracle label a host with the cluster it serves).
    - etcd is its own cluster with its own name (for example `pgha-etcd`): one
      etcd cluster can be the store of several Patroni clusters.
    - Rules join and group on the cluster and the instance. A one-to-one

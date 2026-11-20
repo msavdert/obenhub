@@ -11,3 +11,19 @@ collections: `[30s]` in `PatroniMultiplePrimaries`, and `[1m]` on
 on `otelcol_process_uptime` in `PatroniTargetAbsent`.
 `PatroniCollectionIntervalTooLong` fires when the samples of `up` of the
 Patroni scrape are on average more than 20 s apart.
+
+## Collector fragment
+
+`otelcol.yaml` is the Collector fragment of this pack: receivers, processors and the pipelines named `*/obenhub-patroni*`, exporting to `otlp_http/obenhub`. It needs the base in [`../otelcol-base.yaml`](../otelcol-base.yaml) (exporter and extensions) and the files of this pack at `/etc/otelcol-contrib/packs/patroni/`. The lab Collector configurations stay hand-written. `mise run lint:otelcol` validates the fragment with its base, starts the Collector once with it (a receiver that cannot reach its target is fine, one that cannot start is not), and fails when a lab block differs from it, except in hosts, ports, endpoints, targets, usernames and TLS settings, identity values, and the entries of `ALLOW` in `scripts/check-otelcol-fragments.py`, each with a reason; a lab credential must stay an `${env:...}` reference ([ADR 0005](../../docs/adr/0005-lab-collection-topology-and-packs.md) decision 3).
+
+Variables:
+
+| Variable | Meaning | Example |
+| --- | --- | --- |
+| `OBENHUB_CLUSTER_NAME` | obenhub.cluster.name, unique within the backend (ADR 0006 decision 7) | `pgha` |
+| `OBENHUB_PATRONI_CA_FILE` | CA file for https; unused with http | `/etc/otelcol-contrib/tls/ca.crt` |
+| `OBENHUB_PATRONI_HOST` | member host; also server.address | `pgha-1` |
+| `OBENHUB_PATRONI_INSTANCE_ID` | service.instance.id, the member name | `pgha-1` |
+| `OBENHUB_PATRONI_PORT` | REST API port; also server.port | `8008` |
+| `OBENHUB_PATRONI_SCHEME` | http or https | `https` |
+| `OBENHUB_SERVICE_NAMESPACE` | service.namespace of every series | `obenhub-lab` |

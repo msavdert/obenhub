@@ -1,0 +1,34 @@
+# Collector fragment of the Oracle backup pack: the pack's sql_query list (RMAN
+# job state) over the same connection and with the same identity as the
+# oracledb-dg fragment. Variables: README.md, "Collector fragment". Base:
+# ../otelcol-base.yaml. The queries return rows on the primary only, so the
+# pair keeps reporting after a role change.
+receivers:
+  sql_query/obenhub-oracledb-backup:
+    driver: oracle
+    max_open_conn: 3
+    datasource: "oracle://${env:OBENHUB_ORACLE_DG_USER}:${env:OBENHUB_ORACLE_DG_PASSWORD}@${env:OBENHUB_ORACLE_HOST}:${env:OBENHUB_ORACLE_PORT}/${env:OBENHUB_ORACLE_SERVICE}?DBA%20PRIVILEGE=SYSDG"
+    collection_interval: 60s
+    queries: ${file:/etc/otelcol-contrib/packs/oracledb-backup/queries.yaml}
+
+processors:
+  memory_limiter/obenhub:
+    check_interval: 1s
+    limit_mib: 256
+  batch/obenhub: {}
+  resource/obenhub-oracledb-backup:
+    attributes:
+      - {key: service.namespace, value: "${env:OBENHUB_SERVICE_NAMESPACE}", action: upsert}
+      - {key: service.name, value: oracledb, action: upsert}
+      - {key: service.instance.id, value: "${env:OBENHUB_ORACLE_DB_UNIQUE_NAME}", action: upsert}
+      - {key: server.address, value: "${env:OBENHUB_ORACLE_HOST}", action: upsert}
+      - {key: server.port, value: "${env:OBENHUB_ORACLE_PORT}", action: upsert}
+      - {key: db.system.name, value: oracle.db, action: upsert}
+      - {key: obenhub.cluster.name, value: "${env:OBENHUB_CLUSTER_NAME}", action: upsert}
+
+service:
+  pipelines:
+    metrics/obenhub-oracledb-backup:
+      receivers: [sql_query/obenhub-oracledb-backup]
+      processors: [memory_limiter/obenhub, resource/obenhub-oracledb-backup, batch/obenhub]
+      exporters: [otlp_http/obenhub]

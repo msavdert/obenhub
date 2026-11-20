@@ -50,3 +50,24 @@ with one sample or none, so the rules would go quiet or flap without an
 error; `PostgresCollectionIntervalTooLong` fires when the samples of
 `postgresql.collection.heartbeat` are on average more than 20 s apart. To
 collect slower, widen every window to at least twice the new interval first.
+
+## Collector fragment
+
+`otelcol.yaml` is the Collector fragment of this pack: receivers, processors and the pipelines named `*/obenhub-postgresql*`, exporting to `otlp_http/obenhub`. It needs the base in [`../otelcol-base.yaml`](../otelcol-base.yaml) (exporter and extensions) and the files of this pack at `/etc/otelcol-contrib/packs/postgresql/`. The lab Collector configurations stay hand-written. `mise run lint:otelcol` validates the fragment with its base, starts the Collector once with it (a receiver that cannot reach its target is fine, one that cannot start is not), and fails when a lab block differs from it, except in hosts, ports, endpoints, targets, usernames and TLS settings, identity values, and the entries of `ALLOW` in `scripts/check-otelcol-fragments.py`, each with a reason; a lab credential must stay an `${env:...}` reference ([ADR 0005](../../docs/adr/0005-lab-collection-topology-and-packs.md) decision 3).
+
+Variables:
+
+| Variable | Meaning | Example |
+| --- | --- | --- |
+| `OBENHUB_CLUSTER_NAME` | obenhub.cluster.name, unique within the backend (ADR 0006 decision 7) | `pgha` |
+| `OBENHUB_PG_CA_FILE` | CA file that verifies the server certificate | `/etc/otelcol-contrib/tls/ca.crt` |
+| `OBENHUB_PG_DATABASES` | databases the receiver connects to, a YAML list | `[postgres, app]` |
+| `OBENHUB_PG_HOST` | PostgreSQL host; also server.address | `db1.example.net` |
+| `OBENHUB_PG_INSTANCE_ID` | service.instance.id, unique within the cluster | `pgha-1` |
+| `OBENHUB_PG_LOG_GLOB` | glob of the jsonlog files | `/var/log/postgresql/postgresql-*.json` |
+| `OBENHUB_PG_PASSWORD` | its password; from a secret store, never a file in a repository |  |
+| `OBENHUB_PG_PORT` | PostgreSQL port; also server.port | `5432` |
+| `OBENHUB_PG_SSLMODE` | sslmode of sql_query | `verify-full` |
+| `OBENHUB_PG_TLS_INSECURE` | true turns TLS off for the postgresql receiver; keep it consistent with the sslmode | `false` |
+| `OBENHUB_PG_USER` | monitoring role (packs/postgresql/monitoring-role.sql) | `otel_monitor` |
+| `OBENHUB_SERVICE_NAMESPACE` | service.namespace of every series | `obenhub-lab` |

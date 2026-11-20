@@ -1,0 +1,171 @@
+# Collector fragment of the CloudNativePG pack: the PostgreSQL pack's receivers
+# created per instance pod of one CloudNativePG Cluster on this node, the
+# instance manager's operator-state exporter, the identity of a pod and the
+# PostgreSQL log records the instance pods write. Variables: README.md,
+# "Collector fragment". Base: ../otelcol-base-k8s.yaml (it provides
+# k8s_observer/obenhub, which receiver_creator watches).
+# Run it in a DaemonSet: every Collector watches its own node (the base's
+# k8s_observer sets `node: ${env:K8S_NODE_NAME}`). Same attribute names as
+# ../postgresql/otelcol.yaml;
+# the instance is the pod (k8s.pod.name is set by receiver_creator), never a role.
+# OBENHUB_CNPG_CLUSTER is the CloudNativePG Cluster's name (cnpg.io/cluster);
+# OBENHUB_CLUSTER_NAME is the name unique across namespaces (ADR 0006
+# decision 7); they may be equal when the Cluster name is unique already.
+# CloudNativePG's server certificate names only the Services, never a pod, so the
+# hostname cannot be verified: sql_query verifies the chain (verify-ca),
+# postgresql supports only verify-full or no verification and uses TLS without
+# verifying it.
+receivers:
+  receiver_creator/obenhub-cnpg-postgresql:
+    watch_observers: [k8s_observer/obenhub]
+    receivers:
+      postgresql:
+        rule: type == "pod" && labels["cnpg.io/cluster"] == "${env:OBENHUB_CNPG_CLUSTER}" && labels["cnpg.io/podRole"] == "instance"
+        config:
+          endpoint: '`endpoint`:5432'
+          transport: tcp
+          username: ${env:OBENHUB_PG_USER}
+          password: ${env:OBENHUB_PG_PASSWORD}
+          databases: ${env:OBENHUB_PG_DATABASES}
+          collection_interval: 15s
+          metrics:
+            postgresql.deadlocks:
+              enabled: true
+          tls:
+            insecure: false
+            insecure_skip_verify: true
+      sql_query:
+        rule: type == "pod" && labels["cnpg.io/cluster"] == "${env:OBENHUB_CNPG_CLUSTER}" && labels["cnpg.io/podRole"] == "instance"
+        config:
+          driver: postgres
+          host: '`endpoint`'
+          port: 5432
+          database: postgres
+          username: ${env:OBENHUB_PG_USER}
+          password: ${env:OBENHUB_PG_PASSWORD}
+          additional_params:
+            sslmode: verify-ca
+            sslrootcert: ${env:OBENHUB_PG_CA_FILE}
+          max_open_conn: 3
+          collection_interval: 15s
+          timeout: 10s
+          queries: ${file:/etc/otelcol-contrib/packs/postgresql/queries.yaml}
+  # The instance manager's exporter (container port `metrics`, 9187, plain HTTP)
+  # for operator state only: cnpg_collector_* and cnpg_last_error. The three
+  # series the exporter's HELP marks Deprecated (backup timestamps) and the Go
+  # runtime series are dropped.
+  receiver_creator/obenhub-cnpg:
+    watch_observers: [k8s_observer/obenhub]
+    receivers:
+      prometheus:
+        rule: type == "port" && name == "metrics" && pod.labels["cnpg.io/cluster"] == "${env:OBENHUB_CNPG_CLUSTER}" && pod.labels["cnpg.io/podRole"] == "instance"
+        config:
+          config:
+            scrape_configs:
+              - job_name: cnpg
+                scrape_interval: 15s
+                scrape_timeout: 10s
+                static_configs:
+                  - targets: ['`endpoint`']
+                metric_relabel_configs:
+                  - source_labels: [__name__]
+                    regex: cnpg_collector_.*|cnpg_last_error
+                    action: keep
+                  - source_labels: [__name__]
+                    regex: cnpg_collector_(first_recoverability_point|last_available_backup_timestamp|last_failed_backup_timestamp)
+                    action: drop
+  # The container logs of the instance pods, as CloudNativePG writes them
+  # (JSON lines under /var/log/pods). The Collector's user must be able to read
+  # them.
+  file_log/obenhub-cnpg:
+    # the instance pods are named <cluster>-<n>; `<cluster>-[0-9]*` does not match
+    # the pods of another Cluster named <cluster>-<letter...> (pg-analytics-1),
+    # but does match one named <cluster>-<digit...> (pg-2024-1): those logs are
+    # collected without obenhub.cluster.name, because the transform below checks
+    # the pod name exactly; give Clusters names that avoid it
+    include: ["/var/log/pods/${env:OBENHUB_CNPG_NAMESPACE}_${env:OBENHUB_CNPG_CLUSTER}-[0-9]*_*/postgres/*.log"]
+    start_at: beginning
+    storage: file_storage/obenhub
+    operators:
+      - type: container
+        id: container-parser
+        max_log_size: 102400
+      - type: json_parser
+        id: cnpg-json
+        if: 'body startsWith "{" && resource["k8s.namespace.name"] == "${env:OBENHUB_CNPG_NAMESPACE}"'
+        parse_from: body
+
+processors:
+  memory_limiter/obenhub:
+    check_interval: 1s
+    limit_mib: 256
+  batch/obenhub: {}
+  resource/obenhub-cnpg-postgresql:
+    attributes:
+      - {key: service.namespace, value: "${env:OBENHUB_SERVICE_NAMESPACE}", action: upsert}
+      - {key: service.name, value: postgresql, action: upsert}
+      - {key: service.instance.id, from_attribute: k8s.pod.name, action: upsert}
+      - {key: server.address, from_attribute: k8s.pod.name, action: upsert}
+      - {key: server.port, value: "5432", action: upsert}
+      - {key: db.system.name, value: postgresql, action: upsert}
+      - {key: obenhub.cluster.name, value: "${env:OBENHUB_CLUSTER_NAME}", action: upsert}
+  # As above, with the instance manager (which serves the exporter) as the
+  # service. Not "cloudnative-pg": k8s_attributes already gives the operator pod
+  # that name from its app.kubernetes.io/name label.
+  resource/obenhub-cnpg:
+    attributes:
+      - {key: service.namespace, value: "${env:OBENHUB_SERVICE_NAMESPACE}", action: upsert}
+      - {key: service.name, value: cnpg-instance-manager, action: upsert}
+      - {key: service.instance.id, from_attribute: k8s.pod.name, action: upsert}
+      - {key: server.address, from_attribute: k8s.pod.name, action: upsert}
+      - {key: server.port, value: "9187", action: upsert}
+      - {key: db.system.name, value: postgresql, action: upsert}
+      - {key: obenhub.cluster.name, value: "${env:OBENHUB_CLUSTER_NAME}", action: upsert}
+  # CloudNativePG logs {"logger":"postgres","msg":"record","record":{...}}.
+  # Body: the server message; the attributes keep the names of the jsonlog
+  # fields the postgresql pack collects.
+  transform/obenhub-cnpg:
+    error_mode: ignore
+    log_statements:
+      # The postgres container of an instance pod gets the identity the metrics
+      # have (resource/obenhub-cnpg-postgresql), so logs and metrics join on it.
+      - context: resource
+        conditions:
+          - attributes["k8s.namespace.name"] == "${env:OBENHUB_CNPG_NAMESPACE}" and attributes["k8s.container.name"] == "postgres" and IsMatch(attributes["k8s.pod.name"], "^${env:OBENHUB_CNPG_CLUSTER}-[0-9]+$")
+        statements:
+          - set(attributes["service.namespace"], "${env:OBENHUB_SERVICE_NAMESPACE}")
+          - set(attributes["service.name"], "postgresql")
+          - set(attributes["service.instance.id"], attributes["k8s.pod.name"])
+          - set(attributes["server.address"], attributes["k8s.pod.name"])
+          - set(attributes["server.port"], "5432")
+          - set(attributes["db.system.name"], "postgresql")
+          - set(attributes["obenhub.cluster.name"], "${env:OBENHUB_CLUSTER_NAME}")
+      - context: log
+        statements:
+          - set(body, attributes["msg"]) where attributes["msg"] != nil
+          - set(body, attributes["record"]["message"]) where IsMap(attributes["record"]) and attributes["record"]["message"] != nil
+          # Every jsonlog field becomes a flat attribute, as the postgresql pack keeps them.
+          - merge_maps(attributes, attributes["record"], "insert") where IsMap(attributes["record"])
+          - set(severity_text, attributes["error_severity"]) where attributes["error_severity"] != nil
+          - set(severity_number, SEVERITY_NUMBER_DEBUG) where IsMatch(attributes["error_severity"], "^DEBUG[1-5]$")
+          - set(severity_number, SEVERITY_NUMBER_INFO) where IsMatch(attributes["error_severity"], "^(LOG|INFO|NOTICE)$")
+          - set(severity_number, SEVERITY_NUMBER_WARN) where attributes["error_severity"] == "WARNING"
+          - set(severity_number, SEVERITY_NUMBER_ERROR) where attributes["error_severity"] == "ERROR"
+          - set(severity_number, SEVERITY_NUMBER_FATAL) where IsMatch(attributes["error_severity"], "^(FATAL|PANIC)$")
+          - delete_key(attributes, "msg")
+          - delete_key(attributes, "record") where IsMap(attributes["record"])
+
+service:
+  pipelines:
+    metrics/obenhub-cnpg-postgresql:
+      receivers: [receiver_creator/obenhub-cnpg-postgresql]
+      processors: [memory_limiter/obenhub, resource/obenhub-cnpg-postgresql, batch/obenhub]
+      exporters: [otlp_http/obenhub]
+    metrics/obenhub-cnpg:
+      receivers: [receiver_creator/obenhub-cnpg]
+      processors: [memory_limiter/obenhub, resource/obenhub-cnpg, batch/obenhub]
+      exporters: [otlp_http/obenhub]
+    logs/obenhub-cnpg:
+      receivers: [file_log/obenhub-cnpg]
+      processors: [memory_limiter/obenhub, transform/obenhub-cnpg, batch/obenhub]
+      exporters: [otlp_http/obenhub]

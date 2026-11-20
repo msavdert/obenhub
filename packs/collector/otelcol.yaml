@@ -1,0 +1,26 @@
+# Collector fragment of the Collector pack: the self-telemetry the pack's rules
+# read (otelcol_process_uptime and the other self-metrics, with
+# service.instance.id naming the Collector). It is service.telemetry only: a
+# component-less fragment, so it has no pipeline. Variables: README.md,
+# "Collector fragment". Base: ../otelcol-base.yaml.
+# The reader pushes the self-metrics over OTLP/HTTP to the same endpoint the
+# base's exporter uses (OBENHUB_GATEWAY_ENDPOINT, no path; the lab gateway
+# receives OTLP/HTTP on 4318). TLS options of that reader (certificate,
+# client_certificate, client_key) are installation specific and are not part
+# of the fragment.
+service:
+  telemetry:
+    resource:
+      attributes:
+        - {name: service.namespace, value: "${env:OBENHUB_SERVICE_NAMESPACE}"}
+        - {name: service.name, value: otelcol}
+        - {name: service.instance.id, value: "${env:OBENHUB_COLLECTOR_INSTANCE_ID}"}
+    metrics:
+      level: normal
+      readers:
+        - periodic:
+            interval: 15000
+            exporter:
+              otlp:
+                protocol: http/protobuf
+                endpoint: ${env:OBENHUB_GATEWAY_ENDPOINT}/v1/metrics

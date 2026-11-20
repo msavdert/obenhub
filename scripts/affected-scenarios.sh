@@ -296,6 +296,8 @@ for f in "${changed[@]}"; do
       ;;
     packs/*/upstream-receiver-metrics.txt) out "$f" "nothing (reference list)" ;;
     packs/*/tests/* | lab/*/vmalert/tests/*) out "$f" nothing ;;
+    packs/*/otelcol.yaml | packs/otelcol-base.yaml)
+      out "$f" "nothing (Collector fragment: no lab loads it, lint:otelcol compares the labs with it)" ;;
     *) if comment_only "$f"; then out "$f" "nothing (comments or formatting only)"; continue; fi ;;&
     */lib.sh | */lib-*.sh) all=1; out "$f" ALL ;;
     "$longlist") out "$f" "nothing (long.txt)" ;;

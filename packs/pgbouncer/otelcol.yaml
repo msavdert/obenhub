@@ -1,0 +1,66 @@
+# Collector fragment of the PgBouncer pack: the sql_query list of the pack
+# (queries.yaml) against the admin console, the processors that rename the
+# console's columns and convert microseconds to seconds, and the identity of one
+# PgBouncer. Variables: README.md, "Collector fragment". Base: ../otelcol-base.yaml.
+# PgBouncer has no metrics endpoint (pgbouncer#1354); see the lab block in
+# lab/slice1/otelcol/config.yaml for the measurements behind the processors.
+receivers:
+  sql_query/obenhub-pgbouncer:
+    driver: postgres
+    host: ${env:OBENHUB_PGBOUNCER_HOST}
+    port: ${env:OBENHUB_PGBOUNCER_PORT}
+    database: pgbouncer
+    username: ${env:OBENHUB_PGBOUNCER_USER}
+    password: ${env:OBENHUB_PGBOUNCER_PASSWORD}
+    additional_params:
+      sslmode: ${env:OBENHUB_PGBOUNCER_SSLMODE}
+    max_open_conn: 3
+    collection_interval: 15s
+    timeout: 10s
+    queries: ${file:/etc/otelcol-contrib/packs/pgbouncer/queries.yaml}
+
+processors:
+  memory_limiter/obenhub:
+    check_interval: 1s
+    limit_mib: 256
+  batch/obenhub: {}
+  # SHOW output cannot be aliased in SQL, so the console's column names are
+  # renamed here: database (SHOW POOLS, SHOW STATS) and name (SHOW DATABASES)
+  # are the same thing.
+  attributes/obenhub-pgbouncer:
+    actions:
+      - {key: pgbouncer.database.name, from_attribute: database, action: insert}
+      - {key: pgbouncer.database.name, from_attribute: name, action: insert}
+      - {key: user.name, from_attribute: user, action: insert}
+      - {key: pgbouncer.list.name, from_attribute: list, action: insert}
+      - {key: database, action: delete}
+      - {key: name, action: delete}
+      - {key: user, action: delete}
+      - {key: list, action: delete}
+  # SHOW STATS and SHOW POOLS report microseconds; the pack queries declare
+  # unit us so that this condition finds them. Order matters: the datapoint
+  # statement runs first, while metric.unit is still us.
+  transform/obenhub-pgbouncer-seconds:
+    metric_statements:
+      - context: datapoint
+        statements:
+          - set(datapoint.value_double, Double(datapoint.value_int) / 1000000.0) where metric.unit == "us"
+      - context: metric
+        statements:
+          - set(metric.unit, "s") where metric.unit == "us"
+  resource/obenhub-pgbouncer:
+    attributes:
+      - {key: service.namespace, value: "${env:OBENHUB_SERVICE_NAMESPACE}", action: upsert}
+      - {key: service.name, value: pgbouncer, action: upsert}
+      - {key: service.instance.id, value: "${env:OBENHUB_PGBOUNCER_INSTANCE_ID}", action: upsert}
+      - {key: server.address, value: "${env:OBENHUB_PGBOUNCER_HOST}", action: upsert}
+      - {key: server.port, value: "${env:OBENHUB_PGBOUNCER_PORT}", action: upsert}
+      - {key: db.system.name, value: pgbouncer, action: upsert}
+      - {key: obenhub.cluster.name, value: "${env:OBENHUB_CLUSTER_NAME}", action: upsert}
+
+service:
+  pipelines:
+    metrics/obenhub-pgbouncer:
+      receivers: [sql_query/obenhub-pgbouncer]
+      processors: [memory_limiter/obenhub, attributes/obenhub-pgbouncer, transform/obenhub-pgbouncer-seconds, resource/obenhub-pgbouncer, batch/obenhub]
+      exporters: [otlp_http/obenhub]

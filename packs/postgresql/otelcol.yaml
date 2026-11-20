@@ -1,0 +1,96 @@
+# Collector fragment of the PostgreSQL pack: the upstream postgresql receiver,
+# the pack's sql_query list (queries.yaml), the jsonlog file reader and the
+# identity of one PostgreSQL instance. One instance per Collector process; run
+# the fragment once per instance with its own variables, or copy it under other
+# component names. Variables: README.md, "Collector fragment". Base: ../otelcol-base.yaml.
+# Shape as lab/pgha/files/otelcol.yaml.tmpl (plain VM form); the lab blocks may
+# differ only in what lint:otelcol allows (scripts/check-otelcol-fragments.py).
+receivers:
+  postgresql/obenhub-postgresql:
+    endpoint: ${env:OBENHUB_PG_HOST}:${env:OBENHUB_PG_PORT}
+    transport: tcp
+    username: ${env:OBENHUB_PG_USER}
+    password: ${env:OBENHUB_PG_PASSWORD}
+    # The receiver connects to each listed database; list the application
+    # databases as well as postgres.
+    databases: ${env:OBENHUB_PG_DATABASES}
+    collection_interval: 15s
+    # Optional upstream metric, off by default (receiver metadata).
+    metrics:
+      postgresql.deadlocks:
+        enabled: true
+    # insecure_skip_verify defaults to true in this receiver, so it is set
+    # false explicitly. OBENHUB_PG_TLS_INSECURE=true disables TLS.
+    tls:
+      insecure: ${env:OBENHUB_PG_TLS_INSECURE}
+      insecure_skip_verify: false
+      ca_file: ${env:OBENHUB_PG_CA_FILE}
+
+  # The query list of this pack, installed at the documented path below.
+  sql_query/obenhub-postgresql:
+    driver: postgres
+    host: ${env:OBENHUB_PG_HOST}
+    port: ${env:OBENHUB_PG_PORT}
+    database: postgres
+    username: ${env:OBENHUB_PG_USER}
+    password: ${env:OBENHUB_PG_PASSWORD}
+    additional_params:
+      sslmode: ${env:OBENHUB_PG_SSLMODE}
+      sslrootcert: ${env:OBENHUB_PG_CA_FILE}
+    max_open_conn: 3
+    collection_interval: 15s
+    timeout: 10s
+    queries: ${file:/etc/otelcol-contrib/packs/postgresql/queries.yaml}
+
+  # PostgreSQL jsonlog (log_destination jsonlog).
+  file_log/obenhub-postgresql:
+    include: ["${env:OBENHUB_PG_LOG_GLOB}"]
+    start_at: beginning
+    storage: file_storage/obenhub
+    operators:
+      - type: json_parser
+        parse_from: body
+        # keep integers exact (query_id is a 64-bit integer)
+        parse_ints: true
+        timestamp:
+          parse_from: attributes.timestamp
+          layout: '%Y-%m-%d %H:%M:%S.%L %Z'
+        severity:
+          parse_from: attributes.error_severity
+          mapping:
+            debug: [DEBUG1, DEBUG2, DEBUG3, DEBUG4, DEBUG5]
+            info: [LOG, INFO, NOTICE]
+            warn: WARNING
+            error: ERROR
+            fatal: [FATAL, PANIC]
+      # the log body is the server message, not the raw JSON line
+      - type: move
+        from: attributes.message
+        to: body
+
+processors:
+  memory_limiter/obenhub:
+    check_interval: 1s
+    limit_mib: 256
+  batch/obenhub: {}
+  # No role attribute on purpose: a standby can be promoted.
+  resource/obenhub-postgresql:
+    attributes:
+      - {key: service.namespace, value: "${env:OBENHUB_SERVICE_NAMESPACE}", action: upsert}
+      - {key: service.name, value: postgresql, action: upsert}
+      - {key: service.instance.id, value: "${env:OBENHUB_PG_INSTANCE_ID}", action: upsert}
+      - {key: server.address, value: "${env:OBENHUB_PG_HOST}", action: upsert}
+      - {key: server.port, value: "${env:OBENHUB_PG_PORT}", action: upsert}
+      - {key: db.system.name, value: postgresql, action: upsert}
+      - {key: obenhub.cluster.name, value: "${env:OBENHUB_CLUSTER_NAME}", action: upsert}
+
+service:
+  pipelines:
+    metrics/obenhub-postgresql:
+      receivers: [postgresql/obenhub-postgresql, sql_query/obenhub-postgresql]
+      processors: [memory_limiter/obenhub, resource/obenhub-postgresql, batch/obenhub]
+      exporters: [otlp_http/obenhub]
+    logs/obenhub-postgresql:
+      receivers: [file_log/obenhub-postgresql]
+      processors: [memory_limiter/obenhub, resource/obenhub-postgresql, batch/obenhub]
+      exporters: [otlp_http/obenhub]
