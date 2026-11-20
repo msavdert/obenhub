@@ -4,37 +4,49 @@
 ADR 0005 decision 3: a pack holds one complete Collector fragment; lab
 Collector configurations stay hand-written, and this check fails when a lab's
 block for a pack component differs from the fragment's component in anything
-but what the fragment parametrises.
+but what the rules below allow.
 
 Checks (exit 1 on any finding):
 1. every fragment is well formed: component names end in `obenhub` or
-`obenhub-<pack>`, pipelines are named `<signal>/obenhub-<pack>*`, export to
-otlp/obenhub, and each ${file:/etc/otelcol-contrib/packs/<pack>/<f>} names
-a file that exists; the shared processors are identical in every fragment;
-2. the ${env:...} variables of a fragment are exactly the ones its pack
-README lists in the "Collector fragment" section;
+`obenhub-<pack>`, pipelines are named `<signal>/obenhub-<pack>*` and export to
+otlp_http/obenhub, each ${file:/etc/otelcol-contrib/packs/<pack>/<f>} names a
+file that exists, the shared processors are identical in every fragment;
+2. the variables of a fragment (${env:...}, plus K8S_NODE_NAME for the k8s base)
+are exactly the ones its pack README lists in the "Collector fragment" table,
+and the variables of each base file are exactly the ones its header lists;
 3. drift: each component of each lab configuration that belongs to a pack is
-compared with the fragment's component, after normalisation.
+compared with the fragment's component, after normalisation; so is each lab
+pipeline that holds pack receivers (the mapped receivers and the ordered,
+mapped processors must equal the fragment pipeline's).
 
-What may differ (the only allowances; each is a rule below, not a skip):
-- Any value the fragment writes as ${env:...}: the lab may hold any value
-there, and a key whose whole value is ${env:...} may be absent. A string
-that contains ${env:...} among other text is matched as a pattern.
-- Keys in IGNORE_KEYS (TLS settings, the storage extension name, the
-observer a receiver_creator watches), the ssl* keys of sql_query
-additional_params, and the directory part of ${file:.../packs/<pack>/...}.
+Limits: pipelines are compared per component type, not per lab instance (in
+slice1, metrics/primary wired to resource/standby passes); an ALLOW entry
+counts as used when its glob matches a component, even when the difference
+it excuses is gone; pipelines fed by chart presets (k8s) are not compared.
+
+What may differ between a lab block and the fragment (nothing else):
+- Keys in PARAM_KEYS (endpoint, host, port, targets, username, service,
+scheme, datasource): the lab may hold any value where the fragment holds
+${env:...} (text around the variable is matched), and `scheme` may be absent.
+A credential (`password`, the password part of `datasource`) that the fragment
+takes from ${env:...} must come from an ${env:...} in the lab too.
+- Keys in IGNORE_KEYS (TLS settings, the storage extension name, the observer
+a receiver_creator watches), the ssl* keys of sql_query additional_params, and
+the directory part of ${file:.../packs/<pack>/...}.
 - The value (or from_attribute) of the identity keys in IDENTITY, in resource
 attribute lists, in service.telemetry.resource and in `set(attributes[
 "<identity key>"], ...)` statements.
-- Per-lab entries in ALLOW, each with a reason; an entry that matches nothing
-is an error.
+- Entries of ALLOW, each with a reason (a different value where the fragment
+holds ${env:...}, a subset, an extra attribute, a pipeline difference); an
+entry that matches nothing is an error.
 Components with no pack are listed in UNMAPPED_OK with a reason; any other
-component that cannot be mapped is an error. Pipelines (which components are
-wired together, in which order) are not compared.
+component that cannot be mapped is an error. A pipeline whose receivers are
+all supplied by a chart preset (receivers: [] in a Helm values file) cannot be
+compared and is skipped.
 
 Usage: check-otelcol-fragments.py [--lab LABEL=PATH]... [--only]
-check-otelcol-fragments.py --env      # NAME=value dummies for validation
-check-otelcol-fragments.py --fragments   # fragment paths
+check-otelcol-fragments.py --env         # NAME=value dummies for validation
+check-otelcol-fragments.py --fragments   # "<fragment> <base> <vm|k8s>" lines
 --lab adds a lab configuration (the label picks the ALLOW entries and, for
 *-values.yaml, the `config:` section); --only drops the default list.
 Needs yq (mise.toml).
@@ -70,6 +82,10 @@ EXCLUDED = {
     "lab/k8s/mon/otelcol-gateway.yaml": "the gateway: receives OTLP, no pack component",
 }
 
+BASE = "packs/otelcol-base.yaml"
+BASE_K8S = "packs/otelcol-base-k8s.yaml"
+K8S_PACKS = {"cnpg", "k8s"}  # fragments that run in Kubernetes: BASE_K8S, no startup test
+
 IGNORE_KEYS = {
     "tls",
     "tls_config",
@@ -80,6 +96,10 @@ IGNORE_KEYS = {
     "watch_observers",
 }
 SSL_PARAMS = {"sslmode", "sslrootcert", "sslcert", "sslkey"}
+# keys where a lab may hold another value than the fragment's ${env:...}
+PARAM_KEYS = {"endpoint", "host", "port", "targets", "username", "service", "scheme", "datasource", "password"}
+OPTIONAL_KEYS = {"scheme"}  # may be absent in the lab
+CREDENTIAL_KEYS = {"password"}
 IDENTITY = [
     "service.namespace",
     "service.instance.id",
@@ -94,31 +114,45 @@ STMT = re.compile(
 ENV = re.compile(r"\$\{env:([A-Za-z0-9_]+)\}")
 FILE = re.compile(r"\$\{file:[^}]*?/packs/")
 WHOLE_ENV = re.compile(r"^\$\{env:[A-Za-z0-9_]+\}$")
+DSN_PASSWORD_ENV = re.compile(r"://[^:/@]*:\$\{env:[A-Za-z0-9_]+\}@")
 
-# (lab file glob, kind, component glob, mode, reason). Modes: "extra-attr:<key>"
-# (the lab's resource processor has one more attribute), "subset" (only the
-# keys the lab sets are compared), "only:<k1,k2>" (only these keys are compared).
+# (lab file glob, kind, component glob, mode, reason). kind: receivers,
+# processors, telemetry (service.telemetry), pipelines. Modes:
+#   extra-attr:<key>  the lab's resource processor has one more attribute
+#   subset            only the keys the lab sets are compared
+#   only:<k1,k2>      only these keys are compared
+#   param:<k1,k2>     these keys may hold another value than the fragment's ${env:...}
+#   ignore:<k1,k2>    these keys (at any depth) are not compared
+#   receivers-subset  (pipelines) the lab pipeline has fewer receivers
+#   drop-processors:<t1,t2>  (pipelines) lab processors of these types are not compared
 ALLOW = [
     (
         "lab/pgha/files/otelcol.yaml.tmpl (rendered)",
         "processors",
         "resource/host",
         "extra-attr:obenhub.cluster.name",
-        "the lab labels host series with the cluster of the node; ADR 0006 decision 7 says host series do not carry it",
+        "ADR 0006 decision 7 exempts host series from the cluster name; the lab labels a host with the cluster it serves",
     ),
     (
         "lab/oracle/files/otelcol-host.yaml",
         "processors",
         "resource/host",
         "extra-attr:obenhub.cluster.name",
-        "the lab labels host series with the cluster of the VM; ADR 0006 decision 7 says host series do not carry it",
+        "ADR 0006 decision 7 exempts host series from the cluster name; the lab labels a VM with the cluster it serves",
     ),
     (
         "lab/k8s/otel/agent-values.yaml",
         "receivers",
         "kubeletstats",
         "subset",
-        "the chart's kubeletstats preset supplies the other keys; only insecure_skip_verify is set here",
+        "the chart's kubeletMetrics preset supplies the other keys; only insecure_skip_verify is set here",
+    ),
+    (
+        "lab/k8s/otel/agent-values.yaml",
+        "receivers",
+        "kubeletstats",
+        "param:insecure_skip_verify",
+        "kubelet certificate verification: the kind lab skips it, the fragment leaves it to the installation",
     ),
     (
         "lab/k8s/otel/agent-values.yaml",
@@ -126,6 +160,34 @@ ALLOW = [
         "file_log",
         "only:operators",
         "the chart's logsCollection preset collects every pod log; the pack reads the postgres container of the instance pods, so only the operators are compared",
+    ),
+    (
+        "lab/k8s/otel/agent-values.yaml",
+        "receivers",
+        "file_log",
+        "param:if",
+        "the namespace of the Cluster is a lab value",
+    ),
+    (
+        "lab/k8s/otel/agent-values.yaml",
+        "receivers",
+        "receiver_creator/postgresql*",
+        "param:databases,rule",
+        "the databases to read and the CloudNativePG Cluster name are lab values",
+    ),
+    (
+        "lab/k8s/otel/agent-values.yaml",
+        "receivers",
+        "receiver_creator/cnpg",
+        "param:rule",
+        "the CloudNativePG Cluster name is a lab value",
+    ),
+    (
+        "lab/k8s/otel/agent-values.yaml",
+        "processors",
+        "transform/cnpg",
+        "ignore:conditions",
+        "the lab selects the postgres container of its one namespace; the fragment also pins the pod name to <cluster>-<n>, which the lab has not needed with a single Cluster",
     ),
     (
         "lab/k8s/otel/*-values.yaml",
@@ -141,6 +203,41 @@ ALLOW = [
         "subset",
         "one-off overhead measurement: the Collector's own metrics are not shipped, only the level is set",
     ),
+    (
+        "*",
+        "receivers",
+        "postgresql*",
+        "param:databases",
+        "the application databases to read differ per lab",
+    ),
+    (
+        "*",
+        "receivers",
+        "file_log*",
+        "param:include",
+        "log file locations differ per installation",
+    ),
+    (
+        "*",
+        "receivers",
+        "journald/*",
+        "param:units",
+        "the systemd units to follow differ per machine",
+    ),
+    (
+        "lab/oracle/files/otelcol-obs.yaml",
+        "pipelines",
+        "metrics/standby",
+        "receivers-subset",
+        "the oracledb receiver and the account query read the primary only; the standby has neither",
+    ),
+    (
+        "lab/k8s/otel/agent-values.yaml",
+        "pipelines",
+        "metrics/*",
+        "drop-processors:k8s_attributes",
+        "enrichment from the chart's preset (the k8s pack's own k8s_attributes); the cnpg fragment does not carry it",
+    ),
 ]
 # (lab file glob, kind, component glob, reason): no pack component to compare.
 UNMAPPED_OK = [
@@ -152,13 +249,18 @@ UNMAPPED_OK = [
     ),
 ]
 
-# fragment key -> (pack, fragment component) for sql_query by queries file
 SQL_QUERY = {
     ("postgresql", "queries.yaml"): ("postgresql", "sql_query/obenhub-postgresql"),
     ("pgbouncer", "queries.yaml"): ("pgbouncer", "sql_query/obenhub-pgbouncer"),
     ("oracledb-dg", "queries.yaml"): ("oracledb-dg", "sql_query/obenhub-oracledb-dg"),
-    ("oracledb-dg", "queries-primary.yaml"): ("oracledb-dg", "sql_query/obenhub-oracledb-dg-account"),
-    ("oracledb-backup", "queries.yaml"): ("oracledb-backup", "sql_query/obenhub-oracledb-backup"),
+    ("oracledb-dg", "queries-primary.yaml"): (
+        "oracledb-dg",
+        "sql_query/obenhub-oracledb-dg-account",
+    ),
+    ("oracledb-backup", "queries.yaml"): (
+        "oracledb-backup",
+        "sql_query/obenhub-oracledb-backup",
+    ),
 }
 RESOURCE = {  # service.name -> pack
     "postgresql": "postgresql",
@@ -170,6 +272,7 @@ RESOURCE = {  # service.name -> pack
 }
 
 findings = []
+compared = [0]
 
 
 def fail(msg):
@@ -182,22 +285,24 @@ def yq(path):
 
 
 def load_fragments():
-    frags = {}
-    for p in sorted((ROOT / "packs").glob("*/otelcol.yaml")):
-        frags[p.parent.name] = yq(p)
-    return frags
+    return {p.parent.name: yq(p) for p in sorted((ROOT / "packs").glob("*/otelcol.yaml"))}
 
 
 def env_names(obj):
     return set(ENV.findall(json.dumps(obj)))
 
 
+def base_of(pack):
+    return BASE_K8S if pack in K8S_PACKS else BASE
+
+
 # ---------------------------------------------------------------- normalise
 
 
-def norm(x):
+def norm(x, ign=frozenset()):
     if isinstance(x, dict):
-        d = {k: norm(v) for k, v in x.items() if k not in IGNORE_KEYS}
+        skip = IGNORE_KEYS | ign
+        d = {k: norm(v, ign) for k, v in x.items() if k not in skip}
         if "additional_params" in d and isinstance(d["additional_params"], dict):
             d["additional_params"] = {k: v for k, v in d["additional_params"].items() if k not in SSL_PARAMS}
             if not d["additional_params"]:
@@ -208,7 +313,7 @@ def norm(x):
                 d.pop(k, None)
         return d
     if isinstance(x, list):
-        return [norm(i) for i in x]
+        return [norm(i, ign) for i in x]
     if isinstance(x, str):
         x = FILE.sub("${file:packs/", x)
         return STMT.sub(r"set(\1, <identity>)", x)
@@ -220,9 +325,23 @@ def short(v):
     return s if len(s) < 70 else s[:67] + "..."
 
 
-def diff(f, lab, path, out, subset=False):
+def has_env(v):
+    return isinstance(v, str) and "${env:" in v
+
+
+def diff(f, lab, path, out, subset, params, key=None, inparam=False):
     """Differences of lab from fragment f; both normalised."""
-    if isinstance(f, str) and WHOLE_ENV.match(f):
+    inparam = inparam or key in params
+    if inparam and isinstance(f, str) and has_env(f):
+        if key in CREDENTIAL_KEYS and not (isinstance(lab, str) and has_env(lab)):
+            out.append(f"{path}: a credential must come from ${{env:...}} in the lab too")
+        if key == "datasource" and not (isinstance(lab, str) and DSN_PASSWORD_ENV.search(lab)):
+            out.append(f"{path}: the password of the data source must come from ${{env:...}} in the lab too")
+        if WHOLE_ENV.match(f):
+            return
+        rx = ".*".join(re.escape(p) for p in ENV.split(f)[::2])
+        if not isinstance(lab, str) or not re.fullmatch(rx, lab, re.S):
+            out.append(f"{path}: lab {short(lab)} vs fragment pattern {short(f)}")
         return
     if isinstance(f, dict):
         if not isinstance(lab, dict):
@@ -230,10 +349,10 @@ def diff(f, lab, path, out, subset=False):
             return
         for k, v in f.items():
             if k not in lab:
-                if not subset and not (isinstance(v, str) and WHOLE_ENV.match(v)):
+                if not subset and k not in OPTIONAL_KEYS:
                     out.append(f"{path}.{k}: missing in the lab")
             else:
-                diff(v, lab[k], f"{path}.{k}", out, subset)
+                diff(v, lab[k], f"{path}.{k}", out, subset, params, k, inparam)
         for k in lab:
             if k not in f:
                 out.append(f"{path}.{k}: not in the fragment (lab: {short(lab[k])})")
@@ -242,12 +361,7 @@ def diff(f, lab, path, out, subset=False):
             out.append(f"{path}: lab {short(lab)} vs fragment {short(f)}")
             return
         for i, (a, b) in enumerate(zip(f, lab, strict=True)):
-            diff(a, b, f"{path}[{i}]", out, subset)
-    elif isinstance(f, str) and "${env:" in f:
-        parts = ENV.split(f)  # text, name, text, name, ...
-        rx = ".*".join(re.escape(p) for p in parts[::2])
-        if not isinstance(lab, str) or not re.fullmatch(rx, lab, re.S):
-            out.append(f"{path}: lab {short(lab)} vs fragment pattern {short(f)}")
+            diff(a, b, f"{path}[{i}]", out, subset, params, key, inparam)
     elif f != lab:
         out.append(f"{path}: lab {short(lab)} vs fragment {short(f)}")
 
@@ -355,18 +469,27 @@ def classify(kind, cid, cfg):
     return None
 
 
+def hint(kind, cid, cfg):
+    cfg = cfg if isinstance(cfg, dict) else {}
+    if kind == "receivers" and cid.startswith("journald") and "units" not in cfg and not cfg.get("dmesg"):
+        return (
+            f"journald receiver {cid} has neither a `units` key nor `dmesg: true`; "
+            "the host pack maps a journald receiver by one of them"
+        )
+    return "add a rule to classify() or an UNMAPPED_OK entry with a reason"
+
+
 def lookup(frags, kind, pack, fid):
-    if pack == "*":
-        pack = "postgresql"
-    return frags[pack].get(kind, {}).get(fid)
+    return frags["postgresql" if pack == "*" else pack].get(kind, {}).get(fid)
 
 
-def allow_for(label, kind, cid, used):
+def modes_for(label, kind, cid, used):
+    out = []
     for i, (fg, k, cg, mode, _reason) in enumerate(ALLOW):
         if k == kind and fnmatch.fnmatchcase(label, fg) and fnmatch.fnmatchcase(cid, cg):
             used.add(i)
-            return mode
-    return None
+            out.append(mode)
+    return out
 
 
 def unmapped_ok(label, kind, cid, used):
@@ -377,28 +500,86 @@ def unmapped_ok(label, kind, cid, used):
     return False
 
 
-compared = [0]
-
-
-def compare(frags, label, kind, cid, cfg, f_cfg, tag, used, mode):
+def compare(label, kind, cid, cfg, f_cfg, tag, modes):
     """Compare lab component cfg with fragment component f_cfg; report."""
     compared[0] += 1
     subset = False
-    a, b = norm(f_cfg), norm(cfg)
-    if mode == "subset":
-        subset = True
-    elif mode and mode.startswith("only:"):
-        keys = mode[5:].split(",")
-        a = {k: v for k, v in a.items() if k in keys}
-        b = {k: v for k, v in b.items() if k in keys}
-    elif mode and mode.startswith("extra-attr:"):
-        key = mode[11:]
+    params = set(PARAM_KEYS)
+    ign = set()
+    only = None
+    extra = []
+    for m in modes:
+        if m == "subset":
+            subset = True
+        elif m.startswith("only:"):
+            only = (only or set()) | set(m[5:].split(","))
+        elif m.startswith("param:"):
+            params |= set(m[6:].split(","))
+        elif m.startswith("ignore:"):
+            ign |= set(m[7:].split(","))
+        elif m.startswith("extra-attr:"):
+            extra.append(m[11:])
+    a, b = norm(f_cfg, ign), norm(cfg, ign)
+    if only is not None:
+        a = {k: v for k, v in a.items() if k in only}
+        b = {k: v for k, v in b.items() if k in only}
+    for key in extra:
         b = dict(b)
         b["attributes"] = [x for x in b["attributes"] if x.get("key") != key]
     out = []
-    diff(a, b, "", out, subset)
+    diff(a, b, "", out, subset, params)
     for o in out:
         fail(f"{label}: {kind.rstrip('s')} {cid} (pack {tag}){o}")
+
+
+def check_pipelines(frags, label, doc, used_allow):
+    defined = doc.get("receivers") or {}
+    procs = doc.get("processors") or {}
+    for pname, pl in ((doc.get("service") or {}).get("pipelines") or {}).items():
+        if not pl:
+            continue  # `traces: null` removes a chart default
+        sig = pname.split("/")[0]
+        by_pack = {}
+        for r in pl.get("receivers") or []:
+            if r not in defined:
+                continue  # supplied by a chart preset
+            tg = classify("receivers", r, defined[r])
+            if tg:
+                by_pack.setdefault(tg[0][0], []).append(tg[0][1])
+        modes = modes_for(label, "pipelines", pname, used_allow)
+        drop = set()
+        for m in modes:
+            if m.startswith("drop-processors:"):
+                drop |= set(m.split(":", 1)[1].split(","))
+        for pack, rec in by_pack.items():
+            fps = [
+                (n, p)
+                for n, p in (frags[pack].get("service", {}).get("pipelines") or {}).items()
+                if n.split("/")[0] == sig and set(rec) & set(p.get("receivers", []))
+            ]
+            where = f"{label}: pipeline {pname} (pack {pack})"
+            if not fps:
+                fail(f"{where}: the fragment has no {sig} pipeline with {sorted(rec)}")
+                continue
+            fname, fp = fps[0]
+            compared[0] += 1
+            frec = set(fp["receivers"])
+            ok = set(rec) <= frec if "receivers-subset" in modes else set(rec) == frec
+            if not ok:
+                fail(f"{where}: receivers {sorted(set(rec))} vs fragment {fname} {sorted(frec)}")
+            mapped = []
+            for pr in pl.get("processors") or []:
+                if pr.split("/")[0] in drop:
+                    continue
+                tg = classify("processors", pr, procs.get(pr))  # may be defined in a merged file
+                pick = [fid for p, fid in tg or [] if p in (pack, "*")]
+                if not pick:
+                    fail(f"{where}: processor {pr} is not a component of pack {pack}")
+                    mapped.append(f"?{pr}")
+                else:
+                    mapped.append(pick[0])
+            if mapped != fp.get("processors"):
+                fail(f"{where}: processors {mapped} vs fragment {fname} {fp.get('processors')}")
 
 
 def check_lab(frags, label, path, used_allow, used_unmapped):
@@ -412,17 +593,15 @@ def check_lab(frags, label, path, used_allow, used_unmapped):
             targets = classify(kind, cid, cfg)
             if targets is None:
                 if not unmapped_ok(label, kind, cid, used_unmapped):
-                    fail(
-                        f"{label}: {kind[:-1]} {cid} maps to no pack component (add a rule to classify() or an UNMAPPED_OK entry with a reason)"
-                    )
+                    fail(f"{label}: {kind[:-1]} {cid} maps to no pack component: {hint(kind, cid, cfg)}")
                 continue
-            mode = allow_for(label, kind, cid, used_allow)
+            modes = modes_for(label, kind, cid, used_allow)
             for pack, fid in targets:
                 f_cfg = lookup(frags, kind, pack, fid)
                 if f_cfg is None:
                     fail(f"{label}: {kind[:-1]} {cid}: fragment component {fid} of pack {pack} does not exist")
                     continue
-                compare(frags, label, kind, cid, cfg, f_cfg, f"{pack}/{fid}", used_allow, mode)
+                compare(label, kind, cid, cfg, f_cfg, f"{pack}/{fid}", modes)
             # receiver_creator: the inner receivers are the PostgreSQL pack's
             if kind == "receivers" and cid.startswith("receiver_creator"):
                 for ik, ic in (cfg.get("receivers") or {}).items():
@@ -430,29 +609,49 @@ def check_lab(frags, label, path, used_allow, used_unmapped):
                     tg = classify("receivers", ik, inner)
                     if tg and tg[0][0] != "cnpg":
                         pack, fid = tg[0]
+                        name = f"{cid} > {ik}"
                         compare(
-                            frags,
                             label,
                             kind,
-                            f"{cid} > {ik}",
+                            name,
                             inner,
                             lookup(frags, kind, pack, fid),
                             f"{pack}/{fid}",
-                            used_allow,
-                            None,
+                            modes_for(label, kind, name, used_allow),
                         )
     tele = (doc.get("service") or {}).get("telemetry")
     if tele is not None:
-        mode = allow_for(label, "telemetry", "service.telemetry", used_allow)
-        f_tele = frags["collector"]["service"]["telemetry"]
-        compare(frags, label, "telemetry", "service.telemetry", tele, f_tele, "collector", used_allow, mode)
+        modes = modes_for(label, "telemetry", "service.telemetry", used_allow)
+        compare(
+            label,
+            "telemetry",
+            "service.telemetry",
+            tele,
+            frags["collector"]["service"]["telemetry"],
+            "collector",
+            modes,
+        )
+    check_pipelines(frags, label, doc, used_allow)
 
 
 # ---------------------------------------------------------------- fragments
 
 
+def base_vars_documented():
+    for b in (BASE, BASE_K8S):
+        text = (ROOT / b).read_text()
+        documented = set(re.findall(r"^#   ([A-Z][A-Z0-9_]+) {2,}\S", text, re.M))
+        used = set(ENV.findall(text))
+        for n in sorted(used - documented):
+            fail(f"{b}: variable {n} is not documented in the header comment")
+        for n in sorted(documented - used):
+            fail(f"{b}: the header documents {n}, which the file does not use")
+
+
 def check_fragments(frags):
     shared = {}
+    base_env = env_names(yq(ROOT / BASE))
+    k8s_extra = env_names(yq(ROOT / BASE_K8S)) - base_env
     for pack, fr in frags.items():
         where = f"packs/{pack}/otelcol.yaml"
         for kind in ("receivers", "processors"):
@@ -462,8 +661,8 @@ def check_fragments(frags):
         for pname, p in (fr.get("service", {}).get("pipelines") or {}).items():
             if not re.fullmatch(r"(metrics|logs)/obenhub-[a-z0-9-]+", pname):
                 fail(f"{where}: pipeline {pname}: the name must be <signal>/obenhub-<pack>[-suffix]")
-            if p.get("exporters") != ["otlp/obenhub"]:
-                fail(f"{where}: pipeline {pname}: exporters must be [otlp/obenhub]")
+            if p.get("exporters") != ["otlp_http/obenhub"]:
+                fail(f"{where}: pipeline {pname}: exporters must be [otlp_http/obenhub]")
         if "exporters" in fr or "extensions" in fr or "connectors" in fr:
             fail(f"{where}: a fragment holds no exporters, extensions or connectors (the base does)")
         if "extensions" in fr.get("service", {}):
@@ -474,27 +673,26 @@ def check_fragments(frags):
         for cid in ("memory_limiter/obenhub", "batch/obenhub"):
             if cid in fr.get("processors", {}):
                 shared.setdefault(cid, []).append((pack, fr["processors"][cid]))
-        # README lists exactly the variables
         readme = ROOT / "packs" / pack / "README.md"
-        names = env_names(fr)
+        names = env_names(fr) | (k8s_extra if pack in K8S_PACKS else set())
         if not readme.is_file():
             fail(f"packs/{pack}/README.md is missing (it documents the fragment's variables)")
             continue
-        text = readme.read_text()
-        m = re.search(r"^## Collector fragment\n(.*?)(?=^## |\Z)", text, re.S | re.M)
+        m = re.search(r"^## Collector fragment\n(.*?)(?=^## |\Z)", readme.read_text(), re.S | re.M)
         if not m:
             fail(f'packs/{pack}/README.md: no "## Collector fragment" section')
             continue
-        doc_names = set(re.findall(r"^\| `(OBENHUB_[A-Z0-9_]+)`", m.group(1), re.M))
+        doc_names = set(re.findall(r"^\| `([A-Z][A-Z0-9_]+)`", m.group(1), re.M))
         for n in sorted(names - doc_names):
-            fail(f"packs/{pack}/README.md: variable {n} of the fragment is not documented")
+            fail(f"packs/{pack}/README.md: variable {n} is not documented")
         for n in sorted(doc_names - names):
-            fail(f"packs/{pack}/README.md: documents {n}, which the fragment does not use")
+            fail(f"packs/{pack}/README.md: documents {n}, which the fragment and its base do not use")
     for cid, lst in shared.items():
         first = json.dumps(lst[0][1], sort_keys=True)
         for pack, cfg in lst[1:]:
             if json.dumps(cfg, sort_keys=True) != first:
                 fail(f"packs/{pack}/otelcol.yaml: {cid} differs from packs/{lst[0][0]}/otelcol.yaml")
+    base_vars_documented()
 
 
 def dummy(name):
@@ -508,8 +706,8 @@ def dummy(name):
         "OBENHUB_PG_DATABASES": "[postgres]",
         "OBENHUB_HOST_JOURNAL_UNITS": "[otelcol-contrib]",
         "OBENHUB_PATRONI_SCHEME": "https",
-        "OBENHUB_GATEWAY_ENDPOINT": "localhost:4317",
-        "OBENHUB_COLLECTOR_METRICS_ENDPOINT": "http://localhost:4318/v1/metrics",
+        # nothing listens here: the startup test must not need a backend
+        "OBENHUB_GATEWAY_ENDPOINT": "http://127.0.0.1:4318",
         "OBENHUB_ETCD_METRICS_ENDPOINT": "127.0.0.1:2381",
         "OBENHUB_STORAGE_DIR": "/tmp/obenhub-storage",
     }.get(name, "disable" if name.endswith("SSLMODE") else "dummy")
@@ -519,11 +717,13 @@ def main():
     args = sys.argv[1:]
     if "--fragments" in args:
         for p in sorted((ROOT / "packs").glob("*/otelcol.yaml")):
-            print(p.relative_to(ROOT))
+            pack = p.parent.name
+            kind = "k8s" if pack in K8S_PACKS else "vm"
+            print(p.relative_to(ROOT), base_of(pack), kind)
         return 0
     frags = load_fragments()
     if "--env" in args:
-        names = env_names(frags) | env_names(yq(ROOT / "packs/otelcol-base.yaml"))
+        names = env_names(frags) | env_names(yq(ROOT / BASE)) | env_names(yq(ROOT / BASE_K8S))
         for n in sorted(names):
             print(f"{n}={dummy(n)}")
         return 0
@@ -545,9 +745,10 @@ def main():
                 continue  # evidence files of a run
             if f not in LABS and f not in EXCLUDED and "\nservice:" in "\n" + (ROOT / f).read_text():
                 fail(
-                    f"{f}: a Collector configuration that is neither in LABS nor in EXCLUDED of scripts/check-otelcol-fragments.py"
+                    f"{f}: a Collector configuration that is neither in LABS nor in EXCLUDED "
+                    "of scripts/check-otelcol-fragments.py"
                 )
-    check_fragments(frags)
+        check_fragments(frags)
     used_allow, used_unmapped = set(), set()
     for label, path in labs:
         check_lab(frags, label, path, used_allow, used_unmapped)
@@ -562,7 +763,7 @@ def main():
         print(f"drift: {f}", file=sys.stderr)
     if not findings:
         print(
-            f"ok   {len(frags)} fragments, {len(labs)} lab configurations, {compared[0]} components compared: no drift"
+            f"ok   {len(frags)} fragments, {len(labs)} lab configurations, {compared[0]} components and pipelines compared: no drift"
         )
     return 1 if findings else 0
 

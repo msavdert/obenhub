@@ -38,4 +38,4 @@ service:
     metrics/obenhub-patroni:
       receivers: [prometheus/obenhub-patroni]
       processors: [memory_limiter/obenhub, resource/obenhub-patroni, batch/obenhub]
-      exporters: [otlp/obenhub]
+      exporters: [otlp_http/obenhub]

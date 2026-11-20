@@ -1,50 +1,99 @@
 # Collector fragment of the Kubernetes pack: kubelet metrics per node and
 # cluster-wide object state. Variables: README.md, "Collector fragment".
-# Base: ../otelcol-base.yaml.
-# metrics/obenhub-k8s-node runs on every node (a DaemonSet); metrics/obenhub-
-# k8s-cluster must run in exactly one replica, or every series is duplicated.
-# Kubernetes node series do not carry obenhub.cluster.name (ADR 0006 decision 7).
-# Assumption: the values of kubeletstats and k8s_cluster other than
-# insecure_skip_verify are the defaults the opentelemetry-collector chart's
-# presets render (chart 0.178.3); the chart was not rendered when this was
-# written, so they are unverified. The lab sets only insecure_skip_verify.
+# Base: ../otelcol-base-k8s.yaml.
+# metrics/obenhub-k8s-node runs on every node (a DaemonSet);
+# metrics/obenhub-k8s-cluster must run in exactly one replica, or every series
+# is duplicated (as a single-replica Deployment it needs no leader election).
+# Kubernetes node series are exempt from obenhub.cluster.name (ADR 0006
+# decision 7).
+# Source of the values: kubeletstats and k8s_cluster as the presets kubeletMetrics
+# (templates/_config.tpl "opentelemetry-collector.kubeletMetricsConfig") and
+# clusterMetrics ("clusterMetricsConfig", without the leader election of a
+# DaemonSet), k8s_attributes as "kubernetesAttributesConfig" (with the node
+# filter of mode daemonset for the node pipeline, without it for the cluster
+# pipeline), copied from the chart opentelemetry-collector 0.178.3 of
+# github.com/open-telemetry/opentelemetry-helm-charts (Apache-2.0; the cached
+# chart archive carries no LICENSE file, the LICENSE of the repository at its
+# main branch was read on 2026-11-20, the licence at the commit of chart
+# 0.178.3 was not checked). Without a rendering of the chart in this repository
+# the values are those of that chart version only.
 receivers:
   kubeletstats/obenhub-k8s:
     collection_interval: 20s
     auth_type: serviceAccount
-    endpoint: ${env:OBENHUB_K8S_NODE_NAME}:10250
+    # K8S_NODE_IP is set by the chart (status.hostIP of the pod)
+    endpoint: ${env:K8S_NODE_IP}:10250
     # a kind kubelet serves a self-signed certificate
     insecure_skip_verify: ${env:OBENHUB_K8S_KUBELET_INSECURE}
   k8s_cluster/obenhub-k8s:
     collection_interval: 10s
-    auth_type: serviceAccount
 
 processors:
   memory_limiter/obenhub:
     check_interval: 1s
     limit_mib: 256
   batch/obenhub: {}
-  k8s_attributes/obenhub-k8s:
+  k8s_attributes/obenhub-k8s-node:
+    filter:
+      node_from_env_var: K8S_NODE_NAME
     passthrough: false
+    pod_association:
+      - sources:
+          - from: resource_attribute
+            name: k8s.pod.ip
+      - sources:
+          - from: resource_attribute
+            name: k8s.pod.uid
+      - sources:
+          - from: connection
     extract:
-      metadata:
+      otel_annotations: true
+      metadata: &metadata
         - k8s.namespace.name
         - k8s.pod.name
         - k8s.pod.uid
         - k8s.node.name
+        - k8s.pod.start_time
         - k8s.deployment.name
-        - k8s.statefulset.name
+        - k8s.replicaset.name
+        - k8s.replicaset.uid
         - k8s.daemonset.name
+        - k8s.daemonset.uid
         - k8s.job.name
+        - k8s.job.uid
+        - k8s.container.name
         - k8s.cronjob.name
+        - k8s.statefulset.name
+        - k8s.statefulset.uid
+        - container.image.tag
+        - container.image.name
+        - k8s.cluster.uid
+        - service.namespace
+        - service.name
+        - service.version
+        - service.instance.id
+  k8s_attributes/obenhub-k8s-cluster:
+    passthrough: false
+    pod_association:
+      - sources:
+          - from: resource_attribute
+            name: k8s.pod.ip
+      - sources:
+          - from: resource_attribute
+            name: k8s.pod.uid
+      - sources:
+          - from: connection
+    extract:
+      otel_annotations: true
+      metadata: *metadata
 
 service:
   pipelines:
     metrics/obenhub-k8s-node:
       receivers: [kubeletstats/obenhub-k8s]
-      processors: [memory_limiter/obenhub, k8s_attributes/obenhub-k8s, batch/obenhub]
-      exporters: [otlp/obenhub]
+      processors: [memory_limiter/obenhub, k8s_attributes/obenhub-k8s-node, batch/obenhub]
+      exporters: [otlp_http/obenhub]
     metrics/obenhub-k8s-cluster:
       receivers: [k8s_cluster/obenhub-k8s]
-      processors: [memory_limiter/obenhub, k8s_attributes/obenhub-k8s, batch/obenhub]
-      exporters: [otlp/obenhub]
+      processors: [memory_limiter/obenhub, k8s_attributes/obenhub-k8s-cluster, batch/obenhub]
+      exporters: [otlp_http/obenhub]

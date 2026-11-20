@@ -1,8 +1,8 @@
 # Collector fragment of the host pack: operating-system metrics (hostmetrics,
 # scrapers and the optional metrics the pack's alerts read), the journal and
 # the identity of one machine. Variables: README.md, "Collector fragment".
-# Base: ../otelcol-base.yaml. Host series do not carry obenhub.cluster.name
-# (ADR 0006 decision 7).
+# Base: ../otelcol-base.yaml. Host series need not carry obenhub.cluster.name
+# and no rule relies on it (ADR 0006 decision 7).
 receivers:
   host_metrics/obenhub-host:
     collection_interval: 15s
@@ -59,8 +59,8 @@ service:
     metrics/obenhub-host:
       receivers: [host_metrics/obenhub-host]
       processors: [memory_limiter/obenhub, resource_detection/obenhub-host, resource/obenhub-host, batch/obenhub]
-      exporters: [otlp/obenhub]
+      exporters: [otlp_http/obenhub]
     logs/obenhub-host:
       receivers: [journald/obenhub-host-units, journald/obenhub-host-kernel]
       processors: [memory_limiter/obenhub, resource_detection/obenhub-host, resource/obenhub-host, batch/obenhub]
-      exporters: [otlp/obenhub]
+      exporters: [otlp_http/obenhub]

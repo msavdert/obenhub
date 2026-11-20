@@ -31,4 +31,4 @@ service:
     metrics/obenhub-oracledb-backup:
       receivers: [sql_query/obenhub-oracledb-backup]
       processors: [memory_limiter/obenhub, resource/obenhub-oracledb-backup, batch/obenhub]
-      exporters: [otlp/obenhub]
+      exporters: [otlp_http/obenhub]

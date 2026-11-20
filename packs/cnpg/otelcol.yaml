@@ -2,10 +2,11 @@
 # created per instance pod of one CloudNativePG Cluster on this node, the
 # instance manager's operator-state exporter, the identity of a pod and the
 # PostgreSQL log records the instance pods write. Variables: README.md,
-# "Collector fragment". Base: ../otelcol-base.yaml (it provides k8s_observer/
-# obenhub, which receiver_creator watches).
+# "Collector fragment". Base: ../otelcol-base-k8s.yaml (it provides
+# k8s_observer/obenhub, which receiver_creator watches).
 # Run it in a DaemonSet: every Collector watches its own node (the base's
-# k8s_observer sets `node:`). Same attribute names as ../postgresql/otelcol.yaml;
+# k8s_observer sets `node: ${env:K8S_NODE_NAME}`). Same attribute names as
+# ../postgresql/otelcol.yaml;
 # the instance is the pod (k8s.pod.name is set by receiver_creator), never a role.
 # OBENHUB_CNPG_CLUSTER is the CloudNativePG Cluster's name (cnpg.io/cluster);
 # OBENHUB_CLUSTER_NAME is the name unique across namespaces (ADR 0006
@@ -77,7 +78,12 @@ receivers:
   # (JSON lines under /var/log/pods). The Collector's user must be able to read
   # them.
   file_log/obenhub-cnpg:
-    include: ["/var/log/pods/${env:OBENHUB_CNPG_NAMESPACE}_${env:OBENHUB_CNPG_CLUSTER}-*/postgres/*.log"]
+    # the instance pods are named <cluster>-<n>; `<cluster>-[0-9]*` does not match
+    # the pods of another Cluster named <cluster>-<letter...> (pg-analytics-1),
+    # but does match one named <cluster>-<digit...> (pg-2024-1): those logs are
+    # collected without obenhub.cluster.name, because the transform below checks
+    # the pod name exactly; give Clusters names that avoid it
+    include: ["/var/log/pods/${env:OBENHUB_CNPG_NAMESPACE}_${env:OBENHUB_CNPG_CLUSTER}-[0-9]*_*/postgres/*.log"]
     start_at: beginning
     storage: file_storage/obenhub
     operators:
@@ -125,7 +131,7 @@ processors:
       # have (resource/obenhub-cnpg-postgresql), so logs and metrics join on it.
       - context: resource
         conditions:
-          - attributes["k8s.namespace.name"] == "${env:OBENHUB_CNPG_NAMESPACE}" and attributes["k8s.container.name"] == "postgres"
+          - attributes["k8s.namespace.name"] == "${env:OBENHUB_CNPG_NAMESPACE}" and attributes["k8s.container.name"] == "postgres" and IsMatch(attributes["k8s.pod.name"], "^${env:OBENHUB_CNPG_CLUSTER}-[0-9]+$")
         statements:
           - set(attributes["service.namespace"], "${env:OBENHUB_SERVICE_NAMESPACE}")
           - set(attributes["service.name"], "postgresql")
@@ -154,12 +160,12 @@ service:
     metrics/obenhub-cnpg-postgresql:
       receivers: [receiver_creator/obenhub-cnpg-postgresql]
       processors: [memory_limiter/obenhub, resource/obenhub-cnpg-postgresql, batch/obenhub]
-      exporters: [otlp/obenhub]
+      exporters: [otlp_http/obenhub]
     metrics/obenhub-cnpg:
       receivers: [receiver_creator/obenhub-cnpg]
       processors: [memory_limiter/obenhub, resource/obenhub-cnpg, batch/obenhub]
-      exporters: [otlp/obenhub]
+      exporters: [otlp_http/obenhub]
     logs/obenhub-cnpg:
       receivers: [file_log/obenhub-cnpg]
       processors: [memory_limiter/obenhub, transform/obenhub-cnpg, batch/obenhub]
-      exporters: [otlp/obenhub]
+      exporters: [otlp_http/obenhub]

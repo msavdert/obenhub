@@ -12,14 +12,15 @@ holds one; the interval check is `PostgresCollectionIntervalTooLong`
 
 ## Collector fragment
 
-`otelcol.yaml` is the Collector fragment of this pack: receivers, processors and the pipelines named `*/obenhub-cnpg*`, exporting to `otlp/obenhub`. It needs the base in [`../otelcol-base.yaml`](../otelcol-base.yaml) (exporter and extensions) and the files of this pack at `/etc/otelcol-contrib/packs/cnpg/`. The lab Collector configurations stay hand-written; `mise run lint:otelcol` validates the fragment and fails when a lab block differs from it in more than endpoints, credentials, TLS and identity ([ADR 0005](../../docs/adr/0005-lab-collection-topology-and-packs.md) decision 3).
+`otelcol.yaml` is the Collector fragment of this pack: receivers, processors and the pipelines named `*/obenhub-cnpg*`, exporting to `otlp_http/obenhub`. It needs the base in [`../otelcol-base-k8s.yaml`](../otelcol-base-k8s.yaml) (exporter and extensions) and the files of this pack at `/etc/otelcol-contrib/packs/cnpg/`. The lab Collector configurations stay hand-written. `mise run lint:otelcol` validates the fragment with its base (it does not start the Collector: the pod observer and the kubelet need a cluster), and fails when a lab block differs from it, except in hosts, ports, endpoints, targets, usernames and TLS settings, identity values, and the entries of `ALLOW` in `scripts/check-otelcol-fragments.py`, each with a reason; a lab credential must stay an `${env:...}` reference ([ADR 0005](../../docs/adr/0005-lab-collection-topology-and-packs.md) decision 3).
 
-Run it in a DaemonSet with RBAC for the Kubernetes API; the base provides `k8s_observer/obenhub`. The pods of one CloudNativePG Cluster are selected by name, one namespace.
+Run it in a DaemonSet; the pod observer of the k8s base needs get, list and watch on pods. The pods of one CloudNativePG Cluster are selected by name (`<cluster>-<n>`) in one namespace.
 
 Variables:
 
 | Variable | Meaning | Example |
 | --- | --- | --- |
+| `K8S_NODE_NAME` | name of the node the pod runs on (downward API spec.nodeName); filters k8s_attributes and, in the k8s base, the pod observer |  |
 | `OBENHUB_CLUSTER_NAME` | obenhub.cluster.name, unique within the backend (ADR 0006 decision 7) | `pgha` |
 | `OBENHUB_CNPG_CLUSTER` | name of the CloudNativePG Cluster (label cnpg.io/cluster) | `pg` |
 | `OBENHUB_CNPG_NAMESPACE` | namespace of the CloudNativePG Cluster | `obenhub` |

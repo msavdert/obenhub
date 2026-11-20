@@ -1,0 +1,35 @@
+# The base of the fragments that run in Kubernetes (cnpg, k8s): otelcol-base.yaml
+# plus the pod observer that receiver_creator watches. k8s_observer needs the
+# in-cluster environment (KUBERNETES_SERVICE_HOST) and makes the Collector exit
+# on a VM, so it is in this file only. lint:otelcol validates these fragments
+# with this base but does not start the Collector for them.
+#   exporter otlp_http/obenhub      every fragment pipeline exports here
+#   extension file_storage/obenhub  checkpoint store of file_log receivers
+#   extension k8s_observer/obenhub  pods of this node (as lab/k8s/otel/agent-values.yaml)
+# Variables:
+#   OBENHUB_GATEWAY_ENDPOINT  OTLP/HTTP base URL of the backend or gateway, no path
+#   OBENHUB_STORAGE_DIR       directory of the file_storage extension
+#   K8S_NODE_NAME             name of the node the pod runs on (downward API spec.nodeName)
+extensions:
+  file_storage/obenhub:
+    directory: ${env:OBENHUB_STORAGE_DIR}
+    create_directory: true
+  k8s_observer/obenhub:
+    auth_type: serviceAccount
+    # only the pods on this node: every agent scrapes its own node
+    node: ${env:K8S_NODE_NAME}
+    observe_pods: true
+
+receivers:
+  nop: {}
+
+exporters:
+  otlp_http/obenhub:
+    endpoint: ${env:OBENHUB_GATEWAY_ENDPOINT}
+
+service:
+  extensions: [file_storage/obenhub, k8s_observer/obenhub]
+  pipelines:
+    metrics/obenhub-base:
+      receivers: [nop]
+      exporters: [otlp_http/obenhub]

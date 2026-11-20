@@ -34,4 +34,4 @@ service:
     metrics/obenhub-etcd:
       receivers: [prometheus/obenhub-etcd]
       processors: [memory_limiter/obenhub, resource/obenhub-etcd, batch/obenhub]
-      exporters: [otlp/obenhub]
+      exporters: [otlp_http/obenhub]

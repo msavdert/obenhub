@@ -63,4 +63,4 @@ service:
     metrics/obenhub-pgbouncer:
       receivers: [sql_query/obenhub-pgbouncer]
       processors: [memory_limiter/obenhub, attributes/obenhub-pgbouncer, transform/obenhub-pgbouncer-seconds, resource/obenhub-pgbouncer, batch/obenhub]
-      exporters: [otlp/obenhub]
+      exporters: [otlp_http/obenhub]

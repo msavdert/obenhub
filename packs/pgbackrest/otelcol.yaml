@@ -37,4 +37,4 @@ service:
     metrics/obenhub-pgbackrest:
       receivers: [prometheus/obenhub-pgbackrest]
       processors: [memory_limiter/obenhub, resource/obenhub-pgbackrest, batch/obenhub]
-      exporters: [otlp/obenhub]
+      exporters: [otlp_http/obenhub]

@@ -148,8 +148,8 @@ service:
     metrics/obenhub-oracledb-dg:
       receivers: [oracledb/obenhub-oracledb-dg, sql_query/obenhub-oracledb-dg, sql_query/obenhub-oracledb-dg-account, tcp_check/obenhub-oracledb-dg]
       processors: [memory_limiter/obenhub, resource/obenhub-oracledb-dg, batch/obenhub]
-      exporters: [otlp/obenhub]
+      exporters: [otlp_http/obenhub]
     logs/obenhub-oracledb-dg-alert:
       receivers: [file_log/obenhub-oracledb-dg-alert]
       processors: [memory_limiter/obenhub, transform/obenhub-oracledb-dg-alert, resource_detection/obenhub-oracledb-dg, resource/obenhub-oracledb-dg-alert, batch/obenhub]
-      exporters: [otlp/obenhub]
+      exporters: [otlp_http/obenhub]

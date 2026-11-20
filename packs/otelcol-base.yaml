@@ -1,35 +1,35 @@
-# The base a pack's Collector fragment (packs/<pack>/otelcol.yaml) expects. It is
-# what an installer provides around the fragments, and what lint:otelcol merges
-# with each fragment to validate it (`otelcol-contrib validate --config=<base>
-# --config=<fragment>`). A fragment adds receivers, processors and pipelines
-# named `*obenhub-<pack>` (maps merge by key); it never touches
-# `service.extensions`, because a list replaces the base's.
-#   exporter otlp/obenhub        every fragment pipeline exports here; point it at
-#                                the backend or the gateway of the installation
+# The base a pack's Collector fragment (packs/<pack>/otelcol.yaml) expects on a
+# VM or in a container. It is what an installer provides around the fragments,
+# and what lint:otelcol merges with each fragment to validate it and to start
+# the real Collector once (`--config=<base> --config=<fragment>`). A fragment
+# adds receivers, processors and pipelines named `*obenhub-<pack>` (maps merge
+# by key); it never touches `service.extensions`, because a list replaces the
+# base's. The cnpg and k8s fragments run in Kubernetes and use
+# otelcol-base-k8s.yaml instead (it adds the pod observer, which cannot start
+# outside a cluster).
+#   exporter otlp_http/obenhub      every fragment pipeline exports here
 #   extension file_storage/obenhub  checkpoint store of file_log and journald
-#                                receivers (storage: file_storage/obenhub)
-#   extension k8s_observer/obenhub  pod observer of the receiver_creator
-#                                receivers of the cnpg pack
+#                                   receivers (storage: file_storage/obenhub)
+# Variables:
+#   OBENHUB_GATEWAY_ENDPOINT  OTLP/HTTP base URL of the backend or gateway, no path
+#   OBENHUB_STORAGE_DIR       directory of the file_storage extension
 # The nop pipeline keeps a fragment that has no pipeline of its own (collector)
 # valid; an installer does not need it.
 extensions:
   file_storage/obenhub:
     directory: ${env:OBENHUB_STORAGE_DIR}
     create_directory: true
-  k8s_observer/obenhub:
-    auth_type: serviceAccount
-    observe_pods: true
 
 receivers:
   nop: {}
 
 exporters:
-  otlp/obenhub:
+  otlp_http/obenhub:
     endpoint: ${env:OBENHUB_GATEWAY_ENDPOINT}
 
 service:
-  extensions: [file_storage/obenhub, k8s_observer/obenhub]
+  extensions: [file_storage/obenhub]
   pipelines:
     metrics/obenhub-base:
       receivers: [nop]
-      exporters: [otlp/obenhub]
+      exporters: [otlp_http/obenhub]

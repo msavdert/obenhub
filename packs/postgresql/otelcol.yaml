@@ -89,8 +89,8 @@ service:
     metrics/obenhub-postgresql:
       receivers: [postgresql/obenhub-postgresql, sql_query/obenhub-postgresql]
       processors: [memory_limiter/obenhub, resource/obenhub-postgresql, batch/obenhub]
-      exporters: [otlp/obenhub]
+      exporters: [otlp_http/obenhub]
     logs/obenhub-postgresql:
       receivers: [file_log/obenhub-postgresql]
       processors: [memory_limiter/obenhub, resource/obenhub-postgresql, batch/obenhub]
-      exporters: [otlp/obenhub]
+      exporters: [otlp_http/obenhub]
