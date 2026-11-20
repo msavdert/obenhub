@@ -43,6 +43,14 @@ The alert rules also use MetricsQL-only functions (`WITH` templates,
    component: queries (PostgreSQL only), alert rules and their unit tests.
    What differs per lab (inventory, Collector wiring, backend) stays in the
    lab directory.
+   Amended 2026-11-20 (roadmap C7): a pack also holds dashboards and one
+   complete Collector fragment for its component (receivers, processors and
+   a pipeline; endpoints, credentials and identity as `${env:...}`), so the
+   pack can be installed without a lab. The lab keeps its topology, its
+   target list and the inventory generated from it, and its backend. Lab
+   Collector configurations stay hand-written; `lint:otelcol` validates each
+   fragment and fails when a lab's block for that component differs from the
+   fragment in anything but endpoints, credentials and identity.
 4. **MetricsQL.** Alert rules are written for VictoriaMetrics and vmalert,
    the reference backend of ADR 0002 decision 3, and may use MetricsQL.
    Prometheus and Mimir cannot load them, and no PromQL copy is kept.
