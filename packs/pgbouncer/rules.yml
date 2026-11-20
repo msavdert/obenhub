@@ -3,7 +3,9 @@
 # naming the Collector that collects it) in its inventory group;
 # PgbouncerTargetAbsent reads the service.name="pgbouncer" entries. Names follow
 # the naming contract (ADR 0006); the series are the ones the Collector
-# pipeline produces from queries.yaml (see its header).
+# pipeline produces from queries.yaml (see its header). Identity (ADR 0006,
+# decision 7): joins match on obenhub.cluster.name and service.instance.id; a
+# one-to-one match (division) adds k8s.pod.uid, as in packs/postgresql/rules.yml.
 groups:
   # SHOW POOLS gives the oldest waiting client as whole
   # seconds (pgbouncer.pool.oldest_wait_age, SHOW POOLS maxwait) plus the
@@ -19,7 +21,7 @@ groups:
       - alert: PgbouncerTargetAbsent
         expr: |
           obenhub.expected_target{service.name="pgbouncer"}
-            unless on(service.instance.id)
+            unless on(obenhub.cluster.name, service.instance.id)
           present_over_time(pgbouncer.list.item.count{pgbouncer.list.name="databases"}[2m])
             and on(obenhub.collector)
           label_replace(present_over_time(otelcol_process_uptime[1m]), "obenhub.collector", "$1", "service.instance.id", "(.+)")
@@ -28,6 +30,17 @@ groups:
           severity: critical
         annotations:
           summary: 'No heartbeat from {{ (index $labels "service.instance.id") }}'
+
+      # A PgBouncer target without obenhub.cluster.name (ADR 0006, decision 7):
+      # its joins match on it, so the saturation and wait rules would see it
+      # pair with nothing. The heartbeat is the series PgbouncerTargetAbsent reads.
+      - alert: PgbouncerClusterNameMissing
+        expr: pgbouncer.list.item.count{pgbouncer.list.name="databases", obenhub.cluster.name=""}
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: '{{ (index $labels "service.instance.id") }} reports no obenhub.cluster.name'
 
       # A client waits for a server connection only when the pool is at
       # pool_size. Over 5 s for 1 m is a lab threshold (assumption: a healthy
@@ -44,9 +57,9 @@ groups:
             pgbouncer.pool.oldest_wait_age{pgbouncer.database.name!="pgbouncer"}
               + pgbouncer.pool.oldest_wait_subsecond_age{pgbouncer.database.name!="pgbouncer"} > 5
           )
-            unless on(service.instance.id, pgbouncer.database.name)
+            unless on(obenhub.cluster.name, service.instance.id, pgbouncer.database.name)
           (pgbouncer.database.paused == 1 or pgbouncer.database.disabled == 1)
-            and on(service.instance.id)
+            and on(obenhub.cluster.name, service.instance.id)
           present_over_time(pgbouncer.list.item.count{pgbouncer.list.name="databases"}[2m])
         for: 1m
         labels:
@@ -70,15 +83,15 @@ groups:
         expr: |
           WITH (
             r = pgbouncer.pool.active_server.count{pgbouncer.database.name!="pgbouncer"}
-              / on(service.instance.id, pgbouncer.database.name) group_left()
+              / on(obenhub.cluster.name, service.instance.id, k8s.pod.uid, pgbouncer.database.name) group_left()
             (pgbouncer.database.server_connection.limit > 0),
             x = avg_over_time(r[5m:15s]),
             n = count_over_time(r[5m:15s])
           )
           ((x >= 0.9) and (n >= 20))
-            unless on(service.instance.id, pgbouncer.database.name)
+            unless on(obenhub.cluster.name, service.instance.id, pgbouncer.database.name)
           (pgbouncer.database.paused == 1 or pgbouncer.database.disabled == 1)
-            and on(service.instance.id)
+            and on(obenhub.cluster.name, service.instance.id)
           present_over_time(pgbouncer.list.item.count{pgbouncer.list.name="databases"}[2m])
         labels:
           severity: warning
@@ -104,13 +117,13 @@ groups:
         expr: |
           WITH (
             r = pgbouncer.list.item.count{pgbouncer.list.name="used_clients"}
-              / on(service.instance.id)
+              / on(obenhub.cluster.name, service.instance.id, k8s.pod.uid)
             pgbouncer.client_connection.limit,
             x = min_over_time(r[75s:15s]),
             n = count_over_time(r[75s:15s])
           )
           (((x > 0.85) unless (x >= 0.95)) and (n >= 5))
-            and on(service.instance.id)
+            and on(obenhub.cluster.name, service.instance.id)
           present_over_time(pgbouncer.list.item.count{pgbouncer.list.name="databases"}[2m])
         labels:
           severity: warning
@@ -121,13 +134,13 @@ groups:
         expr: |
           WITH (
             r = pgbouncer.list.item.count{pgbouncer.list.name="used_clients"}
-              / on(service.instance.id)
+              / on(obenhub.cluster.name, service.instance.id, k8s.pod.uid)
             pgbouncer.client_connection.limit,
             x = min_over_time(r[75s:15s]),
             n = count_over_time(r[75s:15s])
           )
           ((x >= 0.95) and (n >= 5))
-            and on(service.instance.id)
+            and on(obenhub.cluster.name, service.instance.id)
           present_over_time(pgbouncer.list.item.count{pgbouncer.list.name="databases"}[2m])
         labels:
           severity: critical
@@ -156,15 +169,15 @@ groups:
             rate(pgbouncer.stats.wait_time{pgbouncer.database.name!="pgbouncer"}[5m])
               / (rate(pgbouncer.stats.server_assignment{pgbouncer.database.name!="pgbouncer"}[5m]) > 0) > 0.1
           )
-            unless on(service.instance.id, pgbouncer.database.name)
-          max by(service.instance.id, pgbouncer.database.name) (
+            unless on(obenhub.cluster.name, service.instance.id, pgbouncer.database.name)
+          max by(obenhub.cluster.name, service.instance.id, pgbouncer.database.name) (
             max_over_time(
               (min_over_time(pgbouncer.pool.oldest_wait_age{pgbouncer.database.name!="pgbouncer"}[75s]) >= 5)[6m:15s]
             )
           )
-            unless on(service.instance.id, pgbouncer.database.name)
+            unless on(obenhub.cluster.name, service.instance.id, pgbouncer.database.name)
           (pgbouncer.database.paused == 1 or pgbouncer.database.disabled == 1)
-            and on(service.instance.id)
+            and on(obenhub.cluster.name, service.instance.id)
           present_over_time(pgbouncer.list.item.count{pgbouncer.list.name="databases"}[2m])
         for: 2m
         labels:

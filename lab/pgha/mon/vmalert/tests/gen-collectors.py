@@ -109,15 +109,16 @@ def input_series(
         add(uptime % node, stream(1, STOP_AT if dead else None))
         heartbeat = STOP_AT if (i in hb_stop and not dead) else data
         add(
-            f'postgresql.collection.heartbeat{{service.name="postgresql",service.instance.id="{node}"}}',
+            f'postgresql.collection.heartbeat{{service.name="postgresql",obenhub.cluster.name="pgha",service.instance.id="{node}"}}',
             stream(1, heartbeat),
         )
         for service, fails in (("patroni", patroni_fail), ("etcd", etcd_fail)):
             values = failing() if (i in fails and not dead) else stream(1, data)
-            add(f'up{{service.name="{service}",service.instance.id="{node}"}}', values)
+            cluster = "pgha-etcd" if service == "etcd" else "pgha"
+            add(f'up{{service.name="{service}",obenhub.cluster.name="{cluster}",service.instance.id="{node}"}}', values)
         primary = data if i not in patroni_fail else STOP_AT
         add(
-            f'patroni_primary{{service.name="patroni",scope="pgha",service.instance.id="{node}"}}',
+            f'patroni_primary{{service.name="patroni",obenhub.cluster.name="pgha",scope="pgha",service.instance.id="{node}"}}',
             stream(1 if i == leader else 0, primary),
         )
     return "\n".join(out)
@@ -148,8 +149,7 @@ def inventory_alert(severity, service, node, summary):
         ("service.namespace", "obenhub-lab"),
         ("service.name", service),
     ]
-    if service != "etcd":
-        labels.append(("obenhub.cluster.name", "pgha"))
+    labels.append(("obenhub.cluster.name", "pgha-etcd" if service == "etcd" else "pgha"))
     labels += [
         ("service.instance.id", f"pgha-{node}"),
         ("obenhub.collector", f"otelcol-pgha-{node}"),
@@ -174,9 +174,9 @@ def etcd_absent(node):
 
 
 def insufficient(reporting):
-    summary = f'"Only {reporting} etcd members report: quorum is lost"'
+    summary = f'"Only {reporting} members of etcd cluster pgha-etcd report: quorum is lost"'
     lines = [
-        "- exp_labels: {severity: critical}",
+        "- exp_labels: {severity: critical, obenhub.cluster.name: pgha-etcd}",
         "  exp_annotations:",
         f"    summary: {summary}",
     ]
@@ -185,7 +185,7 @@ def insufficient(reporting):
 
 def no_primary():
     lines = [
-        "- exp_labels: {severity: critical, scope: pgha}",
+        "- exp_labels: {severity: critical, obenhub.cluster.name: pgha}",
         "  exp_annotations:",
         "    summary: Cluster pgha has no writable primary",
     ]
@@ -242,12 +242,18 @@ def scenario_series(nodes):
         col = node["col"]
         add(f'otelcol_process_uptime{{service.name="otelcol",service.instance.id="otelcol-pgha-{i}"}}', col)
         add(
-            f'postgresql.collection.heartbeat{{service.name="postgresql",service.instance.id="pgha-{i}"}}',
+            f'postgresql.collection.heartbeat{{service.name="postgresql",obenhub.cluster.name="pgha",service.instance.id="pgha-{i}"}}',
             node.get("hb", col),
         )
-        add(f'up{{service.name="patroni",service.instance.id="pgha-{i}"}}', node.get("pat", col))
-        add(f'up{{service.name="etcd",service.instance.id="pgha-{i}"}}', col)
-        add(f'patroni_primary{{service.name="patroni",scope="pgha",service.instance.id="pgha-{i}"}}', node["prim"])
+        add(
+            f'up{{service.name="patroni",obenhub.cluster.name="pgha",service.instance.id="pgha-{i}"}}',
+            node.get("pat", col),
+        )
+        add(f'up{{service.name="etcd",obenhub.cluster.name="pgha-etcd",service.instance.id="pgha-{i}"}}', col)
+        add(
+            f'patroni_primary{{service.name="patroni",obenhub.cluster.name="pgha",scope="pgha",service.instance.id="pgha-{i}"}}',
+            node["prim"],
+        )
     return "\n".join(out)
 
 

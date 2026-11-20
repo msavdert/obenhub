@@ -67,7 +67,8 @@ It scrapes only its own node (`files/otelcol.yaml.tmpl`):
 
 Resource attributes follow `lab/stage3/otelcol/config.yaml`, with
 `service.instance.id` `pgha-N` for `postgresql`, `patroni`, `etcd` and the
-`host` service (host metrics and journal), and `obenhub.cluster.name` `pgha`.
+`host` service (host metrics and journal), and `obenhub.cluster.name` `pgha`,
+except `etcd`, which is its own cluster, `pgha-etcd` (ADR 0006, decision 7).
 
 The monitor password reaches the node in `/etc/otelcol-contrib/monitor.env`
 (root only, read by systemd); it is not in the config.

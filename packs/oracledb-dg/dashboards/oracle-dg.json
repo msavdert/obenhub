@@ -1158,7 +1158,7 @@
             "type": "victoriametrics-metrics-datasource",
             "uid": "vm"
           },
-          "expr": "max by (service.instance.id, oracle.db.pdb, tablespace_name) (oracledb.tablespace_size.usage) / on(service.instance.id, oracle.db.pdb, tablespace_name) (max by (service.instance.id, oracle.db.pdb, tablespace_name) (oracledb.tablespace_size.limit) > 0)",
+          "expr": "max by (obenhub.cluster.name, service.instance.id, oracle.db.pdb, tablespace_name) (oracledb.tablespace_size.usage) / on(obenhub.cluster.name, service.instance.id, oracle.db.pdb, tablespace_name) (max by (obenhub.cluster.name, service.instance.id, oracle.db.pdb, tablespace_name) (oracledb.tablespace_size.limit) > 0)",
           "refId": "A",
           "range": true,
           "instant": false,
@@ -1209,11 +1209,11 @@
             "type": "victoriametrics-metrics-datasource",
             "uid": "vm"
           },
-          "expr": "max by (service.instance.id) (oracledb.lock.oldest_wait_age)",
+          "expr": "max by (obenhub.cluster.name, service.instance.id) (oracledb.lock.oldest_wait_age)",
           "refId": "A",
           "range": true,
           "instant": false,
-          "legendFormat": "{{service.instance.id}}"
+          "legendFormat": "{{obenhub.cluster.name}} {{service.instance.id}}"
         }
       ],
       "description": "Longest current wait of a session for a lock held by another session (V$SESSION, wait class Application, all containers of the primary), from the primary-only sql_query of the oracledb-dg pack, 15 s; 0 when none. Alert: OracleBlockedSessions (warning when the wait has been above 30 s for 30 s).",
@@ -1259,11 +1259,11 @@
             "type": "victoriametrics-metrics-datasource",
             "uid": "vm"
           },
-          "expr": "max by (service.instance.id, oracledb.user.name, oracledb.user.status) (oracledb.user.open)",
+          "expr": "max by (obenhub.cluster.name, service.instance.id, oracledb.user.name, oracledb.user.status) (oracledb.user.open)",
           "refId": "A",
           "range": true,
           "instant": false,
-          "legendFormat": "{{oracledb.user.name}} {{oracledb.user.status}} ({{service.instance.id}})"
+          "legendFormat": "{{oracledb.user.name}} {{oracledb.user.status}} ({{obenhub.cluster.name}} {{service.instance.id}})"
         }
       ],
       "description": "1 when a project monitoring account (C##OBENHUB_* or OBENHUB_*) has DBA_USERS status OPEN, 0 when it is expired, in grace or locked; the status is a label. From the primary-only sql_query of the oracledb-dg pack. An expired password stops only new logins, so the receivers keep sending. Alert: OracleMonitoringAccountNotOpen (critical when 0 for 1m).",

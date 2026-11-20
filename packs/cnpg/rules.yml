@@ -5,7 +5,10 @@
 # Labels, read from VictoriaMetrics on the k8s lab on 2026-11-11: every
 # postgresql.recovery.active series carries service.instance.id (the pod name,
 # pg-1...), k8s.namespace.name, obenhub.cluster.name (the Cluster's name, pg) and
-# k8s.pod.*, so a cluster is identified by (k8s.namespace.name, obenhub.cluster.name).
+# k8s.pod.*. A cluster is identified by obenhub.cluster.name, unique within the
+# backend, and a target by that and service.instance.id (ADR 0006, decision 7);
+# the rules also group and join on k8s.namespace.name, which is redundant while
+# names are unique and never merges two clusters.
 # Names follow the naming contract (ADR 0006).
 groups:
   - name: cnpg
@@ -40,6 +43,19 @@ groups:
           severity: warning
         annotations:
           summary: 'A replica of cluster {{ (index $labels "obenhub.cluster.name") }} ({{ (index $labels "k8s.namespace.name") }}) was promoted'
+
+      # An instance whose exporter series carry no obenhub.cluster.name (ADR
+      # 0006, decision 7). CNPGPrimaryChanged groups on it, so the instance would
+      # be counted in a cluster named "". The fencing series is CloudNativePG's
+      # own, so this does not repeat PostgresClusterNameMissing, which reads
+      # the pack's series of the same pod.
+      - alert: CNPGClusterNameMissing
+        expr: cnpg_collector_fencing_on{obenhub.cluster.name=""}
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: '{{ (index $labels "service.instance.id") }} ({{ (index $labels "k8s.namespace.name") }}) reports no obenhub.cluster.name'
 
       # An instance whose exporter reports cnpg_collector_fencing_on == 1 for a
       # minute: the instance is fenced (annotation cnpg.io/fencedInstances on

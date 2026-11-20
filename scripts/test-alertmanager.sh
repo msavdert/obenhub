@@ -27,8 +27,10 @@ done
 post() {
   curl -fs -X POST "$base/api/v2/alerts" -H 'Content-Type: application/json' -d "$1" >/dev/null
 }
-alert() { # name instance
-  if [ -n "${2:-}" ]; then
+alert() { # name [instance [cluster]]
+  if [ -n "${3:-}" ]; then
+    printf '{"labels":{"alertname":"%s","service_instance_id":"%s","obenhub_cluster_name":"%s"}}' "$1" "$2" "$3"
+  elif [ -n "${2:-}" ]; then
     printf '{"labels":{"alertname":"%s","service_instance_id":"%s"}}' "$1" "$2"
   else
     printf '{"labels":{"alertname":"%s"}}' "$1"
@@ -55,6 +57,13 @@ sleep 2
 groups="$(curl -fs "$base/api/v2/alerts/groups")"
 check "PostgresReplayBacklog forms one group per instance" \
   "sorted(g['labels'].get('service_instance_id') for g in d if g['labels']['alertname']=='PostgresReplayBacklog') == ['pg-primary','pg-standby']" "$groups"
+
+# 1b. the same instance name in two clusters forms two groups
+post "[$(alert PostgresXminHorizonHeld pg-1 cluster-a),$(alert PostgresXminHorizonHeld pg-1 cluster-b)]"
+sleep 2
+groups="$(curl -fs "$base/api/v2/alerts/groups")"
+check "one instance name in two clusters forms two groups" \
+  "sorted(g['labels'].get('obenhub_cluster_name') for g in d if g['labels']['alertname']=='PostgresXminHorizonHeld') == ['cluster-a','cluster-b']" "$groups"
 
 # 2. a cluster-level alert has its own group, and nothing is inhibited
 post "[$(alert CollectorAbsent),$(alert PostgresTargetAbsent pg-standby),$(alert PostgresSeriesVanished pg-standby)]"

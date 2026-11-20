@@ -108,7 +108,7 @@ the held dependency update batch and closes a release.
       keeps its CNPG managed role, `lab/overhead` its own copy). Done when
       every lab's full suite passes with it, slice1, stage3 and pgha rebuilt
       first (the role SQL runs only at bootstrap)
-- [ ] C3 Identity, with an amendment to ADR 0006 first. Every join in the
+- [x] C3 Identity, with an amendment to ADR 0006 first. Every join in the
       `postgresql` pack is on `service.instance.id` alone (13 places), so
       two clusters with a `pg-1` in one backend break the rules, and a
       recreated pod has two series for a few minutes. `obenhub.cluster.name`
@@ -116,7 +116,10 @@ the held dependency update batch and closes a release.
       present, the backend-wide guards (`PostgresStandbyNotStreaming`, the
       etcd member count) become per cluster, and a rule fires on a target
       without a cluster. Done when unit tests with two clusters sharing an
-      instance name, and with two pod UIDs for one instance, pass
+      instance name, and with two pod UIDs for one instance, pass. The tests
+      are `packs/{postgresql,patroni,etcd}/tests/*identity.yml`; the stage3
+      and pgha etcd resources now carry `stage3-etcd` and `pgha-etcd`, and
+      the lab suites run in the chain
 - [ ] C4 Thresholds: a production default in the rule and an optional
       override series, in one form everywhere, as `packs/etcd/rules.yml`
       does since #113. About 30 literal values in the postgresql, patroni,

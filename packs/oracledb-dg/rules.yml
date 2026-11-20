@@ -9,7 +9,9 @@
 # healthy CDB19 / CDB19_STBY pair): every oracledb.* series carries
 # service.instance.id (the db_unique_name) and obenhub.cluster.name (cdb19, the
 # Data Guard configuration), the sql_query series also
-# oracledb.database.unique_name. A cluster is identified by obenhub.cluster.name.
+# oracledb.database.unique_name. A cluster is identified by obenhub.cluster.name,
+# a target by that and service.instance.id together (ADR 0006, decision 7); every
+# join below matches on both.
 #
 # Label-valued state: oracledb.database.role, open_mode, protection_level and
 # fast_start_failover.status are labels, so when the value changes the old
@@ -29,6 +31,19 @@ groups:
   - name: oracledb-dg
     interval: 15s
     rules:
+      # An Oracle target without obenhub.cluster.name (ADR 0006, decision 7).
+      # Every rule here groups or joins on it, so such a database would be
+      # counted in no cluster (OracleNoPrimary, OracleMultiplePrimaries). The
+      # heartbeat is the series OracleTargetAbsent reads. The RMAN backup pack
+      # has OracleBackupClusterNameMissing for its own series.
+      - alert: OracleClusterNameMissing
+        expr: oracledb.collection.heartbeat{obenhub.cluster.name=""}
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: '{{ (index $labels "service.instance.id") }} reports no obenhub.cluster.name'
+
       # An expected Oracle target (inventory) whose heartbeat has been absent
       # for 2m while the Collector that collects it is alive. Same shape as
       # PostgresTargetAbsent: the Collector's 1m self-metrics window empties
@@ -50,7 +65,7 @@ groups:
       - alert: OracleTargetAbsent
         expr: |
           obenhub.expected_target{service.name="oracledb"}
-            unless on(service.instance.id)
+            unless on(obenhub.cluster.name, service.instance.id)
           present_over_time(oracledb.collection.heartbeat[2m])
             and on(obenhub.collector)
           label_replace(present_over_time(otelcol_process_uptime[1m]), "obenhub.collector", "$1", "service.instance.id", "(.+)")
@@ -301,8 +316,8 @@ groups:
       - alert: OracleStandbyLagUnknown
         expr: |
           max by (service.instance.id, obenhub.cluster.name, oracledb.database.unique_name) (present_over_time(oracledb.dataguard.apply.running[30s]))
-            unless on(service.instance.id)
-          (count by (service.instance.id) (present_over_time(oracledb.dataguard.lag[2m])) == 2)
+            unless on(obenhub.cluster.name, service.instance.id)
+          (count by (obenhub.cluster.name, service.instance.id) (present_over_time(oracledb.dataguard.lag[2m])) == 2)
         for: 1m
         labels:
           severity: warning

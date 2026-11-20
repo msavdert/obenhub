@@ -11,13 +11,13 @@ tests:
   - name: target absent fires only for the dead target while the other lives
     interval: 15s
     input_series:
-      - series: 'postgresql.collection.heartbeat{service.instance.id="pg-primary"}'
+      - series: 'postgresql.collection.heartbeat{obenhub.cluster.name="slice1",service.instance.id="pg-primary"}'
         values: '1x60'
-      - series: 'postgresql.collection.heartbeat{service.instance.id="pg-standby"}'
+      - series: 'postgresql.collection.heartbeat{obenhub.cluster.name="slice1",service.instance.id="pg-standby"}'
         values: '1x8 _x52'
-      - series: 'postgresql.collection.heartbeat{service.instance.id="pg-subscriber"}'
+      - series: 'postgresql.collection.heartbeat{obenhub.cluster.name="slice1-subscriber",service.instance.id="pg-subscriber"}'
         values: '1x60'
-      - series: 'pgbouncer.list.item.count{service.instance.id="pgbouncer",pgbouncer.list.name="databases"}'
+      - series: 'pgbouncer.list.item.count{obenhub.cluster.name="slice1",service.instance.id="pgbouncer",pgbouncer.list.name="databases"}'
         values: '2x60'
       - series: 'otelcol_process_uptime{service.name="otelcol",service.instance.id="otelcol-slice1"}'
         values: '1x60'
@@ -47,13 +47,13 @@ tests:
   - name: target absent does not fire when both targets keep reporting
     interval: 15s
     input_series:
-      - series: 'postgresql.collection.heartbeat{service.instance.id="pg-primary"}'
+      - series: 'postgresql.collection.heartbeat{obenhub.cluster.name="slice1",service.instance.id="pg-primary"}'
         values: '1x60'
-      - series: 'postgresql.collection.heartbeat{service.instance.id="pg-standby"}'
+      - series: 'postgresql.collection.heartbeat{obenhub.cluster.name="slice1",service.instance.id="pg-standby"}'
         values: '1x60'
-      - series: 'postgresql.collection.heartbeat{service.instance.id="pg-subscriber"}'
+      - series: 'postgresql.collection.heartbeat{obenhub.cluster.name="slice1-subscriber",service.instance.id="pg-subscriber"}'
         values: '1x60'
-      - series: 'pgbouncer.list.item.count{service.instance.id="pgbouncer",pgbouncer.list.name="databases"}'
+      - series: 'pgbouncer.list.item.count{obenhub.cluster.name="slice1",service.instance.id="pgbouncer",pgbouncer.list.name="databases"}'
         values: '2x60'
       - series: 'otelcol_process_uptime{service.name="otelcol",service.instance.id="otelcol-slice1"}'
         values: '1x60'
@@ -68,11 +68,11 @@ tests:
     input_series:
       - series: 'otelcol_process_uptime{service.name="otelcol",service.instance.id="otelcol-slice1"}'
         values: '1x60'
-      - series: 'postgresql.collection.heartbeat{service.instance.id="pg-primary"}'
+      - series: 'postgresql.collection.heartbeat{obenhub.cluster.name="slice1",service.instance.id="pg-primary"}'
         values: '1x60'
-      - series: 'postgresql.collection.heartbeat{service.instance.id="pg-subscriber"}'
+      - series: 'postgresql.collection.heartbeat{obenhub.cluster.name="slice1-subscriber",service.instance.id="pg-subscriber"}'
         values: '1x60'
-      - series: 'pgbouncer.list.item.count{service.instance.id="pgbouncer",pgbouncer.list.name="databases"}'
+      - series: 'pgbouncer.list.item.count{obenhub.cluster.name="slice1",service.instance.id="pgbouncer",pgbouncer.list.name="databases"}'
         values: '2x60'
     alert_rule_test:
       - eval_time: 5m
@@ -94,13 +94,13 @@ tests:
     input_series:
       - series: 'otelcol_process_uptime{service.name="otelcol",service.instance.id="otelcol-slice1"}'
         values: '1x60'
-      - series: 'postgresql.collection.heartbeat{service.instance.id="pg-primary"}'
+      - series: 'postgresql.collection.heartbeat{obenhub.cluster.name="slice1",service.instance.id="pg-primary"}'
         values: '1x60'
-      - series: 'postgresql.collection.heartbeat{service.instance.id="pg-standby"}'
+      - series: 'postgresql.collection.heartbeat{obenhub.cluster.name="slice1",service.instance.id="pg-standby"}'
         values: '1x60'
-      - series: 'postgresql.collection.heartbeat{service.instance.id="pg-subscriber"}'
+      - series: 'postgresql.collection.heartbeat{obenhub.cluster.name="slice1-subscriber",service.instance.id="pg-subscriber"}'
         values: '1x8 _x52'
-      - series: 'pgbouncer.list.item.count{service.instance.id="pgbouncer",pgbouncer.list.name="databases"}'
+      - series: 'pgbouncer.list.item.count{obenhub.cluster.name="slice1",service.instance.id="pgbouncer",pgbouncer.list.name="databases"}'
         values: '2x60'
     alert_rule_test:
       - eval_time: 6m
@@ -122,13 +122,13 @@ tests:
     input_series:
       - series: 'otelcol_process_uptime{service.name="otelcol",service.instance.id="otelcol-slice1"}'
         values: '1x8 _x52'
-      - series: 'postgresql.collection.heartbeat{service.instance.id="pg-primary"}'
+      - series: 'postgresql.collection.heartbeat{obenhub.cluster.name="slice1",service.instance.id="pg-primary"}'
         values: '1x8 _x52'
-      - series: 'postgresql.collection.heartbeat{service.instance.id="pg-standby"}'
+      - series: 'postgresql.collection.heartbeat{obenhub.cluster.name="slice1",service.instance.id="pg-standby"}'
         values: '1x8 _x52'
-      - series: 'postgresql.replay.backlog{service.instance.id="pg-standby"}'
+      - series: 'postgresql.replay.backlog{obenhub.cluster.name="slice1",service.instance.id="pg-standby"}'
         values: '0x8 _x52'
-      - series: 'pgbouncer.list.item.count{service.instance.id="pgbouncer",pgbouncer.list.name="databases"}'
+      - series: 'pgbouncer.list.item.count{obenhub.cluster.name="slice1",service.instance.id="pgbouncer",pgbouncer.list.name="databases"}'
         values: '1x8 _x52'
     alert_rule_test:
       - eval_time: 10m
@@ -153,11 +153,11 @@ tests:
     input_series:
       - series: 'otelcol_process_uptime{service.name="otelcol",service.instance.id="otelcol-slice1"}'
         values: '1x60'
-      - series: 'postgresql.collection.heartbeat{service.instance.id="pg-primary"}'
+      - series: 'postgresql.collection.heartbeat{obenhub.cluster.name="slice1",service.instance.id="pg-primary"}'
         values: '1x60'
-      - series: 'postgresql.collection.heartbeat{service.instance.id="pg-standby"}'
+      - series: 'postgresql.collection.heartbeat{obenhub.cluster.name="slice1",service.instance.id="pg-standby"}'
         values: '1x8 _x52'
-      - series: 'postgresql.replay.backlog{service.instance.id="pg-standby"}'
+      - series: 'postgresql.replay.backlog{obenhub.cluster.name="slice1",service.instance.id="pg-standby"}'
         values: '0x8 _x52'
     alert_rule_test:
       - eval_time: 10m
@@ -170,9 +170,9 @@ tests:
     input_series:
       - series: 'otelcol_process_uptime{service.name="otelcol",service.instance.id="otelcol-slice1"}'
         values: '1x8 _x12 1x40'
-      - series: 'postgresql.collection.heartbeat{service.instance.id="pg-primary"}'
+      - series: 'postgresql.collection.heartbeat{obenhub.cluster.name="slice1",service.instance.id="pg-primary"}'
         values: '1x8 _x14 1x38'
-      - series: 'postgresql.collection.heartbeat{service.instance.id="pg-standby"}'
+      - series: 'postgresql.collection.heartbeat{obenhub.cluster.name="slice1",service.instance.id="pg-standby"}'
         values: '1x8 _x14 1x38'
     alert_rule_test:
       - eval_time: 5m40s   # uptime back, heartbeat not yet (30s later): pending only
@@ -185,15 +185,15 @@ tests:
     input_series:
       - series: 'otelcol_process_uptime{service.name="otelcol",service.instance.id="otelcol-slice1"}'
         values: '1x60'
-      - series: 'postgresql.collection.heartbeat{service.instance.id="pg-primary"}'
+      - series: 'postgresql.collection.heartbeat{obenhub.cluster.name="slice1",service.instance.id="pg-primary"}'
         values: '1x60'
-      - series: 'postgresql.collection.heartbeat{service.instance.id="pg-standby"}'
+      - series: 'postgresql.collection.heartbeat{obenhub.cluster.name="slice1",service.instance.id="pg-standby"}'
         values: '1x60'
-      - series: 'postgresql.collection.heartbeat{service.instance.id="pg-subscriber"}'
+      - series: 'postgresql.collection.heartbeat{obenhub.cluster.name="slice1-subscriber",service.instance.id="pg-subscriber"}'
         values: '1x60'
-      - series: 'pgbouncer.list.item.count{service.instance.id="pgbouncer",pgbouncer.list.name="databases"}'
+      - series: 'pgbouncer.list.item.count{obenhub.cluster.name="slice1",service.instance.id="pgbouncer",pgbouncer.list.name="databases"}'
         values: '2x8 _x52'
-      - series: 'pgbouncer.list.item.count{service.instance.id="pgbouncer",pgbouncer.list.name="users"}'
+      - series: 'pgbouncer.list.item.count{obenhub.cluster.name="slice1",service.instance.id="pgbouncer",pgbouncer.list.name="users"}'
         values: '3x60'
     alert_rule_test:
       - eval_time: 3m   # gone for 1m but the 2m window is not yet empty

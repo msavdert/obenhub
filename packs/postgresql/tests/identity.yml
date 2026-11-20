@@ -1,0 +1,292 @@
+# Target identity (ADR 0006, decision 7): a target is obenhub.cluster.name and
+# service.instance.id together, and a one-to-one join also matches
+# k8s.pod.uid. Every group here puts two clusters that both have an instance
+# "pg-1" (or two pods of one instance) into one backend: a fault of one must
+# neither fire for nor be hidden by the other. PostgresClusterNameMissing is
+# at the end.
+rule_files:
+  - ../rules.yml
+evaluation_interval: 15s
+
+tests:
+  - name: two clusters share pg-1 - the not-streaming guard asks per cluster (a has no writable node, b has)
+    interval: 15s
+    input_series:
+      # cluster a: both members in recovery, none writable: the guard silences it
+      - series: 'postgresql.wal_receiver.streaming{obenhub.cluster.name="a",service.instance.id="pg-1"}'
+        values: '0x60'
+      - series: 'postgresql.recovery.active{obenhub.cluster.name="a",service.instance.id="pg-1"}'
+        values: '1x60'
+      - series: 'postgresql.wal_receiver.streaming{obenhub.cluster.name="a",service.instance.id="pg-2"}'
+        values: '0x60'
+      - series: 'postgresql.recovery.active{obenhub.cluster.name="a",service.instance.id="pg-2"}'
+        values: '1x60'
+      # cluster b: pg-1 is the primary (the same instance name as a's standby), pg-2 does not stream
+      - series: 'postgresql.recovery.active{obenhub.cluster.name="b",service.instance.id="pg-1"}'
+        values: '0x60'
+      - series: 'postgresql.wal_receiver.streaming{obenhub.cluster.name="b",service.instance.id="pg-2"}'
+        values: '0x60'
+      - series: 'postgresql.recovery.active{obenhub.cluster.name="b",service.instance.id="pg-2"}'
+        values: '1x60'
+    alert_rule_test:
+      - eval_time: 8m
+        groupname: postgresql
+        alertname: PostgresStandbyNotStreaming
+        exp_alerts:
+          - exp_labels:
+              obenhub.cluster.name: b
+              severity: critical
+              service.instance.id: pg-2
+            exp_annotations:
+              summary: pg-2 is in recovery and not streaming
+
+  - name: two clusters share pg-1 - a standby of a fires although b's pg-1 is writable and a has a writable pg-2
+    interval: 15s
+    input_series:
+      - series: 'postgresql.wal_receiver.streaming{obenhub.cluster.name="a",service.instance.id="pg-1"}'
+        values: '0x60'
+      - series: 'postgresql.recovery.active{obenhub.cluster.name="a",service.instance.id="pg-1"}'
+        values: '1x60'
+      - series: 'postgresql.recovery.active{obenhub.cluster.name="a",service.instance.id="pg-2"}'
+        values: '0x60'
+      # b's pg-1 is writable and streams nothing: it must not pair with a's pg-1
+      - series: 'postgresql.wal_receiver.streaming{obenhub.cluster.name="b",service.instance.id="pg-1"}'
+        values: '0x60'
+      - series: 'postgresql.recovery.active{obenhub.cluster.name="b",service.instance.id="pg-1"}'
+        values: '0x60'
+    alert_rule_test:
+      - eval_time: 8m
+        groupname: postgresql
+        alertname: PostgresStandbyNotStreaming
+        exp_alerts:
+          - exp_labels:
+              obenhub.cluster.name: a
+              severity: critical
+              service.instance.id: pg-1
+            exp_annotations:
+              summary: pg-1 is in recovery and not streaming
+
+  - name: two clusters share pg-1 - the connection saturation division pairs count and limit per cluster
+    interval: 15s
+    input_series:
+      - series: 'postgresql.client_connection.count{obenhub.cluster.name="a",service.instance.id="pg-1"}'
+        values: '5x4 90x56'
+      - series: 'postgresql.client_connection.limit{obenhub.cluster.name="a",service.instance.id="pg-1"}'
+        values: '97x60'
+      # b has a small limit and is at 20 percent; crossed with a's 90 it would read 90 / 25
+      - series: 'postgresql.client_connection.count{obenhub.cluster.name="b",service.instance.id="pg-1"}'
+        values: '5x60'
+      - series: 'postgresql.client_connection.limit{obenhub.cluster.name="b",service.instance.id="pg-1"}'
+        values: '25x60'
+    alert_rule_test:
+      - eval_time: 1m
+        groupname: postgresql
+        alertname: PostgresConnectionSaturation
+        exp_alerts: []
+      - eval_time: 4m
+        groupname: postgresql
+        alertname: PostgresConnectionSaturation
+        exp_alerts:
+          - exp_labels:
+              obenhub.cluster.name: a
+              severity: warning
+              service.instance.id: pg-1
+            exp_annotations:
+              summary: 'pg-1 client connections above 85% of capacity'
+
+  - name: two clusters share pg-1 - the other cluster's heartbeat does not hide a dead target
+    interval: 15s
+    input_series:
+      - series: 'obenhub.expected_target{service.name="postgresql",obenhub.cluster.name="a",service.instance.id="pg-1",obenhub.collector="otelcol-x"}'
+        values: '1x60'
+      - series: 'obenhub.expected_target{service.name="postgresql",obenhub.cluster.name="b",service.instance.id="pg-1",obenhub.collector="otelcol-x"}'
+        values: '1x60'
+      - series: 'postgresql.collection.heartbeat{obenhub.cluster.name="a",service.instance.id="pg-1"}'
+        values: '1x8 _x52'
+      - series: 'postgresql.collection.heartbeat{obenhub.cluster.name="b",service.instance.id="pg-1"}'
+        values: '1x60'
+      - series: 'otelcol_process_uptime{service.name="otelcol",service.instance.id="otelcol-x"}'
+        values: '1x60'
+    alert_rule_test:
+      - eval_time: 1m
+        groupname: postgresql
+        alertname: PostgresTargetAbsent
+        exp_alerts: []
+      - eval_time: 6m
+        groupname: postgresql
+        alertname: PostgresTargetAbsent
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              service.name: postgresql
+              obenhub.cluster.name: a
+              service.instance.id: pg-1
+              obenhub.collector: otelcol-x
+            exp_annotations:
+              summary: 'No heartbeat from pg-1'
+
+  - name: two clusters share pg-1 - a slot invalidated in b does not silence the same slot name retaining WAL in a
+    interval: 15s
+    input_series:
+      - series: 'postgresql.replication_slot.retained_wal{obenhub.cluster.name="a",service.instance.id="pg-1",postgresql.replication_slot.name="s1",postgresql.replication_slot.type="physical"}'
+        values: '629145600x60'
+      - series: 'postgresql.replication_slot.invalidated{obenhub.cluster.name="a",service.instance.id="pg-1",postgresql.replication_slot.name="s1",postgresql.replication_slot.type="physical",postgresql.replication_slot.invalidation_reason=""}'
+        values: '0x60'
+      - series: 'postgresql.recovery.active{obenhub.cluster.name="a",service.instance.id="pg-1"}'
+        values: '0x60'
+      # b: the same slot name on the same instance name is invalidated, and b's pg-1 is a standby
+      - series: 'postgresql.replication_slot.retained_wal{obenhub.cluster.name="b",service.instance.id="pg-1",postgresql.replication_slot.name="s1",postgresql.replication_slot.type="physical"}'
+        values: '629145600x60'
+      - series: 'postgresql.replication_slot.invalidated{obenhub.cluster.name="b",service.instance.id="pg-1",postgresql.replication_slot.name="s1",postgresql.replication_slot.type="physical",postgresql.replication_slot.invalidation_reason="wal_removed"}'
+        values: '1x60'
+      - series: 'postgresql.recovery.active{obenhub.cluster.name="b",service.instance.id="pg-1"}'
+        values: '1x60'
+    alert_rule_test:
+      - eval_time: 4m
+        groupname: postgresql
+        alertname: PostgresReplicationSlotRetainingWAL
+        exp_alerts:
+          - exp_labels:
+              obenhub.cluster.name: a
+              severity: warning
+              service.instance.id: pg-1
+              postgresql.replication_slot.name: s1
+              postgresql.replication_slot.type: physical
+            exp_annotations:
+              summary: 'Slot s1 on pg-1 retains 600MiB of WAL (lab threshold)'
+
+  - name: two clusters share pg-1 - an inactive physical slot of a fires on a's primary only
+    interval: 15s
+    input_series:
+      - series: 'postgresql.replication_slot.inactive_age{obenhub.cluster.name="a",service.instance.id="pg-1",postgresql.replication_slot.name="s1",postgresql.replication_slot.type="physical"}'
+        values: '300x60'
+      - series: 'postgresql.recovery.active{obenhub.cluster.name="a",service.instance.id="pg-1"}'
+        values: '0x60'
+      # b's pg-1 is a standby with the same slot inactive by design: out of scope
+      - series: 'postgresql.replication_slot.inactive_age{obenhub.cluster.name="b",service.instance.id="pg-1",postgresql.replication_slot.name="s1",postgresql.replication_slot.type="physical"}'
+        values: '300x60'
+      - series: 'postgresql.recovery.active{obenhub.cluster.name="b",service.instance.id="pg-1"}'
+        values: '1x60'
+    alert_rule_test:
+      - eval_time: 4m
+        groupname: postgresql
+        alertname: PostgresPhysicalSlotInactive
+        exp_alerts:
+          - exp_labels:
+              obenhub.cluster.name: a
+              severity: warning
+              service.instance.id: pg-1
+              postgresql.replication_slot.name: s1
+              postgresql.replication_slot.type: physical
+            exp_annotations:
+              summary: 'Physical slot s1 on pg-1 has been inactive for 5m 0s (lab threshold)'
+
+  - name: two clusters share pg-1 - a metric vanished in a is not hidden by b's series of the same name
+    interval: 15s
+    input_series:
+      - series: 'postgresql.collection.heartbeat{obenhub.cluster.name="a",service.instance.id="pg-1"}'
+        values: '1x120'
+      - series: 'postgresql.replay.backlog{obenhub.cluster.name="a",service.instance.id="pg-1"}'
+        values: '0x8 _x112'
+      - series: 'postgresql.collection.heartbeat{obenhub.cluster.name="b",service.instance.id="pg-1"}'
+        values: '1x120'
+      - series: 'postgresql.replay.backlog{obenhub.cluster.name="b",service.instance.id="pg-1"}'
+        values: '0x120'
+    alert_rule_test:
+      - eval_time: 6m
+        groupname: postgresql
+        alertname: PostgresSeriesVanished
+        exp_alerts:
+          - exp_labels:
+              obenhub.cluster.name: a
+              severity: warning
+              service.instance.id: pg-1
+              metric: postgresql.replay.backlog
+            exp_annotations:
+              summary: 'postgresql.replay.backlog vanished on pg-1'
+
+  # --- one instance, two pods ---------------------------------------------
+  - name: two pod uids for one instance - the division pairs each pod's count with its own limit
+    interval: 15s
+    input_series:
+      # the deleted pod: last samples at 45 s, 50 of 100
+      - series: 'postgresql.client_connection.count{obenhub.cluster.name="a",service.instance.id="pg-1",k8s.pod.uid="old"}'
+        values: '50x4'
+      - series: 'postgresql.client_connection.limit{obenhub.cluster.name="a",service.instance.id="pg-1",k8s.pod.uid="old"}'
+        values: '100x4'
+      # its recreated successor under the same name, from 1 m: 96 of 100
+      - series: 'postgresql.client_connection.count{obenhub.cluster.name="a",service.instance.id="pg-1",k8s.pod.uid="new"}'
+        values: '_x4 96x56'
+      - series: 'postgresql.client_connection.limit{obenhub.cluster.name="a",service.instance.id="pg-1",k8s.pod.uid="new"}'
+        values: '_x4 100x56'
+    alert_rule_test:
+      - eval_time: 4m
+        groupname: postgresql
+        alertname: PostgresConnectionSaturation
+        exp_alerts:
+          - exp_labels:
+              obenhub.cluster.name: a
+              severity: critical
+              service.instance.id: pg-1
+              k8s.pod.uid: new
+            exp_annotations:
+              summary: 'pg-1 client connections at or above 95% of capacity'
+
+  - name: two pod uids for one instance - the old pod's synchronous standby count does not pair with the new pod's requirement
+    interval: 15s
+    input_series:
+      # the deleted pod needed no synchronous standby: 0 of 0, ends at 45 s
+      - series: 'postgresql.replication.synchronous_standby.count{obenhub.cluster.name="a",service.instance.id="pg-1",k8s.pod.uid="old"}'
+        values: '0x4'
+      - series: 'postgresql.replication.synchronous_standby.required{obenhub.cluster.name="a",service.instance.id="pg-1",k8s.pod.uid="old"}'
+        values: '0x4'
+      - series: 'postgresql.recovery.active{obenhub.cluster.name="a",service.instance.id="pg-1",k8s.pod.uid="old"}'
+        values: '0x4'
+      # the new pod from 1 m is healthy: 2 of 2 (crossed with the old pod's 0 it would read 0 < 2)
+      - series: 'postgresql.replication.synchronous_standby.count{obenhub.cluster.name="a",service.instance.id="pg-1",k8s.pod.uid="new"}'
+        values: '_x4 2x56'
+      - series: 'postgresql.replication.synchronous_standby.required{obenhub.cluster.name="a",service.instance.id="pg-1",k8s.pod.uid="new"}'
+        values: '_x4 2x56'
+      - series: 'postgresql.recovery.active{obenhub.cluster.name="a",service.instance.id="pg-1",k8s.pod.uid="new"}'
+        values: '_x4 0x56'
+    alert_rule_test:
+      - eval_time: 4m
+        groupname: postgresql
+        alertname: PostgresSynchronousStandbyMissing
+        exp_alerts: []
+
+  # --- a target without a cluster -------------------------------------------
+  - name: a heartbeat without obenhub.cluster.name fires PostgresClusterNameMissing after 5 m
+    interval: 15s
+    input_series:
+      - series: 'postgresql.collection.heartbeat{service.instance.id="pg-1"}'
+        values: '1x60'
+      - series: 'postgresql.collection.heartbeat{obenhub.cluster.name="a",service.instance.id="pg-2"}'
+        values: '1x60'
+    alert_rule_test:
+      - eval_time: 4m   # pending, below the 5m hold
+        groupname: postgresql
+        alertname: PostgresClusterNameMissing
+        exp_alerts: []
+      - eval_time: 6m
+        groupname: postgresql
+        alertname: PostgresClusterNameMissing
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              service.instance.id: pg-1
+            exp_annotations:
+              summary: 'pg-1 reports no obenhub.cluster.name'
+
+  - name: every target with a cluster name keeps PostgresClusterNameMissing quiet
+    interval: 15s
+    input_series:
+      - series: 'postgresql.collection.heartbeat{obenhub.cluster.name="a",service.instance.id="pg-1"}'
+        values: '1x60'
+      - series: 'postgresql.collection.heartbeat{obenhub.cluster.name="b",service.instance.id="pg-1"}'
+        values: '1x60'
+    alert_rule_test:
+      - eval_time: 10m
+        groupname: postgresql
+        alertname: PostgresClusterNameMissing
+        exp_alerts: []

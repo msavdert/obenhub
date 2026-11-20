@@ -42,6 +42,18 @@ groups:
   - name: pgbackrest
     interval: 15s
     rules:
+      # An exporter target without obenhub.cluster.name (ADR 0006, decision 7).
+      # No rule of this pack joins on it, but the dashboards and the other
+      # packs' alerts for the same instance do, and a stanza's backups belong
+      # to one cluster. up is the series PgBackRestExporterDown reads.
+      - alert: PgBackRestClusterNameMissing
+        expr: up{service.name="pgbackrest", obenhub.cluster.name=""}
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'pgBackRest exporter {{ (index $labels "service.instance.id") }} reports no obenhub.cluster.name'
+
       # No completed backup for longer than the tolerated age. The comparison
       # joins on no label: obenhub.backup_age.limit is one series without labels,
       # or the default below takes its place.

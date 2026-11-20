@@ -11,17 +11,17 @@ tests:
     interval: 15s
     input_series:
       # 2^31 = 2147483648; 0.5 -> 1073741824, 0.75 -> 1610612736
-      - series: 'postgresql.database.xid_age{service.instance.id="pg-primary",postgresql.database.name="app"}'
+      - series: 'postgresql.database.xid_age{obenhub.cluster.name="slice1",service.instance.id="pg-primary",postgresql.database.name="app"}'
         values: '1100000000x60'
-      - series: 'postgresql.database.xid_age{service.instance.id="pg-primary",postgresql.database.name="postgres"}'
+      - series: 'postgresql.database.xid_age{obenhub.cluster.name="slice1",service.instance.id="pg-primary",postgresql.database.name="postgres"}'
         values: '1610612736x60'
-      - series: 'postgresql.database.xid_age{service.instance.id="pg-primary",postgresql.database.name="template1"}'
+      - series: 'postgresql.database.xid_age{obenhub.cluster.name="slice1",service.instance.id="pg-primary",postgresql.database.name="template1"}'
         values: '1073741824x60'
-      - series: 'postgresql.database.mxid_age{service.instance.id="pg-primary",postgresql.database.name="app"}'
+      - series: 'postgresql.database.mxid_age{obenhub.cluster.name="slice1",service.instance.id="pg-primary",postgresql.database.name="app"}'
         values: '1700000000x60'
-      - series: 'postgresql.database.mxid_age{service.instance.id="pg-primary",postgresql.database.name="postgres"}'
+      - series: 'postgresql.database.mxid_age{obenhub.cluster.name="slice1",service.instance.id="pg-primary",postgresql.database.name="postgres"}'
         values: '0x60'
-      - series: 'postgresql.recovery.active{service.instance.id="pg-primary"}'
+      - series: 'postgresql.recovery.active{obenhub.cluster.name="slice1",service.instance.id="pg-primary"}'
         values: '0x60'
     alert_rule_test:
       - eval_time: 6m
@@ -30,6 +30,7 @@ tests:
         exp_alerts:
           # xid 0.512 of app: warning
           - exp_labels:
+              obenhub.cluster.name: slice1
               severity: warning
               service.instance.id: pg-primary
               postgresql.database.name: app
@@ -38,6 +39,7 @@ tests:
               summary: 'xid age of app on pg-primary is 51.22% of the wraparound limit'
           # xid exactly 0.75 of postgres: still warning
           - exp_labels:
+              obenhub.cluster.name: slice1
               severity: warning
               service.instance.id: pg-primary
               postgresql.database.name: postgres
@@ -46,6 +48,7 @@ tests:
               summary: 'xid age of postgres on pg-primary is 75% of the wraparound limit'
           # mxid 0.79 of app: critical
           - exp_labels:
+              obenhub.cluster.name: slice1
               severity: critical
               service.instance.id: pg-primary
               postgresql.database.name: app
@@ -57,14 +60,14 @@ tests:
   - name: idle in transaction tiers and boundaries
     interval: 15s
     input_series:
-      - series: 'postgresql.transaction.idle_age{service.instance.id="pg-warn"}'
+      - series: 'postgresql.transaction.idle_age{obenhub.cluster.name="slice1",service.instance.id="pg-warn"}'
         values: '0x4 90x56'
-      - series: 'postgresql.transaction.idle_age{service.instance.id="pg-crit"}'
+      - series: 'postgresql.transaction.idle_age{obenhub.cluster.name="slice1",service.instance.id="pg-crit"}'
         values: '0x4 200x56'
       # exactly 60 and exactly 180 are not above the thresholds
-      - series: 'postgresql.transaction.idle_age{service.instance.id="pg-low-edge"}'
+      - series: 'postgresql.transaction.idle_age{obenhub.cluster.name="slice1",service.instance.id="pg-low-edge"}'
         values: '60x60'
-      - series: 'postgresql.transaction.idle_age{service.instance.id="pg-high-edge"}'
+      - series: 'postgresql.transaction.idle_age{obenhub.cluster.name="slice1",service.instance.id="pg-high-edge"}'
         values: '0x4 180x56'
     alert_rule_test:
       - eval_time: 1m
@@ -76,16 +79,19 @@ tests:
         alertname: PostgresIdleInTransaction
         exp_alerts:
           - exp_labels:
+              obenhub.cluster.name: slice1
               severity: warning
               service.instance.id: pg-warn
             exp_annotations:
               summary: 'A session on pg-warn has been idle in a transaction for 1m 30s (lab threshold)'
           - exp_labels:
+              obenhub.cluster.name: slice1
               severity: critical
               service.instance.id: pg-crit
             exp_annotations:
               summary: 'A session on pg-crit has been idle in a transaction for 3m 20s (lab threshold)'
           - exp_labels:
+              obenhub.cluster.name: slice1
               severity: warning
               service.instance.id: pg-high-edge
             exp_annotations:
@@ -94,9 +100,9 @@ tests:
   - name: blocked sessions fire after a 30 s wait that lasts 30 s
     interval: 15s
     input_series:
-      - series: 'postgresql.lock.oldest_wait_age{service.instance.id="pg-primary"}'
+      - series: 'postgresql.lock.oldest_wait_age{obenhub.cluster.name="slice1",service.instance.id="pg-primary"}'
         values: '0x4 40x56'
-      - series: 'postgresql.lock.oldest_wait_age{service.instance.id="pg-standby"}'
+      - series: 'postgresql.lock.oldest_wait_age{obenhub.cluster.name="slice1",service.instance.id="pg-standby"}'
         values: '30x60'
     alert_rule_test:
       - eval_time: 1m
@@ -108,6 +114,7 @@ tests:
         alertname: PostgresBlockedSessions
         exp_alerts:
           - exp_labels:
+              obenhub.cluster.name: slice1
               severity: warning
               service.instance.id: pg-primary
             exp_annotations:
@@ -116,9 +123,9 @@ tests:
   - name: a deadlock fires at once and resolves once it has left the five minute window; a flat counter never fires
     interval: 15s
     input_series:
-      - series: 'postgresql.deadlocks{service.instance.id="pg-primary",postgresql.database.name="postgres"}'
+      - series: 'postgresql.deadlocks{obenhub.cluster.name="slice1",service.instance.id="pg-primary",postgresql.database.name="postgres"}'
         values: '0x8 1x100'
-      - series: 'postgresql.deadlocks{service.instance.id="pg-standby",postgresql.database.name="postgres"}'
+      - series: 'postgresql.deadlocks{obenhub.cluster.name="slice1",service.instance.id="pg-standby",postgresql.database.name="postgres"}'
         values: '3x108'
     alert_rule_test:
       - eval_time: 1m
@@ -130,6 +137,7 @@ tests:
         alertname: PostgresDeadlocks
         exp_alerts:
           - exp_labels:
+              obenhub.cluster.name: slice1
               severity: warning
               service.instance.id: pg-primary
               postgresql.database.name: postgres
@@ -140,6 +148,7 @@ tests:
         alertname: PostgresDeadlocks
         exp_alerts:
           - exp_labels:
+              obenhub.cluster.name: slice1
               severity: warning
               service.instance.id: pg-primary
               postgresql.database.name: postgres
@@ -157,7 +166,7 @@ tests:
   - name: a counter reset to zero does not fire
     interval: 15s
     input_series:
-      - series: 'postgresql.deadlocks{service.instance.id="pg-primary",postgresql.database.name="postgres"}'
+      - series: 'postgresql.deadlocks{obenhub.cluster.name="slice1",service.instance.id="pg-primary",postgresql.database.name="postgres"}'
         values: '5x8 0x100'
     alert_rule_test:
       - eval_time: 3m
@@ -173,22 +182,22 @@ tests:
     interval: 15s
     input_series:
       # +8 in the first 2 minutes
-      - series: 'postgresql.bgwriter.checkpoint.count{service.instance.id="pg-primary",type="requested"}'
+      - series: 'postgresql.bgwriter.checkpoint.count{obenhub.cluster.name="slice1",service.instance.id="pg-primary",type="requested"}'
         values: '10 11 12 13 14 15 16 17 18 18x90'
       # the same counter on a standby (restartpoints) never fires
-      - series: 'postgresql.bgwriter.checkpoint.count{service.instance.id="pg-standby",type="requested"}'
+      - series: 'postgresql.bgwriter.checkpoint.count{obenhub.cluster.name="slice1",service.instance.id="pg-standby",type="requested"}'
         values: '10 11 12 13 14 15 16 17 18 18x90'
       # scheduled checkpoints are not counted
-      - series: 'postgresql.bgwriter.checkpoint.count{service.instance.id="pg-primary",type="scheduled"}'
+      - series: 'postgresql.bgwriter.checkpoint.count{obenhub.cluster.name="slice1",service.instance.id="pg-primary",type="scheduled"}'
         values: '0 2 4 6 8 10 12 14 16 16x90'
       # three more is not above three
-      - series: 'postgresql.bgwriter.checkpoint.count{service.instance.id="pg-edge",type="requested"}'
+      - series: 'postgresql.bgwriter.checkpoint.count{obenhub.cluster.name="slice1",service.instance.id="pg-edge",type="requested"}'
         values: '10 11 12 13 13x90'
-      - series: 'postgresql.recovery.active{service.instance.id="pg-primary"}'
+      - series: 'postgresql.recovery.active{obenhub.cluster.name="slice1",service.instance.id="pg-primary"}'
         values: '0x100'
-      - series: 'postgresql.recovery.active{service.instance.id="pg-standby"}'
+      - series: 'postgresql.recovery.active{obenhub.cluster.name="slice1",service.instance.id="pg-standby"}'
         values: '1x100'
-      - series: 'postgresql.recovery.active{service.instance.id="pg-edge"}'
+      - series: 'postgresql.recovery.active{obenhub.cluster.name="slice1",service.instance.id="pg-edge"}'
         values: '0x100'
     alert_rule_test:
       - eval_time: 3m
@@ -196,6 +205,7 @@ tests:
         alertname: PostgresCheckpointsRequested
         exp_alerts:
           - exp_labels:
+              obenhub.cluster.name: slice1
               severity: warning
               service.instance.id: pg-primary
               type: requested
@@ -209,18 +219,18 @@ tests:
   - name: an inactive physical slot fires on the primary only
     interval: 15s
     input_series:
-      - series: 'postgresql.replication_slot.inactive_age{service.instance.id="pg-primary",postgresql.replication_slot.name="spare",postgresql.replication_slot.type="physical"}'
+      - series: 'postgresql.replication_slot.inactive_age{obenhub.cluster.name="slice1",service.instance.id="pg-primary",postgresql.replication_slot.name="spare",postgresql.replication_slot.type="physical"}'
         values: '0x4 150x56'
       # an active slot, a logical slot and the replica-side copy do not fire
-      - series: 'postgresql.replication_slot.inactive_age{service.instance.id="pg-primary",postgresql.replication_slot.name="standby1",postgresql.replication_slot.type="physical"}'
+      - series: 'postgresql.replication_slot.inactive_age{obenhub.cluster.name="slice1",service.instance.id="pg-primary",postgresql.replication_slot.name="standby1",postgresql.replication_slot.type="physical"}'
         values: '0x60'
-      - series: 'postgresql.replication_slot.inactive_age{service.instance.id="pg-primary",postgresql.replication_slot.name="app_sub",postgresql.replication_slot.type="logical"}'
+      - series: 'postgresql.replication_slot.inactive_age{obenhub.cluster.name="slice1",service.instance.id="pg-primary",postgresql.replication_slot.name="app_sub",postgresql.replication_slot.type="logical"}'
         values: '500x60'
-      - series: 'postgresql.replication_slot.inactive_age{service.instance.id="pg-standby",postgresql.replication_slot.name="spare",postgresql.replication_slot.type="physical"}'
+      - series: 'postgresql.replication_slot.inactive_age{obenhub.cluster.name="slice1",service.instance.id="pg-standby",postgresql.replication_slot.name="spare",postgresql.replication_slot.type="physical"}'
         values: '500x60'
-      - series: 'postgresql.recovery.active{service.instance.id="pg-primary"}'
+      - series: 'postgresql.recovery.active{obenhub.cluster.name="slice1",service.instance.id="pg-primary"}'
         values: '0x60'
-      - series: 'postgresql.recovery.active{service.instance.id="pg-standby"}'
+      - series: 'postgresql.recovery.active{obenhub.cluster.name="slice1",service.instance.id="pg-standby"}'
         values: '1x60'
     alert_rule_test:
       - eval_time: 1m
@@ -232,6 +242,7 @@ tests:
         alertname: PostgresPhysicalSlotInactive
         exp_alerts:
           - exp_labels:
+              obenhub.cluster.name: slice1
               severity: warning
               service.instance.id: pg-primary
               postgresql.replication_slot.name: spare
@@ -242,16 +253,16 @@ tests:
   - name: an inactive but invalidated physical slot does not fire PostgresPhysicalSlotInactive
     interval: 15s
     input_series:
-      - series: 'postgresql.replication_slot.inactive_age{service.instance.id="pg-primary",postgresql.replication_slot.name="gone",postgresql.replication_slot.type="physical"}'
+      - series: 'postgresql.replication_slot.inactive_age{obenhub.cluster.name="slice1",service.instance.id="pg-primary",postgresql.replication_slot.name="gone",postgresql.replication_slot.type="physical"}'
         values: '500x60'
-      - series: 'postgresql.replication_slot.invalidated{service.instance.id="pg-primary",postgresql.replication_slot.name="gone",postgresql.replication_slot.type="physical",postgresql.replication_slot.invalidation_reason="wal_removed"}'
+      - series: 'postgresql.replication_slot.invalidated{obenhub.cluster.name="slice1",service.instance.id="pg-primary",postgresql.replication_slot.name="gone",postgresql.replication_slot.type="physical",postgresql.replication_slot.invalidation_reason="wal_removed"}'
         values: '1x60'
       # same state, not invalidated: still fires
-      - series: 'postgresql.replication_slot.inactive_age{service.instance.id="pg-primary",postgresql.replication_slot.name="spare",postgresql.replication_slot.type="physical"}'
+      - series: 'postgresql.replication_slot.inactive_age{obenhub.cluster.name="slice1",service.instance.id="pg-primary",postgresql.replication_slot.name="spare",postgresql.replication_slot.type="physical"}'
         values: '500x60'
-      - series: 'postgresql.replication_slot.invalidated{service.instance.id="pg-primary",postgresql.replication_slot.name="spare",postgresql.replication_slot.type="physical",postgresql.replication_slot.invalidation_reason=""}'
+      - series: 'postgresql.replication_slot.invalidated{obenhub.cluster.name="slice1",service.instance.id="pg-primary",postgresql.replication_slot.name="spare",postgresql.replication_slot.type="physical",postgresql.replication_slot.invalidation_reason=""}'
         values: '0x60'
-      - series: 'postgresql.recovery.active{service.instance.id="pg-primary"}'
+      - series: 'postgresql.recovery.active{obenhub.cluster.name="slice1",service.instance.id="pg-primary"}'
         values: '0x60'
     alert_rule_test:
       - eval_time: 4m
@@ -259,6 +270,7 @@ tests:
         alertname: PostgresPhysicalSlotInactive
         exp_alerts:
           - exp_labels:
+              obenhub.cluster.name: slice1
               severity: warning
               service.instance.id: pg-primary
               postgresql.replication_slot.name: spare
@@ -298,7 +310,7 @@ tests:
   - name: idle in transaction tiers - escalation, exactly one tier at every evaluation
     interval: 15s
     input_series:
-      - series: 'postgresql.transaction.idle_age{service.instance.id="a"}'
+      - series: 'postgresql.transaction.idle_age{obenhub.cluster.name="slice1",service.instance.id="a"}'
         values: '90x12 200x48'
     alert_rule_test:
       - eval_time: 3m
@@ -306,6 +318,7 @@ tests:
         alertname: PostgresIdleInTransaction
         exp_alerts:
           - exp_labels:
+              obenhub.cluster.name: slice1
               severity: warning
               service.instance.id: a
             exp_annotations:
@@ -315,6 +328,7 @@ tests:
         alertname: PostgresIdleInTransaction
         exp_alerts:
           - exp_labels:
+              obenhub.cluster.name: slice1
               severity: warning
               service.instance.id: a
             exp_annotations:
@@ -324,6 +338,7 @@ tests:
         alertname: PostgresIdleInTransaction
         exp_alerts:
           - exp_labels:
+              obenhub.cluster.name: slice1
               severity: warning
               service.instance.id: a
             exp_annotations:
@@ -333,6 +348,7 @@ tests:
         alertname: PostgresIdleInTransaction
         exp_alerts:
           - exp_labels:
+              obenhub.cluster.name: slice1
               severity: critical
               service.instance.id: a
             exp_annotations:
@@ -342,6 +358,7 @@ tests:
         alertname: PostgresIdleInTransaction
         exp_alerts:
           - exp_labels:
+              obenhub.cluster.name: slice1
               severity: critical
               service.instance.id: a
             exp_annotations:
@@ -351,6 +368,7 @@ tests:
         alertname: PostgresIdleInTransaction
         exp_alerts:
           - exp_labels:
+              obenhub.cluster.name: slice1
               severity: critical
               service.instance.id: a
             exp_annotations:
@@ -360,6 +378,7 @@ tests:
         alertname: PostgresIdleInTransaction
         exp_alerts:
           - exp_labels:
+              obenhub.cluster.name: slice1
               severity: critical
               service.instance.id: a
             exp_annotations:
@@ -368,7 +387,7 @@ tests:
   - name: idle in transaction tiers - de-escalation, the warning follows the critical at once
     interval: 15s
     input_series:
-      - series: 'postgresql.transaction.idle_age{service.instance.id="a"}'
+      - series: 'postgresql.transaction.idle_age{obenhub.cluster.name="slice1",service.instance.id="a"}'
         values: '200x20 90x40'
     alert_rule_test:
       - eval_time: 4m45s
@@ -376,6 +395,7 @@ tests:
         alertname: PostgresIdleInTransaction
         exp_alerts:
           - exp_labels:
+              obenhub.cluster.name: slice1
               severity: critical
               service.instance.id: a
             exp_annotations:
@@ -385,6 +405,7 @@ tests:
         alertname: PostgresIdleInTransaction
         exp_alerts:
           - exp_labels:
+              obenhub.cluster.name: slice1
               severity: critical
               service.instance.id: a
             exp_annotations:
@@ -394,6 +415,7 @@ tests:
         alertname: PostgresIdleInTransaction
         exp_alerts:
           - exp_labels:
+              obenhub.cluster.name: slice1
               severity: warning
               service.instance.id: a
             exp_annotations:
@@ -403,6 +425,7 @@ tests:
         alertname: PostgresIdleInTransaction
         exp_alerts:
           - exp_labels:
+              obenhub.cluster.name: slice1
               severity: warning
               service.instance.id: a
             exp_annotations:
@@ -412,6 +435,7 @@ tests:
         alertname: PostgresIdleInTransaction
         exp_alerts:
           - exp_labels:
+              obenhub.cluster.name: slice1
               severity: warning
               service.instance.id: a
             exp_annotations:
@@ -421,6 +445,7 @@ tests:
         alertname: PostgresIdleInTransaction
         exp_alerts:
           - exp_labels:
+              obenhub.cluster.name: slice1
               severity: warning
               service.instance.id: a
             exp_annotations:
@@ -429,7 +454,7 @@ tests:
   - name: idle in transaction tiers - a single dip while critical shows the warning for the window, then the critical returns
     interval: 15s
     input_series:
-      - series: 'postgresql.transaction.idle_age{service.instance.id="a"}'
+      - series: 'postgresql.transaction.idle_age{obenhub.cluster.name="slice1",service.instance.id="a"}'
         values: '200x20 90 200x39'
     alert_rule_test:
       - eval_time: 4m45s
@@ -437,6 +462,7 @@ tests:
         alertname: PostgresIdleInTransaction
         exp_alerts:
           - exp_labels:
+              obenhub.cluster.name: slice1
               severity: critical
               service.instance.id: a
             exp_annotations:
@@ -446,6 +472,7 @@ tests:
         alertname: PostgresIdleInTransaction
         exp_alerts:
           - exp_labels:
+              obenhub.cluster.name: slice1
               severity: critical
               service.instance.id: a
             exp_annotations:
@@ -455,6 +482,7 @@ tests:
         alertname: PostgresIdleInTransaction
         exp_alerts:
           - exp_labels:
+              obenhub.cluster.name: slice1
               severity: warning
               service.instance.id: a
             exp_annotations:
@@ -464,6 +492,7 @@ tests:
         alertname: PostgresIdleInTransaction
         exp_alerts:
           - exp_labels:
+              obenhub.cluster.name: slice1
               severity: warning
               service.instance.id: a
             exp_annotations:
@@ -473,6 +502,7 @@ tests:
         alertname: PostgresIdleInTransaction
         exp_alerts:
           - exp_labels:
+              obenhub.cluster.name: slice1
               severity: warning
               service.instance.id: a
             exp_annotations:
@@ -482,6 +512,7 @@ tests:
         alertname: PostgresIdleInTransaction
         exp_alerts:
           - exp_labels:
+              obenhub.cluster.name: slice1
               severity: critical
               service.instance.id: a
             exp_annotations:
@@ -491,6 +522,7 @@ tests:
         alertname: PostgresIdleInTransaction
         exp_alerts:
           - exp_labels:
+              obenhub.cluster.name: slice1
               severity: critical
               service.instance.id: a
             exp_annotations:
@@ -500,6 +532,7 @@ tests:
         alertname: PostgresIdleInTransaction
         exp_alerts:
           - exp_labels:
+              obenhub.cluster.name: slice1
               severity: critical
               service.instance.id: a
             exp_annotations:
@@ -508,7 +541,7 @@ tests:
   - name: idle in transaction tiers - a jump from below the warning threshold straight above the critical one never shows the warning
     interval: 15s
     input_series:
-      - series: 'postgresql.transaction.idle_age{service.instance.id="a"}'
+      - series: 'postgresql.transaction.idle_age{obenhub.cluster.name="slice1",service.instance.id="a"}'
         values: '10x12 200x48'
     alert_rule_test:
       - eval_time: 3m
@@ -528,6 +561,7 @@ tests:
         alertname: PostgresIdleInTransaction
         exp_alerts:
           - exp_labels:
+              obenhub.cluster.name: slice1
               severity: critical
               service.instance.id: a
             exp_annotations:
@@ -537,6 +571,7 @@ tests:
         alertname: PostgresIdleInTransaction
         exp_alerts:
           - exp_labels:
+              obenhub.cluster.name: slice1
               severity: critical
               service.instance.id: a
             exp_annotations:
@@ -546,6 +581,7 @@ tests:
         alertname: PostgresIdleInTransaction
         exp_alerts:
           - exp_labels:
+              obenhub.cluster.name: slice1
               severity: critical
               service.instance.id: a
             exp_annotations:
@@ -555,9 +591,9 @@ tests:
   - name: wraparound tiers - escalation, exactly one tier at every evaluation
     interval: 15s
     input_series:
-      - series: 'postgresql.database.xid_age{service.instance.id="pg-primary",postgresql.database.name="app"}'
+      - series: 'postgresql.database.xid_age{obenhub.cluster.name="slice1",service.instance.id="pg-primary",postgresql.database.name="app"}'
         values: '1200000000x40 1700000000x80'
-      - series: 'postgresql.recovery.active{service.instance.id="pg-primary"}'
+      - series: 'postgresql.recovery.active{obenhub.cluster.name="slice1",service.instance.id="pg-primary"}'
         values: '0x200'
     alert_rule_test:
       - eval_time: 14m30s
@@ -565,6 +601,7 @@ tests:
         alertname: PostgresTransactionIdWraparound
         exp_alerts:
           - exp_labels:
+              obenhub.cluster.name: slice1
               severity: warning
               service.instance.id: pg-primary
               postgresql.database.name: app
@@ -576,6 +613,7 @@ tests:
         alertname: PostgresTransactionIdWraparound
         exp_alerts:
           - exp_labels:
+              obenhub.cluster.name: slice1
               severity: warning
               service.instance.id: pg-primary
               postgresql.database.name: app
@@ -587,6 +625,7 @@ tests:
         alertname: PostgresTransactionIdWraparound
         exp_alerts:
           - exp_labels:
+              obenhub.cluster.name: slice1
               severity: warning
               service.instance.id: pg-primary
               postgresql.database.name: app
@@ -598,6 +637,7 @@ tests:
         alertname: PostgresTransactionIdWraparound
         exp_alerts:
           - exp_labels:
+              obenhub.cluster.name: slice1
               severity: critical
               service.instance.id: pg-primary
               postgresql.database.name: app
@@ -609,6 +649,7 @@ tests:
         alertname: PostgresTransactionIdWraparound
         exp_alerts:
           - exp_labels:
+              obenhub.cluster.name: slice1
               severity: critical
               service.instance.id: pg-primary
               postgresql.database.name: app
@@ -620,6 +661,7 @@ tests:
         alertname: PostgresTransactionIdWraparound
         exp_alerts:
           - exp_labels:
+              obenhub.cluster.name: slice1
               severity: critical
               service.instance.id: pg-primary
               postgresql.database.name: app
@@ -630,9 +672,9 @@ tests:
   - name: wraparound tiers - a jump from below the warning threshold straight above the critical one never shows the warning
     interval: 15s
     input_series:
-      - series: 'postgresql.database.xid_age{service.instance.id="pg-primary",postgresql.database.name="app"}'
+      - series: 'postgresql.database.xid_age{obenhub.cluster.name="slice1",service.instance.id="pg-primary",postgresql.database.name="app"}'
         values: '100000000x40 1700000000x80'
-      - series: 'postgresql.recovery.active{service.instance.id="pg-primary"}'
+      - series: 'postgresql.recovery.active{obenhub.cluster.name="slice1",service.instance.id="pg-primary"}'
         values: '0x200'
     alert_rule_test:
       - eval_time: 14m30s
@@ -652,6 +694,7 @@ tests:
         alertname: PostgresTransactionIdWraparound
         exp_alerts:
           - exp_labels:
+              obenhub.cluster.name: slice1
               severity: critical
               service.instance.id: pg-primary
               postgresql.database.name: app
@@ -663,6 +706,7 @@ tests:
         alertname: PostgresTransactionIdWraparound
         exp_alerts:
           - exp_labels:
+              obenhub.cluster.name: slice1
               severity: critical
               service.instance.id: pg-primary
               postgresql.database.name: app
@@ -674,6 +718,7 @@ tests:
         alertname: PostgresTransactionIdWraparound
         exp_alerts:
           - exp_labels:
+              obenhub.cluster.name: slice1
               severity: critical
               service.instance.id: pg-primary
               postgresql.database.name: app
@@ -684,16 +729,16 @@ tests:
   - name: wraparound on a standby never fires, the same age on the primary does
     interval: 15s
     input_series:
-      - series: 'postgresql.database.xid_age{service.instance.id="pg-standby",postgresql.database.name="app"}'
+      - series: 'postgresql.database.xid_age{obenhub.cluster.name="slice1",service.instance.id="pg-standby",postgresql.database.name="app"}'
         values: '1700000000x80'
-      - series: 'postgresql.database.xid_age{service.instance.id="pg-primary",postgresql.database.name="app"}'
+      - series: 'postgresql.database.xid_age{obenhub.cluster.name="slice1",service.instance.id="pg-primary",postgresql.database.name="app"}'
         values: '1700000000x80'
-      - series: 'postgresql.recovery.active{service.instance.id="pg-primary"}'
+      - series: 'postgresql.recovery.active{obenhub.cluster.name="slice1",service.instance.id="pg-primary"}'
         values: '0x80'
-      - series: 'postgresql.recovery.active{service.instance.id="pg-standby"}'
+      - series: 'postgresql.recovery.active{obenhub.cluster.name="slice1",service.instance.id="pg-standby"}'
         values: '1x80'
       # an age in the warning band on the standby exercises the warning tier's gate
-      - series: 'postgresql.database.mxid_age{service.instance.id="pg-standby",postgresql.database.name="app"}'
+      - series: 'postgresql.database.mxid_age{obenhub.cluster.name="slice1",service.instance.id="pg-standby",postgresql.database.name="app"}'
         values: '1300000000x80'
     alert_rule_test:
       - eval_time: 19m
@@ -701,6 +746,7 @@ tests:
         alertname: PostgresTransactionIdWraparound
         exp_alerts:
           - exp_labels:
+              obenhub.cluster.name: slice1
               severity: critical
               service.instance.id: pg-primary
               postgresql.database.name: app
@@ -712,7 +758,7 @@ tests:
   - name: idle in transaction warm-up - a new series above the critical threshold stays silent until its window is full
     interval: 15s
     input_series:
-      - series: 'postgresql.transaction.idle_age{service.instance.id="a"}'
+      - series: 'postgresql.transaction.idle_age{obenhub.cluster.name="slice1",service.instance.id="a"}'
         values: '_x4 200x56'
     alert_rule_test:
       - eval_time: 1m
@@ -728,6 +774,7 @@ tests:
         alertname: PostgresIdleInTransaction
         exp_alerts:
           - exp_labels:
+              obenhub.cluster.name: slice1
               severity: critical
               service.instance.id: a
             exp_annotations:
@@ -737,6 +784,7 @@ tests:
         alertname: PostgresIdleInTransaction
         exp_alerts:
           - exp_labels:
+              obenhub.cluster.name: slice1
               severity: critical
               service.instance.id: a
             exp_annotations:
@@ -746,6 +794,7 @@ tests:
         alertname: PostgresIdleInTransaction
         exp_alerts:
           - exp_labels:
+              obenhub.cluster.name: slice1
               severity: critical
               service.instance.id: a
             exp_annotations:
@@ -755,9 +804,9 @@ tests:
   - name: wraparound warm-up - a new series above the critical threshold stays silent until its window is full
     interval: 15s
     input_series:
-      - series: 'postgresql.database.xid_age{service.instance.id="pg-primary",postgresql.database.name="app"}'
+      - series: 'postgresql.database.xid_age{obenhub.cluster.name="slice1",service.instance.id="pg-primary",postgresql.database.name="app"}'
         values: '_x4 1700000000x100'
-      - series: 'postgresql.recovery.active{service.instance.id="pg-primary"}'
+      - series: 'postgresql.recovery.active{obenhub.cluster.name="slice1",service.instance.id="pg-primary"}'
         values: '0x200'
     alert_rule_test:
       - eval_time: 1m
@@ -793,6 +842,7 @@ tests:
         alertname: PostgresTransactionIdWraparound
         exp_alerts:
           - exp_labels:
+              obenhub.cluster.name: slice1
               severity: critical
               service.instance.id: pg-primary
               postgresql.database.name: app
@@ -804,6 +854,7 @@ tests:
         alertname: PostgresTransactionIdWraparound
         exp_alerts:
           - exp_labels:
+              obenhub.cluster.name: slice1
               severity: critical
               service.instance.id: pg-primary
               postgresql.database.name: app
@@ -815,6 +866,7 @@ tests:
         alertname: PostgresTransactionIdWraparound
         exp_alerts:
           - exp_labels:
+              obenhub.cluster.name: slice1
               severity: critical
               service.instance.id: pg-primary
               postgresql.database.name: app
@@ -827,24 +879,24 @@ tests:
     interval: 15s
     input_series:
       # 600 MiB from the start: fires
-      - series: 'postgresql.replication_slot.retained_wal{service.instance.id="pg-1",postgresql.replication_slot.name="_cnpg_pg_2",postgresql.replication_slot.type="physical"}'
+      - series: 'postgresql.replication_slot.retained_wal{obenhub.cluster.name="slice1",service.instance.id="pg-1",postgresql.replication_slot.name="_cnpg_pg_2",postgresql.replication_slot.type="physical"}'
         values: '629145600x60'
-      - series: 'postgresql.replication_slot.invalidated{service.instance.id="pg-1",postgresql.replication_slot.name="_cnpg_pg_2",postgresql.replication_slot.type="physical",postgresql.replication_slot.invalidation_reason=""}'
+      - series: 'postgresql.replication_slot.invalidated{obenhub.cluster.name="slice1",service.instance.id="pg-1",postgresql.replication_slot.name="_cnpg_pg_2",postgresql.replication_slot.type="physical",postgresql.replication_slot.invalidation_reason=""}'
         values: '0x60'
       # 400 MiB: below the threshold
-      - series: 'postgresql.replication_slot.retained_wal{service.instance.id="pg-1",postgresql.replication_slot.name="_cnpg_pg_3",postgresql.replication_slot.type="physical"}'
+      - series: 'postgresql.replication_slot.retained_wal{obenhub.cluster.name="slice1",service.instance.id="pg-1",postgresql.replication_slot.name="_cnpg_pg_3",postgresql.replication_slot.type="physical"}'
         values: '419430400x60'
       # 900 MiB but invalidated: retains nothing, has its own alert
-      - series: 'postgresql.replication_slot.retained_wal{service.instance.id="pg-1",postgresql.replication_slot.name="gone",postgresql.replication_slot.type="physical"}'
+      - series: 'postgresql.replication_slot.retained_wal{obenhub.cluster.name="slice1",service.instance.id="pg-1",postgresql.replication_slot.name="gone",postgresql.replication_slot.type="physical"}'
         values: '943718400x60'
-      - series: 'postgresql.replication_slot.invalidated{service.instance.id="pg-1",postgresql.replication_slot.name="gone",postgresql.replication_slot.type="physical",postgresql.replication_slot.invalidation_reason="wal_removed"}'
+      - series: 'postgresql.replication_slot.invalidated{obenhub.cluster.name="slice1",service.instance.id="pg-1",postgresql.replication_slot.name="gone",postgresql.replication_slot.type="physical",postgresql.replication_slot.invalidation_reason="wal_removed"}'
         values: '1x60'
-      - series: 'postgresql.recovery.active{service.instance.id="pg-1"}'
+      - series: 'postgresql.recovery.active{obenhub.cluster.name="slice1",service.instance.id="pg-1"}'
         values: '0x60'
       # a replica's copy of a slot, large on purpose: replicas are out of scope
-      - series: 'postgresql.replication_slot.retained_wal{service.instance.id="pg-2",postgresql.replication_slot.name="_cnpg_pg_3",postgresql.replication_slot.type="physical"}'
+      - series: 'postgresql.replication_slot.retained_wal{obenhub.cluster.name="slice1",service.instance.id="pg-2",postgresql.replication_slot.name="_cnpg_pg_3",postgresql.replication_slot.type="physical"}'
         values: '629145600x60'
-      - series: 'postgresql.recovery.active{service.instance.id="pg-2"}'
+      - series: 'postgresql.recovery.active{obenhub.cluster.name="slice1",service.instance.id="pg-2"}'
         values: '1x60'
     alert_rule_test:
       - eval_time: 1m30s   # pending, below the 2m hold
@@ -856,6 +908,7 @@ tests:
         alertname: PostgresReplicationSlotRetainingWAL
         exp_alerts:
           - exp_labels:
+              obenhub.cluster.name: slice1
               severity: warning
               service.instance.id: pg-1
               postgresql.replication_slot.name: _cnpg_pg_2
@@ -867,6 +920,7 @@ tests:
         alertname: PostgresReplicationSlotRetainingWAL
         exp_alerts:
           - exp_labels:
+              obenhub.cluster.name: slice1
               severity: warning
               service.instance.id: pg-1
               postgresql.replication_slot.name: _cnpg_pg_2
@@ -878,15 +932,15 @@ tests:
     interval: 15s
     input_series:
       # 90 s above (6 samples), then back to 1 MB
-      - series: 'postgresql.replication_slot.retained_wal{service.instance.id="pg-1",postgresql.replication_slot.name="blip",postgresql.replication_slot.type="physical"}'
+      - series: 'postgresql.replication_slot.retained_wal{obenhub.cluster.name="slice1",service.instance.id="pg-1",postgresql.replication_slot.name="blip",postgresql.replication_slot.type="physical"}'
         values: '1000000x4 629145600x6 1000000x50'
       # exactly 512 MiB is not above it
-      - series: 'postgresql.replication_slot.retained_wal{service.instance.id="pg-1",postgresql.replication_slot.name="edge",postgresql.replication_slot.type="physical"}'
+      - series: 'postgresql.replication_slot.retained_wal{obenhub.cluster.name="slice1",service.instance.id="pg-1",postgresql.replication_slot.name="edge",postgresql.replication_slot.type="physical"}'
         values: '536870912x60'
       # fires, then catches up at 6m
-      - series: 'postgresql.replication_slot.retained_wal{service.instance.id="pg-1",postgresql.replication_slot.name="lag",postgresql.replication_slot.type="physical"}'
+      - series: 'postgresql.replication_slot.retained_wal{obenhub.cluster.name="slice1",service.instance.id="pg-1",postgresql.replication_slot.name="lag",postgresql.replication_slot.type="physical"}'
         values: '629145600x24 1000000x36'
-      - series: 'postgresql.recovery.active{service.instance.id="pg-1"}'
+      - series: 'postgresql.recovery.active{obenhub.cluster.name="slice1",service.instance.id="pg-1"}'
         values: '0x60'
     alert_rule_test:
       - eval_time: 5m
@@ -894,6 +948,7 @@ tests:
         alertname: PostgresReplicationSlotRetainingWAL
         exp_alerts:
           - exp_labels:
+              obenhub.cluster.name: slice1
               severity: warning
               service.instance.id: pg-1
               postgresql.replication_slot.name: lag

@@ -8,13 +8,13 @@ tests:
   - name: a vanished metric is named in the alert; the surviving ones are not
     interval: 15s
     input_series:
-      - series: 'postgresql.collection.heartbeat{service.instance.id="pg-standby"}'
+      - series: 'postgresql.collection.heartbeat{obenhub.cluster.name="slice1",service.instance.id="pg-standby"}'
         values: '1x120'
-      - series: 'postgresql.replay.backlog{service.instance.id="pg-standby"}'
+      - series: 'postgresql.replay.backlog{obenhub.cluster.name="slice1",service.instance.id="pg-standby"}'
         values: '0x8 _x112'
-      - series: 'postgresql.collection.heartbeat{service.instance.id="pg-primary"}'
+      - series: 'postgresql.collection.heartbeat{obenhub.cluster.name="slice1",service.instance.id="pg-primary"}'
         values: '1x120'
-      - series: 'postgresql.replay.backlog{service.instance.id="pg-primary"}'
+      - series: 'postgresql.replay.backlog{obenhub.cluster.name="slice1",service.instance.id="pg-primary"}'
         values: '0x120'
     alert_rule_test:
       - eval_time: 1m
@@ -26,6 +26,7 @@ tests:
         alertname: PostgresSeriesVanished
         exp_alerts:
           - exp_labels:
+              obenhub.cluster.name: slice1
               severity: warning
               service.instance.id: pg-standby
               metric: postgresql.replay.backlog
@@ -35,9 +36,9 @@ tests:
   - name: nothing fires when every series keeps reporting
     interval: 15s
     input_series:
-      - series: 'postgresql.collection.heartbeat{service.instance.id="pg-standby"}'
+      - series: 'postgresql.collection.heartbeat{obenhub.cluster.name="slice1",service.instance.id="pg-standby"}'
         values: '1x120'
-      - series: 'postgresql.replay.backlog{service.instance.id="pg-standby"}'
+      - series: 'postgresql.replay.backlog{obenhub.cluster.name="slice1",service.instance.id="pg-standby"}'
         values: '0x120'
     alert_rule_test:
       - eval_time: 20m
@@ -48,7 +49,7 @@ tests:
   - name: a series that never existed does not fire
     interval: 15s
     input_series:
-      - series: 'postgresql.collection.heartbeat{service.instance.id="pg-standby"}'
+      - series: 'postgresql.collection.heartbeat{obenhub.cluster.name="slice1",service.instance.id="pg-standby"}'
         values: '1x120'
     alert_rule_test:
       - eval_time: 20m
@@ -59,51 +60,51 @@ tests:
   - name: the whole replication query fails on the standby while the heartbeat continues
     interval: 15s
     input_series:
-      - series: 'postgresql.collection.heartbeat{service.instance.id="pg-standby"}'
+      - series: 'postgresql.collection.heartbeat{obenhub.cluster.name="slice1",service.instance.id="pg-standby"}'
         values: '1x120'
-      - series: 'postgresql.recovery.active{service.instance.id="pg-standby"}'
+      - series: 'postgresql.recovery.active{obenhub.cluster.name="slice1",service.instance.id="pg-standby"}'
         values: '1x8 _x112'
-      - series: 'postgresql.wal_receiver.streaming{service.instance.id="pg-standby"}'
+      - series: 'postgresql.wal_receiver.streaming{obenhub.cluster.name="slice1",service.instance.id="pg-standby"}'
         values: '1x8 _x112'
-      - series: 'postgresql.replay.backlog{service.instance.id="pg-standby"}'
+      - series: 'postgresql.replay.backlog{obenhub.cluster.name="slice1",service.instance.id="pg-standby"}'
         values: '0x8 _x112'
-      - series: 'postgresql.replay.paused{service.instance.id="pg-standby"}'
+      - series: 'postgresql.replay.paused{obenhub.cluster.name="slice1",service.instance.id="pg-standby"}'
         values: '0x8 _x112'
-      - series: 'postgresql.client_connection.count{service.instance.id="pg-standby"}'
+      - series: 'postgresql.client_connection.count{obenhub.cluster.name="slice1",service.instance.id="pg-standby"}'
         values: '3x120'
     alert_rule_test:
       - eval_time: 6m
         groupname: postgresql
         alertname: PostgresSeriesVanished
         exp_alerts:
-          - exp_labels: {severity: warning, service.instance.id: pg-standby, metric: postgresql.recovery.active}
+          - exp_labels: {obenhub.cluster.name: slice1, severity: warning, service.instance.id: pg-standby, metric: postgresql.recovery.active}
             exp_annotations: {summary: 'postgresql.recovery.active vanished on pg-standby'}
-          - exp_labels: {severity: warning, service.instance.id: pg-standby, metric: postgresql.replay.backlog}
+          - exp_labels: {obenhub.cluster.name: slice1, severity: warning, service.instance.id: pg-standby, metric: postgresql.replay.backlog}
             exp_annotations: {summary: 'postgresql.replay.backlog vanished on pg-standby'}
-          - exp_labels: {severity: warning, service.instance.id: pg-standby, metric: postgresql.replay.paused}
+          - exp_labels: {obenhub.cluster.name: slice1, severity: warning, service.instance.id: pg-standby, metric: postgresql.replay.paused}
             exp_annotations: {summary: 'postgresql.replay.paused vanished on pg-standby'}
-          - exp_labels: {severity: warning, service.instance.id: pg-standby, metric: postgresql.wal_receiver.streaming}
+          - exp_labels: {obenhub.cluster.name: slice1, severity: warning, service.instance.id: pg-standby, metric: postgresql.wal_receiver.streaming}
             exp_annotations: {summary: 'postgresql.wal_receiver.streaming vanished on pg-standby'}
 
   - name: a broken postgresqlreceiver is caught through database.count
     interval: 15s
     input_series:
-      - series: 'postgresql.collection.heartbeat{service.instance.id="pg-primary"}'
+      - series: 'postgresql.collection.heartbeat{obenhub.cluster.name="slice1",service.instance.id="pg-primary"}'
         values: '1x120'
-      - series: 'postgresql.database.count{service.instance.id="pg-primary"}'
+      - series: 'postgresql.database.count{obenhub.cluster.name="slice1",service.instance.id="pg-primary"}'
         values: '1x8 _x112'
     alert_rule_test:
       - eval_time: 6m
         groupname: postgresql
         alertname: PostgresSeriesVanished
         exp_alerts:
-          - exp_labels: {severity: warning, service.instance.id: pg-primary, metric: postgresql.database.count}
+          - exp_labels: {obenhub.cluster.name: slice1, severity: warning, service.instance.id: pg-primary, metric: postgresql.database.count}
             exp_annotations: {summary: 'postgresql.database.count vanished on pg-primary'}
 
   - name: a query that is merely slow (samples keep arriving) does not fire
     interval: 15s
     input_series:
-      - series: 'postgresql.recovery.active{service.instance.id="pg-standby"}'
+      - series: 'postgresql.recovery.active{obenhub.cluster.name="slice1",service.instance.id="pg-standby"}'
         values: '1x4 _x3 1x113'
     alert_rule_test:
       - eval_time: 10m
@@ -114,7 +115,7 @@ tests:
   - name: a vanished slot metric on the primary is named by PostgresSeriesVanished
     interval: 15s
     input_series:
-      - series: 'postgresql.collection.heartbeat{service.instance.id="pg-primary"}'
+      - series: 'postgresql.collection.heartbeat{obenhub.cluster.name="slice1",service.instance.id="pg-primary"}'
         values: '1x120'
       - series: 'postgresql.replication_slot.retained_wal{service.name="postgresql",service.namespace="obenhub-lab",obenhub.cluster.name="slice1",service.instance.id="pg-primary",postgresql.replication_slot.name="app_sub",postgresql.replication_slot.type="logical"}'
         values: '0x8 _x112'
@@ -140,7 +141,7 @@ tests:
   - name: a vanished subscription metric is named by PostgresSeriesVanished
     interval: 15s
     input_series:
-      - series: 'postgresql.collection.heartbeat{service.instance.id="pg-subscriber"}'
+      - series: 'postgresql.collection.heartbeat{obenhub.cluster.name="slice1-subscriber",service.instance.id="pg-subscriber"}'
         values: '1x120'
       - series: 'postgresql.subscription.apply_worker_running{service.name="postgresql",service.namespace="obenhub-lab",obenhub.cluster.name="slice1-subscriber",service.instance.id="pg-subscriber",postgresql.subscription.name="app_sub"}'
         values: '1x8 _x112'
@@ -165,13 +166,13 @@ tests:
   - name: the lock, idle and wraparound pack metrics are covered; a dropped database alone is not a vanished metric
     interval: 15s
     input_series:
-      - series: 'postgresql.collection.heartbeat{service.instance.id="pg-primary"}'
+      - series: 'postgresql.collection.heartbeat{obenhub.cluster.name="slice1",service.instance.id="pg-primary"}'
         values: '1x120'
-      - series: 'postgresql.lock.oldest_wait_age{service.instance.id="pg-primary"}'
+      - series: 'postgresql.lock.oldest_wait_age{obenhub.cluster.name="slice1",service.instance.id="pg-primary"}'
         values: '0x8 _x112'
-      - series: 'postgresql.database.xid_age{service.instance.id="pg-primary",postgresql.database.name="app"}'
+      - series: 'postgresql.database.xid_age{obenhub.cluster.name="slice1",service.instance.id="pg-primary",postgresql.database.name="app"}'
         values: '5x120'
-      - series: 'postgresql.database.xid_age{service.instance.id="pg-primary",postgresql.database.name="scratch"}'
+      - series: 'postgresql.database.xid_age{obenhub.cluster.name="slice1",service.instance.id="pg-primary",postgresql.database.name="scratch"}'
         values: '5x8 _x112'
     alert_rule_test:
       - eval_time: 6m
@@ -179,6 +180,7 @@ tests:
         alertname: PostgresSeriesVanished
         exp_alerts:
           - exp_labels:
+              obenhub.cluster.name: slice1
               severity: warning
               service.instance.id: pg-primary
               metric: postgresql.lock.oldest_wait_age
@@ -188,11 +190,11 @@ tests:
   - name: a vanished synchronous_standby metric is named by PostgresSeriesVanished
     interval: 15s
     input_series:
-      - series: 'postgresql.collection.heartbeat{service.instance.id="pg-primary"}'
+      - series: 'postgresql.collection.heartbeat{obenhub.cluster.name="slice1",service.instance.id="pg-primary"}'
         values: '1x120'
-      - series: 'postgresql.replication.synchronous_standby.count{service.instance.id="pg-primary"}'
+      - series: 'postgresql.replication.synchronous_standby.count{obenhub.cluster.name="slice1",service.instance.id="pg-primary"}'
         values: '1x8 _x112'
-      - series: 'postgresql.replication.synchronous_standby.required{service.instance.id="pg-primary"}'
+      - series: 'postgresql.replication.synchronous_standby.required{obenhub.cluster.name="slice1",service.instance.id="pg-primary"}'
         values: '1x8 _x112'
     alert_rule_test:
       - eval_time: 6m
@@ -200,12 +202,14 @@ tests:
         alertname: PostgresSeriesVanished
         exp_alerts:
           - exp_labels:
+              obenhub.cluster.name: slice1
               severity: warning
               service.instance.id: pg-primary
               metric: postgresql.replication.synchronous_standby.count
             exp_annotations:
               summary: 'postgresql.replication.synchronous_standby.count vanished on pg-primary'
           - exp_labels:
+              obenhub.cluster.name: slice1
               severity: warning
               service.instance.id: pg-primary
               metric: postgresql.replication.synchronous_standby.required

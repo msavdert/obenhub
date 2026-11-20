@@ -502,7 +502,7 @@
             "type": "victoriametrics-metrics-datasource",
             "uid": "vm"
           },
-          "expr": "(max(patroni_xlog_location) - on() group_right() ((clamp_min(patroni_xlog_received_location - patroni_xlog_replayed_location, 0) + patroni_xlog_replayed_location) and on(service.instance.id) patroni_replica == 1))",
+          "expr": "(max by (obenhub.cluster.name) (patroni_xlog_location) - on(obenhub.cluster.name) group_right() ((clamp_min(patroni_xlog_received_location - patroni_xlog_replayed_location, 0) + patroni_xlog_replayed_location) and on(obenhub.cluster.name, service.instance.id) patroni_replica == 1))",
           "refId": "A",
           "range": true,
           "instant": false,

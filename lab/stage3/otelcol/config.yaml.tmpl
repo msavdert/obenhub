@@ -136,6 +136,7 @@ processors:
       - {key: service.instance.id, value: @MEMBER@, action: upsert}
       - {key: server.address, value: @MEMBER@, action: upsert}
       - {key: server.port, value: '2379', action: upsert}
+      - {key: obenhub.cluster.name, value: stage3-etcd, action: upsert}
 #@end
   batch: {}
 

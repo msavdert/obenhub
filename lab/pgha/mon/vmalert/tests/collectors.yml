@@ -25,33 +25,33 @@ tests:
         values: '1x60'
       - series: 'otelcol_process_uptime{service.name="otelcol",service.instance.id="otelcol-pgha-1"}'
         values: '1x60'
-      - series: 'postgresql.collection.heartbeat{service.name="postgresql",service.instance.id="pgha-1"}'
+      - series: 'postgresql.collection.heartbeat{service.name="postgresql",obenhub.cluster.name="pgha",service.instance.id="pgha-1"}'
         values: '1x60'
-      - series: 'up{service.name="patroni",service.instance.id="pgha-1"}'
+      - series: 'up{service.name="patroni",obenhub.cluster.name="pgha",service.instance.id="pgha-1"}'
         values: '1x60'
-      - series: 'up{service.name="etcd",service.instance.id="pgha-1"}'
+      - series: 'up{service.name="etcd",obenhub.cluster.name="pgha-etcd",service.instance.id="pgha-1"}'
         values: '1x60'
-      - series: 'patroni_primary{service.name="patroni",scope="pgha",service.instance.id="pgha-1"}'
+      - series: 'patroni_primary{service.name="patroni",obenhub.cluster.name="pgha",scope="pgha",service.instance.id="pgha-1"}'
         values: '1x60'
       - series: 'otelcol_process_uptime{service.name="otelcol",service.instance.id="otelcol-pgha-2"}'
         values: '1x8 _x52'
-      - series: 'postgresql.collection.heartbeat{service.name="postgresql",service.instance.id="pgha-2"}'
+      - series: 'postgresql.collection.heartbeat{service.name="postgresql",obenhub.cluster.name="pgha",service.instance.id="pgha-2"}'
         values: '1x10 _x50'
-      - series: 'up{service.name="patroni",service.instance.id="pgha-2"}'
+      - series: 'up{service.name="patroni",obenhub.cluster.name="pgha",service.instance.id="pgha-2"}'
         values: '1x10 _x50'
-      - series: 'up{service.name="etcd",service.instance.id="pgha-2"}'
+      - series: 'up{service.name="etcd",obenhub.cluster.name="pgha-etcd",service.instance.id="pgha-2"}'
         values: '1x10 _x50'
-      - series: 'patroni_primary{service.name="patroni",scope="pgha",service.instance.id="pgha-2"}'
+      - series: 'patroni_primary{service.name="patroni",obenhub.cluster.name="pgha",scope="pgha",service.instance.id="pgha-2"}'
         values: '0x10 _x50'
       - series: 'otelcol_process_uptime{service.name="otelcol",service.instance.id="otelcol-pgha-3"}'
         values: '1x60'
-      - series: 'postgresql.collection.heartbeat{service.name="postgresql",service.instance.id="pgha-3"}'
+      - series: 'postgresql.collection.heartbeat{service.name="postgresql",obenhub.cluster.name="pgha",service.instance.id="pgha-3"}'
         values: '1x60'
-      - series: 'up{service.name="patroni",service.instance.id="pgha-3"}'
+      - series: 'up{service.name="patroni",obenhub.cluster.name="pgha",service.instance.id="pgha-3"}'
         values: '1x60'
-      - series: 'up{service.name="etcd",service.instance.id="pgha-3"}'
+      - series: 'up{service.name="etcd",obenhub.cluster.name="pgha-etcd",service.instance.id="pgha-3"}'
         values: '1x60'
-      - series: 'patroni_primary{service.name="patroni",scope="pgha",service.instance.id="pgha-3"}'
+      - series: 'patroni_primary{service.name="patroni",obenhub.cluster.name="pgha",scope="pgha",service.instance.id="pgha-3"}'
         values: '0x60'
     alert_rule_test:
       - eval_time: 2m30s
@@ -337,33 +337,33 @@ tests:
         values: '1x8 _x52'
       - series: 'otelcol_process_uptime{service.name="otelcol",service.instance.id="otelcol-pgha-1"}'
         values: '1x8 _x52'
-      - series: 'postgresql.collection.heartbeat{service.name="postgresql",service.instance.id="pgha-1"}'
+      - series: 'postgresql.collection.heartbeat{service.name="postgresql",obenhub.cluster.name="pgha",service.instance.id="pgha-1"}'
         values: '1x9 _x51'
-      - series: 'up{service.name="patroni",service.instance.id="pgha-1"}'
+      - series: 'up{service.name="patroni",obenhub.cluster.name="pgha",service.instance.id="pgha-1"}'
         values: '1x9 _x51'
-      - series: 'up{service.name="etcd",service.instance.id="pgha-1"}'
+      - series: 'up{service.name="etcd",obenhub.cluster.name="pgha-etcd",service.instance.id="pgha-1"}'
         values: '1x9 _x51'
-      - series: 'patroni_primary{service.name="patroni",scope="pgha",service.instance.id="pgha-1"}'
+      - series: 'patroni_primary{service.name="patroni",obenhub.cluster.name="pgha",scope="pgha",service.instance.id="pgha-1"}'
         values: '1x9 _x51'
       - series: 'otelcol_process_uptime{service.name="otelcol",service.instance.id="otelcol-pgha-2"}'
         values: '1x8 _x52'
-      - series: 'postgresql.collection.heartbeat{service.name="postgresql",service.instance.id="pgha-2"}'
+      - series: 'postgresql.collection.heartbeat{service.name="postgresql",obenhub.cluster.name="pgha",service.instance.id="pgha-2"}'
         values: '1x9 _x51'
-      - series: 'up{service.name="patroni",service.instance.id="pgha-2"}'
+      - series: 'up{service.name="patroni",obenhub.cluster.name="pgha",service.instance.id="pgha-2"}'
         values: '1x9 _x51'
-      - series: 'up{service.name="etcd",service.instance.id="pgha-2"}'
+      - series: 'up{service.name="etcd",obenhub.cluster.name="pgha-etcd",service.instance.id="pgha-2"}'
         values: '1x9 _x51'
-      - series: 'patroni_primary{service.name="patroni",scope="pgha",service.instance.id="pgha-2"}'
+      - series: 'patroni_primary{service.name="patroni",obenhub.cluster.name="pgha",scope="pgha",service.instance.id="pgha-2"}'
         values: '0x9 _x51'
       - series: 'otelcol_process_uptime{service.name="otelcol",service.instance.id="otelcol-pgha-3"}'
         values: '1x8 _x52'
-      - series: 'postgresql.collection.heartbeat{service.name="postgresql",service.instance.id="pgha-3"}'
+      - series: 'postgresql.collection.heartbeat{service.name="postgresql",obenhub.cluster.name="pgha",service.instance.id="pgha-3"}'
         values: '1x9 _x51'
-      - series: 'up{service.name="patroni",service.instance.id="pgha-3"}'
+      - series: 'up{service.name="patroni",obenhub.cluster.name="pgha",service.instance.id="pgha-3"}'
         values: '1x9 _x51'
-      - series: 'up{service.name="etcd",service.instance.id="pgha-3"}'
+      - series: 'up{service.name="etcd",obenhub.cluster.name="pgha-etcd",service.instance.id="pgha-3"}'
         values: '1x9 _x51'
-      - series: 'patroni_primary{service.name="patroni",scope="pgha",service.instance.id="pgha-3"}'
+      - series: 'patroni_primary{service.name="patroni",obenhub.cluster.name="pgha",scope="pgha",service.instance.id="pgha-3"}'
         values: '0x9 _x51'
     alert_rule_test:
       - eval_time: 2m30s
@@ -644,33 +644,33 @@ tests:
         values: '1x60'
       - series: 'otelcol_process_uptime{service.name="otelcol",service.instance.id="otelcol-pgha-1"}'
         values: '1x8 _x52'
-      - series: 'postgresql.collection.heartbeat{service.name="postgresql",service.instance.id="pgha-1"}'
+      - series: 'postgresql.collection.heartbeat{service.name="postgresql",obenhub.cluster.name="pgha",service.instance.id="pgha-1"}'
         values: '1x10 _x50'
-      - series: 'up{service.name="patroni",service.instance.id="pgha-1"}'
+      - series: 'up{service.name="patroni",obenhub.cluster.name="pgha",service.instance.id="pgha-1"}'
         values: '1x10 _x50'
-      - series: 'up{service.name="etcd",service.instance.id="pgha-1"}'
+      - series: 'up{service.name="etcd",obenhub.cluster.name="pgha-etcd",service.instance.id="pgha-1"}'
         values: '1x10 _x50'
-      - series: 'patroni_primary{service.name="patroni",scope="pgha",service.instance.id="pgha-1"}'
+      - series: 'patroni_primary{service.name="patroni",obenhub.cluster.name="pgha",scope="pgha",service.instance.id="pgha-1"}'
         values: '0x10 _x50'
       - series: 'otelcol_process_uptime{service.name="otelcol",service.instance.id="otelcol-pgha-2"}'
         values: '1x60'
-      - series: 'postgresql.collection.heartbeat{service.name="postgresql",service.instance.id="pgha-2"}'
+      - series: 'postgresql.collection.heartbeat{service.name="postgresql",obenhub.cluster.name="pgha",service.instance.id="pgha-2"}'
         values: '1x60'
-      - series: 'up{service.name="patroni",service.instance.id="pgha-2"}'
+      - series: 'up{service.name="patroni",obenhub.cluster.name="pgha",service.instance.id="pgha-2"}'
         values: '1x60'
-      - series: 'up{service.name="etcd",service.instance.id="pgha-2"}'
+      - series: 'up{service.name="etcd",obenhub.cluster.name="pgha-etcd",service.instance.id="pgha-2"}'
         values: '1x60'
-      - series: 'patroni_primary{service.name="patroni",scope="pgha",service.instance.id="pgha-2"}'
+      - series: 'patroni_primary{service.name="patroni",obenhub.cluster.name="pgha",scope="pgha",service.instance.id="pgha-2"}'
         values: '1x60'
       - series: 'otelcol_process_uptime{service.name="otelcol",service.instance.id="otelcol-pgha-3"}'
         values: '1x8 _x52'
-      - series: 'postgresql.collection.heartbeat{service.name="postgresql",service.instance.id="pgha-3"}'
+      - series: 'postgresql.collection.heartbeat{service.name="postgresql",obenhub.cluster.name="pgha",service.instance.id="pgha-3"}'
         values: '1x10 _x50'
-      - series: 'up{service.name="patroni",service.instance.id="pgha-3"}'
+      - series: 'up{service.name="patroni",obenhub.cluster.name="pgha",service.instance.id="pgha-3"}'
         values: '1x10 _x50'
-      - series: 'up{service.name="etcd",service.instance.id="pgha-3"}'
+      - series: 'up{service.name="etcd",obenhub.cluster.name="pgha-etcd",service.instance.id="pgha-3"}'
         values: '1x10 _x50'
-      - series: 'patroni_primary{service.name="patroni",scope="pgha",service.instance.id="pgha-3"}'
+      - series: 'patroni_primary{service.name="patroni",obenhub.cluster.name="pgha",scope="pgha",service.instance.id="pgha-3"}'
         values: '0x10 _x50'
     alert_rule_test:
       - eval_time: 2m30s
@@ -991,33 +991,33 @@ tests:
         values: '1x60'
       - series: 'otelcol_process_uptime{service.name="otelcol",service.instance.id="otelcol-pgha-1"}'
         values: '1x60'
-      - series: 'postgresql.collection.heartbeat{service.name="postgresql",service.instance.id="pgha-1"}'
+      - series: 'postgresql.collection.heartbeat{service.name="postgresql",obenhub.cluster.name="pgha",service.instance.id="pgha-1"}'
         values: '1x60'
-      - series: 'up{service.name="patroni",service.instance.id="pgha-1"}'
+      - series: 'up{service.name="patroni",obenhub.cluster.name="pgha",service.instance.id="pgha-1"}'
         values: '1x60'
-      - series: 'up{service.name="etcd",service.instance.id="pgha-1"}'
+      - series: 'up{service.name="etcd",obenhub.cluster.name="pgha-etcd",service.instance.id="pgha-1"}'
         values: '1x60'
-      - series: 'patroni_primary{service.name="patroni",scope="pgha",service.instance.id="pgha-1"}'
+      - series: 'patroni_primary{service.name="patroni",obenhub.cluster.name="pgha",scope="pgha",service.instance.id="pgha-1"}'
         values: '1x60'
       - series: 'otelcol_process_uptime{service.name="otelcol",service.instance.id="otelcol-pgha-2"}'
         values: '1x60'
-      - series: 'postgresql.collection.heartbeat{service.name="postgresql",service.instance.id="pgha-2"}'
+      - series: 'postgresql.collection.heartbeat{service.name="postgresql",obenhub.cluster.name="pgha",service.instance.id="pgha-2"}'
         values: '1x8 _x52'
-      - series: 'up{service.name="patroni",service.instance.id="pgha-2"}'
+      - series: 'up{service.name="patroni",obenhub.cluster.name="pgha",service.instance.id="pgha-2"}'
         values: '1x60'
-      - series: 'up{service.name="etcd",service.instance.id="pgha-2"}'
+      - series: 'up{service.name="etcd",obenhub.cluster.name="pgha-etcd",service.instance.id="pgha-2"}'
         values: '1x60'
-      - series: 'patroni_primary{service.name="patroni",scope="pgha",service.instance.id="pgha-2"}'
+      - series: 'patroni_primary{service.name="patroni",obenhub.cluster.name="pgha",scope="pgha",service.instance.id="pgha-2"}'
         values: '0x60'
       - series: 'otelcol_process_uptime{service.name="otelcol",service.instance.id="otelcol-pgha-3"}'
         values: '1x60'
-      - series: 'postgresql.collection.heartbeat{service.name="postgresql",service.instance.id="pgha-3"}'
+      - series: 'postgresql.collection.heartbeat{service.name="postgresql",obenhub.cluster.name="pgha",service.instance.id="pgha-3"}'
         values: '1x60'
-      - series: 'up{service.name="patroni",service.instance.id="pgha-3"}'
+      - series: 'up{service.name="patroni",obenhub.cluster.name="pgha",service.instance.id="pgha-3"}'
         values: '1x60'
-      - series: 'up{service.name="etcd",service.instance.id="pgha-3"}'
+      - series: 'up{service.name="etcd",obenhub.cluster.name="pgha-etcd",service.instance.id="pgha-3"}'
         values: '1x60'
-      - series: 'patroni_primary{service.name="patroni",scope="pgha",service.instance.id="pgha-3"}'
+      - series: 'patroni_primary{service.name="patroni",obenhub.cluster.name="pgha",scope="pgha",service.instance.id="pgha-3"}'
         values: '0x60'
     alert_rule_test:
       - eval_time: 2m30s
@@ -1313,33 +1313,33 @@ tests:
         values: '1x60'
       - series: 'otelcol_process_uptime{service.name="otelcol",service.instance.id="otelcol-pgha-1"}'
         values: '1x60'
-      - series: 'postgresql.collection.heartbeat{service.name="postgresql",service.instance.id="pgha-1"}'
+      - series: 'postgresql.collection.heartbeat{service.name="postgresql",obenhub.cluster.name="pgha",service.instance.id="pgha-1"}'
         values: '1x60'
-      - series: 'up{service.name="patroni",service.instance.id="pgha-1"}'
+      - series: 'up{service.name="patroni",obenhub.cluster.name="pgha",service.instance.id="pgha-1"}'
         values: '1x60'
-      - series: 'up{service.name="etcd",service.instance.id="pgha-1"}'
+      - series: 'up{service.name="etcd",obenhub.cluster.name="pgha-etcd",service.instance.id="pgha-1"}'
         values: '1x60'
-      - series: 'patroni_primary{service.name="patroni",scope="pgha",service.instance.id="pgha-1"}'
+      - series: 'patroni_primary{service.name="patroni",obenhub.cluster.name="pgha",scope="pgha",service.instance.id="pgha-1"}'
         values: '1x60'
       - series: 'otelcol_process_uptime{service.name="otelcol",service.instance.id="otelcol-pgha-2"}'
         values: '1x60'
-      - series: 'postgresql.collection.heartbeat{service.name="postgresql",service.instance.id="pgha-2"}'
+      - series: 'postgresql.collection.heartbeat{service.name="postgresql",obenhub.cluster.name="pgha",service.instance.id="pgha-2"}'
         values: '1x60'
-      - series: 'up{service.name="patroni",service.instance.id="pgha-2"}'
+      - series: 'up{service.name="patroni",obenhub.cluster.name="pgha",service.instance.id="pgha-2"}'
         values: '1x60'
-      - series: 'up{service.name="etcd",service.instance.id="pgha-2"}'
+      - series: 'up{service.name="etcd",obenhub.cluster.name="pgha-etcd",service.instance.id="pgha-2"}'
         values: '1x8 0x52'
-      - series: 'patroni_primary{service.name="patroni",scope="pgha",service.instance.id="pgha-2"}'
+      - series: 'patroni_primary{service.name="patroni",obenhub.cluster.name="pgha",scope="pgha",service.instance.id="pgha-2"}'
         values: '0x60'
       - series: 'otelcol_process_uptime{service.name="otelcol",service.instance.id="otelcol-pgha-3"}'
         values: '1x60'
-      - series: 'postgresql.collection.heartbeat{service.name="postgresql",service.instance.id="pgha-3"}'
+      - series: 'postgresql.collection.heartbeat{service.name="postgresql",obenhub.cluster.name="pgha",service.instance.id="pgha-3"}'
         values: '1x60'
-      - series: 'up{service.name="patroni",service.instance.id="pgha-3"}'
+      - series: 'up{service.name="patroni",obenhub.cluster.name="pgha",service.instance.id="pgha-3"}'
         values: '1x60'
-      - series: 'up{service.name="etcd",service.instance.id="pgha-3"}'
+      - series: 'up{service.name="etcd",obenhub.cluster.name="pgha-etcd",service.instance.id="pgha-3"}'
         values: '1x8 0x52'
-      - series: 'patroni_primary{service.name="patroni",scope="pgha",service.instance.id="pgha-3"}'
+      - series: 'patroni_primary{service.name="patroni",obenhub.cluster.name="pgha",scope="pgha",service.instance.id="pgha-3"}'
         values: '0x60'
     alert_rule_test:
       - eval_time: 2m30s
@@ -1482,6 +1482,7 @@ tests:
               severity: warning
               service.namespace: obenhub-lab
               service.name: etcd
+              obenhub.cluster.name: pgha-etcd
               service.instance.id: pgha-2
               obenhub.collector: otelcol-pgha-2
             exp_annotations:
@@ -1490,6 +1491,7 @@ tests:
               severity: warning
               service.namespace: obenhub-lab
               service.name: etcd
+              obenhub.cluster.name: pgha-etcd
               service.instance.id: pgha-3
               obenhub.collector: otelcol-pgha-3
             exp_annotations:
@@ -1498,9 +1500,9 @@ tests:
         groupname: etcd
         alertname: EtcdInsufficientMembers
         exp_alerts:
-          - exp_labels: {severity: critical}
+          - exp_labels: {severity: critical, obenhub.cluster.name: pgha-etcd}
             exp_annotations:
-              summary: "Only 1 etcd members report: quorum is lost"
+              summary: "Only 1 members of etcd cluster pgha-etcd report: quorum is lost"
       - eval_time: 5m
         groupname: patroni
         alertname: PatroniNoWritablePrimary
@@ -1525,6 +1527,7 @@ tests:
               severity: warning
               service.namespace: obenhub-lab
               service.name: etcd
+              obenhub.cluster.name: pgha-etcd
               service.instance.id: pgha-2
               obenhub.collector: otelcol-pgha-2
             exp_annotations:
@@ -1533,6 +1536,7 @@ tests:
               severity: warning
               service.namespace: obenhub-lab
               service.name: etcd
+              obenhub.cluster.name: pgha-etcd
               service.instance.id: pgha-3
               obenhub.collector: otelcol-pgha-3
             exp_annotations:
@@ -1541,9 +1545,9 @@ tests:
         groupname: etcd
         alertname: EtcdInsufficientMembers
         exp_alerts:
-          - exp_labels: {severity: critical}
+          - exp_labels: {severity: critical, obenhub.cluster.name: pgha-etcd}
             exp_annotations:
-              summary: "Only 1 etcd members report: quorum is lost"
+              summary: "Only 1 members of etcd cluster pgha-etcd report: quorum is lost"
       - eval_time: 5m30s
         groupname: patroni
         alertname: PatroniNoWritablePrimary
@@ -1568,6 +1572,7 @@ tests:
               severity: warning
               service.namespace: obenhub-lab
               service.name: etcd
+              obenhub.cluster.name: pgha-etcd
               service.instance.id: pgha-2
               obenhub.collector: otelcol-pgha-2
             exp_annotations:
@@ -1576,6 +1581,7 @@ tests:
               severity: warning
               service.namespace: obenhub-lab
               service.name: etcd
+              obenhub.cluster.name: pgha-etcd
               service.instance.id: pgha-3
               obenhub.collector: otelcol-pgha-3
             exp_annotations:
@@ -1584,9 +1590,9 @@ tests:
         groupname: etcd
         alertname: EtcdInsufficientMembers
         exp_alerts:
-          - exp_labels: {severity: critical}
+          - exp_labels: {severity: critical, obenhub.cluster.name: pgha-etcd}
             exp_annotations:
-              summary: "Only 1 etcd members report: quorum is lost"
+              summary: "Only 1 members of etcd cluster pgha-etcd report: quorum is lost"
       - eval_time: 6m
         groupname: patroni
         alertname: PatroniNoWritablePrimary
@@ -1611,6 +1617,7 @@ tests:
               severity: warning
               service.namespace: obenhub-lab
               service.name: etcd
+              obenhub.cluster.name: pgha-etcd
               service.instance.id: pgha-2
               obenhub.collector: otelcol-pgha-2
             exp_annotations:
@@ -1619,6 +1626,7 @@ tests:
               severity: warning
               service.namespace: obenhub-lab
               service.name: etcd
+              obenhub.cluster.name: pgha-etcd
               service.instance.id: pgha-3
               obenhub.collector: otelcol-pgha-3
             exp_annotations:
@@ -1627,9 +1635,9 @@ tests:
         groupname: etcd
         alertname: EtcdInsufficientMembers
         exp_alerts:
-          - exp_labels: {severity: critical}
+          - exp_labels: {severity: critical, obenhub.cluster.name: pgha-etcd}
             exp_annotations:
-              summary: "Only 1 etcd members report: quorum is lost"
+              summary: "Only 1 members of etcd cluster pgha-etcd report: quorum is lost"
       - eval_time: 6m30s
         groupname: patroni
         alertname: PatroniNoWritablePrimary
@@ -1654,6 +1662,7 @@ tests:
               severity: warning
               service.namespace: obenhub-lab
               service.name: etcd
+              obenhub.cluster.name: pgha-etcd
               service.instance.id: pgha-2
               obenhub.collector: otelcol-pgha-2
             exp_annotations:
@@ -1662,6 +1671,7 @@ tests:
               severity: warning
               service.namespace: obenhub-lab
               service.name: etcd
+              obenhub.cluster.name: pgha-etcd
               service.instance.id: pgha-3
               obenhub.collector: otelcol-pgha-3
             exp_annotations:
@@ -1670,9 +1680,9 @@ tests:
         groupname: etcd
         alertname: EtcdInsufficientMembers
         exp_alerts:
-          - exp_labels: {severity: critical}
+          - exp_labels: {severity: critical, obenhub.cluster.name: pgha-etcd}
             exp_annotations:
-              summary: "Only 1 etcd members report: quorum is lost"
+              summary: "Only 1 members of etcd cluster pgha-etcd report: quorum is lost"
       - eval_time: 7m
         groupname: patroni
         alertname: PatroniNoWritablePrimary
@@ -1685,33 +1695,33 @@ tests:
         values: '1x60'
       - series: 'otelcol_process_uptime{service.name="otelcol",service.instance.id="otelcol-pgha-1"}'
         values: '1x60'
-      - series: 'postgresql.collection.heartbeat{service.name="postgresql",service.instance.id="pgha-1"}'
+      - series: 'postgresql.collection.heartbeat{service.name="postgresql",obenhub.cluster.name="pgha",service.instance.id="pgha-1"}'
         values: '1x60'
-      - series: 'up{service.name="patroni",service.instance.id="pgha-1"}'
+      - series: 'up{service.name="patroni",obenhub.cluster.name="pgha",service.instance.id="pgha-1"}'
         values: '1x60'
-      - series: 'up{service.name="etcd",service.instance.id="pgha-1"}'
+      - series: 'up{service.name="etcd",obenhub.cluster.name="pgha-etcd",service.instance.id="pgha-1"}'
         values: '1x60'
-      - series: 'patroni_primary{service.name="patroni",scope="pgha",service.instance.id="pgha-1"}'
+      - series: 'patroni_primary{service.name="patroni",obenhub.cluster.name="pgha",scope="pgha",service.instance.id="pgha-1"}'
         values: '1x60'
       - series: 'otelcol_process_uptime{service.name="otelcol",service.instance.id="otelcol-pgha-2"}'
         values: '1x8 _x52'
-      - series: 'postgresql.collection.heartbeat{service.name="postgresql",service.instance.id="pgha-2"}'
+      - series: 'postgresql.collection.heartbeat{service.name="postgresql",obenhub.cluster.name="pgha",service.instance.id="pgha-2"}'
         values: '1x9 _x51'
-      - series: 'up{service.name="patroni",service.instance.id="pgha-2"}'
+      - series: 'up{service.name="patroni",obenhub.cluster.name="pgha",service.instance.id="pgha-2"}'
         values: '1x9 _x51'
-      - series: 'up{service.name="etcd",service.instance.id="pgha-2"}'
+      - series: 'up{service.name="etcd",obenhub.cluster.name="pgha-etcd",service.instance.id="pgha-2"}'
         values: '1x9 _x51'
-      - series: 'patroni_primary{service.name="patroni",scope="pgha",service.instance.id="pgha-2"}'
+      - series: 'patroni_primary{service.name="patroni",obenhub.cluster.name="pgha",scope="pgha",service.instance.id="pgha-2"}'
         values: '0x9 _x51'
       - series: 'otelcol_process_uptime{service.name="otelcol",service.instance.id="otelcol-pgha-3"}'
         values: '1x60'
-      - series: 'postgresql.collection.heartbeat{service.name="postgresql",service.instance.id="pgha-3"}'
+      - series: 'postgresql.collection.heartbeat{service.name="postgresql",obenhub.cluster.name="pgha",service.instance.id="pgha-3"}'
         values: '1x60'
-      - series: 'up{service.name="patroni",service.instance.id="pgha-3"}'
+      - series: 'up{service.name="patroni",obenhub.cluster.name="pgha",service.instance.id="pgha-3"}'
         values: '1x60'
-      - series: 'up{service.name="etcd",service.instance.id="pgha-3"}'
+      - series: 'up{service.name="etcd",obenhub.cluster.name="pgha-etcd",service.instance.id="pgha-3"}'
         values: '1x8 0x52'
-      - series: 'patroni_primary{service.name="patroni",scope="pgha",service.instance.id="pgha-3"}'
+      - series: 'patroni_primary{service.name="patroni",obenhub.cluster.name="pgha",scope="pgha",service.instance.id="pgha-3"}'
         values: '0x60'
     alert_rule_test:
       - eval_time: 5m
@@ -1741,6 +1751,7 @@ tests:
               severity: warning
               service.namespace: obenhub-lab
               service.name: etcd
+              obenhub.cluster.name: pgha-etcd
               service.instance.id: pgha-3
               obenhub.collector: otelcol-pgha-3
             exp_annotations:
@@ -1780,6 +1791,7 @@ tests:
               severity: warning
               service.namespace: obenhub-lab
               service.name: etcd
+              obenhub.cluster.name: pgha-etcd
               service.instance.id: pgha-3
               obenhub.collector: otelcol-pgha-3
             exp_annotations:
@@ -1819,6 +1831,7 @@ tests:
               severity: warning
               service.namespace: obenhub-lab
               service.name: etcd
+              obenhub.cluster.name: pgha-etcd
               service.instance.id: pgha-3
               obenhub.collector: otelcol-pgha-3
             exp_annotations:
@@ -1839,33 +1852,33 @@ tests:
         values: '1x60'
       - series: 'otelcol_process_uptime{service.name="otelcol",service.instance.id="otelcol-pgha-1"}'
         values: '1x60'
-      - series: 'postgresql.collection.heartbeat{service.name="postgresql",service.instance.id="pgha-1"}'
+      - series: 'postgresql.collection.heartbeat{service.name="postgresql",obenhub.cluster.name="pgha",service.instance.id="pgha-1"}'
         values: '1x60'
-      - series: 'up{service.name="patroni",service.instance.id="pgha-1"}'
+      - series: 'up{service.name="patroni",obenhub.cluster.name="pgha",service.instance.id="pgha-1"}'
         values: '1x60'
-      - series: 'up{service.name="etcd",service.instance.id="pgha-1"}'
+      - series: 'up{service.name="etcd",obenhub.cluster.name="pgha-etcd",service.instance.id="pgha-1"}'
         values: '1x8 0x52'
-      - series: 'patroni_primary{service.name="patroni",scope="pgha",service.instance.id="pgha-1"}'
+      - series: 'patroni_primary{service.name="patroni",obenhub.cluster.name="pgha",scope="pgha",service.instance.id="pgha-1"}'
         values: '1x60'
       - series: 'otelcol_process_uptime{service.name="otelcol",service.instance.id="otelcol-pgha-2"}'
         values: '1x8 _x52'
-      - series: 'postgresql.collection.heartbeat{service.name="postgresql",service.instance.id="pgha-2"}'
+      - series: 'postgresql.collection.heartbeat{service.name="postgresql",obenhub.cluster.name="pgha",service.instance.id="pgha-2"}'
         values: '1x9 _x51'
-      - series: 'up{service.name="patroni",service.instance.id="pgha-2"}'
+      - series: 'up{service.name="patroni",obenhub.cluster.name="pgha",service.instance.id="pgha-2"}'
         values: '1x9 _x51'
-      - series: 'up{service.name="etcd",service.instance.id="pgha-2"}'
+      - series: 'up{service.name="etcd",obenhub.cluster.name="pgha-etcd",service.instance.id="pgha-2"}'
         values: '1x9 _x51'
-      - series: 'patroni_primary{service.name="patroni",scope="pgha",service.instance.id="pgha-2"}'
+      - series: 'patroni_primary{service.name="patroni",obenhub.cluster.name="pgha",scope="pgha",service.instance.id="pgha-2"}'
         values: '0x9 _x51'
       - series: 'otelcol_process_uptime{service.name="otelcol",service.instance.id="otelcol-pgha-3"}'
         values: '1x60'
-      - series: 'postgresql.collection.heartbeat{service.name="postgresql",service.instance.id="pgha-3"}'
+      - series: 'postgresql.collection.heartbeat{service.name="postgresql",obenhub.cluster.name="pgha",service.instance.id="pgha-3"}'
         values: '1x60'
-      - series: 'up{service.name="patroni",service.instance.id="pgha-3"}'
+      - series: 'up{service.name="patroni",obenhub.cluster.name="pgha",service.instance.id="pgha-3"}'
         values: '1x60'
-      - series: 'up{service.name="etcd",service.instance.id="pgha-3"}'
+      - series: 'up{service.name="etcd",obenhub.cluster.name="pgha-etcd",service.instance.id="pgha-3"}'
         values: '1x8 0x52'
-      - series: 'patroni_primary{service.name="patroni",scope="pgha",service.instance.id="pgha-3"}'
+      - series: 'patroni_primary{service.name="patroni",obenhub.cluster.name="pgha",scope="pgha",service.instance.id="pgha-3"}'
         values: '0x60'
     alert_rule_test:
       - eval_time: 5m
@@ -1895,6 +1908,7 @@ tests:
               severity: warning
               service.namespace: obenhub-lab
               service.name: etcd
+              obenhub.cluster.name: pgha-etcd
               service.instance.id: pgha-1
               obenhub.collector: otelcol-pgha-1
             exp_annotations:
@@ -1903,6 +1917,7 @@ tests:
               severity: warning
               service.namespace: obenhub-lab
               service.name: etcd
+              obenhub.cluster.name: pgha-etcd
               service.instance.id: pgha-3
               obenhub.collector: otelcol-pgha-3
             exp_annotations:
@@ -1911,9 +1926,9 @@ tests:
         groupname: etcd
         alertname: EtcdInsufficientMembers
         exp_alerts:
-          - exp_labels: {severity: critical}
+          - exp_labels: {severity: critical, obenhub.cluster.name: pgha-etcd}
             exp_annotations:
-              summary: "Only 1 etcd members report: quorum is lost"
+              summary: "Only 1 members of etcd cluster pgha-etcd report: quorum is lost"
       - eval_time: 5m
         groupname: patroni
         alertname: PatroniNoWritablePrimary
@@ -1945,6 +1960,7 @@ tests:
               severity: warning
               service.namespace: obenhub-lab
               service.name: etcd
+              obenhub.cluster.name: pgha-etcd
               service.instance.id: pgha-1
               obenhub.collector: otelcol-pgha-1
             exp_annotations:
@@ -1953,6 +1969,7 @@ tests:
               severity: warning
               service.namespace: obenhub-lab
               service.name: etcd
+              obenhub.cluster.name: pgha-etcd
               service.instance.id: pgha-3
               obenhub.collector: otelcol-pgha-3
             exp_annotations:
@@ -1961,9 +1978,9 @@ tests:
         groupname: etcd
         alertname: EtcdInsufficientMembers
         exp_alerts:
-          - exp_labels: {severity: critical}
+          - exp_labels: {severity: critical, obenhub.cluster.name: pgha-etcd}
             exp_annotations:
-              summary: "Only 1 etcd members report: quorum is lost"
+              summary: "Only 1 members of etcd cluster pgha-etcd report: quorum is lost"
       - eval_time: 6m
         groupname: patroni
         alertname: PatroniNoWritablePrimary
@@ -1995,6 +2012,7 @@ tests:
               severity: warning
               service.namespace: obenhub-lab
               service.name: etcd
+              obenhub.cluster.name: pgha-etcd
               service.instance.id: pgha-1
               obenhub.collector: otelcol-pgha-1
             exp_annotations:
@@ -2003,6 +2021,7 @@ tests:
               severity: warning
               service.namespace: obenhub-lab
               service.name: etcd
+              obenhub.cluster.name: pgha-etcd
               service.instance.id: pgha-3
               obenhub.collector: otelcol-pgha-3
             exp_annotations:
@@ -2011,9 +2030,9 @@ tests:
         groupname: etcd
         alertname: EtcdInsufficientMembers
         exp_alerts:
-          - exp_labels: {severity: critical}
+          - exp_labels: {severity: critical, obenhub.cluster.name: pgha-etcd}
             exp_annotations:
-              summary: "Only 1 etcd members report: quorum is lost"
+              summary: "Only 1 members of etcd cluster pgha-etcd report: quorum is lost"
       - eval_time: 7m
         groupname: patroni
         alertname: PatroniNoWritablePrimary
@@ -2026,33 +2045,33 @@ tests:
         values: '1x60'
       - series: 'otelcol_process_uptime{service.name="otelcol",service.instance.id="otelcol-pgha-1"}'
         values: '1x60'
-      - series: 'postgresql.collection.heartbeat{service.name="postgresql",service.instance.id="pgha-1"}'
+      - series: 'postgresql.collection.heartbeat{service.name="postgresql",obenhub.cluster.name="pgha",service.instance.id="pgha-1"}'
         values: '1x60'
-      - series: 'up{service.name="patroni",service.instance.id="pgha-1"}'
+      - series: 'up{service.name="patroni",obenhub.cluster.name="pgha",service.instance.id="pgha-1"}'
         values: '1x8 0x52'
-      - series: 'up{service.name="etcd",service.instance.id="pgha-1"}'
+      - series: 'up{service.name="etcd",obenhub.cluster.name="pgha-etcd",service.instance.id="pgha-1"}'
         values: '1x60'
-      - series: 'patroni_primary{service.name="patroni",scope="pgha",service.instance.id="pgha-1"}'
+      - series: 'patroni_primary{service.name="patroni",obenhub.cluster.name="pgha",scope="pgha",service.instance.id="pgha-1"}'
         values: '0x8 _x52'
       - series: 'otelcol_process_uptime{service.name="otelcol",service.instance.id="otelcol-pgha-2"}'
         values: '1x8 _x52'
-      - series: 'postgresql.collection.heartbeat{service.name="postgresql",service.instance.id="pgha-2"}'
+      - series: 'postgresql.collection.heartbeat{service.name="postgresql",obenhub.cluster.name="pgha",service.instance.id="pgha-2"}'
         values: '1x9 _x51'
-      - series: 'up{service.name="patroni",service.instance.id="pgha-2"}'
+      - series: 'up{service.name="patroni",obenhub.cluster.name="pgha",service.instance.id="pgha-2"}'
         values: '1x9 _x51'
-      - series: 'up{service.name="etcd",service.instance.id="pgha-2"}'
+      - series: 'up{service.name="etcd",obenhub.cluster.name="pgha-etcd",service.instance.id="pgha-2"}'
         values: '1x9 _x51'
-      - series: 'patroni_primary{service.name="patroni",scope="pgha",service.instance.id="pgha-2"}'
+      - series: 'patroni_primary{service.name="patroni",obenhub.cluster.name="pgha",scope="pgha",service.instance.id="pgha-2"}'
         values: '0x9 _x51'
       - series: 'otelcol_process_uptime{service.name="otelcol",service.instance.id="otelcol-pgha-3"}'
         values: '1x60'
-      - series: 'postgresql.collection.heartbeat{service.name="postgresql",service.instance.id="pgha-3"}'
+      - series: 'postgresql.collection.heartbeat{service.name="postgresql",obenhub.cluster.name="pgha",service.instance.id="pgha-3"}'
         values: '1x60'
-      - series: 'up{service.name="patroni",service.instance.id="pgha-3"}'
+      - series: 'up{service.name="patroni",obenhub.cluster.name="pgha",service.instance.id="pgha-3"}'
         values: '1x60'
-      - series: 'up{service.name="etcd",service.instance.id="pgha-3"}'
+      - series: 'up{service.name="etcd",obenhub.cluster.name="pgha-etcd",service.instance.id="pgha-3"}'
         values: '1x60'
-      - series: 'patroni_primary{service.name="patroni",scope="pgha",service.instance.id="pgha-3"}'
+      - series: 'patroni_primary{service.name="patroni",obenhub.cluster.name="pgha",scope="pgha",service.instance.id="pgha-3"}'
         values: '1x60'
     alert_rule_test:
       - eval_time: 4m30s
@@ -2207,33 +2226,33 @@ tests:
         values: '1x60'
       - series: 'otelcol_process_uptime{service.name="otelcol",service.instance.id="otelcol-pgha-1"}'
         values: '1x60'
-      - series: 'postgresql.collection.heartbeat{service.name="postgresql",service.instance.id="pgha-1"}'
+      - series: 'postgresql.collection.heartbeat{service.name="postgresql",obenhub.cluster.name="pgha",service.instance.id="pgha-1"}'
         values: '1x60'
-      - series: 'up{service.name="patroni",service.instance.id="pgha-1"}'
+      - series: 'up{service.name="patroni",obenhub.cluster.name="pgha",service.instance.id="pgha-1"}'
         values: '1x60'
-      - series: 'up{service.name="etcd",service.instance.id="pgha-1"}'
+      - series: 'up{service.name="etcd",obenhub.cluster.name="pgha-etcd",service.instance.id="pgha-1"}'
         values: '1x60'
-      - series: 'patroni_primary{service.name="patroni",scope="pgha",service.instance.id="pgha-1"}'
+      - series: 'patroni_primary{service.name="patroni",obenhub.cluster.name="pgha",scope="pgha",service.instance.id="pgha-1"}'
         values: '1x60'
       - series: 'otelcol_process_uptime{service.name="otelcol",service.instance.id="otelcol-pgha-2"}'
         values: '1x8 _x52'
-      - series: 'postgresql.collection.heartbeat{service.name="postgresql",service.instance.id="pgha-2"}'
+      - series: 'postgresql.collection.heartbeat{service.name="postgresql",obenhub.cluster.name="pgha",service.instance.id="pgha-2"}'
         values: '1x9 _x51'
-      - series: 'up{service.name="patroni",service.instance.id="pgha-2"}'
+      - series: 'up{service.name="patroni",obenhub.cluster.name="pgha",service.instance.id="pgha-2"}'
         values: '1x9 _x51'
-      - series: 'up{service.name="etcd",service.instance.id="pgha-2"}'
+      - series: 'up{service.name="etcd",obenhub.cluster.name="pgha-etcd",service.instance.id="pgha-2"}'
         values: '1x9 _x51'
-      - series: 'patroni_primary{service.name="patroni",scope="pgha",service.instance.id="pgha-2"}'
+      - series: 'patroni_primary{service.name="patroni",obenhub.cluster.name="pgha",scope="pgha",service.instance.id="pgha-2"}'
         values: '0x9 _x51'
       - series: 'otelcol_process_uptime{service.name="otelcol",service.instance.id="otelcol-pgha-3"}'
         values: '1x60'
-      - series: 'postgresql.collection.heartbeat{service.name="postgresql",service.instance.id="pgha-3"}'
+      - series: 'postgresql.collection.heartbeat{service.name="postgresql",obenhub.cluster.name="pgha",service.instance.id="pgha-3"}'
         values: '1x60'
-      - series: 'up{service.name="patroni",service.instance.id="pgha-3"}'
+      - series: 'up{service.name="patroni",obenhub.cluster.name="pgha",service.instance.id="pgha-3"}'
         values: '1x60'
-      - series: 'up{service.name="etcd",service.instance.id="pgha-3"}'
+      - series: 'up{service.name="etcd",obenhub.cluster.name="pgha-etcd",service.instance.id="pgha-3"}'
         values: '1x8 0x52'
-      - series: 'patroni_primary{service.name="patroni",scope="pgha",service.instance.id="pgha-3"}'
+      - series: 'patroni_primary{service.name="patroni",obenhub.cluster.name="pgha",scope="pgha",service.instance.id="pgha-3"}'
         values: '0x60'
     alert_rule_test:
       - eval_time: 4m30s
@@ -2287,6 +2306,7 @@ tests:
               severity: warning
               service.namespace: obenhub-lab
               service.name: etcd
+              obenhub.cluster.name: pgha-etcd
               service.instance.id: pgha-3
               obenhub.collector: otelcol-pgha-3
             exp_annotations:
@@ -2326,6 +2346,7 @@ tests:
               severity: warning
               service.namespace: obenhub-lab
               service.name: etcd
+              obenhub.cluster.name: pgha-etcd
               service.instance.id: pgha-3
               obenhub.collector: otelcol-pgha-3
             exp_annotations:
@@ -2365,6 +2386,7 @@ tests:
               severity: warning
               service.namespace: obenhub-lab
               service.name: etcd
+              obenhub.cluster.name: pgha-etcd
               service.instance.id: pgha-3
               obenhub.collector: otelcol-pgha-3
             exp_annotations:
@@ -2385,33 +2407,33 @@ tests:
         values: '1x60'
       - series: 'otelcol_process_uptime{service.name="otelcol",service.instance.id="otelcol-pgha-1"}'
         values: '1x60'
-      - series: 'postgresql.collection.heartbeat{service.name="postgresql",service.instance.id="pgha-1"}'
+      - series: 'postgresql.collection.heartbeat{service.name="postgresql",obenhub.cluster.name="pgha",service.instance.id="pgha-1"}'
         values: '1x8 _x52'
-      - series: 'up{service.name="patroni",service.instance.id="pgha-1"}'
+      - series: 'up{service.name="patroni",obenhub.cluster.name="pgha",service.instance.id="pgha-1"}'
         values: '1x60'
-      - series: 'up{service.name="etcd",service.instance.id="pgha-1"}'
+      - series: 'up{service.name="etcd",obenhub.cluster.name="pgha-etcd",service.instance.id="pgha-1"}'
         values: '1x60'
-      - series: 'patroni_primary{service.name="patroni",scope="pgha",service.instance.id="pgha-1"}'
+      - series: 'patroni_primary{service.name="patroni",obenhub.cluster.name="pgha",scope="pgha",service.instance.id="pgha-1"}'
         values: '1x60'
       - series: 'otelcol_process_uptime{service.name="otelcol",service.instance.id="otelcol-pgha-2"}'
         values: '1x8 _x52'
-      - series: 'postgresql.collection.heartbeat{service.name="postgresql",service.instance.id="pgha-2"}'
+      - series: 'postgresql.collection.heartbeat{service.name="postgresql",obenhub.cluster.name="pgha",service.instance.id="pgha-2"}'
         values: '1x9 _x51'
-      - series: 'up{service.name="patroni",service.instance.id="pgha-2"}'
+      - series: 'up{service.name="patroni",obenhub.cluster.name="pgha",service.instance.id="pgha-2"}'
         values: '1x9 _x51'
-      - series: 'up{service.name="etcd",service.instance.id="pgha-2"}'
+      - series: 'up{service.name="etcd",obenhub.cluster.name="pgha-etcd",service.instance.id="pgha-2"}'
         values: '1x9 _x51'
-      - series: 'patroni_primary{service.name="patroni",scope="pgha",service.instance.id="pgha-2"}'
+      - series: 'patroni_primary{service.name="patroni",obenhub.cluster.name="pgha",scope="pgha",service.instance.id="pgha-2"}'
         values: '0x9 _x51'
       - series: 'otelcol_process_uptime{service.name="otelcol",service.instance.id="otelcol-pgha-3"}'
         values: '1x60'
-      - series: 'postgresql.collection.heartbeat{service.name="postgresql",service.instance.id="pgha-3"}'
+      - series: 'postgresql.collection.heartbeat{service.name="postgresql",obenhub.cluster.name="pgha",service.instance.id="pgha-3"}'
         values: '1x60'
-      - series: 'up{service.name="patroni",service.instance.id="pgha-3"}'
+      - series: 'up{service.name="patroni",obenhub.cluster.name="pgha",service.instance.id="pgha-3"}'
         values: '1x60'
-      - series: 'up{service.name="etcd",service.instance.id="pgha-3"}'
+      - series: 'up{service.name="etcd",obenhub.cluster.name="pgha-etcd",service.instance.id="pgha-3"}'
         values: '1x60'
-      - series: 'patroni_primary{service.name="patroni",scope="pgha",service.instance.id="pgha-3"}'
+      - series: 'patroni_primary{service.name="patroni",obenhub.cluster.name="pgha",scope="pgha",service.instance.id="pgha-3"}'
         values: '0x60'
     alert_rule_test:
       - eval_time: 4m30s
@@ -2566,33 +2588,33 @@ tests:
         values: '1x80'
       - series: 'otelcol_process_uptime{service.name="otelcol",service.instance.id="otelcol-pgha-1"}'
         values: '1x8 _x72'
-      - series: 'postgresql.collection.heartbeat{service.name="postgresql",service.instance.id="pgha-1"}'
+      - series: 'postgresql.collection.heartbeat{service.name="postgresql",obenhub.cluster.name="pgha",service.instance.id="pgha-1"}'
         values: '1x9 _x71'
-      - series: 'up{service.name="patroni",service.instance.id="pgha-1"}'
+      - series: 'up{service.name="patroni",obenhub.cluster.name="pgha",service.instance.id="pgha-1"}'
         values: '1x9 _x71'
-      - series: 'up{service.name="etcd",service.instance.id="pgha-1"}'
+      - series: 'up{service.name="etcd",obenhub.cluster.name="pgha-etcd",service.instance.id="pgha-1"}'
         values: '1x9 _x71'
-      - series: 'patroni_primary{service.name="patroni",scope="pgha",service.instance.id="pgha-1"}'
+      - series: 'patroni_primary{service.name="patroni",obenhub.cluster.name="pgha",scope="pgha",service.instance.id="pgha-1"}'
         values: '1x9 _x71'
       - series: 'otelcol_process_uptime{service.name="otelcol",service.instance.id="otelcol-pgha-2"}'
         values: '1x80'
-      - series: 'postgresql.collection.heartbeat{service.name="postgresql",service.instance.id="pgha-2"}'
+      - series: 'postgresql.collection.heartbeat{service.name="postgresql",obenhub.cluster.name="pgha",service.instance.id="pgha-2"}'
         values: '1x80'
-      - series: 'up{service.name="patroni",service.instance.id="pgha-2"}'
+      - series: 'up{service.name="patroni",obenhub.cluster.name="pgha",service.instance.id="pgha-2"}'
         values: '1x80'
-      - series: 'up{service.name="etcd",service.instance.id="pgha-2"}'
+      - series: 'up{service.name="etcd",obenhub.cluster.name="pgha-etcd",service.instance.id="pgha-2"}'
         values: '1x80'
-      - series: 'patroni_primary{service.name="patroni",scope="pgha",service.instance.id="pgha-2"}'
+      - series: 'patroni_primary{service.name="patroni",obenhub.cluster.name="pgha",scope="pgha",service.instance.id="pgha-2"}'
         values: '0x80'
       - series: 'otelcol_process_uptime{service.name="otelcol",service.instance.id="otelcol-pgha-3"}'
         values: '1x80'
-      - series: 'postgresql.collection.heartbeat{service.name="postgresql",service.instance.id="pgha-3"}'
+      - series: 'postgresql.collection.heartbeat{service.name="postgresql",obenhub.cluster.name="pgha",service.instance.id="pgha-3"}'
         values: '1x80'
-      - series: 'up{service.name="patroni",service.instance.id="pgha-3"}'
+      - series: 'up{service.name="patroni",obenhub.cluster.name="pgha",service.instance.id="pgha-3"}'
         values: '1x80'
-      - series: 'up{service.name="etcd",service.instance.id="pgha-3"}'
+      - series: 'up{service.name="etcd",obenhub.cluster.name="pgha-etcd",service.instance.id="pgha-3"}'
         values: '1x80'
-      - series: 'patroni_primary{service.name="patroni",scope="pgha",service.instance.id="pgha-3"}'
+      - series: 'patroni_primary{service.name="patroni",obenhub.cluster.name="pgha",scope="pgha",service.instance.id="pgha-3"}'
         values: '0x80'
     alert_rule_test:
       - eval_time: 2m30s
@@ -3591,33 +3613,33 @@ tests:
         values: '1x60'
       - series: 'otelcol_process_uptime{service.name="otelcol",service.instance.id="otelcol-pgha-1"}'
         values: '1x60'
-      - series: 'postgresql.collection.heartbeat{service.name="postgresql",service.instance.id="pgha-1"}'
+      - series: 'postgresql.collection.heartbeat{service.name="postgresql",obenhub.cluster.name="pgha",service.instance.id="pgha-1"}'
         values: '1x60'
-      - series: 'up{service.name="patroni",service.instance.id="pgha-1"}'
+      - series: 'up{service.name="patroni",obenhub.cluster.name="pgha",service.instance.id="pgha-1"}'
         values: '1x60'
-      - series: 'up{service.name="etcd",service.instance.id="pgha-1"}'
+      - series: 'up{service.name="etcd",obenhub.cluster.name="pgha-etcd",service.instance.id="pgha-1"}'
         values: '1x60'
-      - series: 'patroni_primary{service.name="patroni",scope="pgha",service.instance.id="pgha-1"}'
+      - series: 'patroni_primary{service.name="patroni",obenhub.cluster.name="pgha",scope="pgha",service.instance.id="pgha-1"}'
         values: '0x60'
       - series: 'otelcol_process_uptime{service.name="otelcol",service.instance.id="otelcol-pgha-2"}'
         values: '1x8 _x52'
-      - series: 'postgresql.collection.heartbeat{service.name="postgresql",service.instance.id="pgha-2"}'
+      - series: 'postgresql.collection.heartbeat{service.name="postgresql",obenhub.cluster.name="pgha",service.instance.id="pgha-2"}'
         values: '1x9 _x51'
-      - series: 'up{service.name="patroni",service.instance.id="pgha-2"}'
+      - series: 'up{service.name="patroni",obenhub.cluster.name="pgha",service.instance.id="pgha-2"}'
         values: '1x9 _x51'
-      - series: 'up{service.name="etcd",service.instance.id="pgha-2"}'
+      - series: 'up{service.name="etcd",obenhub.cluster.name="pgha-etcd",service.instance.id="pgha-2"}'
         values: '1x9 _x51'
-      - series: 'patroni_primary{service.name="patroni",scope="pgha",service.instance.id="pgha-2"}'
+      - series: 'patroni_primary{service.name="patroni",obenhub.cluster.name="pgha",scope="pgha",service.instance.id="pgha-2"}'
         values: '0x9 _x51'
       - series: 'otelcol_process_uptime{service.name="otelcol",service.instance.id="otelcol-pgha-3"}'
         values: '1x60'
-      - series: 'postgresql.collection.heartbeat{service.name="postgresql",service.instance.id="pgha-3"}'
+      - series: 'postgresql.collection.heartbeat{service.name="postgresql",obenhub.cluster.name="pgha",service.instance.id="pgha-3"}'
         values: '1x60'
-      - series: 'up{service.name="patroni",service.instance.id="pgha-3"}'
+      - series: 'up{service.name="patroni",obenhub.cluster.name="pgha",service.instance.id="pgha-3"}'
         values: '1x60'
-      - series: 'up{service.name="etcd",service.instance.id="pgha-3"}'
+      - series: 'up{service.name="etcd",obenhub.cluster.name="pgha-etcd",service.instance.id="pgha-3"}'
         values: '1x60'
-      - series: 'patroni_primary{service.name="patroni",scope="pgha",service.instance.id="pgha-3"}'
+      - series: 'patroni_primary{service.name="patroni",obenhub.cluster.name="pgha",scope="pgha",service.instance.id="pgha-3"}'
         values: '0x60'
     alert_rule_test:
       - eval_time: 5m
@@ -3651,7 +3673,7 @@ tests:
         groupname: patroni
         alertname: PatroniNoWritablePrimary
         exp_alerts:
-          - exp_labels: {severity: critical, scope: pgha}
+          - exp_labels: {severity: critical, obenhub.cluster.name: pgha}
             exp_annotations:
               summary: Cluster pgha has no writable primary
       - eval_time: 6m
@@ -3685,7 +3707,7 @@ tests:
         groupname: patroni
         alertname: PatroniNoWritablePrimary
         exp_alerts:
-          - exp_labels: {severity: critical, scope: pgha}
+          - exp_labels: {severity: critical, obenhub.cluster.name: pgha}
             exp_annotations:
               summary: Cluster pgha has no writable primary
       - eval_time: 7m
@@ -3719,7 +3741,7 @@ tests:
         groupname: patroni
         alertname: PatroniNoWritablePrimary
         exp_alerts:
-          - exp_labels: {severity: critical, scope: pgha}
+          - exp_labels: {severity: critical, obenhub.cluster.name: pgha}
             exp_annotations:
               summary: Cluster pgha has no writable primary
 
@@ -3730,33 +3752,33 @@ tests:
         values: '1x60'
       - series: 'otelcol_process_uptime{service.name="otelcol",service.instance.id="otelcol-pgha-1"}'
         values: '1x60'
-      - series: 'postgresql.collection.heartbeat{service.name="postgresql",service.instance.id="pgha-1"}'
+      - series: 'postgresql.collection.heartbeat{service.name="postgresql",obenhub.cluster.name="pgha",service.instance.id="pgha-1"}'
         values: '1x60'
-      - series: 'up{service.name="patroni",service.instance.id="pgha-1"}'
+      - series: 'up{service.name="patroni",obenhub.cluster.name="pgha",service.instance.id="pgha-1"}'
         values: '1x60'
-      - series: 'up{service.name="etcd",service.instance.id="pgha-1"}'
+      - series: 'up{service.name="etcd",obenhub.cluster.name="pgha-etcd",service.instance.id="pgha-1"}'
         values: '1x60'
-      - series: 'patroni_primary{service.name="patroni",scope="pgha",service.instance.id="pgha-1"}'
+      - series: 'patroni_primary{service.name="patroni",obenhub.cluster.name="pgha",scope="pgha",service.instance.id="pgha-1"}'
         values: '0x60'
       - series: 'otelcol_process_uptime{service.name="otelcol",service.instance.id="otelcol-pgha-2"}'
         values: '1x60'
-      - series: 'postgresql.collection.heartbeat{service.name="postgresql",service.instance.id="pgha-2"}'
+      - series: 'postgresql.collection.heartbeat{service.name="postgresql",obenhub.cluster.name="pgha",service.instance.id="pgha-2"}'
         values: '1x60'
-      - series: 'up{service.name="patroni",service.instance.id="pgha-2"}'
+      - series: 'up{service.name="patroni",obenhub.cluster.name="pgha",service.instance.id="pgha-2"}'
         values: '1x60'
-      - series: 'up{service.name="etcd",service.instance.id="pgha-2"}'
+      - series: 'up{service.name="etcd",obenhub.cluster.name="pgha-etcd",service.instance.id="pgha-2"}'
         values: '1x60'
-      - series: 'patroni_primary{service.name="patroni",scope="pgha",service.instance.id="pgha-2"}'
+      - series: 'patroni_primary{service.name="patroni",obenhub.cluster.name="pgha",scope="pgha",service.instance.id="pgha-2"}'
         values: '0x60'
       - series: 'otelcol_process_uptime{service.name="otelcol",service.instance.id="otelcol-pgha-3"}'
         values: '1x60'
-      - series: 'postgresql.collection.heartbeat{service.name="postgresql",service.instance.id="pgha-3"}'
+      - series: 'postgresql.collection.heartbeat{service.name="postgresql",obenhub.cluster.name="pgha",service.instance.id="pgha-3"}'
         values: '1x60'
-      - series: 'up{service.name="patroni",service.instance.id="pgha-3"}'
+      - series: 'up{service.name="patroni",obenhub.cluster.name="pgha",service.instance.id="pgha-3"}'
         values: '1x60'
-      - series: 'up{service.name="etcd",service.instance.id="pgha-3"}'
+      - series: 'up{service.name="etcd",obenhub.cluster.name="pgha-etcd",service.instance.id="pgha-3"}'
         values: '1x60'
-      - series: 'patroni_primary{service.name="patroni",scope="pgha",service.instance.id="pgha-3"}'
+      - series: 'patroni_primary{service.name="patroni",obenhub.cluster.name="pgha",scope="pgha",service.instance.id="pgha-3"}'
         values: '0x60'
     alert_rule_test:
       - eval_time: 5m
@@ -3783,7 +3805,7 @@ tests:
         groupname: patroni
         alertname: PatroniNoWritablePrimary
         exp_alerts:
-          - exp_labels: {severity: critical, scope: pgha}
+          - exp_labels: {severity: critical, obenhub.cluster.name: pgha}
             exp_annotations:
               summary: Cluster pgha has no writable primary
       - eval_time: 6m
@@ -3810,7 +3832,7 @@ tests:
         groupname: patroni
         alertname: PatroniNoWritablePrimary
         exp_alerts:
-          - exp_labels: {severity: critical, scope: pgha}
+          - exp_labels: {severity: critical, obenhub.cluster.name: pgha}
             exp_annotations:
               summary: Cluster pgha has no writable primary
       - eval_time: 7m
@@ -3837,7 +3859,7 @@ tests:
         groupname: patroni
         alertname: PatroniNoWritablePrimary
         exp_alerts:
-          - exp_labels: {severity: critical, scope: pgha}
+          - exp_labels: {severity: critical, obenhub.cluster.name: pgha}
             exp_annotations:
               summary: Cluster pgha has no writable primary
 
@@ -3848,33 +3870,33 @@ tests:
         values: '1x120'
       - series: 'otelcol_process_uptime{service.name="otelcol",service.instance.id="otelcol-pgha-1"}'
         values: '1x120'
-      - series: 'postgresql.collection.heartbeat{service.name="postgresql",service.instance.id="pgha-1"}'
+      - series: 'postgresql.collection.heartbeat{service.name="postgresql",obenhub.cluster.name="pgha",service.instance.id="pgha-1"}'
         values: '1x120'
-      - series: 'up{service.name="patroni",service.instance.id="pgha-1"}'
+      - series: 'up{service.name="patroni",obenhub.cluster.name="pgha",service.instance.id="pgha-1"}'
         values: '1x20 0x100'
-      - series: 'up{service.name="etcd",service.instance.id="pgha-1"}'
+      - series: 'up{service.name="etcd",obenhub.cluster.name="pgha-etcd",service.instance.id="pgha-1"}'
         values: '1x120'
-      - series: 'patroni_primary{service.name="patroni",scope="pgha",service.instance.id="pgha-1"}'
+      - series: 'patroni_primary{service.name="patroni",obenhub.cluster.name="pgha",scope="pgha",service.instance.id="pgha-1"}'
         values: '1x20 _x100'
       - series: 'otelcol_process_uptime{service.name="otelcol",service.instance.id="otelcol-pgha-2"}'
         values: '1x120'
-      - series: 'postgresql.collection.heartbeat{service.name="postgresql",service.instance.id="pgha-2"}'
+      - series: 'postgresql.collection.heartbeat{service.name="postgresql",obenhub.cluster.name="pgha",service.instance.id="pgha-2"}'
         values: '1x120'
-      - series: 'up{service.name="patroni",service.instance.id="pgha-2"}'
+      - series: 'up{service.name="patroni",obenhub.cluster.name="pgha",service.instance.id="pgha-2"}'
         values: '1x120'
-      - series: 'up{service.name="etcd",service.instance.id="pgha-2"}'
+      - series: 'up{service.name="etcd",obenhub.cluster.name="pgha-etcd",service.instance.id="pgha-2"}'
         values: '1x120'
-      - series: 'patroni_primary{service.name="patroni",scope="pgha",service.instance.id="pgha-2"}'
+      - series: 'patroni_primary{service.name="patroni",obenhub.cluster.name="pgha",scope="pgha",service.instance.id="pgha-2"}'
         values: '0x120'
       - series: 'otelcol_process_uptime{service.name="otelcol",service.instance.id="otelcol-pgha-3"}'
         values: '1x120'
-      - series: 'postgresql.collection.heartbeat{service.name="postgresql",service.instance.id="pgha-3"}'
+      - series: 'postgresql.collection.heartbeat{service.name="postgresql",obenhub.cluster.name="pgha",service.instance.id="pgha-3"}'
         values: '1x120'
-      - series: 'up{service.name="patroni",service.instance.id="pgha-3"}'
+      - series: 'up{service.name="patroni",obenhub.cluster.name="pgha",service.instance.id="pgha-3"}'
         values: '1x120'
-      - series: 'up{service.name="etcd",service.instance.id="pgha-3"}'
+      - series: 'up{service.name="etcd",obenhub.cluster.name="pgha-etcd",service.instance.id="pgha-3"}'
         values: '1x120'
-      - series: 'patroni_primary{service.name="patroni",scope="pgha",service.instance.id="pgha-3"}'
+      - series: 'patroni_primary{service.name="patroni",obenhub.cluster.name="pgha",scope="pgha",service.instance.id="pgha-3"}'
         values: '0x120'
     alert_rule_test:
       - eval_time: 4m
@@ -3934,7 +3956,7 @@ tests:
         groupname: patroni
         alertname: PatroniNoWritablePrimary
         exp_alerts:
-          - exp_labels: {severity: critical, scope: pgha}
+          - exp_labels: {severity: critical, obenhub.cluster.name: pgha}
             exp_annotations:
               summary: Cluster pgha has no writable primary
       - eval_time: 20m
@@ -3970,7 +3992,7 @@ tests:
         groupname: patroni
         alertname: PatroniNoWritablePrimary
         exp_alerts:
-          - exp_labels: {severity: critical, scope: pgha}
+          - exp_labels: {severity: critical, obenhub.cluster.name: pgha}
             exp_annotations:
               summary: Cluster pgha has no writable primary
       - eval_time: 25m
@@ -4006,7 +4028,7 @@ tests:
         groupname: patroni
         alertname: PatroniNoWritablePrimary
         exp_alerts:
-          - exp_labels: {severity: critical, scope: pgha}
+          - exp_labels: {severity: critical, obenhub.cluster.name: pgha}
             exp_annotations:
               summary: Cluster pgha has no writable primary
       - eval_time: 30m
@@ -4042,7 +4064,7 @@ tests:
         groupname: patroni
         alertname: PatroniNoWritablePrimary
         exp_alerts:
-          - exp_labels: {severity: critical, scope: pgha}
+          - exp_labels: {severity: critical, obenhub.cluster.name: pgha}
             exp_annotations:
               summary: Cluster pgha has no writable primary
 
@@ -4053,33 +4075,33 @@ tests:
         values: '1x120'
       - series: 'otelcol_process_uptime{service.name="otelcol",service.instance.id="otelcol-pgha-1"}'
         values: '1x20 _x100'
-      - series: 'postgresql.collection.heartbeat{service.name="postgresql",service.instance.id="pgha-1"}'
+      - series: 'postgresql.collection.heartbeat{service.name="postgresql",obenhub.cluster.name="pgha",service.instance.id="pgha-1"}'
         values: '1x20 _x100'
-      - series: 'up{service.name="patroni",service.instance.id="pgha-1"}'
+      - series: 'up{service.name="patroni",obenhub.cluster.name="pgha",service.instance.id="pgha-1"}'
         values: '1x20 _x100'
-      - series: 'up{service.name="etcd",service.instance.id="pgha-1"}'
+      - series: 'up{service.name="etcd",obenhub.cluster.name="pgha-etcd",service.instance.id="pgha-1"}'
         values: '1x20 _x100'
-      - series: 'patroni_primary{service.name="patroni",scope="pgha",service.instance.id="pgha-1"}'
+      - series: 'patroni_primary{service.name="patroni",obenhub.cluster.name="pgha",scope="pgha",service.instance.id="pgha-1"}'
         values: '1x20 _x100'
       - series: 'otelcol_process_uptime{service.name="otelcol",service.instance.id="otelcol-pgha-2"}'
         values: '1x120'
-      - series: 'postgresql.collection.heartbeat{service.name="postgresql",service.instance.id="pgha-2"}'
+      - series: 'postgresql.collection.heartbeat{service.name="postgresql",obenhub.cluster.name="pgha",service.instance.id="pgha-2"}'
         values: '1x120'
-      - series: 'up{service.name="patroni",service.instance.id="pgha-2"}'
+      - series: 'up{service.name="patroni",obenhub.cluster.name="pgha",service.instance.id="pgha-2"}'
         values: '1x60 0x60'
-      - series: 'up{service.name="etcd",service.instance.id="pgha-2"}'
+      - series: 'up{service.name="etcd",obenhub.cluster.name="pgha-etcd",service.instance.id="pgha-2"}'
         values: '1x120'
-      - series: 'patroni_primary{service.name="patroni",scope="pgha",service.instance.id="pgha-2"}'
+      - series: 'patroni_primary{service.name="patroni",obenhub.cluster.name="pgha",scope="pgha",service.instance.id="pgha-2"}'
         values: '0x30 1x30 _x60'
       - series: 'otelcol_process_uptime{service.name="otelcol",service.instance.id="otelcol-pgha-3"}'
         values: '1x120'
-      - series: 'postgresql.collection.heartbeat{service.name="postgresql",service.instance.id="pgha-3"}'
+      - series: 'postgresql.collection.heartbeat{service.name="postgresql",obenhub.cluster.name="pgha",service.instance.id="pgha-3"}'
         values: '1x120'
-      - series: 'up{service.name="patroni",service.instance.id="pgha-3"}'
+      - series: 'up{service.name="patroni",obenhub.cluster.name="pgha",service.instance.id="pgha-3"}'
         values: '1x120'
-      - series: 'up{service.name="etcd",service.instance.id="pgha-3"}'
+      - series: 'up{service.name="etcd",obenhub.cluster.name="pgha-etcd",service.instance.id="pgha-3"}'
         values: '1x120'
-      - series: 'patroni_primary{service.name="patroni",scope="pgha",service.instance.id="pgha-3"}'
+      - series: 'patroni_primary{service.name="patroni",obenhub.cluster.name="pgha",scope="pgha",service.instance.id="pgha-3"}'
         values: '0x120'
     alert_rule_test:
       - eval_time: 10m
@@ -4184,7 +4206,7 @@ tests:
         groupname: patroni
         alertname: PatroniNoWritablePrimary
         exp_alerts:
-          - exp_labels: {severity: critical, scope: pgha}
+          - exp_labels: {severity: critical, obenhub.cluster.name: pgha}
             exp_annotations:
               summary: Cluster pgha has no writable primary
       - eval_time: 30m
@@ -4227,7 +4249,7 @@ tests:
         groupname: patroni
         alertname: PatroniNoWritablePrimary
         exp_alerts:
-          - exp_labels: {severity: critical, scope: pgha}
+          - exp_labels: {severity: critical, obenhub.cluster.name: pgha}
             exp_annotations:
               summary: Cluster pgha has no writable primary
 
@@ -4238,33 +4260,33 @@ tests:
         values: '1x120'
       - series: 'otelcol_process_uptime{service.name="otelcol",service.instance.id="otelcol-pgha-1"}'
         values: '1x20 _x100'
-      - series: 'postgresql.collection.heartbeat{service.name="postgresql",service.instance.id="pgha-1"}'
+      - series: 'postgresql.collection.heartbeat{service.name="postgresql",obenhub.cluster.name="pgha",service.instance.id="pgha-1"}'
         values: '1x20 _x100'
-      - series: 'up{service.name="patroni",service.instance.id="pgha-1"}'
+      - series: 'up{service.name="patroni",obenhub.cluster.name="pgha",service.instance.id="pgha-1"}'
         values: '1x20 _x100'
-      - series: 'up{service.name="etcd",service.instance.id="pgha-1"}'
+      - series: 'up{service.name="etcd",obenhub.cluster.name="pgha-etcd",service.instance.id="pgha-1"}'
         values: '1x20 _x100'
-      - series: 'patroni_primary{service.name="patroni",scope="pgha",service.instance.id="pgha-1"}'
+      - series: 'patroni_primary{service.name="patroni",obenhub.cluster.name="pgha",scope="pgha",service.instance.id="pgha-1"}'
         values: '1x20 _x100'
       - series: 'otelcol_process_uptime{service.name="otelcol",service.instance.id="otelcol-pgha-2"}'
         values: '1x120'
-      - series: 'postgresql.collection.heartbeat{service.name="postgresql",service.instance.id="pgha-2"}'
+      - series: 'postgresql.collection.heartbeat{service.name="postgresql",obenhub.cluster.name="pgha",service.instance.id="pgha-2"}'
         values: '1x120'
-      - series: 'up{service.name="patroni",service.instance.id="pgha-2"}'
+      - series: 'up{service.name="patroni",obenhub.cluster.name="pgha",service.instance.id="pgha-2"}'
         values: '1x120'
-      - series: 'up{service.name="etcd",service.instance.id="pgha-2"}'
+      - series: 'up{service.name="etcd",obenhub.cluster.name="pgha-etcd",service.instance.id="pgha-2"}'
         values: '1x120'
-      - series: 'patroni_primary{service.name="patroni",scope="pgha",service.instance.id="pgha-2"}'
+      - series: 'patroni_primary{service.name="patroni",obenhub.cluster.name="pgha",scope="pgha",service.instance.id="pgha-2"}'
         values: '0x30 1x30 0x60'
       - series: 'otelcol_process_uptime{service.name="otelcol",service.instance.id="otelcol-pgha-3"}'
         values: '1x120'
-      - series: 'postgresql.collection.heartbeat{service.name="postgresql",service.instance.id="pgha-3"}'
+      - series: 'postgresql.collection.heartbeat{service.name="postgresql",obenhub.cluster.name="pgha",service.instance.id="pgha-3"}'
         values: '1x120'
-      - series: 'up{service.name="patroni",service.instance.id="pgha-3"}'
+      - series: 'up{service.name="patroni",obenhub.cluster.name="pgha",service.instance.id="pgha-3"}'
         values: '1x120'
-      - series: 'up{service.name="etcd",service.instance.id="pgha-3"}'
+      - series: 'up{service.name="etcd",obenhub.cluster.name="pgha-etcd",service.instance.id="pgha-3"}'
         values: '1x120'
-      - series: 'patroni_primary{service.name="patroni",scope="pgha",service.instance.id="pgha-3"}'
+      - series: 'patroni_primary{service.name="patroni",obenhub.cluster.name="pgha",scope="pgha",service.instance.id="pgha-3"}'
         values: '0x120'
     alert_rule_test:
       - eval_time: 10m
@@ -4360,7 +4382,7 @@ tests:
         groupname: patroni
         alertname: PatroniNoWritablePrimary
         exp_alerts:
-          - exp_labels: {severity: critical, scope: pgha}
+          - exp_labels: {severity: critical, obenhub.cluster.name: pgha}
             exp_annotations:
               summary: Cluster pgha has no writable primary
       - eval_time: 25m
@@ -4394,7 +4416,7 @@ tests:
         groupname: patroni
         alertname: PatroniNoWritablePrimary
         exp_alerts:
-          - exp_labels: {severity: critical, scope: pgha}
+          - exp_labels: {severity: critical, obenhub.cluster.name: pgha}
             exp_annotations:
               summary: Cluster pgha has no writable primary
       - eval_time: 30m
@@ -4428,7 +4450,7 @@ tests:
         groupname: patroni
         alertname: PatroniNoWritablePrimary
         exp_alerts:
-          - exp_labels: {severity: critical, scope: pgha}
+          - exp_labels: {severity: critical, obenhub.cluster.name: pgha}
             exp_annotations:
               summary: Cluster pgha has no writable primary
 
@@ -4439,33 +4461,33 @@ tests:
         values: '1x120'
       - series: 'otelcol_process_uptime{service.name="otelcol",service.instance.id="otelcol-pgha-1"}'
         values: '1x120'
-      - series: 'postgresql.collection.heartbeat{service.name="postgresql",service.instance.id="pgha-1"}'
+      - series: 'postgresql.collection.heartbeat{service.name="postgresql",obenhub.cluster.name="pgha",service.instance.id="pgha-1"}'
         values: '1x120'
-      - series: 'up{service.name="patroni",service.instance.id="pgha-1"}'
+      - series: 'up{service.name="patroni",obenhub.cluster.name="pgha",service.instance.id="pgha-1"}'
         values: '1x120'
-      - series: 'up{service.name="etcd",service.instance.id="pgha-1"}'
+      - series: 'up{service.name="etcd",obenhub.cluster.name="pgha-etcd",service.instance.id="pgha-1"}'
         values: '1x120'
-      - series: 'patroni_primary{service.name="patroni",scope="pgha",service.instance.id="pgha-1"}'
+      - series: 'patroni_primary{service.name="patroni",obenhub.cluster.name="pgha",scope="pgha",service.instance.id="pgha-1"}'
         values: '1x20 0x100'
       - series: 'otelcol_process_uptime{service.name="otelcol",service.instance.id="otelcol-pgha-2"}'
         values: '1x60 _x60'
-      - series: 'postgresql.collection.heartbeat{service.name="postgresql",service.instance.id="pgha-2"}'
+      - series: 'postgresql.collection.heartbeat{service.name="postgresql",obenhub.cluster.name="pgha",service.instance.id="pgha-2"}'
         values: '1x60 _x60'
-      - series: 'up{service.name="patroni",service.instance.id="pgha-2"}'
+      - series: 'up{service.name="patroni",obenhub.cluster.name="pgha",service.instance.id="pgha-2"}'
         values: '1x60 _x60'
-      - series: 'up{service.name="etcd",service.instance.id="pgha-2"}'
+      - series: 'up{service.name="etcd",obenhub.cluster.name="pgha-etcd",service.instance.id="pgha-2"}'
         values: '1x60 _x60'
-      - series: 'patroni_primary{service.name="patroni",scope="pgha",service.instance.id="pgha-2"}'
+      - series: 'patroni_primary{service.name="patroni",obenhub.cluster.name="pgha",scope="pgha",service.instance.id="pgha-2"}'
         values: '0x20 1x40 _x60'
       - series: 'otelcol_process_uptime{service.name="otelcol",service.instance.id="otelcol-pgha-3"}'
         values: '1x120'
-      - series: 'postgresql.collection.heartbeat{service.name="postgresql",service.instance.id="pgha-3"}'
+      - series: 'postgresql.collection.heartbeat{service.name="postgresql",obenhub.cluster.name="pgha",service.instance.id="pgha-3"}'
         values: '1x120'
-      - series: 'up{service.name="patroni",service.instance.id="pgha-3"}'
+      - series: 'up{service.name="patroni",obenhub.cluster.name="pgha",service.instance.id="pgha-3"}'
         values: '1x120'
-      - series: 'up{service.name="etcd",service.instance.id="pgha-3"}'
+      - series: 'up{service.name="etcd",obenhub.cluster.name="pgha-etcd",service.instance.id="pgha-3"}'
         values: '1x120'
-      - series: 'patroni_primary{service.name="patroni",scope="pgha",service.instance.id="pgha-3"}'
+      - series: 'patroni_primary{service.name="patroni",obenhub.cluster.name="pgha",scope="pgha",service.instance.id="pgha-3"}'
         values: '0x120'
     alert_rule_test:
       - eval_time: 5m
@@ -4641,33 +4663,33 @@ tests:
         values: '1x120'
       - series: 'otelcol_process_uptime{service.name="otelcol",service.instance.id="otelcol-pgha-1"}'
         values: '1x40 _x80'
-      - series: 'postgresql.collection.heartbeat{service.name="postgresql",service.instance.id="pgha-1"}'
+      - series: 'postgresql.collection.heartbeat{service.name="postgresql",obenhub.cluster.name="pgha",service.instance.id="pgha-1"}'
         values: '1x40 _x80'
-      - series: 'up{service.name="patroni",service.instance.id="pgha-1"}'
+      - series: 'up{service.name="patroni",obenhub.cluster.name="pgha",service.instance.id="pgha-1"}'
         values: '1x40 _x80'
-      - series: 'up{service.name="etcd",service.instance.id="pgha-1"}'
+      - series: 'up{service.name="etcd",obenhub.cluster.name="pgha-etcd",service.instance.id="pgha-1"}'
         values: '1x40 _x80'
-      - series: 'patroni_primary{service.name="patroni",scope="pgha",service.instance.id="pgha-1"}'
+      - series: 'patroni_primary{service.name="patroni",obenhub.cluster.name="pgha",scope="pgha",service.instance.id="pgha-1"}'
         values: '1x20 0x20 _x80'
       - series: 'otelcol_process_uptime{service.name="otelcol",service.instance.id="otelcol-pgha-2"}'
         values: '1x120'
-      - series: 'postgresql.collection.heartbeat{service.name="postgresql",service.instance.id="pgha-2"}'
+      - series: 'postgresql.collection.heartbeat{service.name="postgresql",obenhub.cluster.name="pgha",service.instance.id="pgha-2"}'
         values: '1x120'
-      - series: 'up{service.name="patroni",service.instance.id="pgha-2"}'
+      - series: 'up{service.name="patroni",obenhub.cluster.name="pgha",service.instance.id="pgha-2"}'
         values: '1x60 0x60'
-      - series: 'up{service.name="etcd",service.instance.id="pgha-2"}'
+      - series: 'up{service.name="etcd",obenhub.cluster.name="pgha-etcd",service.instance.id="pgha-2"}'
         values: '1x120'
-      - series: 'patroni_primary{service.name="patroni",scope="pgha",service.instance.id="pgha-2"}'
+      - series: 'patroni_primary{service.name="patroni",obenhub.cluster.name="pgha",scope="pgha",service.instance.id="pgha-2"}'
         values: '0x20 1x40 _x60'
       - series: 'otelcol_process_uptime{service.name="otelcol",service.instance.id="otelcol-pgha-3"}'
         values: '1x120'
-      - series: 'postgresql.collection.heartbeat{service.name="postgresql",service.instance.id="pgha-3"}'
+      - series: 'postgresql.collection.heartbeat{service.name="postgresql",obenhub.cluster.name="pgha",service.instance.id="pgha-3"}'
         values: '1x120'
-      - series: 'up{service.name="patroni",service.instance.id="pgha-3"}'
+      - series: 'up{service.name="patroni",obenhub.cluster.name="pgha",service.instance.id="pgha-3"}'
         values: '1x120'
-      - series: 'up{service.name="etcd",service.instance.id="pgha-3"}'
+      - series: 'up{service.name="etcd",obenhub.cluster.name="pgha-etcd",service.instance.id="pgha-3"}'
         values: '1x120'
-      - series: 'patroni_primary{service.name="patroni",scope="pgha",service.instance.id="pgha-3"}'
+      - series: 'patroni_primary{service.name="patroni",obenhub.cluster.name="pgha",scope="pgha",service.instance.id="pgha-3"}'
         values: '0x120'
     alert_rule_test:
       - eval_time: 25m
@@ -4710,7 +4732,7 @@ tests:
         groupname: patroni
         alertname: PatroniNoWritablePrimary
         exp_alerts:
-          - exp_labels: {severity: critical, scope: pgha}
+          - exp_labels: {severity: critical, obenhub.cluster.name: pgha}
             exp_annotations:
               summary: Cluster pgha has no writable primary
       - eval_time: 30m
@@ -4753,6 +4775,6 @@ tests:
         groupname: patroni
         alertname: PatroniNoWritablePrimary
         exp_alerts:
-          - exp_labels: {severity: critical, scope: pgha}
+          - exp_labels: {severity: critical, obenhub.cluster.name: pgha}
             exp_annotations:
               summary: Cluster pgha has no writable primary

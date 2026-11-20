@@ -11,11 +11,11 @@ tests:
   - name: one member scraped as up 0 fires EtcdMemberAbsent for it only, quorum holds
     interval: 15s
     input_series:
-      - series: 'up{service.name="etcd",service.instance.id="etcd-1"}'
+      - series: 'up{obenhub.cluster.name="stage3-etcd",service.name="etcd",service.instance.id="etcd-1"}'
         values: '1x60'
-      - series: 'up{service.name="etcd",service.instance.id="etcd-2"}'
+      - series: 'up{obenhub.cluster.name="stage3-etcd",service.name="etcd",service.instance.id="etcd-2"}'
         values: '1x8 0x52'
-      - series: 'up{service.name="etcd",service.instance.id="etcd-3"}'
+      - series: 'up{obenhub.cluster.name="stage3-etcd",service.name="etcd",service.instance.id="etcd-3"}'
         values: '1x60'
       - series: 'otelcol_process_uptime{service.name="otelcol",service.instance.id="otelcol-stage3"}'
         values: '1x60'
@@ -29,6 +29,7 @@ tests:
         alertname: EtcdMemberAbsent
         exp_alerts:
           - exp_labels:
+              obenhub.cluster.name: stage3-etcd
               severity: warning
               service.instance.id: etcd-2
               service.namespace: obenhub-lab
@@ -44,11 +45,11 @@ tests:
   - name: a member whose series vanish fires the same way
     interval: 15s
     input_series:
-      - series: 'up{service.name="etcd",service.instance.id="etcd-1"}'
+      - series: 'up{obenhub.cluster.name="stage3-etcd",service.name="etcd",service.instance.id="etcd-1"}'
         values: '1x60'
-      - series: 'up{service.name="etcd",service.instance.id="etcd-2"}'
+      - series: 'up{obenhub.cluster.name="stage3-etcd",service.name="etcd",service.instance.id="etcd-2"}'
         values: '1x60'
-      - series: 'up{service.name="etcd",service.instance.id="etcd-3"}'
+      - series: 'up{obenhub.cluster.name="stage3-etcd",service.name="etcd",service.instance.id="etcd-3"}'
         values: '1x8 _x52'
       - series: 'otelcol_process_uptime{service.name="otelcol",service.instance.id="otelcol-stage3"}'
         values: '1x60'
@@ -58,6 +59,7 @@ tests:
         alertname: EtcdMemberAbsent
         exp_alerts:
           - exp_labels:
+              obenhub.cluster.name: stage3-etcd
               severity: warning
               service.instance.id: etcd-3
               service.namespace: obenhub-lab
@@ -69,11 +71,11 @@ tests:
   - name: two members down names both and fires EtcdInsufficientMembers
     interval: 15s
     input_series:
-      - series: 'up{service.name="etcd",service.instance.id="etcd-1"}'
+      - series: 'up{obenhub.cluster.name="stage3-etcd",service.name="etcd",service.instance.id="etcd-1"}'
         values: '1x60'
-      - series: 'up{service.name="etcd",service.instance.id="etcd-2"}'
+      - series: 'up{obenhub.cluster.name="stage3-etcd",service.name="etcd",service.instance.id="etcd-2"}'
         values: '1x8 0x52'
-      - series: 'up{service.name="etcd",service.instance.id="etcd-3"}'
+      - series: 'up{obenhub.cluster.name="stage3-etcd",service.name="etcd",service.instance.id="etcd-3"}'
         values: '1x8 0x52'
       - series: 'otelcol_process_uptime{service.name="otelcol",service.instance.id="otelcol-stage3"}'
         values: '1x60'
@@ -86,14 +88,15 @@ tests:
         groupname: etcd
         alertname: EtcdInsufficientMembers
         exp_alerts:
-          - exp_labels: {severity: critical}
+          - exp_labels: {severity: critical, obenhub.cluster.name: stage3-etcd}
             exp_annotations:
-              summary: "Only 1 etcd members report: quorum is lost"
+              summary: "Only 1 members of etcd cluster stage3-etcd report: quorum is lost"
       - eval_time: 6m
         groupname: etcd
         alertname: EtcdMemberAbsent
         exp_alerts:
           - exp_labels:
+              obenhub.cluster.name: stage3-etcd
               severity: warning
               service.instance.id: etcd-2
               service.namespace: obenhub-lab
@@ -102,6 +105,7 @@ tests:
             exp_annotations:
               summary: etcd member etcd-2 is not scraped
           - exp_labels:
+              obenhub.cluster.name: stage3-etcd
               severity: warning
               service.instance.id: etcd-3
               service.namespace: obenhub-lab
@@ -113,11 +117,11 @@ tests:
   - name: all members gone with the Collector raises neither member nor quorum alerts
     interval: 15s
     input_series:
-      - series: 'up{service.name="etcd",service.instance.id="etcd-1"}'
+      - series: 'up{obenhub.cluster.name="stage3-etcd",service.name="etcd",service.instance.id="etcd-1"}'
         values: '1x8 _x52'
-      - series: 'up{service.name="etcd",service.instance.id="etcd-2"}'
+      - series: 'up{obenhub.cluster.name="stage3-etcd",service.name="etcd",service.instance.id="etcd-2"}'
         values: '1x8 _x52'
-      - series: 'up{service.name="etcd",service.instance.id="etcd-3"}'
+      - series: 'up{obenhub.cluster.name="stage3-etcd",service.name="etcd",service.instance.id="etcd-3"}'
         values: '1x8 _x52'
       - series: 'otelcol_process_uptime{service.name="otelcol",service.instance.id="otelcol-stage3"}'
         values: '1x8 _x52'
@@ -134,11 +138,11 @@ tests:
   - name: a member without a leader fires after 1 m; a healthy one does not
     interval: 15s
     input_series:
-      - series: 'etcd_server_has_leader{service.name="etcd",service.instance.id="etcd-1"}'
+      - series: 'etcd_server_has_leader{obenhub.cluster.name="stage3-etcd",service.name="etcd",service.instance.id="etcd-1"}'
         values: '1x4 0x56'
-      - series: 'etcd_server_has_leader{service.name="etcd",service.instance.id="etcd-2"}'
+      - series: 'etcd_server_has_leader{obenhub.cluster.name="stage3-etcd",service.name="etcd",service.instance.id="etcd-2"}'
         values: '1x60'
-      - series: 'etcd_server_has_leader{service.name="etcd",service.instance.id="etcd-3"}'
+      - series: 'etcd_server_has_leader{obenhub.cluster.name="stage3-etcd",service.name="etcd",service.instance.id="etcd-3"}'
         values: '1x4 0x2 1x54'
     alert_rule_test:
       - eval_time: 90s
@@ -150,6 +154,7 @@ tests:
         alertname: EtcdNoLeader
         exp_alerts:
           - exp_labels:
+              obenhub.cluster.name: stage3-etcd
               severity: critical
               service.instance.id: etcd-1
               service.name: etcd
@@ -160,11 +165,11 @@ tests:
     interval: 15s
     input_series:
       # three members with different counter values; the largest per-member increase counts
-      - series: 'etcd_server_leader_changes_seen_total{service.name="etcd",service.instance.id="etcd-1"}'
+      - series: 'etcd_server_leader_changes_seen_total{obenhub.cluster.name="stage3-etcd",service.name="etcd",service.instance.id="etcd-1"}'
         values: '2x24 3 4 5 6x74'
-      - series: 'etcd_server_leader_changes_seen_total{service.name="etcd",service.instance.id="etcd-2"}'
+      - series: 'etcd_server_leader_changes_seen_total{obenhub.cluster.name="stage3-etcd",service.name="etcd",service.instance.id="etcd-2"}'
         values: '1x24 2 3 4 5x74'
-      - series: 'etcd_server_leader_changes_seen_total{service.name="etcd",service.instance.id="etcd-3"}'
+      - series: 'etcd_server_leader_changes_seen_total{obenhub.cluster.name="stage3-etcd",service.name="etcd",service.instance.id="etcd-3"}'
         values: '1x24 2 3 4 5x74'
     alert_rule_test:
       # MetricsQL counts the first sample of a series that starts inside the
@@ -177,9 +182,9 @@ tests:
         groupname: etcd
         alertname: EtcdHighLeaderChanges
         exp_alerts:
-          - exp_labels: {severity: warning}
+          - exp_labels: {severity: warning, obenhub.cluster.name: stage3-etcd}
             exp_annotations:
-              summary: 4 etcd leader changes within 5 minutes
+              summary: 4 leader changes of etcd cluster stage3-etcd within 5 minutes
       - eval_time: 14m   # the window has moved past the changes
         groupname: etcd
         alertname: EtcdHighLeaderChanges
@@ -188,7 +193,7 @@ tests:
   - name: two leader changes in 5 m do not fire
     interval: 15s
     input_series:
-      - series: 'etcd_server_leader_changes_seen_total{service.name="etcd",service.instance.id="etcd-1"}'
+      - series: 'etcd_server_leader_changes_seen_total{obenhub.cluster.name="stage3-etcd",service.name="etcd",service.instance.id="etcd-1"}'
         values: '2x24 3 4 4x74'
     alert_rule_test:
       - eval_time: 8m
@@ -202,9 +207,9 @@ tests:
   - name: the member with the highest counter disappearing does not fire
     interval: 15s
     input_series:
-      - series: 'etcd_server_leader_changes_seen_total{service.name="etcd",service.instance.id="etcd-1"}'
+      - series: 'etcd_server_leader_changes_seen_total{obenhub.cluster.name="stage3-etcd",service.name="etcd",service.instance.id="etcd-1"}'
         values: '100x24 _x76'
-      - series: 'etcd_server_leader_changes_seen_total{service.name="etcd",service.instance.id="etcd-2"}'
+      - series: 'etcd_server_leader_changes_seen_total{obenhub.cluster.name="stage3-etcd",service.name="etcd",service.instance.id="etcd-2"}'
         values: '4x24 5x76'
     alert_rule_test:
       - eval_time: 8m
@@ -215,27 +220,27 @@ tests:
   - name: exactly three changes fire
     interval: 15s
     input_series:
-      - series: 'etcd_server_leader_changes_seen_total{service.name="etcd",service.instance.id="etcd-1"}'
+      - series: 'etcd_server_leader_changes_seen_total{obenhub.cluster.name="stage3-etcd",service.name="etcd",service.instance.id="etcd-1"}'
         values: '2x24 3 4 5x74'
     alert_rule_test:
       - eval_time: 8m
         groupname: etcd
         alertname: EtcdHighLeaderChanges
         exp_alerts:
-          - exp_labels: {severity: warning}
+          - exp_labels: {severity: warning, obenhub.cluster.name: stage3-etcd}
             exp_annotations:
-              summary: 3 etcd leader changes within 5 minutes
+              summary: 3 leader changes of etcd cluster stage3-etcd within 5 minutes
 
   # No etcd `up` series at all while the Collector lives: count() is empty and
   # `or on() vector(0)` supplies the 0.
   - name: zero members reporting with a live Collector fires EtcdInsufficientMembers
     interval: 15s
     input_series:
-      - series: 'up{service.name="etcd",service.instance.id="etcd-1"}'
+      - series: 'up{obenhub.cluster.name="stage3-etcd",service.name="etcd",service.instance.id="etcd-1"}'
         values: '1x8 _x52'
-      - series: 'up{service.name="etcd",service.instance.id="etcd-2"}'
+      - series: 'up{obenhub.cluster.name="stage3-etcd",service.name="etcd",service.instance.id="etcd-2"}'
         values: '1x8 _x52'
-      - series: 'up{service.name="etcd",service.instance.id="etcd-3"}'
+      - series: 'up{obenhub.cluster.name="stage3-etcd",service.name="etcd",service.instance.id="etcd-3"}'
         values: '1x8 _x52'
       - series: 'otelcol_process_uptime{service.name="otelcol",service.instance.id="otelcol-stage3"}'
         values: '1x60'
@@ -244,6 +249,6 @@ tests:
         groupname: etcd
         alertname: EtcdInsufficientMembers
         exp_alerts:
-          - exp_labels: {severity: critical}
+          - exp_labels: {severity: critical, obenhub.cluster.name: stage3-etcd}
             exp_annotations:
-              summary: "Only 0 etcd members report: quorum is lost"
+              summary: "Only 0 members of etcd cluster stage3-etcd report: quorum is lost"

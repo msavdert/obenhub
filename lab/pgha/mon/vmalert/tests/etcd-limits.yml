@@ -11,17 +11,17 @@ tests:
   - name: EtcdHighFsyncDurations with the lab override 1.0 s does not fire at p99 0.75 s and 0.583 s
     interval: 15s
     input_series:
-      - series: 'etcd_disk_wal_fsync_duration_seconds_bucket{le="0.5",service.name="etcd",service.instance.id="pgha-1"}'
+      - series: 'etcd_disk_wal_fsync_duration_seconds_bucket{obenhub.cluster.name="pgha-etcd",le="0.5",service.name="etcd",service.instance.id="pgha-1"}'
         values: '0+98x100'
-      - series: 'etcd_disk_wal_fsync_duration_seconds_bucket{le="1",service.name="etcd",service.instance.id="pgha-1"}'
+      - series: 'etcd_disk_wal_fsync_duration_seconds_bucket{obenhub.cluster.name="pgha-etcd",le="1",service.name="etcd",service.instance.id="pgha-1"}'
         values: '0+100x100'
-      - series: 'etcd_disk_wal_fsync_duration_seconds_bucket{le="+Inf",service.name="etcd",service.instance.id="pgha-1"}'
+      - series: 'etcd_disk_wal_fsync_duration_seconds_bucket{obenhub.cluster.name="pgha-etcd",le="+Inf",service.name="etcd",service.instance.id="pgha-1"}'
         values: '0+100x100'
-      - series: 'etcd_disk_wal_fsync_duration_seconds_bucket{le="0.5",service.name="etcd",service.instance.id="pgha-2"}'
+      - series: 'etcd_disk_wal_fsync_duration_seconds_bucket{obenhub.cluster.name="pgha-etcd",le="0.5",service.name="etcd",service.instance.id="pgha-2"}'
         values: '0+988x100'
-      - series: 'etcd_disk_wal_fsync_duration_seconds_bucket{le="1",service.name="etcd",service.instance.id="pgha-2"}'
+      - series: 'etcd_disk_wal_fsync_duration_seconds_bucket{obenhub.cluster.name="pgha-etcd",le="1",service.name="etcd",service.instance.id="pgha-2"}'
         values: '0+1000x100'
-      - series: 'etcd_disk_wal_fsync_duration_seconds_bucket{le="+Inf",service.name="etcd",service.instance.id="pgha-2"}'
+      - series: 'etcd_disk_wal_fsync_duration_seconds_bucket{obenhub.cluster.name="pgha-etcd",le="+Inf",service.name="etcd",service.instance.id="pgha-2"}'
         values: '0+1000x100'
     alert_rule_test:
       - eval_time: 16m
@@ -32,11 +32,11 @@ tests:
   - name: EtcdHighFsyncDurations with the lab override 1.0 s fires at p99 1.5 s
     interval: 15s
     input_series:
-      - series: 'etcd_disk_wal_fsync_duration_seconds_bucket{le="1",service.name="etcd",service.instance.id="pgha-1"}'
+      - series: 'etcd_disk_wal_fsync_duration_seconds_bucket{obenhub.cluster.name="pgha-etcd",le="1",service.name="etcd",service.instance.id="pgha-1"}'
         values: '0+98x100'
-      - series: 'etcd_disk_wal_fsync_duration_seconds_bucket{le="2",service.name="etcd",service.instance.id="pgha-1"}'
+      - series: 'etcd_disk_wal_fsync_duration_seconds_bucket{obenhub.cluster.name="pgha-etcd",le="2",service.name="etcd",service.instance.id="pgha-1"}'
         values: '0+100x100'
-      - series: 'etcd_disk_wal_fsync_duration_seconds_bucket{le="+Inf",service.name="etcd",service.instance.id="pgha-1"}'
+      - series: 'etcd_disk_wal_fsync_duration_seconds_bucket{obenhub.cluster.name="pgha-etcd",le="+Inf",service.name="etcd",service.instance.id="pgha-1"}'
         values: '0+100x100'
     alert_rule_test:
       - eval_time: 16m
@@ -44,6 +44,7 @@ tests:
         alertname: EtcdHighFsyncDurations
         exp_alerts:
           - exp_labels:
+              obenhub.cluster.name: pgha-etcd
               severity: warning
               service.instance.id: pgha-1
               service.name: etcd
@@ -53,17 +54,17 @@ tests:
   - name: EtcdHighCommitDurations with the lab override 1.0 s does not fire at p99 0.75 s and 0.583 s
     interval: 15s
     input_series:
-      - series: 'etcd_disk_backend_commit_duration_seconds_bucket{le="0.5",service.name="etcd",service.instance.id="pgha-1"}'
+      - series: 'etcd_disk_backend_commit_duration_seconds_bucket{obenhub.cluster.name="pgha-etcd",le="0.5",service.name="etcd",service.instance.id="pgha-1"}'
         values: '0+98x100'
-      - series: 'etcd_disk_backend_commit_duration_seconds_bucket{le="1",service.name="etcd",service.instance.id="pgha-1"}'
+      - series: 'etcd_disk_backend_commit_duration_seconds_bucket{obenhub.cluster.name="pgha-etcd",le="1",service.name="etcd",service.instance.id="pgha-1"}'
         values: '0+100x100'
-      - series: 'etcd_disk_backend_commit_duration_seconds_bucket{le="+Inf",service.name="etcd",service.instance.id="pgha-1"}'
+      - series: 'etcd_disk_backend_commit_duration_seconds_bucket{obenhub.cluster.name="pgha-etcd",le="+Inf",service.name="etcd",service.instance.id="pgha-1"}'
         values: '0+100x100'
-      - series: 'etcd_disk_backend_commit_duration_seconds_bucket{le="0.5",service.name="etcd",service.instance.id="pgha-2"}'
+      - series: 'etcd_disk_backend_commit_duration_seconds_bucket{obenhub.cluster.name="pgha-etcd",le="0.5",service.name="etcd",service.instance.id="pgha-2"}'
         values: '0+988x100'
-      - series: 'etcd_disk_backend_commit_duration_seconds_bucket{le="1",service.name="etcd",service.instance.id="pgha-2"}'
+      - series: 'etcd_disk_backend_commit_duration_seconds_bucket{obenhub.cluster.name="pgha-etcd",le="1",service.name="etcd",service.instance.id="pgha-2"}'
         values: '0+1000x100'
-      - series: 'etcd_disk_backend_commit_duration_seconds_bucket{le="+Inf",service.name="etcd",service.instance.id="pgha-2"}'
+      - series: 'etcd_disk_backend_commit_duration_seconds_bucket{obenhub.cluster.name="pgha-etcd",le="+Inf",service.name="etcd",service.instance.id="pgha-2"}'
         values: '0+1000x100'
     alert_rule_test:
       - eval_time: 16m
@@ -74,11 +75,11 @@ tests:
   - name: EtcdHighCommitDurations with the lab override 1.0 s fires at p99 1.5 s
     interval: 15s
     input_series:
-      - series: 'etcd_disk_backend_commit_duration_seconds_bucket{le="1",service.name="etcd",service.instance.id="pgha-1"}'
+      - series: 'etcd_disk_backend_commit_duration_seconds_bucket{obenhub.cluster.name="pgha-etcd",le="1",service.name="etcd",service.instance.id="pgha-1"}'
         values: '0+98x100'
-      - series: 'etcd_disk_backend_commit_duration_seconds_bucket{le="2",service.name="etcd",service.instance.id="pgha-1"}'
+      - series: 'etcd_disk_backend_commit_duration_seconds_bucket{obenhub.cluster.name="pgha-etcd",le="2",service.name="etcd",service.instance.id="pgha-1"}'
         values: '0+100x100'
-      - series: 'etcd_disk_backend_commit_duration_seconds_bucket{le="+Inf",service.name="etcd",service.instance.id="pgha-1"}'
+      - series: 'etcd_disk_backend_commit_duration_seconds_bucket{obenhub.cluster.name="pgha-etcd",le="+Inf",service.name="etcd",service.instance.id="pgha-1"}'
         values: '0+100x100'
     alert_rule_test:
       - eval_time: 16m
@@ -86,6 +87,7 @@ tests:
         alertname: EtcdHighCommitDurations
         exp_alerts:
           - exp_labels:
+              obenhub.cluster.name: pgha-etcd
               severity: warning
               service.instance.id: pgha-1
               service.name: etcd
