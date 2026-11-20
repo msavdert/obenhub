@@ -1,0 +1,181 @@
+# The obenhub backend outside the lab: VictoriaMetrics, VictoriaLogs, vmalert,
+# Alertmanager, Grafana and the mutual-TLS gateway Collector. It does not
+# extend lab/mon/compose.base.yaml (the labs stay untouched), but it mounts
+# files of this repository: the packs and the lab's Grafana provisioning, so
+# run it from a checkout. Images, versions and memory limits
+# are those of the lab; scripts/check-deploy-pins.py (part of `mise run check`)
+# fails when an image differs from the lab's pin.
+#
+# Start with, from this directory:
+#   bash tls.sh <gateway DNS name or IP> ...   # CA, gateway and client certificate into ./tls
+#   cp .env.example .env                        # then set GRAFANA_ADMIN_PASSWORD
+#   docker compose up -d --wait
+# Every UI and API port listens on 127.0.0.1 unless OBENHUB_BIND says otherwise;
+# the gateway (OTLP/HTTP, client certificate required) is the one port meant
+# to be reached from other machines.
+name: obenhub
+
+services:
+  gateway:
+    image: otel/opentelemetry-collector-contrib:0.165.0@sha256:e40d61f10c9a617cca1ffd1be4d7e2b3a4b0f0001798ff07e58cabe82e618cea
+    restart: unless-stopped
+    mem_limit: 256m
+    # the keys in ./tls are 0600 owned by the user who ran tls.sh; the mounts
+    # must not be created by Docker (create_host_path: false), so a missing
+    # ./tls fails the start with an error: run tls.sh first
+    user: "${OBENHUB_UID:-1000}:${OBENHUB_GID:-1000}"
+    command: ["--config=/etc/otelcol/config.yaml"]
+    environment:
+      OBENHUB_NAMESPACE: "${OBENHUB_NAMESPACE:-obenhub}"
+    ports:
+      - "${OBENHUB_GATEWAY_BIND:-0.0.0.0}:${OBENHUB_GATEWAY_PORT:-4318}:4318"
+    volumes:
+      - ./otelcol-gateway.yaml:/etc/otelcol/config.yaml:ro
+      - type: bind
+        source: ./tls/ca.crt
+        target: /etc/otelcol/tls/ca.crt
+        read_only: true
+        bind: {create_host_path: false}
+      - type: bind
+        source: ./tls/gateway.crt
+        target: /etc/otelcol/tls/gateway.crt
+        read_only: true
+        bind: {create_host_path: false}
+      - type: bind
+        source: ./tls/gateway.key
+        target: /etc/otelcol/tls/gateway.key
+        read_only: true
+        bind: {create_host_path: false}
+    depends_on:
+      victoriametrics:
+        condition: service_healthy
+      victorialogs:
+        condition: service_started
+    networks:
+      - mon
+
+  victoriametrics:
+    image: victoriametrics/victoria-metrics:v1.156.0@sha256:da8a90ac0912f16589be2b96a6441a2fca4bca415c83783d972d92e3b5b66970
+    restart: unless-stopped
+    mem_limit: 512m
+    command: ["-retentionPeriod=7d", "-opentelemetry.promoteScopeMetadata=false"]
+    ports:
+      - "${OBENHUB_BIND:-127.0.0.1}:${OBENHUB_VM_PORT:-8428}:8428"
+    volumes:
+      - vm-data:/victoria-metrics-data
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:8428/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    networks:
+      - mon
+
+  victorialogs:
+    image: victoriametrics/victoria-logs:v1.54.0@sha256:ee4e820cac3721f5f5d91641b950c22439593adc4224f9655e5333d5a84c1dfe
+    restart: unless-stopped
+    mem_limit: 256m
+    ports:
+      - "${OBENHUB_BIND:-127.0.0.1}:${OBENHUB_VL_PORT:-9428}:9428"
+    volumes:
+      - vl-data:/victoria-logs-data
+    # no healthcheck: the image has no shell or wget
+    networks:
+      - mon
+
+  # Loads every pack's rules.yml (the packs are mounted from the repository)
+  # and the user-owned inventory.yml. No *-parameters group is loaded: the
+  # thresholds are the defaults written in the rule expressions (C4).
+  vmalert:
+    image: victoriametrics/vmalert:v1.156.0@sha256:4fea7d1a888d4db4ff18804434ef0f3ca8eb6482e289c50d32001c2db218287c
+    restart: unless-stopped
+    mem_limit: 128m
+    command:
+      - -datasource.url=http://victoriametrics:8428
+      - -remoteWrite.url=http://victoriametrics:8428
+      - -notifier.url=http://alertmanager:9093
+      - -rule=/etc/vmalert/inventory.yml
+      - -rule=/etc/obenhub/packs/*/rules.yml
+      - -evaluationInterval=15s
+    ports:
+      - "${OBENHUB_BIND:-127.0.0.1}:${OBENHUB_VMALERT_PORT:-8880}:8880"
+    volumes:
+      - ./inventory.yml:/etc/vmalert/inventory.yml:ro
+      - ../../packs:/etc/obenhub/packs:ro
+    depends_on:
+      victoriametrics:
+        condition: service_healthy
+      alertmanager:
+        condition: service_started
+    networks:
+      - mon
+
+  alertmanager:
+    image: prom/alertmanager:v0.35.0@sha256:e638797febd034838eca8b98cdbd46f951e9bf7f178777aa8669167406a9946c
+    restart: unless-stopped
+    mem_limit: 128m
+    command:
+      - --config.file=/etc/alertmanager/alertmanager.yml
+      - --storage.path=/alertmanager
+    ports:
+      - "${OBENHUB_BIND:-127.0.0.1}:${OBENHUB_ALERTMANAGER_PORT:-9093}:9093"
+    volumes:
+      - ./alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+      - am-data:/alertmanager
+      # url_file webhooks of alertmanager.yml: put one file per hook (the URL
+      # alone) in ./secrets (gitignored), create the directory, uncomment:
+      # - type: bind
+      #   source: ./secrets
+      #   target: /etc/alertmanager/secrets
+      #   read_only: true
+    depends_on:
+      - victorialogs
+    networks:
+      - mon
+
+  # AGPL-3.0, run unmodified as a separate service (ADR 0004); nothing of it
+  # is copied into this repository. Plugins are downloaded at start.
+  # Anonymous access is off: log in as admin with GRAFANA_ADMIN_PASSWORD.
+  grafana:
+    image: grafana/grafana:13.3.1@sha256:0615ec4fbd4072004b7d86b46ded63013a74b7d6eb1119273dd89e8fa25c13cf
+    restart: unless-stopped
+    mem_limit: 512m
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: "${GRAFANA_ADMIN_PASSWORD:?copy .env.example to .env and set GRAFANA_ADMIN_PASSWORD}"
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
+      GF_PLUGINS_PREINSTALL_SYNC: victoriametrics-metrics-datasource@1.0.1,victoriametrics-logs-datasource@0.34.0
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+      GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
+      GF_ANALYTICS_CHECK_FOR_PLUGIN_UPDATES: "false"
+    ports:
+      - "${OBENHUB_BIND:-127.0.0.1}:${OBENHUB_GRAFANA_PORT:-3000}:3000"
+    volumes:
+      - grafana-data:/var/lib/grafana
+      # the lab's provisioning files are generic (datasources vm and vl, one file provider), so they are reused, not copied
+      - ../../lab/mon/grafana/provisioning:/etc/grafana/provisioning:ro
+      # one folder per pack that ships dashboards (dashboards.yml reads the tree)
+      - ../../packs/host/dashboards:/var/lib/obenhub/dashboards/host:ro
+      - ../../packs/postgresql/dashboards:/var/lib/obenhub/dashboards/postgresql:ro
+      - ../../packs/patroni/dashboards:/var/lib/obenhub/dashboards/patroni:ro
+      - ../../packs/cnpg/dashboards:/var/lib/obenhub/dashboards/cnpg:ro
+      - ../../packs/oracledb-dg/dashboards:/var/lib/obenhub/dashboards/oracledb-dg:ro
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:3000/api/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 40
+      start_period: 30s
+    depends_on:
+      - victoriametrics
+      - victorialogs
+    networks:
+      - mon
+
+networks:
+  mon: {}
+
+volumes:
+  vm-data: {}
+  vl-data: {}
+  am-data: {}
+  grafana-data: {}

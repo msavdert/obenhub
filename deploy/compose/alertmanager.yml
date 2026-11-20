@@ -1,0 +1,69 @@
+# Routes by severity. Every receiver delivers to VictoriaLogs (one JSON line
+# per notification at /insert/jsonline, queryable like any log record), so the
+# install works out of the box; the commented webhook under `critical`,
+# `warning` and `deadman` is where a pager, e-mail bridge or heartbeat service
+# goes. Same grouping and delivery sink as lab/mon/alertmanager.yml.
+#
+# vmalert rewrites dots in label names to underscores when it notifies
+# Alertmanager (lab/mon/alertmanager.yml: verified on the wire, v1.155.0), so
+# routing uses the underscored names. Severities in the packs: critical,
+# warning, and none (Watchdog only).
+# No inhibit rules: suppression is written into the rule expressions
+# (lab/mon/alertmanager.yml: vmalert's startsAt predates group_wait, so an
+# inhibit races with delivery; found in lab/slice1, 2026-11-06).
+#
+# Dead-man switch: Watchdog (packs/collector) fires always. The `deadman` route
+# re-sends it every 60 s (six consecutive notifications measured 60 s apart on
+# this stack, 2026-11-20), so an external service that alerts when the
+# heartbeat stops (a missing Watchdog means rules, vmalert or Alertmanager is
+# down) sees a steady beat. Point `deadman` at that service's URL.
+# External hooks: webhook_configs `url` or `url_file` (a file holding the URL,
+# so the secret URL is not in this file). Fields checked with
+# `amtool check-config` of the pinned image (scripts/test-alertmanager.sh).
+route:
+  receiver: default
+  group_by: [alertname, obenhub_cluster_name, service_instance_id]
+  group_wait: 5s
+  group_interval: 15s
+  repeat_interval: 1h
+  routes:
+    - receiver: deadman
+      matchers: [alertname="Watchdog"]
+      group_wait: 0s
+      # The group is flushed every group_interval and notified when
+      # repeat_interval has passed since the last notification. With both at
+      # 1m the second flush lands a hair under the limit and is skipped, a
+      # 2 minute beat (seen on this stack), so the flush is twice as frequent
+      # and the limit lower: every other flush notifies.
+      group_interval: 30s
+      repeat_interval: 45s
+    - receiver: critical
+      matchers: [severity="critical"]
+    - receiver: warning
+      matchers: [severity="warning"]
+
+receivers:
+  - name: default
+    webhook_configs:
+      - &victorialogs
+        url: "http://victorialogs:9428/insert/jsonline?_msg_field=groupLabels.alertname&_stream_fields=receiver,status"
+        send_resolved: true
+  - name: deadman
+    webhook_configs:
+      - *victorialogs
+      # heartbeat service (a file in deploy/compose/secrets/, gitignored, mounted by the
+      # commented volume in compose.yaml):
+      # - url_file: /etc/alertmanager/secrets/deadman.url
+      #   send_resolved: false
+  - name: critical
+    webhook_configs:
+      - *victorialogs
+      # pager or on-call webhook:
+      # - url_file: /etc/alertmanager/secrets/critical.url
+      #   send_resolved: true
+  - name: warning
+    webhook_configs:
+      - *victorialogs
+      # chat or e-mail bridge:
+      # - url_file: /etc/alertmanager/secrets/warning.url
+      #   send_resolved: true

@@ -1,0 +1,37 @@
+# What this install expects to see; owned by you, not generated. The pack rules
+# (packs/collector, postgresql, patroni, ...) alert on an expected thing that
+# stops reporting, and cannot know what you run, so you list it here. The
+# shape is that of scripts/gen-inventory.py, which writes the labs' inventories
+# from a target list; the record names are the contract of ADR 0006.
+#
+# This example: one host Collector (otelcol-host-1) that sends through the
+# gateway of this compose project, collecting one PostgreSQL instance (pg-1 of
+# the cluster main). To extend it, add a label_set to the matching record (several
+# go inside `union(...)`, as scripts/gen-inventory.py writes them):
+#   obenhub.expected_collector  every Collector, by its OBENHUB_COLLECTOR_INSTANCE_ID;
+#                               obenhub.upstream names the Collector it sends
+#                               through (otelcol-gateway), which silences the
+#                               per-Collector alert while that gateway is down
+#   obenhub.expected_target     every database: service.name (postgresql,
+#                               pgbouncer), obenhub.cluster.name,
+#                               service.instance.id, and obenhub.collector, the
+#                               Collector that collects it
+#   obenhub.expected_scrape     every scraped service (patroni, etcd), same labels;
+#                               put it in its own group, as the labs do
+# service.namespace must equal OBENHUB_NAMESPACE (compose) and
+# OBENHUB_SERVICE_NAMESPACE (host Collectors). Edit, then reload vmalert:
+#   docker compose kill -s SIGHUP vmalert
+# Do not add *-parameters groups: the packs carry production defaults.
+groups:
+  - name: inventory
+    interval: 15s
+    rules:
+      - record: obenhub.expected_collector
+        expr: |
+          union(
+            label_set(vector(1), "service.namespace", "obenhub", "service.instance.id", "otelcol-gateway"),
+            label_set(vector(1), "service.namespace", "obenhub", "service.instance.id", "otelcol-host-1", "obenhub.upstream", "otelcol-gateway")
+          )
+
+      - record: obenhub.expected_target
+        expr: label_set(vector(1), "service.namespace", "obenhub", "service.name", "postgresql", "obenhub.cluster.name", "main", "service.instance.id", "pg-1", "obenhub.collector", "otelcol-host-1")

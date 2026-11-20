@@ -1,0 +1,36 @@
+# Mutual-TLS client settings for a host Collector that sends to the gateway of
+# deploy/compose (which requires a client certificate). Load it LAST:
+#   otelcol-contrib --config=<base> --config=<fragment>... --config=otelcol-tls.yaml
+# Variable: OBENHUB_TLS_DIR, a directory holding ca.crt, client.crt and
+# client.key (from deploy/compose/tls.sh).
+# 1. The base exporter gets the client settings (configtls README, client:
+#    ca_file, cert_file, key_file).
+# 2. The Collector pack's fragment (packs/collector/otelcol.yaml) pushes the
+#    Collector's self-metrics with its own OTLP reader and leaves TLS to the
+#    installation. A list is replaced, not merged, when configs are combined,
+#    so the reader is written out here again with the OTLP exporter's TLS
+#    options (certificate, client_certificate, client_key, as
+#    lab/oracle/files/otelcol-host.yaml sets them). Without the collector
+#    fragment this block is harmless but unused: drop it if you do not load
+#    the collector pack.
+exporters:
+  otlp_http/obenhub:
+    tls:
+      ca_file: ${env:OBENHUB_TLS_DIR}/ca.crt
+      cert_file: ${env:OBENHUB_TLS_DIR}/client.crt
+      key_file: ${env:OBENHUB_TLS_DIR}/client.key
+
+service:
+  telemetry:
+    metrics:
+      level: normal
+      readers:
+        - periodic:
+            interval: 15000
+            exporter:
+              otlp:
+                protocol: http/protobuf
+                endpoint: ${env:OBENHUB_GATEWAY_ENDPOINT}/v1/metrics
+                certificate: ${env:OBENHUB_TLS_DIR}/ca.crt
+                client_certificate: ${env:OBENHUB_TLS_DIR}/client.crt
+                client_key: ${env:OBENHUB_TLS_DIR}/client.key

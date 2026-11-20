@@ -166,10 +166,13 @@ the held dependency update batch and closes a release.
 
 ### D. Install path
 
-- [ ] D1 `deploy/compose`: the backend and gateway of `lab/mon` on their
+- [x] D1 `deploy/compose`: the backend and gateway of `lab/mon` on their
       own; Collector configuration for a host and values for the upstream
       Helm chart; an Alertmanager example that routes by severity and has a
-      dead-man route for `Watchdog`
+      dead-man route for `Watchdog` (stack started clean: every pack's rules
+      loaded without a parameters group, `Watchdog` routed to `deadman`, the
+      gateway refuses a client without a certificate, a host Collector
+      reaches it, `helm template` renders both values files)
 - [ ] D2 An install test without lab files: a plain PostgreSQL container
       and D1 with production defaults; the heartbeat is there, nothing but
       `Watchdog` fires, the dashboard panels have data
