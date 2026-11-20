@@ -37,6 +37,8 @@ tests:
           - exp_labels: {severity: critical, obenhub.cluster.name: stage3}
             exp_annotations:
               summary: Cluster stage3 has no writable primary
+              description: "No member of the cluster reports patroni_primary 1, so the cluster cannot take writes. Check patronictl list and the DCS."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/patroni/#patroninowritableprimary
 
   - name: a failover gap shorter than the hold does not fire
     interval: 15s
@@ -98,6 +100,8 @@ tests:
           - exp_labels: {severity: critical, obenhub.cluster.name: stage3}
             exp_annotations:
               summary: Cluster stage3 has 2 members reporting primary (split brain)
+              description: "Two or more members of one cluster report patroni_primary 1 within the last 30 seconds, for a minute: split brain. Check patronictl list and the DCS to see which member holds the leader key, then stop the other."
+              runbook_url: https://msavdert.github.io/obenhub/reference/patroni-pack-alerts/#patronimultipleprimaries
       - eval_time: 4m
         groupname: patroni
         alertname: PatroniMultiplePrimaries
@@ -105,6 +109,8 @@ tests:
           - exp_labels: {severity: critical, obenhub.cluster.name: stage3}
             exp_annotations:
               summary: Cluster stage3 has 2 members reporting primary (split brain)
+              description: "Two or more members of one cluster report patroni_primary 1 within the last 30 seconds, for a minute: split brain. Check patronictl list and the DCS to see which member holds the leader key, then stop the other."
+              runbook_url: https://msavdert.github.io/obenhub/reference/patroni-pack-alerts/#patronimultipleprimaries
 
   - name: a single primary does not fire
     interval: 15s
@@ -230,6 +236,8 @@ tests:
           - exp_labels: {severity: critical, obenhub.cluster.name: other}
             exp_annotations:
               summary: Cluster other has 2 members reporting primary (split brain)
+              description: "Two or more members of one cluster report patroni_primary 1 within the last 30 seconds, for a minute: split brain. Check patronictl list and the DCS to see which member holds the leader key, then stop the other."
+              runbook_url: https://msavdert.github.io/obenhub/reference/patroni-pack-alerts/#patronimultipleprimaries
 
   # --- failover happened -----------------------------------------------------
   - name: a timeline change fires, holds 3 m, then resolves
@@ -253,6 +261,8 @@ tests:
           - exp_labels: {severity: warning, obenhub.cluster.name: stage3}
             exp_annotations:
               summary: Cluster stage3 moved to timeline 4
+              description: "The highest PostgreSQL timeline of the cluster rose compared with the last hour: a switchover or a failover (the metrics cannot tell them apart). It resolves after 3 minutes; patronictl list shows the new leader and the timeline."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/patroni/#patronifailoverhappened
       - eval_time: 7m
         groupname: patroni
         alertname: PatroniFailoverHappened
@@ -260,6 +270,8 @@ tests:
           - exp_labels: {severity: warning, obenhub.cluster.name: stage3}
             exp_annotations:
               summary: Cluster stage3 moved to timeline 4
+              description: "The highest PostgreSQL timeline of the cluster rose compared with the last hour: a switchover or a failover (the metrics cannot tell them apart). It resolves after 3 minutes; patronictl list shows the new leader and the timeline."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/patroni/#patronifailoverhappened
       - eval_time: 10m   # the baseline has caught up
         groupname: patroni
         alertname: PatroniFailoverHappened
@@ -330,6 +342,8 @@ tests:
               service.instance.id: pg-3
             exp_annotations:
               summary: pg-3 is 47.68MiB behind the leader, beyond maximum_lag_on_failover
+              description: "A replica's WAL position is more than 16 MiB (maximum_lag_on_failover) behind the leader's for a minute, so Patroni will not promote it. patronictl list shows the replica's lag; check that it receives and replays WAL."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/patroni/#patronireplicanoteligible
 
   - name: the threshold is 16 MiB - 8 MiB behind is silent, 20 MiB behind fires (a 1 MiB or 32 MiB threshold fails this)
     interval: 15s
@@ -370,6 +384,8 @@ tests:
               service.instance.id: pg-3
             exp_annotations:
               summary: pg-3 is 20MiB behind the leader, beyond maximum_lag_on_failover
+              description: "A replica's WAL position is more than 16 MiB (maximum_lag_on_failover) behind the leader's for a minute, so Patroni will not promote it. patronictl list shows the replica's lag; check that it receives and replays WAL."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/patroni/#patronireplicanoteligible
 
   - name: a replica with paused replay but a current receive position is not flagged
     interval: 15s
@@ -435,6 +451,8 @@ tests:
           - exp_labels: {severity: warning, obenhub.cluster.name: stage3}
             exp_annotations:
               summary: 'Cluster stage3 is paused: no automatic failover'
+              description: "The cluster has been in maintenance mode (patroni_is_paused 1) for 3 minutes, which disables automatic failover. End it with patronictl resume when the maintenance is done."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/patroni/#patroniclusterpaused
 
   - name: a pause shorter than the window does not fire
     interval: 15s
@@ -471,6 +489,8 @@ tests:
               service.instance.id: pg-2
             exp_annotations:
               summary: pg-2 has a pending restart
+              description: "A PostgreSQL parameter changed on the member that needs a restart to take effect, for 2 minutes. patronictl list shows the member flagged; restart it in a maintenance window."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/patroni/#patronipendingrestart
 
   # --- Patroni scrape absent -------------------------------------------------
   # pg-2's Patroni scrape fails (up 0) from 2 m while its PostgreSQL heartbeat
@@ -510,6 +530,8 @@ tests:
               obenhub.collector: otelcol-stage3
             exp_annotations:
               summary: Patroni on pg-2 is not scraped while PostgreSQL still reports
+              description: "Patroni's REST scrape of a member has not succeeded for 2 minutes while that node's PostgreSQL heartbeat is present: Patroni is down on a node whose PostgreSQL still runs, so no failover logic runs there. Check the Patroni service and its log on the node."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/patroni/#patronitargetabsent
 
   - name: Patroni series absent altogether fires the same way
     interval: 15s
@@ -542,6 +564,8 @@ tests:
               obenhub.collector: otelcol-stage3
             exp_annotations:
               summary: Patroni on pg-2 is not scraped while PostgreSQL still reports
+              description: "Patroni's REST scrape of a member has not succeeded for 2 minutes while that node's PostgreSQL heartbeat is present: Patroni is down on a node whose PostgreSQL still runs, so no failover logic runs there. Check the Patroni service and its log on the node."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/patroni/#patronitargetabsent
 
   - name: a node that is gone entirely is PostgresTargetAbsent's case, not this one
     interval: 15s
@@ -623,6 +647,8 @@ tests:
               service.instance.id: pg-1
             exp_annotations:
               summary: pg-1 runs in failsafe mode, the DCS is unreachable
+              description: "Patroni reports failsafe mode (patroni_failsafe_mode_is_active 1): the DCS is unreachable and the leader keeps running on the failsafe topology. Check the DCS (etcd) and the network to it."
+              runbook_url: https://msavdert.github.io/obenhub/reference/patroni-pack-alerts/#patronifailsafeactive
       - eval_time: 5m   # back to 0
         groupname: patroni
         alertname: PatroniFailsafeActive

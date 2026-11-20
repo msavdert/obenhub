@@ -31,6 +31,8 @@ tests:
           - exp_labels: {severity: critical, obenhub.cluster.name: a}
             exp_annotations:
               summary: Cluster a has no writable primary
+              description: "No member of the cluster reports patroni_primary 1, so the cluster cannot take writes. Check patronictl list and the DCS."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/patroni/#patroninowritableprimary
 
   - name: one primary in each of two clusters with one shared scope is not a split brain
     interval: 15s
@@ -68,6 +70,8 @@ tests:
           - exp_labels: {severity: critical, obenhub.cluster.name: a}
             exp_annotations:
               summary: Cluster a has 2 members reporting primary (split brain)
+              description: "Two or more members of one cluster report patroni_primary 1 within the last 30 seconds, for a minute: split brain. Check patronictl list and the DCS to see which member holds the leader key, then stop the other."
+              runbook_url: https://msavdert.github.io/obenhub/reference/patroni-pack-alerts/#patronimultipleprimaries
 
   - name: two primaries in cluster b fire for b alone
     interval: 15s
@@ -86,6 +90,8 @@ tests:
           - exp_labels: {severity: critical, obenhub.cluster.name: b}
             exp_annotations:
               summary: Cluster b has 2 members reporting primary (split brain)
+              description: "Two or more members of one cluster report patroni_primary 1 within the last 30 seconds, for a minute: split brain. Check patronictl list and the DCS to see which member holds the leader key, then stop the other."
+              runbook_url: https://msavdert.github.io/obenhub/reference/patroni-pack-alerts/#patronimultipleprimaries
 
   - name: a replica is measured against its own cluster's leader, not the other cluster's position
     interval: 15s
@@ -136,6 +142,8 @@ tests:
               service.instance.id: pg-2
             exp_annotations:
               summary: pg-2 is 57.22MiB behind the leader, beyond maximum_lag_on_failover
+              description: "A replica's WAL position is more than 16 MiB (maximum_lag_on_failover) behind the leader's for a minute, so Patroni will not promote it. patronictl list shows the replica's lag; check that it receives and replays WAL."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/patroni/#patronireplicanoteligible
 
   - name: a Patroni target without obenhub.cluster.name fires PatroniClusterNameMissing after 5 m
     interval: 15s
@@ -160,6 +168,8 @@ tests:
               service.instance.id: pg-1
             exp_annotations:
               summary: Patroni on pg-1 reports no obenhub.cluster.name
+              description: "A Patroni scrape carries no obenhub.cluster.name, so the cluster rules count the member nowhere. Fix the resource attribute of the Collector scrape."
+              runbook_url: https://msavdert.github.io/obenhub/reference/patroni-pack-alerts/#patroniclusternamemissing
 
   - name: Patroni targets with a cluster name keep PatroniClusterNameMissing quiet
     interval: 15s

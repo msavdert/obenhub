@@ -43,6 +43,8 @@ tests:
               obenhub.collector: otelcol-slice1
             exp_annotations:
               summary: "No heartbeat from pg-standby"
+              description: "An expected PostgreSQL target has sent no heartbeat (postgresql.collection.heartbeat) for 2 minutes while its Collector is alive. Check that PostgreSQL runs and that the monitoring role can connect."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgrestargetabsent
 
   - name: target absent does not fire when both targets keep reporting
     interval: 15s
@@ -88,6 +90,8 @@ tests:
               obenhub.collector: otelcol-slice1
             exp_annotations:
               summary: "No heartbeat from pg-standby"
+              description: "An expected PostgreSQL target has sent no heartbeat (postgresql.collection.heartbeat) for 2 minutes while its Collector is alive. Check that PostgreSQL runs and that the monitoring role can connect."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgrestargetabsent
 
   - name: target absent fires for the stopped subscriber only
     interval: 15s
@@ -116,6 +120,8 @@ tests:
               obenhub.collector: otelcol-slice1
             exp_annotations:
               summary: "No heartbeat from pg-subscriber"
+              description: "An expected PostgreSQL target has sent no heartbeat (postgresql.collection.heartbeat) for 2 minutes while its Collector is alive. Check that PostgreSQL runs and that the monitoring role can connect."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgrestargetabsent
 
   - name: a stopped Collector raises only CollectorAbsent
     interval: 15s
@@ -217,3 +223,5 @@ tests:
               obenhub.collector: otelcol-slice1
             exp_annotations:
               summary: "No heartbeat from pgbouncer"
+              description: "An expected PgBouncer target has sent no heartbeat (the SHOW LISTS row databases) for 2 minutes while its Collector is alive. Check that PgBouncer runs and that the stats user can reach the console."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/pgbouncer/#pgbouncertargetabsent

@@ -37,6 +37,8 @@ tests:
               service.instance.id: pg-1
             exp_annotations:
               summary: 'Patroni pg-1 is collected every 60 s, the rules assume 15 s'
+              description: "Patroni is scraped less often than every 15 s (average spacing above 20 s over 5 minutes), while the rules size their windows for 15 s, so they go quiet or flap. Set the scrape interval back to 15 s."
+              runbook_url: https://msavdert.github.io/obenhub/reference/patroni-pack-alerts/#patronicollectionintervaltoolong
 
   - name: collected every 15 s with one missed sample, quiet
     interval: 15s
@@ -73,6 +75,8 @@ tests:
               service.instance.id: pg-1
             exp_annotations:
               summary: 'Patroni pg-1 is collected every 30 s, the rules assume 15 s'
+              description: "Patroni is scraped less often than every 15 s (average spacing above 20 s over 5 minutes), while the rules size their windows for 15 s, so they go quiet or flap. Set the scrape interval back to 15 s."
+              runbook_url: https://msavdert.github.io/obenhub/reference/patroni-pack-alerts/#patronicollectionintervaltoolong
 
   - name: collected every 20 s (the threshold), quiet
     interval: 20s

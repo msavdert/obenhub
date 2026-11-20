@@ -53,6 +53,8 @@ tests:
               oracledb.backup.kind: database
             exp_annotations:
               summary: 'No completed RMAN database backup of CDB19 for 95400 s'
+              description: "The newest completed RMAN job of a kind (database or archivelog) is older than the tolerated age (obenhub.backup_age.limit, 26 h by default). Check V$RMAN_BACKUP_JOB_DETAILS and the scheduler that runs the backups."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/oracledb-backup/#oraclebackupstale
 
   - name: archived log backup older than 5 h fires, the database backup does not
     interval: 1m
@@ -78,6 +80,8 @@ tests:
               oracledb.backup.kind: archivelog
             exp_annotations:
               summary: 'No completed RMAN archivelog backup of CDB19 for 19200 s'
+              description: "The newest completed RMAN job of a kind (database or archivelog) is older than the tolerated age (obenhub.backup_age.limit, 26 h by default). Check V$RMAN_BACKUP_JOB_DETAILS and the scheduler that runs the backups."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/oracledb-backup/#oraclebackupstale
 
   - name: a new backup clears the stale alert
     interval: 1m
@@ -96,6 +100,8 @@ tests:
               oracledb.backup.kind: archivelog
             exp_annotations:
               summary: 'No completed RMAN archivelog backup of CDB19 for 19500 s'
+              description: "The newest completed RMAN job of a kind (database or archivelog) is older than the tolerated age (obenhub.backup_age.limit, 26 h by default). Check V$RMAN_BACKUP_JOB_DETAILS and the scheduler that runs the backups."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/oracledb-backup/#oraclebackupstale
       - eval_time: 30m
         groupname: oracledb-backup
         alertname: OracleBackupStale
@@ -124,6 +130,8 @@ tests:
               oracledb.backup.kind: archivelog
             exp_annotations:
               summary: 'The last RMAN archivelog backup of CDB19 failed'
+              description: "The most recent finished RMAN job of a kind failed and no later job of that kind has succeeded. Check V$RMAN_BACKUP_JOB_DETAILS for the status and the RMAN log of that job."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/oracledb-backup/#oraclebackupfailed
       - eval_time: 30m
         groupname: oracledb-backup
         alertname: OracleBackupFailed
@@ -153,6 +161,8 @@ tests:
               oracledb.backup.kind: database
             exp_annotations:
               summary: 'The last RMAN database backup of CDB19 failed'
+              description: "The most recent finished RMAN job of a kind failed and no later job of that kind has succeeded. Check V$RMAN_BACKUP_JOB_DETAILS for the status and the RMAN log of that job."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/oracledb-backup/#oraclebackupfailed
           - exp_labels:
               obenhub.cluster.name: cdb19
               severity: critical
@@ -160,6 +170,8 @@ tests:
               oracledb.backup.kind: archivelog
             exp_annotations:
               summary: 'The last RMAN archivelog backup of CDB19 failed'
+              description: "The most recent finished RMAN job of a kind failed and no later job of that kind has succeeded. Check V$RMAN_BACKUP_JOB_DETAILS for the status and the RMAN log of that job."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/oracledb-backup/#oraclebackupfailed
       - eval_time: 30m
         groupname: oracledb-backup
         alertname: OracleBackupFailed
@@ -171,6 +183,8 @@ tests:
               oracledb.backup.kind: database
             exp_annotations:
               summary: 'The last RMAN database backup of CDB19 failed'
+              description: "The most recent finished RMAN job of a kind failed and no later job of that kind has succeeded. Check V$RMAN_BACKUP_JOB_DETAILS for the status and the RMAN log of that job."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/oracledb-backup/#oraclebackupfailed
 
   - name: a standby reports no backup series, so nothing fires (only its heartbeat exists)
     interval: 1m
@@ -216,6 +230,8 @@ tests:
               oracledb.database.unique_name: CDB19
             exp_annotations:
               summary: 'Primary CDB19 has no completed RMAN database backup on record'
+              description: "A database that is primary according to the Data Guard pack has no completed database backup series for 30 minutes. This is expected on a fresh or newly promoted primary until its first backup; otherwise check the backup job on this site."
+              runbook_url: https://msavdert.github.io/obenhub/reference/oracledb-backup-pack-alerts/#oraclebackupmissing
 
   - name: a first database backup clears the missing alert, an archivelog series alone does not
     interval: 1m
@@ -238,6 +254,8 @@ tests:
               oracledb.database.unique_name: CDB19
             exp_annotations:
               summary: 'Primary CDB19 has no completed RMAN database backup on record'
+              description: "A database that is primary according to the Data Guard pack has no completed database backup series for 30 minutes. This is expected on a fresh or newly promoted primary until its first backup; otherwise check the backup job on this site."
+              runbook_url: https://msavdert.github.io/obenhub/reference/oracledb-backup-pack-alerts/#oraclebackupmissing
       - eval_time: 50m
         groupname: oracledb-backup
         alertname: OracleBackupMissing
@@ -267,6 +285,8 @@ tests:
               oracledb.database.unique_name: CDB19_STBY
             exp_annotations:
               summary: 'Primary CDB19_STBY has no completed RMAN database backup on record'
+              description: "A database that is primary according to the Data Guard pack has no completed database backup series for 30 minutes. This is expected on a fresh or newly promoted primary until its first backup; otherwise check the backup job on this site."
+              runbook_url: https://msavdert.github.io/obenhub/reference/oracledb-backup-pack-alerts/#oraclebackupmissing
 
   - name: recovery area above 85% of what cannot be reclaimed fires after 10m, reclaimable space does not count
     interval: 1m
@@ -301,6 +321,8 @@ tests:
               oracledb.database.unique_name: CDB19_STBY
             exp_annotations:
               summary: 'Recovery area of CDB19_STBY is 95% full of space that cannot be reclaimed'
+              description: "More than 85 % of the recovery area is in use after counting reclaimable space as free, for 10 minutes. A full area stops archiving on the primary and redo apply on the standby; check what holds the space and the retention policy."
+              runbook_url: https://msavdert.github.io/obenhub/reference/oracledb-backup-pack-alerts/#oraclerecoveryareafull
 
   - name: recovery area limit lowered under the usage fires after 10m (archiver-stuck scenario)
     interval: 1m
@@ -330,6 +352,8 @@ tests:
               oracledb.database.unique_name: CDB19
             exp_annotations:
               summary: 'Recovery area of CDB19 is 173.9% full of space that cannot be reclaimed'
+              description: "More than 85 % of the recovery area is in use after counting reclaimable space as free, for 10 minutes. A full area stops archiving on the primary and redo apply on the standby; check what holds the space and the retention policy."
+              runbook_url: https://msavdert.github.io/obenhub/reference/oracledb-backup-pack-alerts/#oraclerecoveryareafull
 
   - name: a backup series of another cluster with the same unique_name does not clear the missing alert
     interval: 1m
@@ -351,6 +375,8 @@ tests:
               oracledb.database.unique_name: CDB19
             exp_annotations:
               summary: 'Primary CDB19 has no completed RMAN database backup on record'
+              description: "A database that is primary according to the Data Guard pack has no completed database backup series for 30 minutes. This is expected on a fresh or newly promoted primary until its first backup; otherwise check the backup job on this site."
+              runbook_url: https://msavdert.github.io/obenhub/reference/oracledb-backup-pack-alerts/#oraclebackupmissing
 
   - name: a backup series without obenhub.cluster.name fires OracleBackupClusterNameMissing after 5 m
     interval: 1m
@@ -375,6 +401,8 @@ tests:
               oracledb.backup.kind: database
             exp_annotations:
               summary: RMAN backup series of CDB19 carry no obenhub.cluster.name
+              description: "An RMAN backup series carries no obenhub.cluster.name, so OracleBackupMissing cannot join it to the Data Guard role. Fix the resource attribute of the Collector."
+              runbook_url: https://msavdert.github.io/obenhub/reference/oracledb-backup-pack-alerts/#oraclebackupclusternamemissing
 
   - name: backup series with a cluster name keep OracleBackupClusterNameMissing quiet
     interval: 1m

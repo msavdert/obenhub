@@ -43,6 +43,8 @@ groups:
           severity: warning
         annotations:
           summary: 'A replica of cluster {{ (index $labels "obenhub.cluster.name") }} ({{ (index $labels "k8s.namespace.name") }}) was promoted'
+          description: "A member that is now writable (postgresql.recovery.active 0) was in recovery within the last 3 minutes: a replica was promoted, by switchover or failover; the signal cannot tell them apart. Check the Kubernetes events of the Cluster's namespace for what promoted the member (VictoriaLogs, object.reason)."
+          runbook_url: https://msavdert.github.io/obenhub/runbooks/cnpg/#cnpgprimarychanged
 
       # An instance whose exporter series carry no obenhub.cluster.name (ADR
       # 0006, decision 7). CNPGPrimaryChanged groups on it, so the instance would
@@ -56,6 +58,8 @@ groups:
           severity: warning
         annotations:
           summary: '{{ (index $labels "service.instance.id") }} ({{ (index $labels "k8s.namespace.name") }}) reports no obenhub.cluster.name'
+          description: "The instance's CloudNativePG exporter series carry no obenhub.cluster.name, so the cluster rules would group it under an empty name. Fix the resource attribute of the Collector that scrapes the pod."
+          runbook_url: https://msavdert.github.io/obenhub/reference/cnpg-pack-alerts/#cnpgclusternamemissing
 
       # An instance whose exporter reports cnpg_collector_fencing_on == 1 for a
       # minute: the instance is fenced (annotation cnpg.io/fencedInstances on
@@ -87,3 +91,5 @@ groups:
           severity: warning
         annotations:
           summary: 'Instance {{ (index $labels "service.instance.id") }} of cluster {{ (index $labels "obenhub.cluster.name") }} ({{ (index $labels "k8s.namespace.name") }}) is fenced'
+          description: "CloudNativePG reports the instance fenced (cnpg_collector_fencing_on 1) for a minute: the operator stopped PostgreSQL in the pod, which stays Running but not ready. Check the cnpg.io/fencedInstances annotation on the Cluster."
+          runbook_url: https://msavdert.github.io/obenhub/runbooks/cnpg/#cnpginstancefenced

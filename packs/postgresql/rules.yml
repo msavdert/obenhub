@@ -35,6 +35,8 @@ groups:
           severity: critical
         annotations:
           summary: 'No heartbeat from {{ (index $labels "service.instance.id") }}'
+          description: "An expected PostgreSQL target has sent no heartbeat (postgresql.collection.heartbeat) for 2 minutes while its Collector is alive. Check that PostgreSQL runs and that the monitoring role can connect."
+          runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgrestargetabsent
 
       # A target without obenhub.cluster.name (ADR 0006, decision 7). Every
       # join of this pack matches on it, so such a target would pair with
@@ -47,6 +49,8 @@ groups:
           severity: warning
         annotations:
           summary: '{{ (index $labels "service.instance.id") }} reports no obenhub.cluster.name'
+          description: "A PostgreSQL target carries no obenhub.cluster.name, so every join of the pack pairs it with nothing and PostgresTargetAbsent fires against its inventory entry. Fix the resource attribute of the Collector."
+          runbook_url: https://msavdert.github.io/obenhub/reference/postgresql-pack-alerts/#postgresclusternamemissing
 
       # The rules of this pack size their windows for a collection every 15 s
       # (README, "Collection interval"): [30s] holds two collections, the
@@ -68,6 +72,8 @@ groups:
           severity: warning
         annotations:
           summary: 'PostgreSQL {{ (index $labels "service.instance.id") }} is collected every {{ $value | printf "%.0f" }} s, the rules assume 15 s'
+          description: "The target is collected less often than every 15 s (average spacing above 20 s over 5 minutes), while the rules size their windows for 15 s, so they go quiet or flap. Set the collection interval back to 15 s."
+          runbook_url: https://msavdert.github.io/obenhub/reference/postgresql-pack-alerts/#postgrescollectionintervaltoolong
 
       - alert: PostgresStandbyNotStreaming
         # Not while no PostgreSQL of the same cluster is writable: then every
@@ -94,6 +100,8 @@ groups:
           severity: critical
         annotations:
           summary: '{{ (index $labels "service.instance.id") }} is in recovery and not streaming'
+          description: "A standby is in recovery with no WAL receiver streaming for a minute, while another member of the cluster is writable. Query pg_stat_wal_receiver on the standby and pg_stat_replication on the primary."
+          runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgresstandbynotstreaming
 
       # Fewer standbys listed as sync or quorum by pg_stat_replication than
       # synchronous_standby_names requires (FIRST n, ANY n, n, a plain list or
@@ -116,6 +124,8 @@ groups:
           severity: critical
         annotations:
           summary: '{{ (index $labels "service.instance.id") }} has fewer synchronous standbys than synchronous_standby_names requires: commits wait'
+          description: "The primary lists fewer synchronous standbys in pg_stat_replication than synchronous_standby_names requires, for a minute; commits wait for a standby. Check which standby dropped out of pg_stat_replication."
+          runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgressynchronousstandbymissing
 
       - alert: PostgresReplayBacklog
         expr: |
@@ -127,6 +137,8 @@ groups:
           severity: warning
         annotations:
           summary: '{{ (index $labels "service.instance.id") }} replay backlog is {{ $value | humanize1024 }}B'
+          description: "A standby has received more than 16 MiB of WAL it has not replayed, for a minute. Check pg_get_wal_replay_pause_state() on the standby."
+          runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgresreplaybacklog
 
       - alert: PostgresSnapshotHeldTooLong
         expr: postgresql.snapshot.oldest_age > 120
@@ -135,6 +147,8 @@ groups:
           severity: warning
         annotations:
           summary: 'A snapshot on {{ (index $labels "service.instance.id") }} is {{ $value | humanizeDuration }} old (lab threshold)'
+          description: "A snapshot on the instance is older than 120 seconds for 30 seconds (lab threshold), which holds back the xmin horizon. Look for the oldest transaction in pg_stat_activity by xact_start and backend_xmin."
+          runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgressnapshotheldtoolong
 
       # The xmin horizon held without a client transaction to blame: a replication
       # slot (xmin, catalog_xmin), standby feedback (a walsender's backend_xmin)
@@ -161,6 +175,8 @@ groups:
           severity: warning
         annotations:
           summary: 'The xmin horizon on {{ (index $labels "service.instance.id") }} is {{ $value | humanize }} transactions old with no client snapshot over 120 s: check replication slots, standby feedback and prepared transactions (assumed threshold)'
+          description: "The xmin horizon is more than 10 million transactions old for 5 minutes with no client snapshot over 120 s to explain it, so something else pins old row versions. Check pg_replication_slots (xmin, catalog_xmin), pg_stat_replication (backend_xmin) and pg_prepared_xacts."
+          runbook_url: https://msavdert.github.io/obenhub/reference/postgresql-pack-alerts/#postgresxminhorizonheld
 
       # Two tiers share one alertname and differ in severity, with no `for` and so
       # no pending state: the old `for` became a window inside the expression.
@@ -202,6 +218,8 @@ groups:
           severity: warning
         annotations:
           summary: '{{ (index $labels "service.instance.id") }} client connections above 85% of capacity'
+          description: "Client connections are above 85 % of the connection limit (critical at 95 %), as the lowest value over the last 75 seconds. Count sessions in pg_stat_activity by state and application to find who holds them."
+          runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgresconnectionsaturation
 
       - alert: PostgresConnectionSaturation
         expr: |
@@ -217,6 +235,8 @@ groups:
           severity: critical
         annotations:
           summary: '{{ (index $labels "service.instance.id") }} client connections at or above 95% of capacity'
+          description: "Client connections are above 85 % of the connection limit (critical at 95 %), as the lowest value over the last 75 seconds. Count sessions in pg_stat_activity by state and application to find who holds them."
+          runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgresconnectionsaturation
 
       # Wraparound: age as a fraction of 2^31 (2147483648), the point where
       # PostgreSQL stops accepting commands. 50 % and 75 % are pgMonitor's
@@ -245,6 +265,8 @@ groups:
           severity: warning
         annotations:
           summary: '{{ $labels.kind }} age of {{ (index $labels "postgresql.database.name") }} on {{ (index $labels "service.instance.id") }} is {{ $value | humanizePercentage }} of the wraparound limit'
+          description: "The age of a database's datfrozenxid (kind xid) or datminmxid (kind mxid) is above 50 % of the wraparound limit 2^31 (critical above 75 %). Check pg_database for the database and whether autovacuum freezing can progress."
+          runbook_url: https://msavdert.github.io/obenhub/reference/postgresql-pack-alerts/#postgrestransactionidwraparound
 
       - alert: PostgresTransactionIdWraparound
         expr: |
@@ -262,6 +284,8 @@ groups:
           severity: critical
         annotations:
           summary: '{{ $labels.kind }} age of {{ (index $labels "postgresql.database.name") }} on {{ (index $labels "service.instance.id") }} is {{ $value | humanizePercentage }} of the wraparound limit'
+          description: "The age of a database's datfrozenxid (kind xid) or datminmxid (kind mxid) is above 50 % of the wraparound limit 2^31 (critical above 75 %). Check pg_database for the database and whether autovacuum freezing can progress."
+          runbook_url: https://msavdert.github.io/obenhub/reference/postgresql-pack-alerts/#postgrestransactionidwraparound
 
       # Idle in a transaction is a session that stopped talking, not a long
       # statement: postgresql.transaction.idle_age counts from the moment it
@@ -281,6 +305,8 @@ groups:
           severity: warning
         annotations:
           summary: 'A session on {{ (index $labels "service.instance.id") }} has been idle in a transaction for {{ $value | humanizeDuration }} (lab threshold)'
+          description: "A session has been idle in a transaction for more than 60 seconds (critical over 180 s; lab thresholds). Find it in pg_stat_activity where state is idle in transaction, ordered by state_change."
+          runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgresidleintransaction
 
       - alert: PostgresIdleInTransaction
         expr: |
@@ -293,6 +319,8 @@ groups:
           severity: critical
         annotations:
           summary: 'A session on {{ (index $labels "service.instance.id") }} has been idle in a transaction for {{ $value | humanizeDuration }} (lab threshold)'
+          description: "A session has been idle in a transaction for more than 60 seconds (critical over 180 s; lab thresholds). Find it in pg_stat_activity where state is idle in transaction, ordered by state_change."
+          runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgresidleintransaction
 
       # The oldest lock wait. Lab threshold; one tier, because a wait is a
       # symptom whose cause (the blocker) the pack does not name.
@@ -303,6 +331,8 @@ groups:
           severity: warning
         annotations:
           summary: 'A session on {{ (index $labels "service.instance.id") }} has waited {{ $value | humanizeDuration }} for a lock (lab threshold)'
+          description: "A session has waited more than 30 seconds for a lock (lab threshold). Join pg_locks with pg_stat_activity or call pg_blocking_pids() to find the blocker."
+          runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgresblockedsessions
 
       # postgresql.deadlocks is postgresqlreceiver's optional metric (enabled in
       # both labs' Collector configs) and only covers the databases listed in
@@ -321,6 +351,8 @@ groups:
           severity: warning
         annotations:
           summary: '{{ $value | printf "%.0f" }} deadlock(s) in {{ (index $labels "postgresql.database.name") }} on {{ (index $labels "service.instance.id") }} in the last 5 minutes'
+          description: "The deadlock counter of a database rose within the last 5 minutes. PostgreSQL resolves a deadlock by aborting one session, so this is evidence, not an outage; pg_stat_database.deadlocks shows which database and the PostgreSQL log has the details."
+          runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgresdeadlocks
 
       # Requested checkpoints (pg_stat_checkpointer.num_requested on
       # PostgreSQL 17+, read by postgresqlreceiver as
@@ -347,6 +379,8 @@ groups:
           severity: warning
         annotations:
           summary: '{{ (index $labels "service.instance.id") }} had {{ $value | printf "%.0f" }} requested checkpoints in 5 minutes (lab threshold)'
+          description: "More than 3 requested checkpoints in 5 minutes on a primary (lab threshold). Usually WAL reached max_wal_size before checkpoint_timeout, but CHECKPOINT, CREATE DATABASE, base backups, promotion and shutdown also request one. Check pg_stat_checkpointer, max_wal_size against the WAL volume and what writes it."
+          runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgrescheckpointsrequested
 
       # A physical slot without a consumer keeps WAL until
       # max_slot_wal_keep_size. Primary only: Patroni keeps member slots on
@@ -367,6 +401,8 @@ groups:
           severity: warning
         annotations:
           summary: 'Physical slot {{ (index $labels "postgresql.replication_slot.name") }} on {{ (index $labels "service.instance.id") }} has been inactive for {{ $value | humanizeDuration }} (lab threshold)'
+          description: "A physical replication slot on the primary has had no consumer for more than 120 seconds and is not invalidated, so it keeps WAL. Check pg_replication_slots and whether its standby is still connected."
+          runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgresphysicalslotinactive
 
       # Any slot, physical or logical, on any node. Lab scenario slot-invalidated (slice1): an
       # unused physical slot falls more than max_slot_wal_keep_size behind and
@@ -378,6 +414,8 @@ groups:
           severity: critical
         annotations:
           summary: 'Slot {{ (index $labels "postgresql.replication_slot.name") }} on {{ (index $labels "service.instance.id") }} is invalidated ({{ (index $labels "postgresql.replication_slot.invalidation_reason") }})'
+          description: "A replication slot is invalidated for 30 seconds; the invalidation reason is in the alert. The slot no longer retains WAL. Check pg_replication_slots (wal_status, invalidation_reason) and the consumer that depended on it."
+          runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgresreplicationslotinvalidated
 
       # A slot, valid and not yet invalidated, that holds back more than
       # 512 MiB of WAL on a primary: the volume is filling. Fires per slot,
@@ -420,6 +458,8 @@ groups:
           severity: warning
         annotations:
           summary: 'Slot {{ (index $labels "postgresql.replication_slot.name") }} on {{ (index $labels "service.instance.id") }} retains {{ $value | humanize1024 }}B of WAL (lab threshold)'
+          description: "A valid slot on a primary holds back more than 512 MiB of WAL for 2 minutes (lab threshold), so the volume is filling. Check pg_replication_slots (retained WAL, active) and bring the consumer back or drop the slot."
+          runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgresreplicationslotretainingwal
 
       # WAL archiving, two alerts that fail differently (PostgreSQL 18 docs,
       # 25.3.1 Setting Up WAL Archiving). PostgresArchivingFailing reads
@@ -443,6 +483,8 @@ groups:
           severity: warning
         annotations:
           summary: 'WAL archiving on {{ (index $labels "service.instance.id") }} is failing: the last attempt failed and no attempt has succeeded since'
+          description: "The archive_command ran and failed, and the last failure is newer than the last success, for a minute. Check pg_stat_archiver (last_failed_wal, last_failed_time) and the PostgreSQL log for the command's error."
+          runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgresarchivingfailing
 
       - alert: PostgresArchiveBacklog
         expr: postgresql.archiver.ready_file.count > 8
@@ -451,6 +493,8 @@ groups:
           severity: warning
         annotations:
           summary: '{{ $value | printf "%.0f" }} WAL files on {{ (index $labels "service.instance.id") }} are waiting for the archiver (lab threshold)'
+          description: "More than 8 WAL segments wait with a .ready file in pg_wal/archive_status for 2 minutes (lab threshold); they stay in pg_wal until archived and can fill the disk. Check pg_stat_archiver and the archive_command."
+          runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgresarchivebacklog
 
       # The two metric lists below must equal queries.yaml (less the exclusions
       # listed in the script): scripts/check-series-vanished.py, mise run
@@ -480,6 +524,8 @@ groups:
           severity: warning
         annotations:
           summary: '{{ $labels.metric }} vanished on {{ (index $labels "service.instance.id") }}'
+          description: "A metric of the pack that was present in the last hour has disappeared on an instance whose heartbeat is still present; the metric name is in the alert. Look for ERROR lines of the monitoring role in the PostgreSQL log and for failing queries in the Collector log."
+          runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgresseriesvanished
 
       # Two or more instances of one cluster are writable at the same time
       # (postgresql.recovery.active == 0): two primaries, split brain. This
@@ -524,6 +570,8 @@ groups:
           severity: critical
         annotations:
           summary: 'Cluster {{ (index $labels "obenhub.cluster.name") }} has {{ $value }} writable instances (split brain)'
+          description: "Two or more instances of one cluster are writable (postgresql.recovery.active 0) at the same time for 60 seconds: split brain, independent of any cluster manager. Check pg_is_in_recovery() on every member and stop one."
+          runbook_url: https://msavdert.github.io/obenhub/reference/postgresql-pack-alerts/#postgresmultipleprimaries
 
   # Logical replication. The series come from the subscription and
   # replication-slot queries of queries.yaml, which return a row only per
@@ -558,6 +606,8 @@ groups:
           severity: critical
         annotations:
           summary: 'Subscription {{ (index $labels "postgresql.subscription.name") }} on {{ (index $labels "service.instance.id") }} has apply or sync errors'
+          description: "A logical subscription raised its apply or sync error counter by 2 or more within 3 minutes: the apply worker keeps failing on a change. Check pg_stat_subscription_stats and the subscriber's PostgreSQL log for the conflicting row."
+          runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgreslogicalapplyerrors
 
       # An enabled subscription that is not receiving, by either branch:
       # - the apply worker is absent for most of 1 m (avg_over_time < 0.5; the
@@ -597,6 +647,8 @@ groups:
           severity: critical
         annotations:
           summary: 'Subscription {{ (index $labels "postgresql.subscription.name") }} on {{ (index $labels "service.instance.id") }} is enabled but not receiving'
+          description: "An enabled subscription has had no apply worker for most of a minute, or no message for over 60 seconds, without errors that PostgresLogicalApplyErrors would own. Check pg_stat_subscription on the subscriber and the connection to the publisher."
+          runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgreslogicalsubscriptionnotstreaming
 
       # On the publisher. Inactive for 3 m (a subscriber restart or a worker
       # restart loop resets inactive_age and does not match), or more than
@@ -620,3 +672,5 @@ groups:
           severity: warning
         annotations:
           summary: 'Logical slot {{ (index $labels "postgresql.replication_slot.name") }} on {{ (index $labels "service.instance.id") }} is inactive or far behind and retains WAL'
+          description: "A logical slot on the publisher has been inactive for over 180 seconds, or has more than 128 MiB of WAL unconfirmed, for a minute. Check pg_replication_slots and the state of the subscriber that reads it."
+          runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgreslogicalslotstalled

@@ -34,6 +34,8 @@ groups:
           severity: warning
         annotations:
           summary: 'Less than 10 % of {{ (index $labels "mountpoint") }} is free on {{ (index $labels "host.name") }}'
+          description: "Under 10 % of a mounted ext4, xfs or btrfs filesystem is free for 2 minutes (system.filesystem.usage). Find what grows under the mount point named in the alert, for a PostgreSQL host start with the data and WAL directories."
+          runbook_url: https://msavdert.github.io/obenhub/runbooks/host/#hostfilesystemspacelow
 
       # MemAvailable (the kernel's estimate of memory a new workload can get
       # without swapping) as a share of MemTotal, per host. Not based on
@@ -51,6 +53,8 @@ groups:
           severity: warning
         annotations:
           summary: 'Less than 10 % of memory is available on {{ (index $labels "host.name") }}'
+          description: "MemAvailable (system.linux.memory.available) is under 10 % of the host's memory for 2 minutes. Read MemAvailable and MemTotal in /proc/meminfo, then look for the process that grew."
+          runbook_url: https://msavdert.github.io/obenhub/runbooks/host/#hostmemoryavailablelow
 
       # The host booted less than 5 m ago: a reset of any kind (watchdog, power,
       # operator). No "for": system.uptime is a continuous series; the expression
@@ -67,3 +71,5 @@ groups:
           severity: warning
         annotations:
           summary: '{{ (index $labels "host.name") }} booted {{ $value | humanizeDuration }} ago'
+          description: "system.uptime of the host is under 5 minutes: it booted just now, whatever the reason (watchdog, power, operator). Check the host's boot log for the cause and the services that did not come back."
+          runbook_url: https://msavdert.github.io/obenhub/runbooks/host/#hostrebooted

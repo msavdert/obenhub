@@ -185,6 +185,8 @@ tests:
               obenhub.upstream: otelcol-gateway
             exp_annotations:
               summary: Collector otelcol-pgha-2 reports no self-metrics
+              description: "An expected Collector (obenhub.expected_collector) has sent no self-metrics (otelcol_process_uptime) for 2 minutes, so nothing it collects is seen. Check whether the Collector process or container is running, and its upstream gateway if it sends through one."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/collector/#collectorabsent
       - eval_time: 5m
         groupname: postgresql
         alertname: PostgresTargetAbsent
@@ -216,6 +218,8 @@ tests:
               obenhub.upstream: otelcol-gateway
             exp_annotations:
               summary: Collector otelcol-pgha-2 reports no self-metrics
+              description: "An expected Collector (obenhub.expected_collector) has sent no self-metrics (otelcol_process_uptime) for 2 minutes, so nothing it collects is seen. Check whether the Collector process or container is running, and its upstream gateway if it sends through one."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/collector/#collectorabsent
       - eval_time: 5m30s
         groupname: postgresql
         alertname: PostgresTargetAbsent
@@ -247,6 +251,8 @@ tests:
               obenhub.upstream: otelcol-gateway
             exp_annotations:
               summary: Collector otelcol-pgha-2 reports no self-metrics
+              description: "An expected Collector (obenhub.expected_collector) has sent no self-metrics (otelcol_process_uptime) for 2 minutes, so nothing it collects is seen. Check whether the Collector process or container is running, and its upstream gateway if it sends through one."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/collector/#collectorabsent
       - eval_time: 6m
         groupname: postgresql
         alertname: PostgresTargetAbsent
@@ -278,6 +284,8 @@ tests:
               obenhub.upstream: otelcol-gateway
             exp_annotations:
               summary: Collector otelcol-pgha-2 reports no self-metrics
+              description: "An expected Collector (obenhub.expected_collector) has sent no self-metrics (otelcol_process_uptime) for 2 minutes, so nothing it collects is seen. Check whether the Collector process or container is running, and its upstream gateway if it sends through one."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/collector/#collectorabsent
       - eval_time: 6m30s
         groupname: postgresql
         alertname: PostgresTargetAbsent
@@ -309,6 +317,8 @@ tests:
               obenhub.upstream: otelcol-gateway
             exp_annotations:
               summary: Collector otelcol-pgha-2 reports no self-metrics
+              description: "An expected Collector (obenhub.expected_collector) has sent no self-metrics (otelcol_process_uptime) for 2 minutes, so nothing it collects is seen. Check whether the Collector process or container is running, and its upstream gateway if it sends through one."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/collector/#collectorabsent
       - eval_time: 7m
         groupname: postgresql
         alertname: PostgresTargetAbsent
@@ -496,6 +506,8 @@ tests:
               service.instance.id: otelcol-gateway
             exp_annotations:
               summary: Collector otelcol-gateway reports no self-metrics
+              description: "An expected Collector (obenhub.expected_collector) has sent no self-metrics (otelcol_process_uptime) for 2 minutes, so nothing it collects is seen. Check whether the Collector process or container is running, and its upstream gateway if it sends through one."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/collector/#collectorabsent
       - eval_time: 5m
         groupname: postgresql
         alertname: PostgresTargetAbsent
@@ -526,6 +538,8 @@ tests:
               service.instance.id: otelcol-gateway
             exp_annotations:
               summary: Collector otelcol-gateway reports no self-metrics
+              description: "An expected Collector (obenhub.expected_collector) has sent no self-metrics (otelcol_process_uptime) for 2 minutes, so nothing it collects is seen. Check whether the Collector process or container is running, and its upstream gateway if it sends through one."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/collector/#collectorabsent
       - eval_time: 5m30s
         groupname: postgresql
         alertname: PostgresTargetAbsent
@@ -556,6 +570,8 @@ tests:
               service.instance.id: otelcol-gateway
             exp_annotations:
               summary: Collector otelcol-gateway reports no self-metrics
+              description: "An expected Collector (obenhub.expected_collector) has sent no self-metrics (otelcol_process_uptime) for 2 minutes, so nothing it collects is seen. Check whether the Collector process or container is running, and its upstream gateway if it sends through one."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/collector/#collectorabsent
       - eval_time: 6m
         groupname: postgresql
         alertname: PostgresTargetAbsent
@@ -586,6 +602,8 @@ tests:
               service.instance.id: otelcol-gateway
             exp_annotations:
               summary: Collector otelcol-gateway reports no self-metrics
+              description: "An expected Collector (obenhub.expected_collector) has sent no self-metrics (otelcol_process_uptime) for 2 minutes, so nothing it collects is seen. Check whether the Collector process or container is running, and its upstream gateway if it sends through one."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/collector/#collectorabsent
       - eval_time: 6m30s
         groupname: postgresql
         alertname: PostgresTargetAbsent
@@ -616,6 +634,8 @@ tests:
               service.instance.id: otelcol-gateway
             exp_annotations:
               summary: Collector otelcol-gateway reports no self-metrics
+              description: "An expected Collector (obenhub.expected_collector) has sent no self-metrics (otelcol_process_uptime) for 2 minutes, so nothing it collects is seen. Check whether the Collector process or container is running, and its upstream gateway if it sends through one."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/collector/#collectorabsent
       - eval_time: 7m
         groupname: postgresql
         alertname: PostgresTargetAbsent
@@ -804,6 +824,8 @@ tests:
               obenhub.upstream: otelcol-gateway
             exp_annotations:
               summary: Collector otelcol-pgha-1 reports no self-metrics
+              description: "An expected Collector (obenhub.expected_collector) has sent no self-metrics (otelcol_process_uptime) for 2 minutes, so nothing it collects is seen. Check whether the Collector process or container is running, and its upstream gateway if it sends through one."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/collector/#collectorabsent
           - exp_labels:
               severity: critical
               service.namespace: obenhub-lab
@@ -811,6 +833,8 @@ tests:
               obenhub.upstream: otelcol-gateway
             exp_annotations:
               summary: Collector otelcol-pgha-3 reports no self-metrics
+              description: "An expected Collector (obenhub.expected_collector) has sent no self-metrics (otelcol_process_uptime) for 2 minutes, so nothing it collects is seen. Check whether the Collector process or container is running, and its upstream gateway if it sends through one."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/collector/#collectorabsent
       - eval_time: 5m
         groupname: postgresql
         alertname: PostgresTargetAbsent
@@ -842,6 +866,8 @@ tests:
               obenhub.upstream: otelcol-gateway
             exp_annotations:
               summary: Collector otelcol-pgha-1 reports no self-metrics
+              description: "An expected Collector (obenhub.expected_collector) has sent no self-metrics (otelcol_process_uptime) for 2 minutes, so nothing it collects is seen. Check whether the Collector process or container is running, and its upstream gateway if it sends through one."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/collector/#collectorabsent
           - exp_labels:
               severity: critical
               service.namespace: obenhub-lab
@@ -849,6 +875,8 @@ tests:
               obenhub.upstream: otelcol-gateway
             exp_annotations:
               summary: Collector otelcol-pgha-3 reports no self-metrics
+              description: "An expected Collector (obenhub.expected_collector) has sent no self-metrics (otelcol_process_uptime) for 2 minutes, so nothing it collects is seen. Check whether the Collector process or container is running, and its upstream gateway if it sends through one."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/collector/#collectorabsent
       - eval_time: 5m30s
         groupname: postgresql
         alertname: PostgresTargetAbsent
@@ -880,6 +908,8 @@ tests:
               obenhub.upstream: otelcol-gateway
             exp_annotations:
               summary: Collector otelcol-pgha-1 reports no self-metrics
+              description: "An expected Collector (obenhub.expected_collector) has sent no self-metrics (otelcol_process_uptime) for 2 minutes, so nothing it collects is seen. Check whether the Collector process or container is running, and its upstream gateway if it sends through one."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/collector/#collectorabsent
           - exp_labels:
               severity: critical
               service.namespace: obenhub-lab
@@ -887,6 +917,8 @@ tests:
               obenhub.upstream: otelcol-gateway
             exp_annotations:
               summary: Collector otelcol-pgha-3 reports no self-metrics
+              description: "An expected Collector (obenhub.expected_collector) has sent no self-metrics (otelcol_process_uptime) for 2 minutes, so nothing it collects is seen. Check whether the Collector process or container is running, and its upstream gateway if it sends through one."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/collector/#collectorabsent
       - eval_time: 6m
         groupname: postgresql
         alertname: PostgresTargetAbsent
@@ -918,6 +950,8 @@ tests:
               obenhub.upstream: otelcol-gateway
             exp_annotations:
               summary: Collector otelcol-pgha-1 reports no self-metrics
+              description: "An expected Collector (obenhub.expected_collector) has sent no self-metrics (otelcol_process_uptime) for 2 minutes, so nothing it collects is seen. Check whether the Collector process or container is running, and its upstream gateway if it sends through one."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/collector/#collectorabsent
           - exp_labels:
               severity: critical
               service.namespace: obenhub-lab
@@ -925,6 +959,8 @@ tests:
               obenhub.upstream: otelcol-gateway
             exp_annotations:
               summary: Collector otelcol-pgha-3 reports no self-metrics
+              description: "An expected Collector (obenhub.expected_collector) has sent no self-metrics (otelcol_process_uptime) for 2 minutes, so nothing it collects is seen. Check whether the Collector process or container is running, and its upstream gateway if it sends through one."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/collector/#collectorabsent
       - eval_time: 6m30s
         groupname: postgresql
         alertname: PostgresTargetAbsent
@@ -956,6 +992,8 @@ tests:
               obenhub.upstream: otelcol-gateway
             exp_annotations:
               summary: Collector otelcol-pgha-1 reports no self-metrics
+              description: "An expected Collector (obenhub.expected_collector) has sent no self-metrics (otelcol_process_uptime) for 2 minutes, so nothing it collects is seen. Check whether the Collector process or container is running, and its upstream gateway if it sends through one."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/collector/#collectorabsent
           - exp_labels:
               severity: critical
               service.namespace: obenhub-lab
@@ -963,6 +1001,8 @@ tests:
               obenhub.upstream: otelcol-gateway
             exp_annotations:
               summary: Collector otelcol-pgha-3 reports no self-metrics
+              description: "An expected Collector (obenhub.expected_collector) has sent no self-metrics (otelcol_process_uptime) for 2 minutes, so nothing it collects is seen. Check whether the Collector process or container is running, and its upstream gateway if it sends through one."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/collector/#collectorabsent
       - eval_time: 7m
         groupname: postgresql
         alertname: PostgresTargetAbsent
@@ -1157,6 +1197,8 @@ tests:
               obenhub.collector: otelcol-pgha-2
             exp_annotations:
               summary: No heartbeat from pgha-2
+              description: "An expected PostgreSQL target has sent no heartbeat (postgresql.collection.heartbeat) for 2 minutes while its Collector is alive. Check that PostgreSQL runs and that the monitoring role can connect."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgrestargetabsent
       - eval_time: 5m
         groupname: patroni
         alertname: PatroniTargetAbsent
@@ -1190,6 +1232,8 @@ tests:
               obenhub.collector: otelcol-pgha-2
             exp_annotations:
               summary: No heartbeat from pgha-2
+              description: "An expected PostgreSQL target has sent no heartbeat (postgresql.collection.heartbeat) for 2 minutes while its Collector is alive. Check that PostgreSQL runs and that the monitoring role can connect."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgrestargetabsent
       - eval_time: 5m30s
         groupname: patroni
         alertname: PatroniTargetAbsent
@@ -1223,6 +1267,8 @@ tests:
               obenhub.collector: otelcol-pgha-2
             exp_annotations:
               summary: No heartbeat from pgha-2
+              description: "An expected PostgreSQL target has sent no heartbeat (postgresql.collection.heartbeat) for 2 minutes while its Collector is alive. Check that PostgreSQL runs and that the monitoring role can connect."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgrestargetabsent
       - eval_time: 6m
         groupname: patroni
         alertname: PatroniTargetAbsent
@@ -1256,6 +1302,8 @@ tests:
               obenhub.collector: otelcol-pgha-2
             exp_annotations:
               summary: No heartbeat from pgha-2
+              description: "An expected PostgreSQL target has sent no heartbeat (postgresql.collection.heartbeat) for 2 minutes while its Collector is alive. Check that PostgreSQL runs and that the monitoring role can connect."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgrestargetabsent
       - eval_time: 6m30s
         groupname: patroni
         alertname: PatroniTargetAbsent
@@ -1289,6 +1337,8 @@ tests:
               obenhub.collector: otelcol-pgha-2
             exp_annotations:
               summary: No heartbeat from pgha-2
+              description: "An expected PostgreSQL target has sent no heartbeat (postgresql.collection.heartbeat) for 2 minutes while its Collector is alive. Check that PostgreSQL runs and that the monitoring role can connect."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgrestargetabsent
       - eval_time: 7m
         groupname: patroni
         alertname: PatroniTargetAbsent
@@ -1487,6 +1537,8 @@ tests:
               obenhub.collector: otelcol-pgha-2
             exp_annotations:
               summary: etcd member pgha-2 is not scraped
+              description: "An expected etcd member has had no successful scrape for 2 minutes while the Collector that scrapes it is alive. Run etcdctl endpoint status against all members to see which one does not answer, then check the etcd process on it."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/etcd/#etcdmemberabsent
           - exp_labels:
               severity: warning
               service.namespace: obenhub-lab
@@ -1496,6 +1548,8 @@ tests:
               obenhub.collector: otelcol-pgha-3
             exp_annotations:
               summary: etcd member pgha-3 is not scraped
+              description: "An expected etcd member has had no successful scrape for 2 minutes while the Collector that scrapes it is alive. Run etcdctl endpoint status against all members to see which one does not answer, then check the etcd process on it."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/etcd/#etcdmemberabsent
       - eval_time: 5m
         groupname: etcd
         alertname: EtcdInsufficientMembers
@@ -1503,6 +1557,8 @@ tests:
           - exp_labels: {severity: critical, obenhub.cluster.name: pgha-etcd}
             exp_annotations:
               summary: "Only 1 members of etcd cluster pgha-etcd report: quorum is lost"
+              description: "Fewer etcd members report than a majority of the cluster's inventory (2 of 3), so the cluster has lost quorum or cannot be seen. Check which members are absent (EtcdMemberAbsent) and bring them back."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/etcd/#etcdinsufficientmembers
       - eval_time: 5m
         groupname: patroni
         alertname: PatroniNoWritablePrimary
@@ -1532,6 +1588,8 @@ tests:
               obenhub.collector: otelcol-pgha-2
             exp_annotations:
               summary: etcd member pgha-2 is not scraped
+              description: "An expected etcd member has had no successful scrape for 2 minutes while the Collector that scrapes it is alive. Run etcdctl endpoint status against all members to see which one does not answer, then check the etcd process on it."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/etcd/#etcdmemberabsent
           - exp_labels:
               severity: warning
               service.namespace: obenhub-lab
@@ -1541,6 +1599,8 @@ tests:
               obenhub.collector: otelcol-pgha-3
             exp_annotations:
               summary: etcd member pgha-3 is not scraped
+              description: "An expected etcd member has had no successful scrape for 2 minutes while the Collector that scrapes it is alive. Run etcdctl endpoint status against all members to see which one does not answer, then check the etcd process on it."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/etcd/#etcdmemberabsent
       - eval_time: 5m30s
         groupname: etcd
         alertname: EtcdInsufficientMembers
@@ -1548,6 +1608,8 @@ tests:
           - exp_labels: {severity: critical, obenhub.cluster.name: pgha-etcd}
             exp_annotations:
               summary: "Only 1 members of etcd cluster pgha-etcd report: quorum is lost"
+              description: "Fewer etcd members report than a majority of the cluster's inventory (2 of 3), so the cluster has lost quorum or cannot be seen. Check which members are absent (EtcdMemberAbsent) and bring them back."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/etcd/#etcdinsufficientmembers
       - eval_time: 5m30s
         groupname: patroni
         alertname: PatroniNoWritablePrimary
@@ -1577,6 +1639,8 @@ tests:
               obenhub.collector: otelcol-pgha-2
             exp_annotations:
               summary: etcd member pgha-2 is not scraped
+              description: "An expected etcd member has had no successful scrape for 2 minutes while the Collector that scrapes it is alive. Run etcdctl endpoint status against all members to see which one does not answer, then check the etcd process on it."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/etcd/#etcdmemberabsent
           - exp_labels:
               severity: warning
               service.namespace: obenhub-lab
@@ -1586,6 +1650,8 @@ tests:
               obenhub.collector: otelcol-pgha-3
             exp_annotations:
               summary: etcd member pgha-3 is not scraped
+              description: "An expected etcd member has had no successful scrape for 2 minutes while the Collector that scrapes it is alive. Run etcdctl endpoint status against all members to see which one does not answer, then check the etcd process on it."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/etcd/#etcdmemberabsent
       - eval_time: 6m
         groupname: etcd
         alertname: EtcdInsufficientMembers
@@ -1593,6 +1659,8 @@ tests:
           - exp_labels: {severity: critical, obenhub.cluster.name: pgha-etcd}
             exp_annotations:
               summary: "Only 1 members of etcd cluster pgha-etcd report: quorum is lost"
+              description: "Fewer etcd members report than a majority of the cluster's inventory (2 of 3), so the cluster has lost quorum or cannot be seen. Check which members are absent (EtcdMemberAbsent) and bring them back."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/etcd/#etcdinsufficientmembers
       - eval_time: 6m
         groupname: patroni
         alertname: PatroniNoWritablePrimary
@@ -1622,6 +1690,8 @@ tests:
               obenhub.collector: otelcol-pgha-2
             exp_annotations:
               summary: etcd member pgha-2 is not scraped
+              description: "An expected etcd member has had no successful scrape for 2 minutes while the Collector that scrapes it is alive. Run etcdctl endpoint status against all members to see which one does not answer, then check the etcd process on it."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/etcd/#etcdmemberabsent
           - exp_labels:
               severity: warning
               service.namespace: obenhub-lab
@@ -1631,6 +1701,8 @@ tests:
               obenhub.collector: otelcol-pgha-3
             exp_annotations:
               summary: etcd member pgha-3 is not scraped
+              description: "An expected etcd member has had no successful scrape for 2 minutes while the Collector that scrapes it is alive. Run etcdctl endpoint status against all members to see which one does not answer, then check the etcd process on it."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/etcd/#etcdmemberabsent
       - eval_time: 6m30s
         groupname: etcd
         alertname: EtcdInsufficientMembers
@@ -1638,6 +1710,8 @@ tests:
           - exp_labels: {severity: critical, obenhub.cluster.name: pgha-etcd}
             exp_annotations:
               summary: "Only 1 members of etcd cluster pgha-etcd report: quorum is lost"
+              description: "Fewer etcd members report than a majority of the cluster's inventory (2 of 3), so the cluster has lost quorum or cannot be seen. Check which members are absent (EtcdMemberAbsent) and bring them back."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/etcd/#etcdinsufficientmembers
       - eval_time: 6m30s
         groupname: patroni
         alertname: PatroniNoWritablePrimary
@@ -1667,6 +1741,8 @@ tests:
               obenhub.collector: otelcol-pgha-2
             exp_annotations:
               summary: etcd member pgha-2 is not scraped
+              description: "An expected etcd member has had no successful scrape for 2 minutes while the Collector that scrapes it is alive. Run etcdctl endpoint status against all members to see which one does not answer, then check the etcd process on it."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/etcd/#etcdmemberabsent
           - exp_labels:
               severity: warning
               service.namespace: obenhub-lab
@@ -1676,6 +1752,8 @@ tests:
               obenhub.collector: otelcol-pgha-3
             exp_annotations:
               summary: etcd member pgha-3 is not scraped
+              description: "An expected etcd member has had no successful scrape for 2 minutes while the Collector that scrapes it is alive. Run etcdctl endpoint status against all members to see which one does not answer, then check the etcd process on it."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/etcd/#etcdmemberabsent
       - eval_time: 7m
         groupname: etcd
         alertname: EtcdInsufficientMembers
@@ -1683,6 +1761,8 @@ tests:
           - exp_labels: {severity: critical, obenhub.cluster.name: pgha-etcd}
             exp_annotations:
               summary: "Only 1 members of etcd cluster pgha-etcd report: quorum is lost"
+              description: "Fewer etcd members report than a majority of the cluster's inventory (2 of 3), so the cluster has lost quorum or cannot be seen. Check which members are absent (EtcdMemberAbsent) and bring them back."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/etcd/#etcdinsufficientmembers
       - eval_time: 7m
         groupname: patroni
         alertname: PatroniNoWritablePrimary
@@ -1735,6 +1815,8 @@ tests:
               obenhub.upstream: otelcol-gateway
             exp_annotations:
               summary: Collector otelcol-pgha-2 reports no self-metrics
+              description: "An expected Collector (obenhub.expected_collector) has sent no self-metrics (otelcol_process_uptime) for 2 minutes, so nothing it collects is seen. Check whether the Collector process or container is running, and its upstream gateway if it sends through one."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/collector/#collectorabsent
       - eval_time: 5m
         groupname: postgresql
         alertname: PostgresTargetAbsent
@@ -1756,6 +1838,8 @@ tests:
               obenhub.collector: otelcol-pgha-3
             exp_annotations:
               summary: etcd member pgha-3 is not scraped
+              description: "An expected etcd member has had no successful scrape for 2 minutes while the Collector that scrapes it is alive. Run etcdctl endpoint status against all members to see which one does not answer, then check the etcd process on it."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/etcd/#etcdmemberabsent
       - eval_time: 5m
         groupname: etcd
         alertname: EtcdInsufficientMembers
@@ -1775,6 +1859,8 @@ tests:
               obenhub.upstream: otelcol-gateway
             exp_annotations:
               summary: Collector otelcol-pgha-2 reports no self-metrics
+              description: "An expected Collector (obenhub.expected_collector) has sent no self-metrics (otelcol_process_uptime) for 2 minutes, so nothing it collects is seen. Check whether the Collector process or container is running, and its upstream gateway if it sends through one."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/collector/#collectorabsent
       - eval_time: 6m
         groupname: postgresql
         alertname: PostgresTargetAbsent
@@ -1796,6 +1882,8 @@ tests:
               obenhub.collector: otelcol-pgha-3
             exp_annotations:
               summary: etcd member pgha-3 is not scraped
+              description: "An expected etcd member has had no successful scrape for 2 minutes while the Collector that scrapes it is alive. Run etcdctl endpoint status against all members to see which one does not answer, then check the etcd process on it."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/etcd/#etcdmemberabsent
       - eval_time: 6m
         groupname: etcd
         alertname: EtcdInsufficientMembers
@@ -1815,6 +1903,8 @@ tests:
               obenhub.upstream: otelcol-gateway
             exp_annotations:
               summary: Collector otelcol-pgha-2 reports no self-metrics
+              description: "An expected Collector (obenhub.expected_collector) has sent no self-metrics (otelcol_process_uptime) for 2 minutes, so nothing it collects is seen. Check whether the Collector process or container is running, and its upstream gateway if it sends through one."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/collector/#collectorabsent
       - eval_time: 7m
         groupname: postgresql
         alertname: PostgresTargetAbsent
@@ -1836,6 +1926,8 @@ tests:
               obenhub.collector: otelcol-pgha-3
             exp_annotations:
               summary: etcd member pgha-3 is not scraped
+              description: "An expected etcd member has had no successful scrape for 2 minutes while the Collector that scrapes it is alive. Run etcdctl endpoint status against all members to see which one does not answer, then check the etcd process on it."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/etcd/#etcdmemberabsent
       - eval_time: 7m
         groupname: etcd
         alertname: EtcdInsufficientMembers
@@ -1892,6 +1984,8 @@ tests:
               obenhub.upstream: otelcol-gateway
             exp_annotations:
               summary: Collector otelcol-pgha-2 reports no self-metrics
+              description: "An expected Collector (obenhub.expected_collector) has sent no self-metrics (otelcol_process_uptime) for 2 minutes, so nothing it collects is seen. Check whether the Collector process or container is running, and its upstream gateway if it sends through one."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/collector/#collectorabsent
       - eval_time: 5m
         groupname: postgresql
         alertname: PostgresTargetAbsent
@@ -1913,6 +2007,8 @@ tests:
               obenhub.collector: otelcol-pgha-1
             exp_annotations:
               summary: etcd member pgha-1 is not scraped
+              description: "An expected etcd member has had no successful scrape for 2 minutes while the Collector that scrapes it is alive. Run etcdctl endpoint status against all members to see which one does not answer, then check the etcd process on it."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/etcd/#etcdmemberabsent
           - exp_labels:
               severity: warning
               service.namespace: obenhub-lab
@@ -1922,6 +2018,8 @@ tests:
               obenhub.collector: otelcol-pgha-3
             exp_annotations:
               summary: etcd member pgha-3 is not scraped
+              description: "An expected etcd member has had no successful scrape for 2 minutes while the Collector that scrapes it is alive. Run etcdctl endpoint status against all members to see which one does not answer, then check the etcd process on it."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/etcd/#etcdmemberabsent
       - eval_time: 5m
         groupname: etcd
         alertname: EtcdInsufficientMembers
@@ -1929,6 +2027,8 @@ tests:
           - exp_labels: {severity: critical, obenhub.cluster.name: pgha-etcd}
             exp_annotations:
               summary: "Only 1 members of etcd cluster pgha-etcd report: quorum is lost"
+              description: "Fewer etcd members report than a majority of the cluster's inventory (2 of 3), so the cluster has lost quorum or cannot be seen. Check which members are absent (EtcdMemberAbsent) and bring them back."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/etcd/#etcdinsufficientmembers
       - eval_time: 5m
         groupname: patroni
         alertname: PatroniNoWritablePrimary
@@ -1944,6 +2044,8 @@ tests:
               obenhub.upstream: otelcol-gateway
             exp_annotations:
               summary: Collector otelcol-pgha-2 reports no self-metrics
+              description: "An expected Collector (obenhub.expected_collector) has sent no self-metrics (otelcol_process_uptime) for 2 minutes, so nothing it collects is seen. Check whether the Collector process or container is running, and its upstream gateway if it sends through one."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/collector/#collectorabsent
       - eval_time: 6m
         groupname: postgresql
         alertname: PostgresTargetAbsent
@@ -1965,6 +2067,8 @@ tests:
               obenhub.collector: otelcol-pgha-1
             exp_annotations:
               summary: etcd member pgha-1 is not scraped
+              description: "An expected etcd member has had no successful scrape for 2 minutes while the Collector that scrapes it is alive. Run etcdctl endpoint status against all members to see which one does not answer, then check the etcd process on it."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/etcd/#etcdmemberabsent
           - exp_labels:
               severity: warning
               service.namespace: obenhub-lab
@@ -1974,6 +2078,8 @@ tests:
               obenhub.collector: otelcol-pgha-3
             exp_annotations:
               summary: etcd member pgha-3 is not scraped
+              description: "An expected etcd member has had no successful scrape for 2 minutes while the Collector that scrapes it is alive. Run etcdctl endpoint status against all members to see which one does not answer, then check the etcd process on it."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/etcd/#etcdmemberabsent
       - eval_time: 6m
         groupname: etcd
         alertname: EtcdInsufficientMembers
@@ -1981,6 +2087,8 @@ tests:
           - exp_labels: {severity: critical, obenhub.cluster.name: pgha-etcd}
             exp_annotations:
               summary: "Only 1 members of etcd cluster pgha-etcd report: quorum is lost"
+              description: "Fewer etcd members report than a majority of the cluster's inventory (2 of 3), so the cluster has lost quorum or cannot be seen. Check which members are absent (EtcdMemberAbsent) and bring them back."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/etcd/#etcdinsufficientmembers
       - eval_time: 6m
         groupname: patroni
         alertname: PatroniNoWritablePrimary
@@ -1996,6 +2104,8 @@ tests:
               obenhub.upstream: otelcol-gateway
             exp_annotations:
               summary: Collector otelcol-pgha-2 reports no self-metrics
+              description: "An expected Collector (obenhub.expected_collector) has sent no self-metrics (otelcol_process_uptime) for 2 minutes, so nothing it collects is seen. Check whether the Collector process or container is running, and its upstream gateway if it sends through one."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/collector/#collectorabsent
       - eval_time: 7m
         groupname: postgresql
         alertname: PostgresTargetAbsent
@@ -2017,6 +2127,8 @@ tests:
               obenhub.collector: otelcol-pgha-1
             exp_annotations:
               summary: etcd member pgha-1 is not scraped
+              description: "An expected etcd member has had no successful scrape for 2 minutes while the Collector that scrapes it is alive. Run etcdctl endpoint status against all members to see which one does not answer, then check the etcd process on it."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/etcd/#etcdmemberabsent
           - exp_labels:
               severity: warning
               service.namespace: obenhub-lab
@@ -2026,6 +2138,8 @@ tests:
               obenhub.collector: otelcol-pgha-3
             exp_annotations:
               summary: etcd member pgha-3 is not scraped
+              description: "An expected etcd member has had no successful scrape for 2 minutes while the Collector that scrapes it is alive. Run etcdctl endpoint status against all members to see which one does not answer, then check the etcd process on it."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/etcd/#etcdmemberabsent
       - eval_time: 7m
         groupname: etcd
         alertname: EtcdInsufficientMembers
@@ -2033,6 +2147,8 @@ tests:
           - exp_labels: {severity: critical, obenhub.cluster.name: pgha-etcd}
             exp_annotations:
               summary: "Only 1 members of etcd cluster pgha-etcd report: quorum is lost"
+              description: "Fewer etcd members report than a majority of the cluster's inventory (2 of 3), so the cluster has lost quorum or cannot be seen. Check which members are absent (EtcdMemberAbsent) and bring them back."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/etcd/#etcdinsufficientmembers
       - eval_time: 7m
         groupname: patroni
         alertname: PatroniNoWritablePrimary
@@ -2109,6 +2225,8 @@ tests:
               obenhub.upstream: otelcol-gateway
             exp_annotations:
               summary: Collector otelcol-pgha-2 reports no self-metrics
+              description: "An expected Collector (obenhub.expected_collector) has sent no self-metrics (otelcol_process_uptime) for 2 minutes, so nothing it collects is seen. Check whether the Collector process or container is running, and its upstream gateway if it sends through one."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/collector/#collectorabsent
       - eval_time: 5m
         groupname: postgresql
         alertname: PostgresTargetAbsent
@@ -2126,6 +2244,8 @@ tests:
               obenhub.collector: otelcol-pgha-1
             exp_annotations:
               summary: Patroni on pgha-1 is not scraped while PostgreSQL still reports
+              description: "Patroni's REST scrape of a member has not succeeded for 2 minutes while that node's PostgreSQL heartbeat is present: Patroni is down on a node whose PostgreSQL still runs, so no failover logic runs there. Check the Patroni service and its log on the node."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/patroni/#patronitargetabsent
       - eval_time: 5m
         groupname: etcd
         alertname: EtcdMemberAbsent
@@ -2149,6 +2269,8 @@ tests:
               obenhub.upstream: otelcol-gateway
             exp_annotations:
               summary: Collector otelcol-pgha-2 reports no self-metrics
+              description: "An expected Collector (obenhub.expected_collector) has sent no self-metrics (otelcol_process_uptime) for 2 minutes, so nothing it collects is seen. Check whether the Collector process or container is running, and its upstream gateway if it sends through one."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/collector/#collectorabsent
       - eval_time: 6m
         groupname: postgresql
         alertname: PostgresTargetAbsent
@@ -2166,6 +2288,8 @@ tests:
               obenhub.collector: otelcol-pgha-1
             exp_annotations:
               summary: Patroni on pgha-1 is not scraped while PostgreSQL still reports
+              description: "Patroni's REST scrape of a member has not succeeded for 2 minutes while that node's PostgreSQL heartbeat is present: Patroni is down on a node whose PostgreSQL still runs, so no failover logic runs there. Check the Patroni service and its log on the node."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/patroni/#patronitargetabsent
       - eval_time: 6m
         groupname: etcd
         alertname: EtcdMemberAbsent
@@ -2189,6 +2313,8 @@ tests:
               obenhub.upstream: otelcol-gateway
             exp_annotations:
               summary: Collector otelcol-pgha-2 reports no self-metrics
+              description: "An expected Collector (obenhub.expected_collector) has sent no self-metrics (otelcol_process_uptime) for 2 minutes, so nothing it collects is seen. Check whether the Collector process or container is running, and its upstream gateway if it sends through one."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/collector/#collectorabsent
       - eval_time: 7m
         groupname: postgresql
         alertname: PostgresTargetAbsent
@@ -2206,6 +2332,8 @@ tests:
               obenhub.collector: otelcol-pgha-1
             exp_annotations:
               summary: Patroni on pgha-1 is not scraped while PostgreSQL still reports
+              description: "Patroni's REST scrape of a member has not succeeded for 2 minutes while that node's PostgreSQL heartbeat is present: Patroni is down on a node whose PostgreSQL still runs, so no failover logic runs there. Check the Patroni service and its log on the node."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/patroni/#patronitargetabsent
       - eval_time: 7m
         groupname: etcd
         alertname: EtcdMemberAbsent
@@ -2290,6 +2418,8 @@ tests:
               obenhub.upstream: otelcol-gateway
             exp_annotations:
               summary: Collector otelcol-pgha-2 reports no self-metrics
+              description: "An expected Collector (obenhub.expected_collector) has sent no self-metrics (otelcol_process_uptime) for 2 minutes, so nothing it collects is seen. Check whether the Collector process or container is running, and its upstream gateway if it sends through one."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/collector/#collectorabsent
       - eval_time: 5m
         groupname: postgresql
         alertname: PostgresTargetAbsent
@@ -2311,6 +2441,8 @@ tests:
               obenhub.collector: otelcol-pgha-3
             exp_annotations:
               summary: etcd member pgha-3 is not scraped
+              description: "An expected etcd member has had no successful scrape for 2 minutes while the Collector that scrapes it is alive. Run etcdctl endpoint status against all members to see which one does not answer, then check the etcd process on it."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/etcd/#etcdmemberabsent
       - eval_time: 5m
         groupname: etcd
         alertname: EtcdInsufficientMembers
@@ -2330,6 +2462,8 @@ tests:
               obenhub.upstream: otelcol-gateway
             exp_annotations:
               summary: Collector otelcol-pgha-2 reports no self-metrics
+              description: "An expected Collector (obenhub.expected_collector) has sent no self-metrics (otelcol_process_uptime) for 2 minutes, so nothing it collects is seen. Check whether the Collector process or container is running, and its upstream gateway if it sends through one."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/collector/#collectorabsent
       - eval_time: 6m
         groupname: postgresql
         alertname: PostgresTargetAbsent
@@ -2351,6 +2485,8 @@ tests:
               obenhub.collector: otelcol-pgha-3
             exp_annotations:
               summary: etcd member pgha-3 is not scraped
+              description: "An expected etcd member has had no successful scrape for 2 minutes while the Collector that scrapes it is alive. Run etcdctl endpoint status against all members to see which one does not answer, then check the etcd process on it."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/etcd/#etcdmemberabsent
       - eval_time: 6m
         groupname: etcd
         alertname: EtcdInsufficientMembers
@@ -2370,6 +2506,8 @@ tests:
               obenhub.upstream: otelcol-gateway
             exp_annotations:
               summary: Collector otelcol-pgha-2 reports no self-metrics
+              description: "An expected Collector (obenhub.expected_collector) has sent no self-metrics (otelcol_process_uptime) for 2 minutes, so nothing it collects is seen. Check whether the Collector process or container is running, and its upstream gateway if it sends through one."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/collector/#collectorabsent
       - eval_time: 7m
         groupname: postgresql
         alertname: PostgresTargetAbsent
@@ -2391,6 +2529,8 @@ tests:
               obenhub.collector: otelcol-pgha-3
             exp_annotations:
               summary: etcd member pgha-3 is not scraped
+              description: "An expected etcd member has had no successful scrape for 2 minutes while the Collector that scrapes it is alive. Run etcdctl endpoint status against all members to see which one does not answer, then check the etcd process on it."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/etcd/#etcdmemberabsent
       - eval_time: 7m
         groupname: etcd
         alertname: EtcdInsufficientMembers
@@ -2471,6 +2611,8 @@ tests:
               obenhub.upstream: otelcol-gateway
             exp_annotations:
               summary: Collector otelcol-pgha-2 reports no self-metrics
+              description: "An expected Collector (obenhub.expected_collector) has sent no self-metrics (otelcol_process_uptime) for 2 minutes, so nothing it collects is seen. Check whether the Collector process or container is running, and its upstream gateway if it sends through one."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/collector/#collectorabsent
       - eval_time: 5m
         groupname: postgresql
         alertname: PostgresTargetAbsent
@@ -2484,6 +2626,8 @@ tests:
               obenhub.collector: otelcol-pgha-1
             exp_annotations:
               summary: No heartbeat from pgha-1
+              description: "An expected PostgreSQL target has sent no heartbeat (postgresql.collection.heartbeat) for 2 minutes while its Collector is alive. Check that PostgreSQL runs and that the monitoring role can connect."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgrestargetabsent
       - eval_time: 5m
         groupname: patroni
         alertname: PatroniTargetAbsent
@@ -2511,6 +2655,8 @@ tests:
               obenhub.upstream: otelcol-gateway
             exp_annotations:
               summary: Collector otelcol-pgha-2 reports no self-metrics
+              description: "An expected Collector (obenhub.expected_collector) has sent no self-metrics (otelcol_process_uptime) for 2 minutes, so nothing it collects is seen. Check whether the Collector process or container is running, and its upstream gateway if it sends through one."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/collector/#collectorabsent
       - eval_time: 6m
         groupname: postgresql
         alertname: PostgresTargetAbsent
@@ -2524,6 +2670,8 @@ tests:
               obenhub.collector: otelcol-pgha-1
             exp_annotations:
               summary: No heartbeat from pgha-1
+              description: "An expected PostgreSQL target has sent no heartbeat (postgresql.collection.heartbeat) for 2 minutes while its Collector is alive. Check that PostgreSQL runs and that the monitoring role can connect."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgrestargetabsent
       - eval_time: 6m
         groupname: patroni
         alertname: PatroniTargetAbsent
@@ -2551,6 +2699,8 @@ tests:
               obenhub.upstream: otelcol-gateway
             exp_annotations:
               summary: Collector otelcol-pgha-2 reports no self-metrics
+              description: "An expected Collector (obenhub.expected_collector) has sent no self-metrics (otelcol_process_uptime) for 2 minutes, so nothing it collects is seen. Check whether the Collector process or container is running, and its upstream gateway if it sends through one."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/collector/#collectorabsent
       - eval_time: 7m
         groupname: postgresql
         alertname: PostgresTargetAbsent
@@ -2564,6 +2714,8 @@ tests:
               obenhub.collector: otelcol-pgha-1
             exp_annotations:
               summary: No heartbeat from pgha-1
+              description: "An expected PostgreSQL target has sent no heartbeat (postgresql.collection.heartbeat) for 2 minutes while its Collector is alive. Check that PostgreSQL runs and that the monitoring role can connect."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgrestargetabsent
       - eval_time: 7m
         groupname: patroni
         alertname: PatroniTargetAbsent
@@ -2748,6 +2900,8 @@ tests:
               obenhub.upstream: otelcol-gateway
             exp_annotations:
               summary: Collector otelcol-pgha-1 reports no self-metrics
+              description: "An expected Collector (obenhub.expected_collector) has sent no self-metrics (otelcol_process_uptime) for 2 minutes, so nothing it collects is seen. Check whether the Collector process or container is running, and its upstream gateway if it sends through one."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/collector/#collectorabsent
       - eval_time: 5m
         groupname: postgresql
         alertname: PostgresTargetAbsent
@@ -2779,6 +2933,8 @@ tests:
               obenhub.upstream: otelcol-gateway
             exp_annotations:
               summary: Collector otelcol-pgha-1 reports no self-metrics
+              description: "An expected Collector (obenhub.expected_collector) has sent no self-metrics (otelcol_process_uptime) for 2 minutes, so nothing it collects is seen. Check whether the Collector process or container is running, and its upstream gateway if it sends through one."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/collector/#collectorabsent
       - eval_time: 5m30s
         groupname: postgresql
         alertname: PostgresTargetAbsent
@@ -2810,6 +2966,8 @@ tests:
               obenhub.upstream: otelcol-gateway
             exp_annotations:
               summary: Collector otelcol-pgha-1 reports no self-metrics
+              description: "An expected Collector (obenhub.expected_collector) has sent no self-metrics (otelcol_process_uptime) for 2 minutes, so nothing it collects is seen. Check whether the Collector process or container is running, and its upstream gateway if it sends through one."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/collector/#collectorabsent
       - eval_time: 6m
         groupname: postgresql
         alertname: PostgresTargetAbsent
@@ -2841,6 +2999,8 @@ tests:
               obenhub.upstream: otelcol-gateway
             exp_annotations:
               summary: Collector otelcol-pgha-1 reports no self-metrics
+              description: "An expected Collector (obenhub.expected_collector) has sent no self-metrics (otelcol_process_uptime) for 2 minutes, so nothing it collects is seen. Check whether the Collector process or container is running, and its upstream gateway if it sends through one."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/collector/#collectorabsent
       - eval_time: 6m30s
         groupname: postgresql
         alertname: PostgresTargetAbsent
@@ -2872,6 +3032,8 @@ tests:
               obenhub.upstream: otelcol-gateway
             exp_annotations:
               summary: Collector otelcol-pgha-1 reports no self-metrics
+              description: "An expected Collector (obenhub.expected_collector) has sent no self-metrics (otelcol_process_uptime) for 2 minutes, so nothing it collects is seen. Check whether the Collector process or container is running, and its upstream gateway if it sends through one."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/collector/#collectorabsent
       - eval_time: 7m
         groupname: postgresql
         alertname: PostgresTargetAbsent
@@ -2903,6 +3065,8 @@ tests:
               obenhub.upstream: otelcol-gateway
             exp_annotations:
               summary: Collector otelcol-pgha-1 reports no self-metrics
+              description: "An expected Collector (obenhub.expected_collector) has sent no self-metrics (otelcol_process_uptime) for 2 minutes, so nothing it collects is seen. Check whether the Collector process or container is running, and its upstream gateway if it sends through one."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/collector/#collectorabsent
       - eval_time: 7m30s
         groupname: postgresql
         alertname: PostgresTargetAbsent
@@ -2934,6 +3098,8 @@ tests:
               obenhub.upstream: otelcol-gateway
             exp_annotations:
               summary: Collector otelcol-pgha-1 reports no self-metrics
+              description: "An expected Collector (obenhub.expected_collector) has sent no self-metrics (otelcol_process_uptime) for 2 minutes, so nothing it collects is seen. Check whether the Collector process or container is running, and its upstream gateway if it sends through one."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/collector/#collectorabsent
       - eval_time: 8m
         groupname: postgresql
         alertname: PostgresTargetAbsent
@@ -2965,6 +3131,8 @@ tests:
               obenhub.upstream: otelcol-gateway
             exp_annotations:
               summary: Collector otelcol-pgha-1 reports no self-metrics
+              description: "An expected Collector (obenhub.expected_collector) has sent no self-metrics (otelcol_process_uptime) for 2 minutes, so nothing it collects is seen. Check whether the Collector process or container is running, and its upstream gateway if it sends through one."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/collector/#collectorabsent
       - eval_time: 8m30s
         groupname: postgresql
         alertname: PostgresTargetAbsent
@@ -2996,6 +3164,8 @@ tests:
               obenhub.upstream: otelcol-gateway
             exp_annotations:
               summary: Collector otelcol-pgha-1 reports no self-metrics
+              description: "An expected Collector (obenhub.expected_collector) has sent no self-metrics (otelcol_process_uptime) for 2 minutes, so nothing it collects is seen. Check whether the Collector process or container is running, and its upstream gateway if it sends through one."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/collector/#collectorabsent
       - eval_time: 9m
         groupname: postgresql
         alertname: PostgresTargetAbsent
@@ -3027,6 +3197,8 @@ tests:
               obenhub.upstream: otelcol-gateway
             exp_annotations:
               summary: Collector otelcol-pgha-1 reports no self-metrics
+              description: "An expected Collector (obenhub.expected_collector) has sent no self-metrics (otelcol_process_uptime) for 2 minutes, so nothing it collects is seen. Check whether the Collector process or container is running, and its upstream gateway if it sends through one."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/collector/#collectorabsent
       - eval_time: 9m30s
         groupname: postgresql
         alertname: PostgresTargetAbsent
@@ -3058,6 +3230,8 @@ tests:
               obenhub.upstream: otelcol-gateway
             exp_annotations:
               summary: Collector otelcol-pgha-1 reports no self-metrics
+              description: "An expected Collector (obenhub.expected_collector) has sent no self-metrics (otelcol_process_uptime) for 2 minutes, so nothing it collects is seen. Check whether the Collector process or container is running, and its upstream gateway if it sends through one."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/collector/#collectorabsent
       - eval_time: 10m
         groupname: postgresql
         alertname: PostgresTargetAbsent
@@ -3089,6 +3263,8 @@ tests:
               obenhub.upstream: otelcol-gateway
             exp_annotations:
               summary: Collector otelcol-pgha-1 reports no self-metrics
+              description: "An expected Collector (obenhub.expected_collector) has sent no self-metrics (otelcol_process_uptime) for 2 minutes, so nothing it collects is seen. Check whether the Collector process or container is running, and its upstream gateway if it sends through one."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/collector/#collectorabsent
       - eval_time: 10m30s
         groupname: postgresql
         alertname: PostgresTargetAbsent
@@ -3120,6 +3296,8 @@ tests:
               obenhub.upstream: otelcol-gateway
             exp_annotations:
               summary: Collector otelcol-pgha-1 reports no self-metrics
+              description: "An expected Collector (obenhub.expected_collector) has sent no self-metrics (otelcol_process_uptime) for 2 minutes, so nothing it collects is seen. Check whether the Collector process or container is running, and its upstream gateway if it sends through one."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/collector/#collectorabsent
       - eval_time: 11m
         groupname: postgresql
         alertname: PostgresTargetAbsent
@@ -3151,6 +3329,8 @@ tests:
               obenhub.upstream: otelcol-gateway
             exp_annotations:
               summary: Collector otelcol-pgha-1 reports no self-metrics
+              description: "An expected Collector (obenhub.expected_collector) has sent no self-metrics (otelcol_process_uptime) for 2 minutes, so nothing it collects is seen. Check whether the Collector process or container is running, and its upstream gateway if it sends through one."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/collector/#collectorabsent
       - eval_time: 11m30s
         groupname: postgresql
         alertname: PostgresTargetAbsent
@@ -3182,6 +3362,8 @@ tests:
               obenhub.upstream: otelcol-gateway
             exp_annotations:
               summary: Collector otelcol-pgha-1 reports no self-metrics
+              description: "An expected Collector (obenhub.expected_collector) has sent no self-metrics (otelcol_process_uptime) for 2 minutes, so nothing it collects is seen. Check whether the Collector process or container is running, and its upstream gateway if it sends through one."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/collector/#collectorabsent
       - eval_time: 12m
         groupname: postgresql
         alertname: PostgresTargetAbsent
@@ -3213,6 +3395,8 @@ tests:
               obenhub.upstream: otelcol-gateway
             exp_annotations:
               summary: Collector otelcol-pgha-1 reports no self-metrics
+              description: "An expected Collector (obenhub.expected_collector) has sent no self-metrics (otelcol_process_uptime) for 2 minutes, so nothing it collects is seen. Check whether the Collector process or container is running, and its upstream gateway if it sends through one."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/collector/#collectorabsent
       - eval_time: 12m30s
         groupname: postgresql
         alertname: PostgresTargetAbsent
@@ -3244,6 +3428,8 @@ tests:
               obenhub.upstream: otelcol-gateway
             exp_annotations:
               summary: Collector otelcol-pgha-1 reports no self-metrics
+              description: "An expected Collector (obenhub.expected_collector) has sent no self-metrics (otelcol_process_uptime) for 2 minutes, so nothing it collects is seen. Check whether the Collector process or container is running, and its upstream gateway if it sends through one."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/collector/#collectorabsent
       - eval_time: 13m
         groupname: postgresql
         alertname: PostgresTargetAbsent
@@ -3275,6 +3461,8 @@ tests:
               obenhub.upstream: otelcol-gateway
             exp_annotations:
               summary: Collector otelcol-pgha-1 reports no self-metrics
+              description: "An expected Collector (obenhub.expected_collector) has sent no self-metrics (otelcol_process_uptime) for 2 minutes, so nothing it collects is seen. Check whether the Collector process or container is running, and its upstream gateway if it sends through one."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/collector/#collectorabsent
       - eval_time: 13m30s
         groupname: postgresql
         alertname: PostgresTargetAbsent
@@ -3306,6 +3494,8 @@ tests:
               obenhub.upstream: otelcol-gateway
             exp_annotations:
               summary: Collector otelcol-pgha-1 reports no self-metrics
+              description: "An expected Collector (obenhub.expected_collector) has sent no self-metrics (otelcol_process_uptime) for 2 minutes, so nothing it collects is seen. Check whether the Collector process or container is running, and its upstream gateway if it sends through one."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/collector/#collectorabsent
       - eval_time: 14m
         groupname: postgresql
         alertname: PostgresTargetAbsent
@@ -3337,6 +3527,8 @@ tests:
               obenhub.upstream: otelcol-gateway
             exp_annotations:
               summary: Collector otelcol-pgha-1 reports no self-metrics
+              description: "An expected Collector (obenhub.expected_collector) has sent no self-metrics (otelcol_process_uptime) for 2 minutes, so nothing it collects is seen. Check whether the Collector process or container is running, and its upstream gateway if it sends through one."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/collector/#collectorabsent
       - eval_time: 14m30s
         groupname: postgresql
         alertname: PostgresTargetAbsent
@@ -3368,6 +3560,8 @@ tests:
               obenhub.upstream: otelcol-gateway
             exp_annotations:
               summary: Collector otelcol-pgha-1 reports no self-metrics
+              description: "An expected Collector (obenhub.expected_collector) has sent no self-metrics (otelcol_process_uptime) for 2 minutes, so nothing it collects is seen. Check whether the Collector process or container is running, and its upstream gateway if it sends through one."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/collector/#collectorabsent
       - eval_time: 15m
         groupname: postgresql
         alertname: PostgresTargetAbsent
@@ -3399,6 +3593,8 @@ tests:
               obenhub.upstream: otelcol-gateway
             exp_annotations:
               summary: Collector otelcol-pgha-1 reports no self-metrics
+              description: "An expected Collector (obenhub.expected_collector) has sent no self-metrics (otelcol_process_uptime) for 2 minutes, so nothing it collects is seen. Check whether the Collector process or container is running, and its upstream gateway if it sends through one."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/collector/#collectorabsent
       - eval_time: 15m30s
         groupname: postgresql
         alertname: PostgresTargetAbsent
@@ -3430,6 +3626,8 @@ tests:
               obenhub.upstream: otelcol-gateway
             exp_annotations:
               summary: Collector otelcol-pgha-1 reports no self-metrics
+              description: "An expected Collector (obenhub.expected_collector) has sent no self-metrics (otelcol_process_uptime) for 2 minutes, so nothing it collects is seen. Check whether the Collector process or container is running, and its upstream gateway if it sends through one."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/collector/#collectorabsent
       - eval_time: 16m
         groupname: postgresql
         alertname: PostgresTargetAbsent
@@ -3461,6 +3659,8 @@ tests:
               obenhub.upstream: otelcol-gateway
             exp_annotations:
               summary: Collector otelcol-pgha-1 reports no self-metrics
+              description: "An expected Collector (obenhub.expected_collector) has sent no self-metrics (otelcol_process_uptime) for 2 minutes, so nothing it collects is seen. Check whether the Collector process or container is running, and its upstream gateway if it sends through one."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/collector/#collectorabsent
       - eval_time: 16m30s
         groupname: postgresql
         alertname: PostgresTargetAbsent
@@ -3492,6 +3692,8 @@ tests:
               obenhub.upstream: otelcol-gateway
             exp_annotations:
               summary: Collector otelcol-pgha-1 reports no self-metrics
+              description: "An expected Collector (obenhub.expected_collector) has sent no self-metrics (otelcol_process_uptime) for 2 minutes, so nothing it collects is seen. Check whether the Collector process or container is running, and its upstream gateway if it sends through one."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/collector/#collectorabsent
       - eval_time: 17m
         groupname: postgresql
         alertname: PostgresTargetAbsent
@@ -3523,6 +3725,8 @@ tests:
               obenhub.upstream: otelcol-gateway
             exp_annotations:
               summary: Collector otelcol-pgha-1 reports no self-metrics
+              description: "An expected Collector (obenhub.expected_collector) has sent no self-metrics (otelcol_process_uptime) for 2 minutes, so nothing it collects is seen. Check whether the Collector process or container is running, and its upstream gateway if it sends through one."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/collector/#collectorabsent
       - eval_time: 17m30s
         groupname: postgresql
         alertname: PostgresTargetAbsent
@@ -3554,6 +3758,8 @@ tests:
               obenhub.upstream: otelcol-gateway
             exp_annotations:
               summary: Collector otelcol-pgha-1 reports no self-metrics
+              description: "An expected Collector (obenhub.expected_collector) has sent no self-metrics (otelcol_process_uptime) for 2 minutes, so nothing it collects is seen. Check whether the Collector process or container is running, and its upstream gateway if it sends through one."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/collector/#collectorabsent
       - eval_time: 18m
         groupname: postgresql
         alertname: PostgresTargetAbsent
@@ -3585,6 +3791,8 @@ tests:
               obenhub.upstream: otelcol-gateway
             exp_annotations:
               summary: Collector otelcol-pgha-1 reports no self-metrics
+              description: "An expected Collector (obenhub.expected_collector) has sent no self-metrics (otelcol_process_uptime) for 2 minutes, so nothing it collects is seen. Check whether the Collector process or container is running, and its upstream gateway if it sends through one."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/collector/#collectorabsent
       - eval_time: 18m30s
         groupname: postgresql
         alertname: PostgresTargetAbsent
@@ -3653,6 +3861,8 @@ tests:
               obenhub.upstream: otelcol-gateway
             exp_annotations:
               summary: Collector otelcol-pgha-2 reports no self-metrics
+              description: "An expected Collector (obenhub.expected_collector) has sent no self-metrics (otelcol_process_uptime) for 2 minutes, so nothing it collects is seen. Check whether the Collector process or container is running, and its upstream gateway if it sends through one."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/collector/#collectorabsent
       - eval_time: 5m
         groupname: postgresql
         alertname: PostgresTargetAbsent
@@ -3676,6 +3886,8 @@ tests:
           - exp_labels: {severity: critical, obenhub.cluster.name: pgha}
             exp_annotations:
               summary: Cluster pgha has no writable primary
+              description: "No member of the cluster reports patroni_primary 1, so the cluster cannot take writes. Check patronictl list and the DCS."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/patroni/#patroninowritableprimary
       - eval_time: 6m
         groupname: collector
         alertname: CollectorAbsent
@@ -3687,6 +3899,8 @@ tests:
               obenhub.upstream: otelcol-gateway
             exp_annotations:
               summary: Collector otelcol-pgha-2 reports no self-metrics
+              description: "An expected Collector (obenhub.expected_collector) has sent no self-metrics (otelcol_process_uptime) for 2 minutes, so nothing it collects is seen. Check whether the Collector process or container is running, and its upstream gateway if it sends through one."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/collector/#collectorabsent
       - eval_time: 6m
         groupname: postgresql
         alertname: PostgresTargetAbsent
@@ -3710,6 +3924,8 @@ tests:
           - exp_labels: {severity: critical, obenhub.cluster.name: pgha}
             exp_annotations:
               summary: Cluster pgha has no writable primary
+              description: "No member of the cluster reports patroni_primary 1, so the cluster cannot take writes. Check patronictl list and the DCS."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/patroni/#patroninowritableprimary
       - eval_time: 7m
         groupname: collector
         alertname: CollectorAbsent
@@ -3721,6 +3937,8 @@ tests:
               obenhub.upstream: otelcol-gateway
             exp_annotations:
               summary: Collector otelcol-pgha-2 reports no self-metrics
+              description: "An expected Collector (obenhub.expected_collector) has sent no self-metrics (otelcol_process_uptime) for 2 minutes, so nothing it collects is seen. Check whether the Collector process or container is running, and its upstream gateway if it sends through one."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/collector/#collectorabsent
       - eval_time: 7m
         groupname: postgresql
         alertname: PostgresTargetAbsent
@@ -3744,6 +3962,8 @@ tests:
           - exp_labels: {severity: critical, obenhub.cluster.name: pgha}
             exp_annotations:
               summary: Cluster pgha has no writable primary
+              description: "No member of the cluster reports patroni_primary 1, so the cluster cannot take writes. Check patronictl list and the DCS."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/patroni/#patroninowritableprimary
 
   - name: "all Collectors alive and no member reports primary: PatroniNoWritablePrimary"
     interval: 15s
@@ -3808,6 +4028,8 @@ tests:
           - exp_labels: {severity: critical, obenhub.cluster.name: pgha}
             exp_annotations:
               summary: Cluster pgha has no writable primary
+              description: "No member of the cluster reports patroni_primary 1, so the cluster cannot take writes. Check patronictl list and the DCS."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/patroni/#patroninowritableprimary
       - eval_time: 6m
         groupname: collector
         alertname: CollectorAbsent
@@ -3835,6 +4057,8 @@ tests:
           - exp_labels: {severity: critical, obenhub.cluster.name: pgha}
             exp_annotations:
               summary: Cluster pgha has no writable primary
+              description: "No member of the cluster reports patroni_primary 1, so the cluster cannot take writes. Check patronictl list and the DCS."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/patroni/#patroninowritableprimary
       - eval_time: 7m
         groupname: collector
         alertname: CollectorAbsent
@@ -3862,6 +4086,8 @@ tests:
           - exp_labels: {severity: critical, obenhub.cluster.name: pgha}
             exp_annotations:
               summary: Cluster pgha has no writable primary
+              description: "No member of the cluster reports patroni_primary 1, so the cluster cannot take writes. Check patronictl list and the DCS."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/patroni/#patroninowritableprimary
 
   - name: "S5 the leader's Patroni dies with its Collector alive: PatroniNoWritablePrimary and PatroniTargetAbsent"
     interval: 15s
@@ -3944,6 +4170,8 @@ tests:
               obenhub.collector: otelcol-pgha-1
             exp_annotations:
               summary: Patroni on pgha-1 is not scraped while PostgreSQL still reports
+              description: "Patroni's REST scrape of a member has not succeeded for 2 minutes while that node's PostgreSQL heartbeat is present: Patroni is down on a node whose PostgreSQL still runs, so no failover logic runs there. Check the Patroni service and its log on the node."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/patroni/#patronitargetabsent
       - eval_time: 15m
         groupname: etcd
         alertname: EtcdMemberAbsent
@@ -3959,6 +4187,8 @@ tests:
           - exp_labels: {severity: critical, obenhub.cluster.name: pgha}
             exp_annotations:
               summary: Cluster pgha has no writable primary
+              description: "No member of the cluster reports patroni_primary 1, so the cluster cannot take writes. Check patronictl list and the DCS."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/patroni/#patroninowritableprimary
       - eval_time: 20m
         groupname: collector
         alertname: CollectorAbsent
@@ -3980,6 +4210,8 @@ tests:
               obenhub.collector: otelcol-pgha-1
             exp_annotations:
               summary: Patroni on pgha-1 is not scraped while PostgreSQL still reports
+              description: "Patroni's REST scrape of a member has not succeeded for 2 minutes while that node's PostgreSQL heartbeat is present: Patroni is down on a node whose PostgreSQL still runs, so no failover logic runs there. Check the Patroni service and its log on the node."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/patroni/#patronitargetabsent
       - eval_time: 20m
         groupname: etcd
         alertname: EtcdMemberAbsent
@@ -3995,6 +4227,8 @@ tests:
           - exp_labels: {severity: critical, obenhub.cluster.name: pgha}
             exp_annotations:
               summary: Cluster pgha has no writable primary
+              description: "No member of the cluster reports patroni_primary 1, so the cluster cannot take writes. Check patronictl list and the DCS."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/patroni/#patroninowritableprimary
       - eval_time: 25m
         groupname: collector
         alertname: CollectorAbsent
@@ -4016,6 +4250,8 @@ tests:
               obenhub.collector: otelcol-pgha-1
             exp_annotations:
               summary: Patroni on pgha-1 is not scraped while PostgreSQL still reports
+              description: "Patroni's REST scrape of a member has not succeeded for 2 minutes while that node's PostgreSQL heartbeat is present: Patroni is down on a node whose PostgreSQL still runs, so no failover logic runs there. Check the Patroni service and its log on the node."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/patroni/#patronitargetabsent
       - eval_time: 25m
         groupname: etcd
         alertname: EtcdMemberAbsent
@@ -4031,6 +4267,8 @@ tests:
           - exp_labels: {severity: critical, obenhub.cluster.name: pgha}
             exp_annotations:
               summary: Cluster pgha has no writable primary
+              description: "No member of the cluster reports patroni_primary 1, so the cluster cannot take writes. Check patronictl list and the DCS."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/patroni/#patroninowritableprimary
       - eval_time: 30m
         groupname: collector
         alertname: CollectorAbsent
@@ -4052,6 +4290,8 @@ tests:
               obenhub.collector: otelcol-pgha-1
             exp_annotations:
               summary: Patroni on pgha-1 is not scraped while PostgreSQL still reports
+              description: "Patroni's REST scrape of a member has not succeeded for 2 minutes while that node's PostgreSQL heartbeat is present: Patroni is down on a node whose PostgreSQL still runs, so no failover logic runs there. Check the Patroni service and its log on the node."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/patroni/#patronitargetabsent
       - eval_time: 30m
         groupname: etcd
         alertname: EtcdMemberAbsent
@@ -4067,6 +4307,8 @@ tests:
           - exp_labels: {severity: critical, obenhub.cluster.name: pgha}
             exp_annotations:
               summary: Cluster pgha has no writable primary
+              description: "No member of the cluster reports patroni_primary 1, so the cluster cannot take writes. Check patronictl list and the DCS."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/patroni/#patroninowritableprimary
 
   - name: "S7 leader Collector dead, pgha-2 promoted, then pgha-2's Patroni dies: PatroniNoWritablePrimary fires"
     interval: 15s
@@ -4115,6 +4357,8 @@ tests:
               obenhub.upstream: otelcol-gateway
             exp_annotations:
               summary: Collector otelcol-pgha-1 reports no self-metrics
+              description: "An expected Collector (obenhub.expected_collector) has sent no self-metrics (otelcol_process_uptime) for 2 minutes, so nothing it collects is seen. Check whether the Collector process or container is running, and its upstream gateway if it sends through one."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/collector/#collectorabsent
       - eval_time: 10m
         groupname: postgresql
         alertname: PostgresTargetAbsent
@@ -4146,6 +4390,8 @@ tests:
               obenhub.upstream: otelcol-gateway
             exp_annotations:
               summary: Collector otelcol-pgha-1 reports no self-metrics
+              description: "An expected Collector (obenhub.expected_collector) has sent no self-metrics (otelcol_process_uptime) for 2 minutes, so nothing it collects is seen. Check whether the Collector process or container is running, and its upstream gateway if it sends through one."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/collector/#collectorabsent
       - eval_time: 12m30s
         groupname: postgresql
         alertname: PostgresTargetAbsent
@@ -4177,6 +4423,8 @@ tests:
               obenhub.upstream: otelcol-gateway
             exp_annotations:
               summary: Collector otelcol-pgha-1 reports no self-metrics
+              description: "An expected Collector (obenhub.expected_collector) has sent no self-metrics (otelcol_process_uptime) for 2 minutes, so nothing it collects is seen. Check whether the Collector process or container is running, and its upstream gateway if it sends through one."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/collector/#collectorabsent
       - eval_time: 25m
         groupname: postgresql
         alertname: PostgresTargetAbsent
@@ -4194,6 +4442,8 @@ tests:
               obenhub.collector: otelcol-pgha-2
             exp_annotations:
               summary: Patroni on pgha-2 is not scraped while PostgreSQL still reports
+              description: "Patroni's REST scrape of a member has not succeeded for 2 minutes while that node's PostgreSQL heartbeat is present: Patroni is down on a node whose PostgreSQL still runs, so no failover logic runs there. Check the Patroni service and its log on the node."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/patroni/#patronitargetabsent
       - eval_time: 25m
         groupname: etcd
         alertname: EtcdMemberAbsent
@@ -4209,6 +4459,8 @@ tests:
           - exp_labels: {severity: critical, obenhub.cluster.name: pgha}
             exp_annotations:
               summary: Cluster pgha has no writable primary
+              description: "No member of the cluster reports patroni_primary 1, so the cluster cannot take writes. Check patronictl list and the DCS."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/patroni/#patroninowritableprimary
       - eval_time: 30m
         groupname: collector
         alertname: CollectorAbsent
@@ -4220,6 +4472,8 @@ tests:
               obenhub.upstream: otelcol-gateway
             exp_annotations:
               summary: Collector otelcol-pgha-1 reports no self-metrics
+              description: "An expected Collector (obenhub.expected_collector) has sent no self-metrics (otelcol_process_uptime) for 2 minutes, so nothing it collects is seen. Check whether the Collector process or container is running, and its upstream gateway if it sends through one."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/collector/#collectorabsent
       - eval_time: 30m
         groupname: postgresql
         alertname: PostgresTargetAbsent
@@ -4237,6 +4491,8 @@ tests:
               obenhub.collector: otelcol-pgha-2
             exp_annotations:
               summary: Patroni on pgha-2 is not scraped while PostgreSQL still reports
+              description: "Patroni's REST scrape of a member has not succeeded for 2 minutes while that node's PostgreSQL heartbeat is present: Patroni is down on a node whose PostgreSQL still runs, so no failover logic runs there. Check the Patroni service and its log on the node."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/patroni/#patronitargetabsent
       - eval_time: 30m
         groupname: etcd
         alertname: EtcdMemberAbsent
@@ -4252,6 +4508,8 @@ tests:
           - exp_labels: {severity: critical, obenhub.cluster.name: pgha}
             exp_annotations:
               summary: Cluster pgha has no writable primary
+              description: "No member of the cluster reports patroni_primary 1, so the cluster cannot take writes. Check patronictl list and the DCS."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/patroni/#patroninowritableprimary
 
   - name: "S2 leader Collector dead, pgha-2 promoted then demoted: PatroniNoWritablePrimary fires"
     interval: 15s
@@ -4300,6 +4558,8 @@ tests:
               obenhub.upstream: otelcol-gateway
             exp_annotations:
               summary: Collector otelcol-pgha-1 reports no self-metrics
+              description: "An expected Collector (obenhub.expected_collector) has sent no self-metrics (otelcol_process_uptime) for 2 minutes, so nothing it collects is seen. Check whether the Collector process or container is running, and its upstream gateway if it sends through one."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/collector/#collectorabsent
       - eval_time: 10m
         groupname: postgresql
         alertname: PostgresTargetAbsent
@@ -4331,6 +4591,8 @@ tests:
               obenhub.upstream: otelcol-gateway
             exp_annotations:
               summary: Collector otelcol-pgha-1 reports no self-metrics
+              description: "An expected Collector (obenhub.expected_collector) has sent no self-metrics (otelcol_process_uptime) for 2 minutes, so nothing it collects is seen. Check whether the Collector process or container is running, and its upstream gateway if it sends through one."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/collector/#collectorabsent
       - eval_time: 12m30s
         groupname: postgresql
         alertname: PostgresTargetAbsent
@@ -4362,6 +4624,8 @@ tests:
               obenhub.upstream: otelcol-gateway
             exp_annotations:
               summary: Collector otelcol-pgha-1 reports no self-metrics
+              description: "An expected Collector (obenhub.expected_collector) has sent no self-metrics (otelcol_process_uptime) for 2 minutes, so nothing it collects is seen. Check whether the Collector process or container is running, and its upstream gateway if it sends through one."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/collector/#collectorabsent
       - eval_time: 20m
         groupname: postgresql
         alertname: PostgresTargetAbsent
@@ -4385,6 +4649,8 @@ tests:
           - exp_labels: {severity: critical, obenhub.cluster.name: pgha}
             exp_annotations:
               summary: Cluster pgha has no writable primary
+              description: "No member of the cluster reports patroni_primary 1, so the cluster cannot take writes. Check patronictl list and the DCS."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/patroni/#patroninowritableprimary
       - eval_time: 25m
         groupname: collector
         alertname: CollectorAbsent
@@ -4396,6 +4662,8 @@ tests:
               obenhub.upstream: otelcol-gateway
             exp_annotations:
               summary: Collector otelcol-pgha-1 reports no self-metrics
+              description: "An expected Collector (obenhub.expected_collector) has sent no self-metrics (otelcol_process_uptime) for 2 minutes, so nothing it collects is seen. Check whether the Collector process or container is running, and its upstream gateway if it sends through one."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/collector/#collectorabsent
       - eval_time: 25m
         groupname: postgresql
         alertname: PostgresTargetAbsent
@@ -4419,6 +4687,8 @@ tests:
           - exp_labels: {severity: critical, obenhub.cluster.name: pgha}
             exp_annotations:
               summary: Cluster pgha has no writable primary
+              description: "No member of the cluster reports patroni_primary 1, so the cluster cannot take writes. Check patronictl list and the DCS."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/patroni/#patroninowritableprimary
       - eval_time: 30m
         groupname: collector
         alertname: CollectorAbsent
@@ -4430,6 +4700,8 @@ tests:
               obenhub.upstream: otelcol-gateway
             exp_annotations:
               summary: Collector otelcol-pgha-1 reports no self-metrics
+              description: "An expected Collector (obenhub.expected_collector) has sent no self-metrics (otelcol_process_uptime) for 2 minutes, so nothing it collects is seen. Check whether the Collector process or container is running, and its upstream gateway if it sends through one."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/collector/#collectorabsent
       - eval_time: 30m
         groupname: postgresql
         alertname: PostgresTargetAbsent
@@ -4453,6 +4725,8 @@ tests:
           - exp_labels: {severity: critical, obenhub.cluster.name: pgha}
             exp_annotations:
               summary: Cluster pgha has no writable primary
+              description: "No member of the cluster reports patroni_primary 1, so the cluster cannot take writes. Check patronictl list and the DCS."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/patroni/#patroninowritableprimary
 
   - name: "S1 switchover, then the new leader's Collector stops: only its CollectorAbsent"
     interval: 15s
@@ -4573,6 +4847,8 @@ tests:
               obenhub.upstream: otelcol-gateway
             exp_annotations:
               summary: Collector otelcol-pgha-2 reports no self-metrics
+              description: "An expected Collector (obenhub.expected_collector) has sent no self-metrics (otelcol_process_uptime) for 2 minutes, so nothing it collects is seen. Check whether the Collector process or container is running, and its upstream gateway if it sends through one."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/collector/#collectorabsent
       - eval_time: 20m
         groupname: postgresql
         alertname: PostgresTargetAbsent
@@ -4604,6 +4880,8 @@ tests:
               obenhub.upstream: otelcol-gateway
             exp_annotations:
               summary: Collector otelcol-pgha-2 reports no self-metrics
+              description: "An expected Collector (obenhub.expected_collector) has sent no self-metrics (otelcol_process_uptime) for 2 minutes, so nothing it collects is seen. Check whether the Collector process or container is running, and its upstream gateway if it sends through one."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/collector/#collectorabsent
       - eval_time: 25m
         groupname: postgresql
         alertname: PostgresTargetAbsent
@@ -4635,6 +4913,8 @@ tests:
               obenhub.upstream: otelcol-gateway
             exp_annotations:
               summary: Collector otelcol-pgha-2 reports no self-metrics
+              description: "An expected Collector (obenhub.expected_collector) has sent no self-metrics (otelcol_process_uptime) for 2 minutes, so nothing it collects is seen. Check whether the Collector process or container is running, and its upstream gateway if it sends through one."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/collector/#collectorabsent
       - eval_time: 30m
         groupname: postgresql
         alertname: PostgresTargetAbsent
@@ -4703,6 +4983,8 @@ tests:
               obenhub.upstream: otelcol-gateway
             exp_annotations:
               summary: Collector otelcol-pgha-1 reports no self-metrics
+              description: "An expected Collector (obenhub.expected_collector) has sent no self-metrics (otelcol_process_uptime) for 2 minutes, so nothing it collects is seen. Check whether the Collector process or container is running, and its upstream gateway if it sends through one."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/collector/#collectorabsent
       - eval_time: 25m
         groupname: postgresql
         alertname: PostgresTargetAbsent
@@ -4720,6 +5002,8 @@ tests:
               obenhub.collector: otelcol-pgha-2
             exp_annotations:
               summary: Patroni on pgha-2 is not scraped while PostgreSQL still reports
+              description: "Patroni's REST scrape of a member has not succeeded for 2 minutes while that node's PostgreSQL heartbeat is present: Patroni is down on a node whose PostgreSQL still runs, so no failover logic runs there. Check the Patroni service and its log on the node."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/patroni/#patronitargetabsent
       - eval_time: 25m
         groupname: etcd
         alertname: EtcdMemberAbsent
@@ -4735,6 +5019,8 @@ tests:
           - exp_labels: {severity: critical, obenhub.cluster.name: pgha}
             exp_annotations:
               summary: Cluster pgha has no writable primary
+              description: "No member of the cluster reports patroni_primary 1, so the cluster cannot take writes. Check patronictl list and the DCS."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/patroni/#patroninowritableprimary
       - eval_time: 30m
         groupname: collector
         alertname: CollectorAbsent
@@ -4746,6 +5032,8 @@ tests:
               obenhub.upstream: otelcol-gateway
             exp_annotations:
               summary: Collector otelcol-pgha-1 reports no self-metrics
+              description: "An expected Collector (obenhub.expected_collector) has sent no self-metrics (otelcol_process_uptime) for 2 minutes, so nothing it collects is seen. Check whether the Collector process or container is running, and its upstream gateway if it sends through one."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/collector/#collectorabsent
       - eval_time: 30m
         groupname: postgresql
         alertname: PostgresTargetAbsent
@@ -4763,6 +5051,8 @@ tests:
               obenhub.collector: otelcol-pgha-2
             exp_annotations:
               summary: Patroni on pgha-2 is not scraped while PostgreSQL still reports
+              description: "Patroni's REST scrape of a member has not succeeded for 2 minutes while that node's PostgreSQL heartbeat is present: Patroni is down on a node whose PostgreSQL still runs, so no failover logic runs there. Check the Patroni service and its log on the node."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/patroni/#patronitargetabsent
       - eval_time: 30m
         groupname: etcd
         alertname: EtcdMemberAbsent
@@ -4778,3 +5068,5 @@ tests:
           - exp_labels: {severity: critical, obenhub.cluster.name: pgha}
             exp_annotations:
               summary: Cluster pgha has no writable primary
+              description: "No member of the cluster reports patroni_primary 1, so the cluster cannot take writes. Check patronictl list and the DCS."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/patroni/#patroninowritableprimary

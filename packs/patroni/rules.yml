@@ -59,6 +59,8 @@ groups:
           severity: critical
         annotations:
           summary: 'Cluster {{ (index $labels "obenhub.cluster.name") }} has no writable primary'
+          description: "No member of the cluster reports patroni_primary 1, so the cluster cannot take writes. Check patronictl list and the DCS."
+          runbook_url: https://msavdert.github.io/obenhub/runbooks/patroni/#patroninowritableprimary
 
       # Two or more members of one cluster report patroni_primary == 1 at the
       # same time: two writable primaries, split brain. Only fresh samples
@@ -108,6 +110,8 @@ groups:
           severity: critical
         annotations:
           summary: 'Cluster {{ (index $labels "obenhub.cluster.name") }} has {{ $value }} members reporting primary (split brain)'
+          description: "Two or more members of one cluster report patroni_primary 1 within the last 30 seconds, for a minute: split brain. Check patronictl list and the DCS to see which member holds the leader key, then stop the other."
+          runbook_url: https://msavdert.github.io/obenhub/reference/patroni-pack-alerts/#patronimultipleprimaries
 
       # The highest timeline any node reports rose compared with the highest
       # one seen in the hour before the last 3 m (a rolling maximum, so the
@@ -127,6 +131,8 @@ groups:
           severity: warning
         annotations:
           summary: 'Cluster {{ (index $labels "obenhub.cluster.name") }} moved to timeline {{ $value }}'
+          description: "The highest PostgreSQL timeline of the cluster rose compared with the last hour: a switchover or a failover (the metrics cannot tell them apart). It resolves after 3 minutes; patronictl list shows the new leader and the timeline."
+          runbook_url: https://msavdert.github.io/obenhub/runbooks/patroni/#patronifailoverhappened
 
       # A replica whose WAL position (max of received and replayed, the value
       # Patroni itself compares) is more than maximum_lag_on_failover behind
@@ -154,6 +160,8 @@ groups:
           severity: warning
         annotations:
           summary: '{{ (index $labels "service.instance.id") }} is {{ $value | humanize1024 }}B behind the leader, beyond maximum_lag_on_failover'
+          description: "A replica's WAL position is more than 16 MiB (maximum_lag_on_failover) behind the leader's for a minute, so Patroni will not promote it. patronictl list shows the replica's lag; check that it receives and replays WAL."
+          runbook_url: https://msavdert.github.io/obenhub/runbooks/patroni/#patronireplicanoteligible
 
       # Maintenance mode disables automatic failover. 3 m is a lab value.
       - alert: PatroniClusterPaused
@@ -163,6 +171,8 @@ groups:
           severity: warning
         annotations:
           summary: 'Cluster {{ (index $labels "obenhub.cluster.name") }} is paused: no automatic failover'
+          description: "The cluster has been in maintenance mode (patroni_is_paused 1) for 3 minutes, which disables automatic failover. End it with patronictl resume when the maintenance is done."
+          runbook_url: https://msavdert.github.io/obenhub/runbooks/patroni/#patroniclusterpaused
 
       # A parameter changed that needs a restart. 2 m is a lab value.
       - alert: PatroniPendingRestart
@@ -172,6 +182,8 @@ groups:
           severity: warning
         annotations:
           summary: '{{ (index $labels "service.instance.id") }} has a pending restart'
+          description: "A PostgreSQL parameter changed on the member that needs a restart to take effect, for 2 minutes. patronictl list shows the member flagged; restart it in a maintenance window."
+          runbook_url: https://msavdert.github.io/obenhub/runbooks/patroni/#patronipendingrestart
 
       # Provenance (ADR 0004 decision 4): the two alert kinds are PatroniDown
       # (patroni_up < 1, for 1m) and PatroniFailSafeActive
@@ -202,6 +214,8 @@ groups:
           severity: critical
         annotations:
           summary: 'Patroni on {{ (index $labels "service.instance.id") }} is not scraped while PostgreSQL still reports'
+          description: "Patroni's REST scrape of a member has not succeeded for 2 minutes while that node's PostgreSQL heartbeat is present: Patroni is down on a node whose PostgreSQL still runs, so no failover logic runs there. Check the Patroni service and its log on the node."
+          runbook_url: https://msavdert.github.io/obenhub/runbooks/patroni/#patronitargetabsent
 
       # A Patroni target without obenhub.cluster.name (ADR 0006, decision 7).
       # Every rule of this pack groups on it, so such a member belongs to no
@@ -214,6 +228,8 @@ groups:
           severity: warning
         annotations:
           summary: 'Patroni on {{ (index $labels "service.instance.id") }} reports no obenhub.cluster.name'
+          description: "A Patroni scrape carries no obenhub.cluster.name, so the cluster rules count the member nowhere. Fix the resource attribute of the Collector scrape."
+          runbook_url: https://msavdert.github.io/obenhub/reference/patroni-pack-alerts/#patroniclusternamemissing
 
       # The rules of this pack size their windows for a collection every 15 s
       # (README, "Collection interval"): the [30s] window of
@@ -234,6 +250,8 @@ groups:
           severity: warning
         annotations:
           summary: 'Patroni {{ (index $labels "service.instance.id") }} is collected every {{ $value | printf "%.0f" }} s, the rules assume 15 s'
+          description: "Patroni is scraped less often than every 15 s (average spacing above 20 s over 5 minutes), while the rules size their windows for 15 s, so they go quiet or flap. Set the scrape interval back to 15 s."
+          runbook_url: https://msavdert.github.io/obenhub/reference/patroni-pack-alerts/#patronicollectionintervaltoolong
 
       # Failsafe mode: the DCS is unreachable and the leader keeps running on
       # the failsafe topology. UNIT TESTS ONLY: the lab runs with failsafe_mode
@@ -246,3 +264,5 @@ groups:
           severity: critical
         annotations:
           summary: '{{ (index $labels "service.instance.id") }} runs in failsafe mode, the DCS is unreachable'
+          description: "Patroni reports failsafe mode (patroni_failsafe_mode_is_active 1): the DCS is unreachable and the leader keeps running on the failsafe topology. Check the DCS (etcd) and the network to it."
+          runbook_url: https://msavdert.github.io/obenhub/reference/patroni-pack-alerts/#patronifailsafeactive

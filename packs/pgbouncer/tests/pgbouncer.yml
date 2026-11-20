@@ -37,6 +37,8 @@ tests:
               user.name: app
             exp_annotations:
               summary: "PgBouncer pool app/app has a client waiting 8s for a server connection"
+              description: "A client has waited over 5 seconds for a server connection for a minute, so the pool is at pool_size with clients queued. Run SHOW POOLS on the PgBouncer console for cl_waiting and maxwait of the database named in the alert."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/pgbouncer/#pgbouncerclientswaiting
 
   - name: whole seconds and the sub-second part add up (4 s plus 2.5 s sub-second part fires)
     interval: 15s
@@ -66,6 +68,8 @@ tests:
               user.name: app
             exp_annotations:
               summary: "PgBouncer pool app/app has a client waiting 6.5s for a server connection"
+              description: "A client has waited over 5 seconds for a server connection for a minute, so the pool is at pool_size with clients queued. Run SHOW POOLS on the PgBouncer console for cl_waiting and maxwait of the database named in the alert."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/pgbouncer/#pgbouncerclientswaiting
 
   - name: a wait of 5.5 s fires; the threshold is 5 s from above too
     interval: 15s
@@ -95,6 +99,8 @@ tests:
               user.name: app
             exp_annotations:
               summary: "PgBouncer pool app/app has a client waiting 5.5s for a server connection"
+              description: "A client has waited over 5 seconds for a server connection for a minute, so the pool is at pool_size with clients queued. Run SHOW POOLS on the PgBouncer console for cl_waiting and maxwait of the database named in the alert."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/pgbouncer/#pgbouncerclientswaiting
 
   - name: a wait of 4.9 s does not fire; the threshold is 5 s
     interval: 15s
@@ -227,6 +233,8 @@ tests:
               user.name: app
             exp_annotations:
               summary: "PgBouncer pool app/app has a client waiting 30s for a server connection"
+              description: "A client has waited over 5 seconds for a server connection for a minute, so the pool is at pool_size with clients queued. Run SHOW POOLS on the PgBouncer console for cl_waiting and maxwait of the database named in the alert."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/pgbouncer/#pgbouncerclientswaiting
 
   - name: stale series do not fire once the PgBouncer heartbeat is gone
     interval: 15s
@@ -279,6 +287,8 @@ tests:
               user.name: app
             exp_annotations:
               summary: "PgBouncer pool app/app used 100% of its pool_size over 5m"
+              description: "The pool of a database has had 90 % or more of its pool_size linked to clients on average over 5 minutes; no client waits yet. Run SHOW POOLS for sv_active and compare it with pool_size in SHOW DATABASES."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/pgbouncer/#pgbouncerpoolsaturated
   - name: PoolSaturated is silent at ratio 0.8
     interval: 15s
     input_series:
@@ -326,6 +336,8 @@ tests:
               user.name: app
             exp_annotations:
               summary: "PgBouncer pool app/app used 95% of its pool_size over 5m"
+              description: "The pool of a database has had 90 % or more of its pool_size linked to clients on average over 5 minutes; no client waits yet. Run SHOW POOLS for sv_active and compare it with pool_size in SHOW DATABASES."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/pgbouncer/#pgbouncerpoolsaturated
 
   - name: PoolSaturated is silent at ratio 0.85, clearly below the 0.9 threshold
     interval: 15s
@@ -397,6 +409,8 @@ tests:
               user.name: app
             exp_annotations:
               summary: "PgBouncer pool app/app used 100% of its pool_size over 5m"
+              description: "The pool of a database has had 90 % or more of its pool_size linked to clients on average over 5 minutes; no client waits yet. Run SHOW POOLS for sv_active and compare it with pool_size in SHOW DATABASES."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/pgbouncer/#pgbouncerpoolsaturated
 
   - name: PoolSaturated ignores the console pool (database pgbouncer)
     interval: 15s
@@ -498,6 +512,8 @@ tests:
               service.instance.id: pgbouncer
             exp_annotations:
               summary: "pgbouncer client connections above 85% of max_client_conn"
+              description: "Client connections are above 85 % of max_client_conn (critical at 95 %, when further clients are refused). Run SHOW LISTS for used_clients and SHOW CONFIG for max_client_conn."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/pgbouncer/#pgbouncerclientsaturation
 
   - name: ClientSaturation raises the critical only, at 0.96
     interval: 15s
@@ -519,6 +535,8 @@ tests:
               service.instance.id: pgbouncer
             exp_annotations:
               summary: "pgbouncer client connections at or above 95% of max_client_conn; further clients are refused"
+              description: "Client connections are above 85 % of max_client_conn (critical at 95 %, when further clients are refused). Run SHOW LISTS for used_clients and SHOW CONFIG for max_client_conn."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/pgbouncer/#pgbouncerclientsaturation
 
   - name: ClientSaturation raises the critical at 1.04 (console connections above the limit)
     interval: 15s
@@ -540,6 +558,8 @@ tests:
               service.instance.id: pgbouncer
             exp_annotations:
               summary: "pgbouncer client connections at or above 95% of max_client_conn; further clients are refused"
+              description: "Client connections are above 85 % of max_client_conn (critical at 95 %, when further clients are refused). Run SHOW LISTS for used_clients and SHOW CONFIG for max_client_conn."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/pgbouncer/#pgbouncerclientsaturation
 
   - name: ClientSaturation is silent at 0.8
     interval: 15s
@@ -576,6 +596,8 @@ tests:
               service.instance.id: pgbouncer
             exp_annotations:
               summary: "pgbouncer client connections above 85% of max_client_conn"
+              description: "Client connections are above 85 % of max_client_conn (critical at 95 %, when further clients are refused). Run SHOW LISTS for used_clients and SHOW CONFIG for max_client_conn."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/pgbouncer/#pgbouncerclientsaturation
       - eval_time: 5m30s
         groupname: pgbouncer
         alertname: PgbouncerClientSaturation
@@ -586,6 +608,8 @@ tests:
               service.instance.id: pgbouncer
             exp_annotations:
               summary: "pgbouncer client connections above 85% of max_client_conn"
+              description: "Client connections are above 85 % of max_client_conn (critical at 95 %, when further clients are refused). Run SHOW LISTS for used_clients and SHOW CONFIG for max_client_conn."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/pgbouncer/#pgbouncerclientsaturation
       - eval_time: 6m
         groupname: pgbouncer
         alertname: PgbouncerClientSaturation
@@ -596,6 +620,8 @@ tests:
               service.instance.id: pgbouncer
             exp_annotations:
               summary: "pgbouncer client connections above 85% of max_client_conn"
+              description: "Client connections are above 85 % of max_client_conn (critical at 95 %, when further clients are refused). Run SHOW LISTS for used_clients and SHOW CONFIG for max_client_conn."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/pgbouncer/#pgbouncerclientsaturation
       - eval_time: 6m30s
         groupname: pgbouncer
         alertname: PgbouncerClientSaturation
@@ -606,6 +632,8 @@ tests:
               service.instance.id: pgbouncer
             exp_annotations:
               summary: "pgbouncer client connections at or above 95% of max_client_conn; further clients are refused"
+              description: "Client connections are above 85 % of max_client_conn (critical at 95 %, when further clients are refused). Run SHOW LISTS for used_clients and SHOW CONFIG for max_client_conn."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/pgbouncer/#pgbouncerclientsaturation
       - eval_time: 8m
         groupname: pgbouncer
         alertname: PgbouncerClientSaturation
@@ -616,6 +644,8 @@ tests:
               service.instance.id: pgbouncer
             exp_annotations:
               summary: "pgbouncer client connections at or above 95% of max_client_conn; further clients are refused"
+              description: "Client connections are above 85 % of max_client_conn (critical at 95 %, when further clients are refused). Run SHOW LISTS for used_clients and SHOW CONFIG for max_client_conn."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/pgbouncer/#pgbouncerclientsaturation
 
   - name: ClientSaturation is silent once the PgBouncer heartbeat is gone
     interval: 15s
@@ -665,6 +695,8 @@ tests:
               pgbouncer.database.name: app
             exp_annotations:
               summary: "PgBouncer database app: clients wait 200ms on average for a server connection"
+              description: "Clients wait more than 0.1 seconds on average for a server assignment over 5 minutes (many short waits that stay under the 5 s of PgbouncerClientsWaiting). Run SHOW STATS for the database and check the pool size against the load."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/pgbouncer/#pgbouncerwaittime
 
   - name: WaitTime is silent at 0.05 s average
     interval: 15s
@@ -775,6 +807,8 @@ tests:
               pgbouncer.database.name: app
             exp_annotations:
               summary: "PgBouncer database app: clients wait 500ms on average for a server connection"
+              description: "Clients wait more than 0.1 seconds on average for a server assignment over 5 minutes (many short waits that stay under the 5 s of PgbouncerClientsWaiting). Run SHOW STATS for the database and check the pool size against the load."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/pgbouncer/#pgbouncerwaittime
 
   - name: WaitTime silencing is per database - a sustained wait on app does not silence other
     interval: 15s
@@ -807,6 +841,8 @@ tests:
               pgbouncer.database.name: other
             exp_annotations:
               summary: "PgBouncer database other: clients wait 200ms on average for a server connection"
+              description: "Clients wait more than 0.1 seconds on average for a server assignment over 5 minutes (many short waits that stay under the 5 s of PgbouncerClientsWaiting). Run SHOW STATS for the database and check the pool size against the load."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/pgbouncer/#pgbouncerwaittime
 
   - name: WaitTime fires again once the 75 s run of maxwait 5 s or more has left the 6m window (for 2m adds about 2m of margin, so 6m is not pinned)
     interval: 15s
@@ -841,6 +877,8 @@ tests:
               pgbouncer.database.name: app
             exp_annotations:
               summary: "PgBouncer database app: clients wait 200ms on average for a server connection"
+              description: "Clients wait more than 0.1 seconds on average for a server assignment over 5 minutes (many short waits that stay under the 5 s of PgbouncerClientsWaiting). Run SHOW STATS for the database and check the pool size against the load."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/pgbouncer/#pgbouncerwaittime
 
   - name: WaitTime is silent while the database is paused
     interval: 15s
@@ -911,6 +949,8 @@ tests:
               obenhub.collector: otelcol-slice1
             exp_annotations:
               summary: "No heartbeat from pgbouncer"
+              description: "An expected PgBouncer target has sent no heartbeat (the SHOW LISTS row databases) for 2 minutes while its Collector is alive. Check that PgBouncer runs and that the stats user can reach the console."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/pgbouncer/#pgbouncertargetabsent
 
   # --- identity (ADR 0006, decision 7) --------------------------------------
   - name: two clusters share the instance pgbouncer - the other cluster's heartbeat does not hide a dead target
@@ -943,6 +983,8 @@ tests:
               obenhub.collector: otelcol-x
             exp_annotations:
               summary: No heartbeat from pgbouncer
+              description: "An expected PgBouncer target has sent no heartbeat (the SHOW LISTS row databases) for 2 minutes while its Collector is alive. Check that PgBouncer runs and that the stats user can reach the console."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/pgbouncer/#pgbouncertargetabsent
 
   - name: two clusters share the instance pgbouncer - a paused database in b does not silence waiting clients in a
     interval: 15s
@@ -971,6 +1013,8 @@ tests:
               user.name: app
             exp_annotations:
               summary: PgBouncer pool app/app has a client waiting 8s for a server connection
+              description: "A client has waited over 5 seconds for a server connection for a minute, so the pool is at pool_size with clients queued. Run SHOW POOLS on the PgBouncer console for cl_waiting and maxwait of the database named in the alert."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/pgbouncer/#pgbouncerclientswaiting
 
   - name: a PgBouncer target without obenhub.cluster.name fires PgbouncerClusterNameMissing after 5 m
     interval: 15s
@@ -994,6 +1038,8 @@ tests:
               pgbouncer.list.name: databases
             exp_annotations:
               summary: pgbouncer reports no obenhub.cluster.name
+              description: "A PgBouncer target carries no obenhub.cluster.name, so the saturation and wait rules pair it with nothing. Fix the resource attribute of the Collector."
+              runbook_url: https://msavdert.github.io/obenhub/reference/pgbouncer-pack-alerts/#pgbouncerclusternamemissing
 
   - name: PgBouncer targets with a cluster name keep PgbouncerClusterNameMissing quiet
     interval: 15s

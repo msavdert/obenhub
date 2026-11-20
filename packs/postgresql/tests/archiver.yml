@@ -30,6 +30,8 @@ tests:
               service.instance.id: pg-primary
             exp_annotations:
               summary: 'WAL archiving on pg-primary is failing: the last attempt failed and no attempt has succeeded since'
+              description: "The archive_command ran and failed, and the last failure is newer than the last success, for a minute. Check pg_stat_archiver (last_failed_wal, last_failed_time) and the PostgreSQL log for the command's error."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgresarchivingfailing
       - eval_time: 10m   # the last attempt succeeded again
         groupname: postgresql
         alertname: PostgresArchivingFailing
@@ -61,9 +63,13 @@ tests:
               service.instance.id: pg-primary
             exp_annotations:
               summary: '12 WAL files on pg-primary are waiting for the archiver (lab threshold)'
+              description: "More than 8 WAL segments wait with a .ready file in pg_wal/archive_status for 2 minutes (lab threshold); they stay in pg_wal until archived and can fill the disk. Check pg_stat_archiver and the archive_command."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgresarchivebacklog
           - exp_labels:
               obenhub.cluster.name: slice1
               severity: warning
               service.instance.id: pg-nine
             exp_annotations:
               summary: '9 WAL files on pg-nine are waiting for the archiver (lab threshold)'
+              description: "More than 8 WAL segments wait with a .ready file in pg_wal/archive_status for 2 minutes (lab threshold); they stay in pg_wal until archived and can fill the disk. Check pg_stat_archiver and the archive_command."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgresarchivebacklog

@@ -53,6 +53,8 @@ groups:
           severity: warning
         annotations:
           summary: 'etcd member {{ (index $labels "service.instance.id") }} is not scraped'
+          description: "An expected etcd member has had no successful scrape for 2 minutes while the Collector that scrapes it is alive. Run etcdctl endpoint status against all members to see which one does not answer, then check the etcd process on it."
+          runbook_url: https://msavdert.github.io/obenhub/runbooks/etcd/#etcdmemberabsent
 
       # Per etcd cluster: fewer members reporting than a majority of the
       # cluster's inventory (2 of 3). A cluster with no member reporting has no
@@ -87,6 +89,8 @@ groups:
           severity: critical
         annotations:
           summary: 'Only {{ $value }} members of etcd cluster {{ (index $labels "obenhub.cluster.name") }} report: quorum is lost'
+          description: "Fewer etcd members report than a majority of the cluster's inventory (2 of 3), so the cluster has lost quorum or cannot be seen. Check which members are absent (EtcdMemberAbsent) and bring them back."
+          runbook_url: https://msavdert.github.io/obenhub/runbooks/etcd/#etcdinsufficientmembers
 
       # An etcd member without obenhub.cluster.name (ADR 0006, decision 7). The
       # member alerts above and EtcdHighLeaderChanges group on it, so such a
@@ -98,6 +102,8 @@ groups:
           severity: warning
         annotations:
           summary: 'etcd member {{ (index $labels "service.instance.id") }} reports no obenhub.cluster.name'
+          description: "An etcd member's series carry no obenhub.cluster.name, so the member alerts count it toward no cluster. Fix the resource attribute of the Collector scrape."
+          runbook_url: https://msavdert.github.io/obenhub/reference/etcd-pack-alerts/#etcdclusternamemissing
 
       # A member that reports and has no leader. Mixin: same expression, for
       # 1m (kept). A normal election takes about a second.
@@ -108,6 +114,8 @@ groups:
           severity: critical
         annotations:
           summary: 'etcd member {{ (index $labels "service.instance.id") }} has no leader'
+          description: "A reporting etcd member has had no leader (etcd_server_has_leader 0) for a minute; a normal election takes about a second. Run etcdctl endpoint status to see which member is leader, and check the network between the members."
+          runbook_url: https://msavdert.github.io/obenhub/runbooks/etcd/#etcdnoleader
 
       # Mixin: increase(...[15m:1m]) >= 4, for 5m. Lab: 5 m window, >= 3, for
       # 1m, so the alert resolves inside the scenario's resolve timeout. The
@@ -124,6 +132,8 @@ groups:
           severity: warning
         annotations:
           summary: '{{ $value }} leader changes of etcd cluster {{ (index $labels "obenhub.cluster.name") }} within 5 minutes'
+          description: "Three or more leader changes of one etcd cluster within 5 minutes (increase of etcd_server_leader_changes_seen_total). Run etcdctl endpoint status for the current leader, and look at the members for restarts, slow disks (EtcdHighFsyncDurations) or network trouble between them."
+          runbook_url: https://msavdert.github.io/obenhub/runbooks/etcd/#etcdhighleaderchanges
 
       # Mixin: histogram_quantile(0.99, rate(...[5m])) > 0.5, for 10m (warning),
       # > 1 (critical). Here: the threshold is the mixin's 0.5 s, the production
@@ -146,6 +156,8 @@ groups:
           severity: warning
         annotations:
           summary: 'etcd member {{ (index $labels "service.instance.id") }} WAL fsync p99 is {{ $value | humanizeDuration }}'
+          description: "The 99th percentile of the WAL fsync duration of a member is over the limit (0.5 s unless the lab inventory sets obenhub.etcd.fsync_duration.limit) for 10 minutes. Check the disk under the etcd data directory for contention."
+          runbook_url: https://msavdert.github.io/obenhub/reference/etcd-pack-alerts/#etcdhighfsyncdurations
 
       # Mixin: > 0.25, for 10m; the same default here, overridable per lab with
       # obenhub.etcd.commit_duration.limit (see the fsync rule above for the
@@ -161,3 +173,5 @@ groups:
           severity: warning
         annotations:
           summary: 'etcd member {{ (index $labels "service.instance.id") }} backend commit p99 is {{ $value | humanizeDuration }}'
+          description: "The 99th percentile of the backend commit duration of a member is over the limit (0.25 s unless the lab inventory sets obenhub.etcd.commit_duration.limit) for 10 minutes. Check the disk under the etcd data directory for contention."
+          runbook_url: https://msavdert.github.io/obenhub/reference/etcd-pack-alerts/#etcdhighcommitdurations

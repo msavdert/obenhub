@@ -43,6 +43,8 @@ groups:
           severity: warning
         annotations:
           summary: '{{ (index $labels "service.instance.id") }} reports no obenhub.cluster.name'
+          description: "The database's heartbeat series carries no obenhub.cluster.name, so the role and Data Guard rules cannot group it. Fix the resource attribute of the Collector."
+          runbook_url: https://msavdert.github.io/obenhub/reference/oracledb-dg-pack-alerts/#oracleclusternamemissing
 
       # The rules of this pack size their windows for a collection every 15 s
       # (README, "Collection interval"): [30s] holds two collections, the
@@ -66,6 +68,8 @@ groups:
           severity: warning
         annotations:
           summary: 'Oracle database {{ (index $labels "service.instance.id") }} is collected every {{ $value | printf "%.0f" }} s, the rules assume 15 s'
+          description: "The database is collected less often than every 15 s (average spacing above 20 s over 5 minutes), while the rules size their windows for 15 s, so they go quiet or flap. Set the collection interval of the oracledb receiver back to 15 s."
+          runbook_url: https://msavdert.github.io/obenhub/reference/oracledb-dg-pack-alerts/#oraclecollectionintervaltoolong
 
       # An expected Oracle target (inventory) whose heartbeat has been absent
       # for 2m while the Collector that collects it is alive. Same shape as
@@ -97,6 +101,8 @@ groups:
           severity: critical
         annotations:
           summary: 'No heartbeat from Oracle database {{ (index $labels "service.instance.id") }}'
+          description: "An expected Oracle target has sent no heartbeat for 2 minutes while its Collector is alive. Check that the database is up and that the monitoring account can connect."
+          runbook_url: https://msavdert.github.io/obenhub/reference/oracledb-dg-pack-alerts/#oracletargetabsent
 
       # A database whose last primary == 1 sample is later than its last
       # primary == 0 sample, both within 3 minutes, and that reported 1 within
@@ -142,6 +148,8 @@ groups:
           severity: warning
         annotations:
           summary: 'A standby of Data Guard cluster {{ (index $labels "obenhub.cluster.name") }} was promoted to primary'
+          description: "A database reports PRIMARY after having reported another role within the last 3 minutes: a standby was promoted, by switchover or failover (the signal cannot tell them apart). Check the Data Guard broker configuration (dgmgrl show configuration) and its log."
+          runbook_url: https://msavdert.github.io/obenhub/runbooks/oracledb-dg/#oracleprimarychanged
 
       # More than one database of one cluster is the current primary and open
       # (role PRIMARY with oracledb.database.open 1, both in the last minute)
@@ -171,6 +179,8 @@ groups:
           severity: critical
         annotations:
           summary: 'Data Guard cluster {{ (index $labels "obenhub.cluster.name") }} has {{ $value | printf "%.0f" }} primary databases'
+          description: "More than one database of one cluster is PRIMARY and open at the same time for a minute: split brain. Check which database the broker considers primary and stop the other."
+          runbook_url: https://msavdert.github.io/obenhub/reference/oracledb-dg-pack-alerts/#oraclemultipleprimaries
 
       # A cluster with at least one database reporting its heartbeat in the last
       # minute and none reporting role PRIMARY and open (oracledb.database.open 1,
@@ -198,6 +208,8 @@ groups:
           severity: critical
         annotations:
           summary: 'Data Guard cluster {{ (index $labels "obenhub.cluster.name") }} reports no primary database'
+          description: "At least one database of the cluster reports, but none is PRIMARY and open, for a minute: a failover not completed or a primary lost. Check the broker status and the state of both databases."
+          runbook_url: https://msavdert.github.io/obenhub/reference/oracledb-dg-pack-alerts/#oraclenoprimary
 
       # The primary's protection level is below its protection mode (for
       # example MAXIMUM AVAILABILITY running as RESYNCHRONIZATION or
@@ -223,6 +235,8 @@ groups:
           severity: warning
         annotations:
           summary: 'Protection level of primary {{ (index $labels "service.instance.id") }} is {{ (index $labels "oracledb.dataguard.protection_level") }}, below {{ (index $labels "oracledb.dataguard.protection_mode") }}'
+          description: "The primary's protection level is below its protection mode, so the zero-data-loss guarantee set up for the configuration no longer holds. Check redo transport to the standby, which is unreachable or behind."
+          runbook_url: https://msavdert.github.io/obenhub/runbooks/oracledb-dg/#oracleprotectiondegraded
 
       # Fast-start failover is enabled (status not DISABLED) but the primary
       # reports it is not SYNCHRONIZED (status UNSYNCHRONIZED, LAGGING and so
@@ -251,6 +265,8 @@ groups:
           severity: warning
         annotations:
           summary: 'Fast-start failover on primary {{ (index $labels "service.instance.id") }} is {{ (index $labels "oracledb.fast_start_failover.status") }}, not synchronized'
+          description: "Fast-start failover is enabled but the primary reports it is not SYNCHRONIZED, so the broker will not fail over automatically. Check the standby's transport and apply lag."
+          runbook_url: https://msavdert.github.io/obenhub/reference/oracledb-dg-pack-alerts/#oraclefaststartfailovernotsynchronized
 
       # Fast-start failover is enabled but the primary sees no observer: with
       # no observer the broker cannot fail over automatically. Primary side
@@ -273,6 +289,8 @@ groups:
           severity: warning
         annotations:
           summary: 'Primary {{ (index $labels "service.instance.id") }} sees no fast-start failover observer'
+          description: "Fast-start failover is enabled but the primary sees no observer for 2 minutes, so the broker cannot fail over automatically. Check fs_failover_observer_present in V$DATABASE and dgmgrl show configuration, and that the observer process runs and reaches both databases."
+          runbook_url: https://msavdert.github.io/obenhub/runbooks/oracledb-dg/#oraclefaststartfailoverobservermissing
 
       # A standby whose managed recovery process is gone (the query counts
       # V$DATAGUARD_PROCESS rows of role managed recovery): redo is received but
@@ -295,6 +313,8 @@ groups:
           severity: critical
         annotations:
           summary: 'Redo apply on standby {{ (index $labels "service.instance.id") }} is not running'
+          description: "The managed recovery process of a standby is gone for 3 minutes: redo is received but no longer applied, and the lag will grow. Check V$DATAGUARD_PROCESS and the standby's alert log, then restart apply."
+          runbook_url: https://msavdert.github.io/obenhub/runbooks/oracledb-dg/#oraclestandbyapplystopped
 
       # Transport or apply lag above 60 seconds on a standby, per lag.type, for
       # 2m. V$DATAGUARD_STATS gives the lag as an interval, the query turns it
@@ -309,6 +329,8 @@ groups:
           severity: warning
         annotations:
           summary: '{{ (index $labels "oracledb.dataguard.lag.type") }} lag on standby {{ (index $labels "service.instance.id") }} is {{ $value | printf "%.0f" }}s (lab threshold 60s)'
+          description: "Transport or apply lag on a standby is above 60 seconds for 2 minutes (lab threshold). Check V$DATAGUARD_STATS and whether redo still arrives (OracleStandbyDataStale) and is applied (OracleStandbyApplyStopped)."
+          runbook_url: https://msavdert.github.io/obenhub/runbooks/oracledb-dg/#oraclestandbylag
 
       # The lag value on a standby is stale: lag.data_age is the time since the
       # standby last received the data the lag is computed from (DATUM_TIME), so
@@ -323,6 +345,8 @@ groups:
           severity: warning
         annotations:
           summary: 'Lag data of type {{ (index $labels "oracledb.dataguard.lag.type") }} on standby {{ (index $labels "service.instance.id") }} is {{ $value | printf "%.0f" }}s old (lab threshold 60s)'
+          description: "The data the standby's lag is computed from is older than 60 seconds for 2 minutes: redo has stopped arriving even if the lag itself is low. Check redo transport from the primary and the archive destination status there."
+          runbook_url: https://msavdert.github.io/obenhub/runbooks/oracledb-dg/#oraclestandbydatastale
 
       # A reporting standby (apply.running seen in the last 30s) with fewer
       # than the two lag series (apply and transport; the pack emits exactly
@@ -346,6 +370,8 @@ groups:
           severity: warning
         annotations:
           summary: 'Standby {{ (index $labels "service.instance.id") }} reports no transport or apply lag (value NULL in V$DATAGUARD_STATS)'
+          description: "A reporting standby has fewer than the two lag series (apply and transport) for 2 minutes, because V$DATAGUARD_STATS returns NULL, so OracleStandbyLag cannot fire. Check the standby's Data Guard state in V$DATAGUARD_STATS."
+          runbook_url: https://msavdert.github.io/obenhub/reference/oracledb-dg-pack-alerts/#oraclestandbylagunknown
 
       # Redo is missing: a standby reports archived logs it lacks
       # (missing_log.count > 0, V$ARCHIVE_GAP) or the primary reports a
@@ -369,6 +395,8 @@ groups:
           severity: warning
         annotations:
           summary: 'Redo gap on {{ (index $labels "service.instance.id") }}'
+          description: "A standby lacks archived logs (V$ARCHIVE_GAP) or the primary reports a destination with a gap, for a minute. Check V$ARCHIVE_GAP on the standby and the archive destination status on the primary."
+          runbook_url: https://msavdert.github.io/obenhub/reference/oracledb-dg-pack-alerts/#oracleredogap
 
       # An archive destination whose status is not VALID (ERROR, DEFERRED,
       # BAD PARAM and so on; an INACTIVE one is not listed by the query), for
@@ -390,6 +418,8 @@ groups:
           severity: critical
         annotations:
           summary: 'Archive destination {{ (index $labels "oracledb.archive_dest.id") }} ({{ (index $labels "oracledb.archive_dest.destination") }}) of {{ (index $labels "service.instance.id") }} is {{ (index $labels "oracledb.archive_dest.status") }}'
+          description: "An archive destination is not VALID for a minute: for a remote one the primary can no longer ship redo, for the local one archiving stops. Check V$ARCHIVE_DEST for the error of that destination."
+          runbook_url: https://msavdert.github.io/obenhub/runbooks/oracledb-dg/#oracleredodestinationinvalid
 
       # A listener whose TCP connect failed (tcpcheck.status 0 from the
       # tcpcheck receiver on ora-dg-obs, alpha, contrib v0.164.0, a connect
@@ -430,6 +460,8 @@ groups:
           severity: critical
         annotations:
           summary: 'Oracle listener {{ (index $labels "tcpcheck.endpoint") }} does not accept TCP connections'
+          description: "A TCP connect to a listener endpoint failed on every check for a minute (tcpcheck receiver; no login, no service lookup). Check lsnrctl status, that the listener process runs and the port is reachable from the host that runs the tcpcheck receiver."
+          runbook_url: https://msavdert.github.io/obenhub/runbooks/oracledb-dg/#oraclelistenerunreachable
 
       # A project monitoring account (C##OBENHUB_*, oracledb.user.open from
       # queries-primary.yaml, read through the SYSDG session of
@@ -461,6 +493,8 @@ groups:
           severity: critical
         annotations:
           summary: 'Monitoring account {{ (index $labels "oracledb.user.name") }} on {{ (index $labels "service.instance.id") }} is {{ (index $labels "oracledb.user.status") }}'
+          description: "A project monitoring account (C##OBENHUB_*) is not OPEN in DBA_USERS (expired, in grace or locked) for a minute; an expired password stops only new logins, so collection can continue until the next reconnect. Check DBA_USERS for the status and reset the account."
+          runbook_url: https://msavdert.github.io/obenhub/runbooks/oracledb-dg/#oraclemonitoringaccountnotopen
 
       # Instance process slots in use against the PROCESSES parameter:
       # oracledb.processes.usage / oracledb.processes.limit from the oracledb
@@ -504,6 +538,8 @@ groups:
           severity: warning
         annotations:
           summary: 'Oracle instance {{ (index $labels "service.instance.id") }} uses more than 85% of its PROCESSES limit'
+          description: "Instance process slots in use are above 85 % of the PROCESSES parameter (critical at 95 %); at the limit a new dedicated server process cannot start. Check V$RESOURCE_LIMIT and which sessions hold the processes."
+          runbook_url: https://msavdert.github.io/obenhub/runbooks/oracledb-dg/#oracleprocessessaturation
 
       - alert: OracleProcessesSaturation
         expr: |
@@ -519,6 +555,8 @@ groups:
           severity: critical
         annotations:
           summary: 'Oracle instance {{ (index $labels "service.instance.id") }} uses 95% or more of its PROCESSES limit: new logins fail with ORA-00020'
+          description: "Instance process slots in use are above 85 % of the PROCESSES parameter (critical at 95 %); at the limit a new dedicated server process cannot start. Check V$RESOURCE_LIMIT and which sessions hold the processes."
+          runbook_url: https://msavdert.github.io/obenhub/runbooks/oracledb-dg/#oracleprocessessaturation
 
       # oracledb.tablespace_size.usage / oracledb.tablespace_size.limit from
       # the oracledb receiver (DBA/CDB_TABLESPACE_USAGE_METRICS, 30s
@@ -559,6 +597,8 @@ groups:
           severity: warning
         annotations:
           summary: 'Tablespace {{ (index $labels "tablespace_name") }} ({{ (index $labels "oracle.db.pdb") }}) of Oracle instance {{ (index $labels "service.instance.id") }} is more than 85% full of its maximum size'
+          description: "A tablespace is above 85 % of its limit (critical at 95 %). Check DBA_TABLESPACE_USAGE_METRICS for the tablespace and PDB named in the alert and add space or free it."
+          runbook_url: https://msavdert.github.io/obenhub/runbooks/oracledb-dg/#oracletablespaceusagehigh
 
       - alert: OracleTablespaceUsageHigh
         expr: |
@@ -574,6 +614,8 @@ groups:
           severity: critical
         annotations:
           summary: 'Tablespace {{ (index $labels "tablespace_name") }} ({{ (index $labels "oracle.db.pdb") }}) of Oracle instance {{ (index $labels "service.instance.id") }} is 95% or more full of its maximum size: at 100% a segment that needs a new extent fails with ORA-01653'
+          description: "A tablespace is above 85 % of its limit (critical at 95 %). Check DBA_TABLESPACE_USAGE_METRICS for the tablespace and PDB named in the alert and add space or free it."
+          runbook_url: https://msavdert.github.io/obenhub/runbooks/oracledb-dg/#oracletablespaceusagehigh
 
       # A session has waited for a lock held by another session:
       # oracledb.lock.oldest_wait_age (queries-primary.yaml: V$SESSION, wait
@@ -603,3 +645,5 @@ groups:
           severity: warning
         annotations:
           summary: 'A session on Oracle instance {{ (index $labels "service.instance.id") }} has waited {{ $value | humanizeDuration }} for a lock held by another session (lab threshold)'
+          description: "A session has waited more than 30 seconds for a lock held by another session (V$SESSION, wait class Application). The alert does not name the blocker; look for it in V$SESSION by blocking_session."
+          runbook_url: https://msavdert.github.io/obenhub/runbooks/oracledb-dg/#oracleblockedsessions

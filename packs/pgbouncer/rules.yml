@@ -30,6 +30,8 @@ groups:
           severity: critical
         annotations:
           summary: 'No heartbeat from {{ (index $labels "service.instance.id") }}'
+          description: "An expected PgBouncer target has sent no heartbeat (the SHOW LISTS row databases) for 2 minutes while its Collector is alive. Check that PgBouncer runs and that the stats user can reach the console."
+          runbook_url: https://msavdert.github.io/obenhub/runbooks/pgbouncer/#pgbouncertargetabsent
 
       # A PgBouncer target without obenhub.cluster.name (ADR 0006, decision 7):
       # its joins match on it, so the saturation and wait rules would see it
@@ -41,6 +43,8 @@ groups:
           severity: warning
         annotations:
           summary: '{{ (index $labels "service.instance.id") }} reports no obenhub.cluster.name'
+          description: "A PgBouncer target carries no obenhub.cluster.name, so the saturation and wait rules pair it with nothing. Fix the resource attribute of the Collector."
+          runbook_url: https://msavdert.github.io/obenhub/reference/pgbouncer-pack-alerts/#pgbouncerclusternamemissing
 
       # The rules of this pack size their windows for a collection every 15 s
       # (README, "Collection interval"): the [75s:15s] subqueries and the
@@ -61,6 +65,8 @@ groups:
           severity: warning
         annotations:
           summary: 'PgBouncer {{ (index $labels "service.instance.id") }} is collected every {{ $value | printf "%.0f" }} s, the rules assume 15 s'
+          description: "PgBouncer is collected less often than every 15 s (average spacing above 20 s over 5 minutes), while the rules size their windows for 15 s, so they go quiet or flap. Set the collection interval back to 15 s."
+          runbook_url: https://msavdert.github.io/obenhub/reference/pgbouncer-pack-alerts/#pgbouncercollectionintervaltoolong
 
       # A client waits for a server connection only when the pool is at
       # pool_size. Over 5 s for 1 m is a lab threshold (assumption: a healthy
@@ -86,6 +92,8 @@ groups:
           severity: warning
         annotations:
           summary: 'PgBouncer pool {{ (index $labels "pgbouncer.database.name") }}/{{ (index $labels "user.name") }} has a client waiting {{ $value | humanizeDuration }} for a server connection'
+          description: "A client has waited over 5 seconds for a server connection for a minute, so the pool is at pool_size with clients queued. Run SHOW POOLS on the PgBouncer console for cl_waiting and maxwait of the database named in the alert."
+          runbook_url: https://msavdert.github.io/obenhub/runbooks/pgbouncer/#pgbouncerclientswaiting
 
       # The three rules below are not for the console (database pgbouncer),
       # not for a paused or disabled database and not while the target is
@@ -117,6 +125,8 @@ groups:
           severity: warning
         annotations:
           summary: 'PgBouncer pool {{ (index $labels "pgbouncer.database.name") }}/{{ (index $labels "user.name") }} used {{ $value | humanizePercentage }} of its pool_size over 5m'
+          description: "The pool of a database has had 90 % or more of its pool_size linked to clients on average over 5 minutes; no client waits yet. Run SHOW POOLS for sv_active and compare it with pool_size in SHOW DATABASES."
+          runbook_url: https://msavdert.github.io/obenhub/runbooks/pgbouncer/#pgbouncerpoolsaturated
 
       # Client connections against max_client_conn, two tiers as at
       # PostgresConnectionSaturation (old for 1m, W' = 75s, 5 points): critical at a
@@ -149,6 +159,8 @@ groups:
           severity: warning
         annotations:
           summary: '{{ (index $labels "service.instance.id") }} client connections above 85% of max_client_conn'
+          description: "Client connections are above 85 % of max_client_conn (critical at 95 %, when further clients are refused). Run SHOW LISTS for used_clients and SHOW CONFIG for max_client_conn."
+          runbook_url: https://msavdert.github.io/obenhub/runbooks/pgbouncer/#pgbouncerclientsaturation
 
       - alert: PgbouncerClientSaturation
         expr: |
@@ -166,6 +178,8 @@ groups:
           severity: critical
         annotations:
           summary: '{{ (index $labels "service.instance.id") }} client connections at or above 95% of max_client_conn; further clients are refused'
+          description: "Client connections are above 85 % of max_client_conn (critical at 95 %, when further clients are refused). Run SHOW LISTS for used_clients and SHOW CONFIG for max_client_conn."
+          runbook_url: https://msavdert.github.io/obenhub/runbooks/pgbouncer/#pgbouncerclientsaturation
 
       # Average wait per server assignment over 5 m, in seconds. Complements
       # PgbouncerClientsWaiting (oldest waiter over 5 s): many short waits that
@@ -204,3 +218,5 @@ groups:
           severity: warning
         annotations:
           summary: 'PgBouncer database {{ (index $labels "pgbouncer.database.name") }}: clients wait {{ $value | humanizeDuration }} on average for a server connection'
+          description: "Clients wait more than 0.1 seconds on average for a server assignment over 5 minutes (many short waits that stay under the 5 s of PgbouncerClientsWaiting). Run SHOW STATS for the database and check the pool size against the load."
+          runbook_url: https://msavdert.github.io/obenhub/runbooks/pgbouncer/#pgbouncerwaittime

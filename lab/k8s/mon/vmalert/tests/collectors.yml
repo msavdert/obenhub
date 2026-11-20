@@ -88,6 +88,8 @@ tests:
               obenhub.upstream: otelcol-gateway
             exp_annotations:
               summary: Collector otelcol-agent-obenhub-worker2 reports no self-metrics
+              description: "An expected Collector (obenhub.expected_collector) has sent no self-metrics (otelcol_process_uptime) for 2 minutes, so nothing it collects is seen. Check whether the Collector process or container is running, and its upstream gateway if it sends through one."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/collector/#collectorabsent
       - eval_time: 6m
         groupname: collector
         alertname: CollectorAbsent
@@ -99,6 +101,8 @@ tests:
               obenhub.upstream: otelcol-gateway
             exp_annotations:
               summary: Collector otelcol-agent-obenhub-worker2 reports no self-metrics
+              description: "An expected Collector (obenhub.expected_collector) has sent no self-metrics (otelcol_process_uptime) for 2 minutes, so nothing it collects is seen. Check whether the Collector process or container is running, and its upstream gateway if it sends through one."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/collector/#collectorabsent
       - eval_time: 7m
         groupname: collector
         alertname: CollectorAbsent
@@ -110,6 +114,8 @@ tests:
               obenhub.upstream: otelcol-gateway
             exp_annotations:
               summary: Collector otelcol-agent-obenhub-worker2 reports no self-metrics
+              description: "An expected Collector (obenhub.expected_collector) has sent no self-metrics (otelcol_process_uptime) for 2 minutes, so nothing it collects is seen. Check whether the Collector process or container is running, and its upstream gateway if it sends through one."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/collector/#collectorabsent
 
   - name: "the cluster Collector stops: only its CollectorAbsent"
     interval: 15s
@@ -148,6 +154,8 @@ tests:
               obenhub.upstream: otelcol-gateway
             exp_annotations:
               summary: Collector otelcol-cluster reports no self-metrics
+              description: "An expected Collector (obenhub.expected_collector) has sent no self-metrics (otelcol_process_uptime) for 2 minutes, so nothing it collects is seen. Check whether the Collector process or container is running, and its upstream gateway if it sends through one."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/collector/#collectorabsent
       - eval_time: 6m
         groupname: collector
         alertname: CollectorAbsent
@@ -159,6 +167,8 @@ tests:
               obenhub.upstream: otelcol-gateway
             exp_annotations:
               summary: Collector otelcol-cluster reports no self-metrics
+              description: "An expected Collector (obenhub.expected_collector) has sent no self-metrics (otelcol_process_uptime) for 2 minutes, so nothing it collects is seen. Check whether the Collector process or container is running, and its upstream gateway if it sends through one."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/collector/#collectorabsent
       - eval_time: 7m
         groupname: collector
         alertname: CollectorAbsent
@@ -170,6 +180,8 @@ tests:
               obenhub.upstream: otelcol-gateway
             exp_annotations:
               summary: Collector otelcol-cluster reports no self-metrics
+              description: "An expected Collector (obenhub.expected_collector) has sent no self-metrics (otelcol_process_uptime) for 2 minutes, so nothing it collects is seen. Check whether the Collector process or container is running, and its upstream gateway if it sends through one."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/collector/#collectorabsent
 
   - name: "two agents stop: one CollectorAbsent each"
     interval: 15s
@@ -208,6 +220,8 @@ tests:
               obenhub.upstream: otelcol-gateway
             exp_annotations:
               summary: Collector otelcol-agent-obenhub-worker reports no self-metrics
+              description: "An expected Collector (obenhub.expected_collector) has sent no self-metrics (otelcol_process_uptime) for 2 minutes, so nothing it collects is seen. Check whether the Collector process or container is running, and its upstream gateway if it sends through one."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/collector/#collectorabsent
           - exp_labels:
               severity: critical
               service.namespace: obenhub-lab
@@ -215,6 +229,8 @@ tests:
               obenhub.upstream: otelcol-gateway
             exp_annotations:
               summary: Collector otelcol-agent-obenhub-worker3 reports no self-metrics
+              description: "An expected Collector (obenhub.expected_collector) has sent no self-metrics (otelcol_process_uptime) for 2 minutes, so nothing it collects is seen. Check whether the Collector process or container is running, and its upstream gateway if it sends through one."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/collector/#collectorabsent
       - eval_time: 6m
         groupname: collector
         alertname: CollectorAbsent
@@ -226,6 +242,8 @@ tests:
               obenhub.upstream: otelcol-gateway
             exp_annotations:
               summary: Collector otelcol-agent-obenhub-worker reports no self-metrics
+              description: "An expected Collector (obenhub.expected_collector) has sent no self-metrics (otelcol_process_uptime) for 2 minutes, so nothing it collects is seen. Check whether the Collector process or container is running, and its upstream gateway if it sends through one."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/collector/#collectorabsent
           - exp_labels:
               severity: critical
               service.namespace: obenhub-lab
@@ -233,6 +251,8 @@ tests:
               obenhub.upstream: otelcol-gateway
             exp_annotations:
               summary: Collector otelcol-agent-obenhub-worker3 reports no self-metrics
+              description: "An expected Collector (obenhub.expected_collector) has sent no self-metrics (otelcol_process_uptime) for 2 minutes, so nothing it collects is seen. Check whether the Collector process or container is running, and its upstream gateway if it sends through one."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/collector/#collectorabsent
       - eval_time: 7m
         groupname: collector
         alertname: CollectorAbsent
@@ -244,6 +264,8 @@ tests:
               obenhub.upstream: otelcol-gateway
             exp_annotations:
               summary: Collector otelcol-agent-obenhub-worker reports no self-metrics
+              description: "An expected Collector (obenhub.expected_collector) has sent no self-metrics (otelcol_process_uptime) for 2 minutes, so nothing it collects is seen. Check whether the Collector process or container is running, and its upstream gateway if it sends through one."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/collector/#collectorabsent
           - exp_labels:
               severity: critical
               service.namespace: obenhub-lab
@@ -251,6 +273,8 @@ tests:
               obenhub.upstream: otelcol-gateway
             exp_annotations:
               summary: Collector otelcol-agent-obenhub-worker3 reports no self-metrics
+              description: "An expected Collector (obenhub.expected_collector) has sent no self-metrics (otelcol_process_uptime) for 2 minutes, so nothing it collects is seen. Check whether the Collector process or container is running, and its upstream gateway if it sends through one."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/collector/#collectorabsent
 
   - name: "the gateway stops, every Collector goes silent with it: only the gateway CollectorAbsent"
     interval: 15s
@@ -288,6 +312,8 @@ tests:
               service.instance.id: otelcol-gateway
             exp_annotations:
               summary: Collector otelcol-gateway reports no self-metrics
+              description: "An expected Collector (obenhub.expected_collector) has sent no self-metrics (otelcol_process_uptime) for 2 minutes, so nothing it collects is seen. Check whether the Collector process or container is running, and its upstream gateway if it sends through one."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/collector/#collectorabsent
       - eval_time: 6m
         groupname: collector
         alertname: CollectorAbsent
@@ -298,6 +324,8 @@ tests:
               service.instance.id: otelcol-gateway
             exp_annotations:
               summary: Collector otelcol-gateway reports no self-metrics
+              description: "An expected Collector (obenhub.expected_collector) has sent no self-metrics (otelcol_process_uptime) for 2 minutes, so nothing it collects is seen. Check whether the Collector process or container is running, and its upstream gateway if it sends through one."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/collector/#collectorabsent
       - eval_time: 7m
         groupname: collector
         alertname: CollectorAbsent
@@ -308,3 +336,5 @@ tests:
               service.instance.id: otelcol-gateway
             exp_annotations:
               summary: Collector otelcol-gateway reports no self-metrics
+              description: "An expected Collector (obenhub.expected_collector) has sent no self-metrics (otelcol_process_uptime) for 2 minutes, so nothing it collects is seen. Check whether the Collector process or container is running, and its upstream gateway if it sends through one."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/collector/#collectorabsent

@@ -38,6 +38,8 @@ tests:
               severity: warning
             exp_annotations:
               summary: 'Less than 10 % of / is free on pgha-1'
+              description: "Under 10 % of a mounted ext4, xfs or btrfs filesystem is free for 2 minutes (system.filesystem.usage). Find what grows under the mount point named in the alert, for a PostgreSQL host start with the data and WAL directories."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/host/#hostfilesystemspacelow
       - eval_time: 12m
         groupname: host
         alertname: HostFilesystemSpaceLow
@@ -97,6 +99,8 @@ tests:
               severity: warning
             exp_annotations:
               summary: 'Less than 10 % of memory is available on pgha-1'
+              description: "MemAvailable (system.linux.memory.available) is under 10 % of the host's memory for 2 minutes. Read MemAvailable and MemTotal in /proc/meminfo, then look for the process that grew."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/host/#hostmemoryavailablelow
       - eval_time: 12m
         groupname: host
         alertname: HostMemoryAvailableLow
@@ -138,6 +142,8 @@ tests:
               severity: warning
             exp_annotations:
               summary: 'pgha-1 booted 1m 10s ago'
+              description: "system.uptime of the host is under 5 minutes: it booted just now, whatever the reason (watchdog, power, operator). Check the host's boot log for the cause and the services that did not come back."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/host/#hostrebooted
       - eval_time: 12m
         groupname: host
         alertname: HostRebooted

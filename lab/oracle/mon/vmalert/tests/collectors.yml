@@ -41,6 +41,8 @@ tests:
           - exp_labels: {severity: critical, service.namespace: obenhub-lab, service.instance.id: otelcol-ora-dg-obs, obenhub.upstream: otelcol-gateway}
             exp_annotations:
               summary: Collector otelcol-ora-dg-obs reports no self-metrics
+              description: "An expected Collector (obenhub.expected_collector) has sent no self-metrics (otelcol_process_uptime) for 2 minutes, so nothing it collects is seen. Check whether the Collector process or container is running, and its upstream gateway if it sends through one."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/collector/#collectorabsent
       - eval_time: 3m
         groupname: oracledb-dg
         alertname: OracleTargetAbsent
@@ -129,6 +131,8 @@ tests:
           - exp_labels: {severity: critical, service.namespace: obenhub-lab, service.instance.id: otelcol-ora-dg-stby, obenhub.upstream: otelcol-gateway}
             exp_annotations:
               summary: Collector otelcol-ora-dg-stby reports no self-metrics
+              description: "An expected Collector (obenhub.expected_collector) has sent no self-metrics (otelcol_process_uptime) for 2 minutes, so nothing it collects is seen. Check whether the Collector process or container is running, and its upstream gateway if it sends through one."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/collector/#collectorabsent
       - eval_time: 6m
         groupname: oracledb-dg
         alertname: OracleTargetAbsent
@@ -157,6 +161,8 @@ tests:
           - exp_labels: {severity: critical, service.namespace: obenhub-lab, service.instance.id: otelcol-gateway}
             exp_annotations:
               summary: Collector otelcol-gateway reports no self-metrics
+              description: "An expected Collector (obenhub.expected_collector) has sent no self-metrics (otelcol_process_uptime) for 2 minutes, so nothing it collects is seen. Check whether the Collector process or container is running, and its upstream gateway if it sends through one."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/collector/#collectorabsent
       - eval_time: 9m
         groupname: collector
         alertname: CollectorAbsent
@@ -164,6 +170,8 @@ tests:
           - exp_labels: {severity: critical, service.namespace: obenhub-lab, service.instance.id: otelcol-gateway}
             exp_annotations:
               summary: Collector otelcol-gateway reports no self-metrics
+              description: "An expected Collector (obenhub.expected_collector) has sent no self-metrics (otelcol_process_uptime) for 2 minutes, so nothing it collects is seen. Check whether the Collector process or container is running, and its upstream gateway if it sends through one."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/collector/#collectorabsent
       - eval_time: 6m
         groupname: oracledb-dg
         alertname: OracleTargetAbsent
