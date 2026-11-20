@@ -36,6 +36,8 @@ tests:
               service.instance.id: pgbackrest
             exp_annotations:
               summary: 'No completed pgBackRest backup of stanza slice1 for 420 s'
+              description: "The last completed backup of a stanza is older than the tolerated age (obenhub.backup_age.limit, 26 h by default), for a minute. Run pgbackrest info for the stanza and check the job that takes the backups."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/pgbackrest/#pgbackrestbackupstale
       - eval_time: 11m   # a backup was completed at 10m
         groupname: pgbackrest
         alertname: PgBackRestBackupStale
@@ -64,6 +66,8 @@ tests:
               service.instance.id: pgbackrest
             exp_annotations:
               summary: 'No completed pgBackRest backup of stanza slice1 for 97200 s'
+              description: "The last completed backup of a stanza is older than the tolerated age (obenhub.backup_age.limit, 26 h by default), for a minute. Run pgbackrest info for the stanza and check the job that takes the backups."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/pgbackrest/#pgbackrestbackupstale
 
   - name: no age series, no alert
     interval: 15s
@@ -98,6 +102,8 @@ tests:
               service.instance.id: pgbackrest
             exp_annotations:
               summary: 'pgBackRest stanza slice1 reports status 2'
+              description: "pgbackrest_stanza_status is not 0 for 2 minutes: the stanza is missing or has no valid backup (the first backup of a new lab takes about a minute). Run pgbackrest info and pgbackrest check for the stanza."
+              runbook_url: https://msavdert.github.io/obenhub/reference/pgbackrest-pack-alerts/#pgbackreststanzaerror
       - eval_time: 8m
         groupname: pgbackrest
         alertname: PgBackRestStanzaError
@@ -137,6 +143,8 @@ tests:
               service.instance.id: pgbackrest
             exp_annotations:
               summary: 'pgBackRest state is not being collected (pgbackrest)'
+              description: "The exporter cannot read the repository (pgbackrest_exporter_status 0) or the Collector cannot scrape the exporter (up 0) for 2 minutes. While it fires the backup age is frozen or absent; check the exporter's log."
+              runbook_url: https://msavdert.github.io/obenhub/reference/pgbackrest-pack-alerts/#pgbackrestexporterdown
       - eval_time: 9m   # both fine again
         groupname: pgbackrest
         alertname: PgBackRestExporterDown
@@ -153,6 +161,8 @@ tests:
               service.instance.id: pgbackrest
             exp_annotations:
               summary: 'pgBackRest state is not being collected (pgbackrest)'
+              description: "The exporter cannot read the repository (pgbackrest_exporter_status 0) or the Collector cannot scrape the exporter (up 0) for 2 minutes. While it fires the backup age is frozen or absent; check the exporter's log."
+              runbook_url: https://msavdert.github.io/obenhub/reference/pgbackrest-pack-alerts/#pgbackrestexporterdown
 
   - name: checksum error fires on the incr series (the exporter's last backup of any kind), not on full alone, clears when incr is 0
     interval: 15s
@@ -182,6 +192,8 @@ tests:
               service.instance.id: pgbackrest
             exp_annotations:
               summary: 'The last pgBackRest backup of stanza slice1 found invalid page checksums'
+              description: "The last backup of a stanza found pages whose checksum does not match: damage in the data files, which PostgreSQL itself reports only when it reads the page. The backup still completes, so the stale alert stays silent; check pgbackrest info and the PostgreSQL log."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/pgbackrest/#pgbackrestbackupchecksumerror
       - eval_time: 8m   # the next backup is clean from 7m
         groupname: pgbackrest
         alertname: PgBackRestBackupChecksumError
@@ -210,6 +222,8 @@ tests:
               service.instance.id: pgbackrest
             exp_annotations:
               summary: pgBackRest exporter pgbackrest reports no obenhub.cluster.name
+              description: "The pgBackRest exporter scrape carries no obenhub.cluster.name. Fix the resource attribute of the Collector scrape."
+              runbook_url: https://msavdert.github.io/obenhub/reference/pgbackrest-pack-alerts/#pgbackrestclusternamemissing
 
   - name: exporter targets with a cluster name keep PgBackRestClusterNameMissing quiet
     interval: 15s

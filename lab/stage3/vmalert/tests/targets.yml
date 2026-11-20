@@ -41,6 +41,8 @@ tests:
               obenhub.collector: otelcol-stage3
             exp_annotations:
               summary: "No heartbeat from pg-2"
+              description: "An expected PostgreSQL target has sent no heartbeat (postgresql.collection.heartbeat) for 2 minutes while its Collector is alive. Check that PostgreSQL runs and that the monitoring role can connect."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgrestargetabsent
 
   - name: target absent does not fire when every node keeps reporting
     interval: 15s
@@ -82,6 +84,8 @@ tests:
               obenhub.collector: otelcol-stage3
             exp_annotations:
               summary: "No heartbeat from pg-2"
+              description: "An expected PostgreSQL target has sent no heartbeat (postgresql.collection.heartbeat) for 2 minutes while its Collector is alive. Check that PostgreSQL runs and that the monitoring role can connect."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgrestargetabsent
 
   - name: a stopped Collector raises CollectorAbsent only, not one alert per node
     interval: 15s
@@ -109,3 +113,5 @@ tests:
               service.instance.id: otelcol-stage3
             exp_annotations:
               summary: Collector otelcol-stage3 reports no self-metrics
+              description: "An expected Collector (obenhub.expected_collector) has sent no self-metrics (otelcol_process_uptime) for 2 minutes, so nothing it collects is seen. Check whether the Collector process or container is running, and its upstream gateway if it sends through one."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/collector/#collectorabsent

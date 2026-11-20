@@ -30,3 +30,5 @@ tests:
               service.instance.id: pgbackrest
             exp_annotations:
               summary: 'No completed pgBackRest backup of stanza slice1 for 900 s'
+              description: "The last completed backup of a stanza is older than the tolerated age (obenhub.backup_age.limit, 26 h by default), for a minute. Run pgbackrest info for the stanza and check the job that takes the backups."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/pgbackrest/#pgbackrestbackupstale

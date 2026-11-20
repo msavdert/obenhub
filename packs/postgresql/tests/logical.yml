@@ -29,6 +29,8 @@ tests:
               postgresql.subscription.name: app_sub
             exp_annotations:
               summary: Subscription app_sub on pg-subscriber has apply or sync errors
+              description: "A logical subscription raised its apply or sync error counter by 2 or more within 3 minutes: the apply worker keeps failing on a change. Check pg_stat_subscription_stats and the subscriber's PostgreSQL log for the conflicting row."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgreslogicalapplyerrors
 
   - name: one single error (a worker timeout) does not fire, and does not suppress not-streaming
     interval: 15s
@@ -63,6 +65,8 @@ tests:
               postgresql.subscription.name: app_sub
             exp_annotations:
               summary: Subscription app_sub on pg-subscriber is enabled but not receiving
+              description: "An enabled subscription has had no apply worker for most of a minute, or no message for over 60 seconds, without errors that PostgresLogicalApplyErrors would own. Check pg_stat_subscription on the subscriber and the connection to the publisher."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgreslogicalsubscriptionnotstreaming
 
   - name: a sync error alone fires; resolves once the window holds no increase
     interval: 15s
@@ -85,6 +89,8 @@ tests:
               postgresql.subscription.name: app_sub
             exp_annotations:
               summary: Subscription app_sub on pg-subscriber has apply or sync errors
+              description: "A logical subscription raised its apply or sync error counter by 2 or more within 3 minutes: the apply worker keeps failing on a change. Check pg_stat_subscription_stats and the subscriber's PostgreSQL log for the conflicting row."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgreslogicalapplyerrors
       - eval_time: 8m
         groupname: logical-replication
         alertname: PostgresLogicalApplyErrors
@@ -123,6 +129,8 @@ tests:
               postgresql.subscription.name: app_sub
             exp_annotations:
               summary: Subscription app_sub on pg-subscriber is enabled but not receiving
+              description: "An enabled subscription has had no apply worker for most of a minute, or no message for over 60 seconds, without errors that PostgresLogicalApplyErrors would own. Check pg_stat_subscription on the subscriber and the connection to the publisher."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgreslogicalsubscriptionnotstreaming
 
   - name: a worker that restarts in a loop (running flaps 0/1) still fires
     interval: 15s
@@ -153,6 +161,8 @@ tests:
               postgresql.subscription.name: app_sub
             exp_annotations:
               summary: Subscription app_sub on pg-subscriber is enabled but not receiving
+              description: "An enabled subscription has had no apply worker for most of a minute, or no message for over 60 seconds, without errors that PostgresLogicalApplyErrors would own. Check pg_stat_subscription on the subscriber and the connection to the publisher."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgreslogicalsubscriptionnotstreaming
 
   - name: a running worker that heard nothing for over 60 s fires; 30 s of silence does not
     interval: 15s
@@ -187,6 +197,8 @@ tests:
               postgresql.subscription.name: app_sub
             exp_annotations:
               summary: Subscription app_sub on pg-subscriber is enabled but not receiving
+              description: "An enabled subscription has had no apply worker for most of a minute, or no message for over 60 seconds, without errors that PostgresLogicalApplyErrors would own. Check pg_stat_subscription on the subscriber and the connection to the publisher."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgreslogicalsubscriptionnotstreaming
 
   - name: a disabled subscription (no worker) does not fire
     interval: 15s
@@ -238,6 +250,8 @@ tests:
               postgresql.subscription.name: app_sub
             exp_annotations:
               summary: Subscription app_sub on pg-subscriber has apply or sync errors
+              description: "A logical subscription raised its apply or sync error counter by 2 or more within 3 minutes: the apply worker keeps failing on a change. Check pg_stat_subscription_stats and the subscriber's PostgreSQL log for the conflicting row."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgreslogicalapplyerrors
 
   - name: not streaming is suppressed while the subscriber target is absent
     interval: 15s
@@ -288,6 +302,8 @@ tests:
               postgresql.replication_slot.type: logical
             exp_annotations:
               summary: Logical slot app_sub on pg-primary is inactive or far behind and retains WAL
+              description: "A logical slot on the publisher has been inactive for over 180 seconds, or has more than 128 MiB of WAL unconfirmed, for a minute. Check pg_replication_slots and the state of the subscriber that reads it."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgreslogicalslotstalled
 
   - name: a restart loop that keeps resetting inactive_age does not fire
     interval: 15s
@@ -324,6 +340,8 @@ tests:
               postgresql.replication_slot.type: logical
             exp_annotations:
               summary: Logical slot app_sub on pg-primary is inactive or far behind and retains WAL
+              description: "A logical slot on the publisher has been inactive for over 180 seconds, or has more than 128 MiB of WAL unconfirmed, for a minute. Check pg_replication_slots and the state of the subscriber that reads it."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgreslogicalslotstalled
 
   - name: a 30 s spike above 128 MiB is held back by the hold time
     interval: 15s
@@ -370,6 +388,8 @@ tests:
               postgresql.replication_slot.type: logical
             exp_annotations:
               summary: Logical slot app_sub on pg-primary is inactive or far behind and retains WAL
+              description: "A logical slot on the publisher has been inactive for over 180 seconds, or has more than 128 MiB of WAL unconfirmed, for a minute. Check pg_replication_slots and the state of the subscriber that reads it."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgreslogicalslotstalled
 
   - name: the not-streaming alert holds for 1 m (average below 0.5 from 2m45s)
     interval: 15s
@@ -404,6 +424,8 @@ tests:
               postgresql.subscription.name: app_sub
             exp_annotations:
               summary: Subscription app_sub on pg-subscriber is enabled but not receiving
+              description: "An enabled subscription has had no apply worker for most of a minute, or no message for over 60 seconds, without errors that PostgresLogicalApplyErrors would own. Check pg_stat_subscription on the subscriber and the connection to the publisher."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgreslogicalsubscriptionnotstreaming
 
   # Upper side of PostgresLogicalApplyErrors: exactly two errors, two minutes apart
   # (steps at 2m15s and 4m15s). The 3 m window sees both; a 1 m window would
@@ -433,6 +455,8 @@ tests:
               postgresql.subscription.name: app_sub
             exp_annotations:
               summary: Subscription app_sub on pg-subscriber has apply or sync errors
+              description: "A logical subscription raised its apply or sync error counter by 2 or more within 3 minutes: the apply worker keeps failing on a change. Check pg_stat_subscription_stats and the subscriber's PostgreSQL log for the conflicting row."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgreslogicalapplyerrors
       - eval_time: 9m   # both steps are out of the 3 m window
         groupname: logical-replication
         alertname: PostgresLogicalApplyErrors
@@ -479,3 +503,5 @@ tests:
               postgresql.subscription.name: app_sub
             exp_annotations:
               summary: Subscription app_sub on pg-subscriber has apply or sync errors
+              description: "A logical subscription raised its apply or sync error counter by 2 or more within 3 minutes: the apply worker keeps failing on a change. Check pg_stat_subscription_stats and the subscriber's PostgreSQL log for the conflicting row."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgreslogicalapplyerrors

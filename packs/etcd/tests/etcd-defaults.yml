@@ -45,6 +45,8 @@ tests:
               service.name: etcd
             exp_annotations:
               summary: etcd member etcd-2 WAL fsync p99 is 995ms
+              description: "The 99th percentile of the WAL fsync duration of a member is over the limit (0.5 s unless the lab inventory sets obenhub.etcd.fsync_duration.limit) for 10 minutes. Check the disk under the etcd data directory for contention."
+              runbook_url: https://msavdert.github.io/obenhub/reference/etcd-pack-alerts/#etcdhighfsyncdurations
 
   - name: backend commit p99 above 0.25 s for 10 m fires; 0.2 s p99 does not
     interval: 15s
@@ -74,6 +76,8 @@ tests:
               service.name: etcd
             exp_annotations:
               summary: etcd member etcd-1 backend commit p99 is 497.5ms
+              description: "The 99th percentile of the backend commit duration of a member is over the limit (0.25 s unless the lab inventory sets obenhub.etcd.commit_duration.limit) for 10 minutes. Check the disk under the etcd data directory for contention."
+              runbook_url: https://msavdert.github.io/obenhub/reference/etcd-pack-alerts/#etcdhighcommitdurations
 
   # Histogram boundary: 100 observations per sample, the share above the
   # bucket edge decides the p99. Edge le=0.5 / +Inf: 98 below -> p99 above 0.5;
@@ -105,6 +109,8 @@ tests:
               service.name: etcd
             exp_annotations:
               summary: etcd member etcd-1 WAL fsync p99 is 750ms
+              description: "The 99th percentile of the WAL fsync duration of a member is over the limit (0.5 s unless the lab inventory sets obenhub.etcd.fsync_duration.limit) for 10 minutes. Check the disk under the etcd data directory for contention."
+              runbook_url: https://msavdert.github.io/obenhub/reference/etcd-pack-alerts/#etcdhighfsyncdurations
 
   - name: commit p99 just above 0.25 s fires, just below does not
     interval: 15s
@@ -133,6 +139,8 @@ tests:
               service.name: etcd
             exp_annotations:
               summary: etcd member etcd-1 backend commit p99 is 375ms
+              description: "The 99th percentile of the backend commit duration of a member is over the limit (0.25 s unless the lab inventory sets obenhub.etcd.commit_duration.limit) for 10 minutes. Check the disk under the etcd data directory for contention."
+              runbook_url: https://msavdert.github.io/obenhub/reference/etcd-pack-alerts/#etcdhighcommitdurations
 
   # for: 10m boundary. The condition holds from the first rate window (15 s).
   - name: the 10 m hold - silent at 9 m, firing at 11 m
@@ -160,3 +168,5 @@ tests:
               service.name: etcd
             exp_annotations:
               summary: etcd member etcd-1 WAL fsync p99 is 995ms
+              description: "The 99th percentile of the WAL fsync duration of a member is over the limit (0.5 s unless the lab inventory sets obenhub.etcd.fsync_duration.limit) for 10 minutes. Check the disk under the etcd data directory for contention."
+              runbook_url: https://msavdert.github.io/obenhub/reference/etcd-pack-alerts/#etcdhighfsyncdurations

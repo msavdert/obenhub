@@ -17,6 +17,8 @@ tests:
           - exp_labels: {severity: none}
             exp_annotations:
               summary: Always firing; proves the alert pipeline works.
+              description: "Fires always (expr vector(1)) so that a working alert pipeline has a standing alert. If Alertmanager shows it missing, rules, vmalert or the notification path stopped working."
+              runbook_url: https://msavdert.github.io/obenhub/reference/collector-pack-alerts/#watchdog
 
   - name: collector absent fires after self-metrics stop
     interval: 15s
@@ -38,6 +40,8 @@ tests:
               service.instance.id: otelcol-stage3
             exp_annotations:
               summary: Collector otelcol-stage3 reports no self-metrics
+              description: "An expected Collector (obenhub.expected_collector) has sent no self-metrics (otelcol_process_uptime) for 2 minutes, so nothing it collects is seen. Check whether the Collector process or container is running, and its upstream gateway if it sends through one."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/collector/#collectorabsent
 
   - name: collector absent stays quiet while self-metrics flow
     interval: 15s
@@ -83,6 +87,8 @@ tests:
               obenhub.collector: otelcol-stagee3
             exp_annotations:
               summary: 'Inventory entry postgresql pg-9 names an unknown Collector ("otelcol-stagee3")'
+              description: "An inventory entry names a Collector (obenhub.collector) that is not in obenhub.expected_collector, or has no such label, which would switch off that target's absent alerts silently. Correct the label in the lab inventory."
+              runbook_url: https://msavdert.github.io/obenhub/reference/collector-pack-alerts/#collectorunknown
           - exp_labels:
               severity: warning
               service.namespace: obenhub-lab
@@ -90,3 +96,5 @@ tests:
               service.instance.id: etcd-9
             exp_annotations:
               summary: 'Inventory entry etcd etcd-9 names an unknown Collector ("")'
+              description: "An inventory entry names a Collector (obenhub.collector) that is not in obenhub.expected_collector, or has no such label, which would switch off that target's absent alerts silently. Correct the label in the lab inventory."
+              runbook_url: https://msavdert.github.io/obenhub/reference/collector-pack-alerts/#collectorunknown

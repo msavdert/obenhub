@@ -37,6 +37,8 @@ tests:
               service.instance.id: pg-standby
             exp_annotations:
               summary: pg-standby is in recovery and not streaming
+              description: "A standby is in recovery with no WAL receiver streaming for a minute, while another member of the cluster is writable. Query pg_stat_wal_receiver on the standby and pg_stat_replication on the primary."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgresstandbynotstreaming
 
   - name: a failed standby collection (no samples) does not fire
     interval: 15s
@@ -114,6 +116,8 @@ tests:
               service.instance.id: pg-standby
             exp_annotations:
               summary: pg-standby replay backlog is 19.07MiB
+              description: "A standby has received more than 16 MiB of WAL it has not replayed, for a minute. Check pg_is_wal_replay_paused() on the standby."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgresreplaybacklog
 
   - name: backlog exactly at the threshold or below does not fire
     interval: 15s
@@ -185,6 +189,8 @@ tests:
               k8s.pod.uid: new
             exp_annotations:
               summary: pg-1 is in recovery and not streaming
+              description: "A standby is in recovery with no WAL receiver streaming for a minute, while another member of the cluster is writable. Query pg_stat_wal_receiver on the standby and pg_stat_replication on the primary."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgresstandbynotstreaming
 
   # --- multiple primaries ----------------------------------------------------
   - name: two fresh writable instances of one cluster fire only after the 60 s hold
@@ -216,6 +222,8 @@ tests:
           - exp_labels: {severity: critical, obenhub.cluster.name: c1}
             exp_annotations:
               summary: Cluster c1 has 2 writable instances (split brain)
+              description: "Two or more instances of one cluster are writable (postgresql.recovery.active 0) at the same time for 60 seconds: split brain, independent of any cluster manager. Check pg_is_in_recovery() on every member and stop one."
+              runbook_url: https://msavdert.github.io/obenhub/reference/postgresql-pack-alerts/#postgresmultipleprimaries
       - eval_time: 4m
         groupname: postgresql
         alertname: PostgresMultiplePrimaries
@@ -223,6 +231,8 @@ tests:
           - exp_labels: {severity: critical, obenhub.cluster.name: c1}
             exp_annotations:
               summary: Cluster c1 has 2 writable instances (split brain)
+              description: "Two or more instances of one cluster are writable (postgresql.recovery.active 0) at the same time for 60 seconds: split brain, independent of any cluster manager. Check pg_is_in_recovery() on every member and stop one."
+              runbook_url: https://msavdert.github.io/obenhub/reference/postgresql-pack-alerts/#postgresmultipleprimaries
 
   - name: one writable instance does not fire
     interval: 15s
@@ -363,6 +373,8 @@ tests:
               service.instance.id: pg-1
             exp_annotations:
               summary: 'pg-1 has fewer synchronous standbys than synchronous_standby_names requires: commits wait'
+              description: "The primary lists fewer synchronous standbys in pg_stat_replication than synchronous_standby_names requires, for a minute; commits wait for a standby. Check which standby dropped out of pg_stat_replication."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgressynchronousstandbymissing
 
   - name: ANY 2 of 3 with one standby left fires (required 2, count 2 then 1)
     interval: 15s
@@ -392,6 +404,8 @@ tests:
               service.instance.id: pg-1
             exp_annotations:
               summary: 'pg-1 has fewer synchronous standbys than synchronous_standby_names requires: commits wait'
+              description: "The primary lists fewer synchronous standbys in pg_stat_replication than synchronous_standby_names requires, for a minute; commits wait for a standby. Check which standby dropped out of pg_stat_replication."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgressynchronousstandbymissing
 
   - name: a star or a plain list with no synchronous standby fires (required 1, count 1 then 0)
     interval: 15s
@@ -421,6 +435,8 @@ tests:
               service.instance.id: pg-1
             exp_annotations:
               summary: 'pg-1 has fewer synchronous standbys than synchronous_standby_names requires: commits wait'
+              description: "The primary lists fewer synchronous standbys in pg_stat_replication than synchronous_standby_names requires, for a minute; commits wait for a standby. Check which standby dropped out of pg_stat_replication."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgressynchronousstandbymissing
 
   - name: empty synchronous_standby_names (required 0, count 0) is quiet
     interval: 15s

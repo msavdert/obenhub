@@ -14,6 +14,13 @@ Usage, standard library only:
 """
 
 import sys
+from pathlib import Path
+
+# the description and runbook_url of every alert come from the rules (vmalert-tool compares annotations exactly)
+sys.path.insert(0, str(Path(__file__).resolve().parents[5] / "scripts"))
+from packalerts import pack_alerts  # noqa: E402
+
+ANNOTATIONS = {a["name"]: a["annotations"] for alerts in pack_alerts().values() for a in alerts}
 
 SAMPLES = 60  # 15 s apart: 15 minutes of input
 STOP_AT = 8  # a stopped Collector's last self-metric is sample 8 (2 m)
@@ -124,6 +131,15 @@ def input_series(
     return "\n".join(out)
 
 
+def with_docs(entry, alertname):
+    """Append the description and runbook_url of the alert to an exp_alerts entry (its annotations come last)."""
+    annotations = ANNOTATIONS[alertname]
+    return (
+        entry
+        + f'\n{" " * 14}description: "{annotations["description"]}"\n{" " * 14}runbook_url: {annotations["runbook_url"]}'
+    )
+
+
 def alert(labels, summary):
     """One exp_alerts entry; labels is a list of (key, value)."""
     lines = ["- exp_labels:"]
@@ -204,7 +220,7 @@ def render(times, expected_at):
             checks += f"        groupname: {group}\n"
             checks += f"        alertname: {alertname}\n"
             if entries:
-                checks += "        exp_alerts:\n" + "\n".join(entries) + "\n"
+                checks += "        exp_alerts:\n" + "\n".join(with_docs(e, alertname) for e in entries) + "\n"
             else:
                 checks += "        exp_alerts: []\n"
     return checks

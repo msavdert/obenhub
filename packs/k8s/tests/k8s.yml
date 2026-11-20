@@ -25,6 +25,8 @@ tests:
           - exp_labels: {severity: critical, k8s.node.name: obenhub-worker, service.instance.id: obenhub-worker, k8s.node.uid: u1}
             exp_annotations:
               summary: Node obenhub-worker is not Ready
+              description: "The Ready condition of a node is not True for a minute (False, Unknown or not listed). Check kubectl describe node for its conditions and the kubelet on that node."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/k8s/#kubernetesnodenotready
       - eval_time: 10m30s   # Ready again since 10m
         groupname: k8s
         alertname: KubernetesNodeNotReady
@@ -43,6 +45,8 @@ tests:
           - exp_labels: {severity: critical, k8s.node.name: obenhub-worker, service.instance.id: obenhub-worker, k8s.node.uid: u1}
             exp_annotations:
               summary: Node obenhub-worker is not Ready
+              description: "The Ready condition of a node is not True for a minute (False, Unknown or not listed). Check kubectl describe node for its conditions and the kubelet on that node."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/k8s/#kubernetesnodenotready
 
   - name: a flap shorter than the hold is silent, during it and after it
     interval: 15s
@@ -76,6 +80,8 @@ tests:
           - exp_labels: {severity: critical, k8s.node.name: obenhub-worker, service.instance.id: obenhub-worker, k8s.node.uid: u1}
             exp_annotations:
               summary: Node obenhub-worker is not Ready
+              description: "The Ready condition of a node is not True for a minute (False, Unknown or not listed). Check kubectl describe node for its conditions and the kubelet on that node."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/k8s/#kubernetesnodenotready
 
   - name: Ready nodes and a missing series are silent
     interval: 15s

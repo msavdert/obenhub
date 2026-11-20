@@ -28,6 +28,8 @@ tests:
           - exp_labels: {severity: warning, k8s.namespace.name: obenhub, obenhub.cluster.name: pg}
             exp_annotations:
               summary: A replica of cluster pg (obenhub) was promoted
+              description: "A member that is now writable (postgresql.recovery.active 0) was in recovery within the last 3 minutes: a replica was promoted, by switchover or failover; the signal cannot tell them apart. Check the CloudNativePG Cluster status for the current primary and why it changed."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/cnpg/#cnpgprimarychanged
       - eval_time: 7m30s   # 2m30s after the last 1 sample (5m), inside the window
         groupname: cnpg
         alertname: CNPGPrimaryChanged
@@ -35,6 +37,8 @@ tests:
           - exp_labels: {severity: warning, k8s.namespace.name: obenhub, obenhub.cluster.name: pg}
             exp_annotations:
               summary: A replica of cluster pg (obenhub) was promoted
+              description: "A member that is now writable (postgresql.recovery.active 0) was in recovery within the last 3 minutes: a replica was promoted, by switchover or failover; the signal cannot tell them apart. Check the CloudNativePG Cluster status for the current primary and why it changed."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/cnpg/#cnpgprimarychanged
       - eval_time: 8m30s   # the 1 at 5m has left the 3m window
         groupname: cnpg
         alertname: CNPGPrimaryChanged
@@ -109,6 +113,8 @@ tests:
           - exp_labels: {severity: warning, k8s.namespace.name: other, obenhub.cluster.name: pg}
             exp_annotations:
               summary: A replica of cluster pg (other) was promoted
+              description: "A member that is now writable (postgresql.recovery.active 0) was in recovery within the last 3 minutes: a replica was promoted, by switchover or failover; the signal cannot tell them apart. Check the CloudNativePG Cluster status for the current primary and why it changed."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/cnpg/#cnpgprimarychanged
 
   - name: a deleted primary pod leaves no stale zero behind once the window has passed
     interval: 15s
@@ -128,6 +134,8 @@ tests:
           - exp_labels: {severity: warning, k8s.namespace.name: obenhub, obenhub.cluster.name: pg}
             exp_annotations:
               summary: A replica of cluster pg (obenhub) was promoted
+              description: "A member that is now writable (postgresql.recovery.active 0) was in recovery within the last 3 minutes: a replica was promoted, by switchover or failover; the signal cannot tell them apart. Check the CloudNativePG Cluster status for the current primary and why it changed."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/cnpg/#cnpgprimarychanged
       - eval_time: 8m30s   # 3m30s after pg-1's last 1; the old pod's last 0 (5m) is 3m30s old
         groupname: cnpg
         alertname: CNPGPrimaryChanged
@@ -155,6 +163,8 @@ tests:
           - exp_labels: {severity: warning, k8s.namespace.name: obenhub, obenhub.cluster.name: pg, service.instance.id: pg-3}
             exp_annotations:
               summary: Instance pg-3 of cluster pg (obenhub) is fenced
+              description: "CloudNativePG reports the instance fenced (cnpg_collector_fencing_on 1) for a minute: the operator stopped PostgreSQL in the pod, which stays Running but not ready. Check the cnpg.io/fencedInstances annotation on the Cluster."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/cnpg/#cnpginstancefenced
       - eval_time: 7m   # unfenced at 6m
         groupname: cnpg
         alertname: CNPGInstanceFenced
@@ -204,6 +214,8 @@ tests:
               service.instance.id: pg-1
             exp_annotations:
               summary: pg-1 (obenhub) reports no obenhub.cluster.name
+              description: "The instance's CloudNativePG exporter series carry no obenhub.cluster.name, so the cluster rules would group it under an empty name. Fix the resource attribute of the Collector that scrapes the pod."
+              runbook_url: https://msavdert.github.io/obenhub/reference/cnpg-pack-alerts/#cnpgclusternamemissing
 
   - name: exporter series with a cluster name keep CNPGClusterNameMissing quiet
     interval: 15s

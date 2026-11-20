@@ -42,3 +42,5 @@ groups:
           severity: critical
         annotations:
           summary: 'Node {{ (index $labels "k8s.node.name") }} is not Ready'
+          description: "The Ready condition of a node is not True for a minute (False, Unknown or not listed). Check kubectl describe node for its conditions and the kubelet on that node."
+          runbook_url: https://msavdert.github.io/obenhub/runbooks/k8s/#kubernetesnodenotready

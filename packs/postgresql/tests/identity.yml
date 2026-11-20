@@ -39,6 +39,8 @@ tests:
               service.instance.id: pg-2
             exp_annotations:
               summary: pg-2 is in recovery and not streaming
+              description: "A standby is in recovery with no WAL receiver streaming for a minute, while another member of the cluster is writable. Query pg_stat_wal_receiver on the standby and pg_stat_replication on the primary."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgresstandbynotstreaming
 
   - name: two clusters share pg-1 - a standby of a fires although b's pg-1 is writable and a has a writable pg-2
     interval: 15s
@@ -65,6 +67,8 @@ tests:
               service.instance.id: pg-1
             exp_annotations:
               summary: pg-1 is in recovery and not streaming
+              description: "A standby is in recovery with no WAL receiver streaming for a minute, while another member of the cluster is writable. Query pg_stat_wal_receiver on the standby and pg_stat_replication on the primary."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgresstandbynotstreaming
 
   - name: two clusters share pg-1 - the connection saturation division pairs count and limit per cluster
     interval: 15s
@@ -93,6 +97,8 @@ tests:
               service.instance.id: pg-1
             exp_annotations:
               summary: 'pg-1 client connections above 85% of capacity'
+              description: "Client connections are above 85 % of the connection limit (critical at 95 %), as the lowest value over the last 75 seconds. Count sessions in pg_stat_activity by state and application to find who holds them."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgresconnectionsaturation
 
   - name: two clusters share pg-1 - the other cluster's heartbeat does not hide a dead target
     interval: 15s
@@ -124,6 +130,8 @@ tests:
               obenhub.collector: otelcol-x
             exp_annotations:
               summary: 'No heartbeat from pg-1'
+              description: "An expected PostgreSQL target has sent no heartbeat (postgresql.collection.heartbeat) for 2 minutes while its Collector is alive. Check that PostgreSQL runs and that the monitoring role can connect."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgrestargetabsent
 
   - name: two clusters share pg-1 - a slot invalidated in b does not silence the same slot name retaining WAL in a
     interval: 15s
@@ -154,6 +162,8 @@ tests:
               postgresql.replication_slot.type: physical
             exp_annotations:
               summary: 'Slot s1 on pg-1 retains 600MiB of WAL (lab threshold)'
+              description: "A valid slot on a primary holds back more than 512 MiB of WAL for 2 minutes (lab threshold), so the volume is filling. Check pg_replication_slots (retained WAL, active) and bring the consumer back or drop the slot."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgresreplicationslotretainingwal
 
   - name: two clusters share pg-1 - an inactive physical slot of a fires on a's primary only
     interval: 15s
@@ -180,6 +190,8 @@ tests:
               postgresql.replication_slot.type: physical
             exp_annotations:
               summary: 'Physical slot s1 on pg-1 has been inactive for 5m 0s (lab threshold)'
+              description: "A physical replication slot on the primary has had no consumer for more than 120 seconds and is not invalidated, so it keeps WAL. Check pg_replication_slots and whether its standby is still connected."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgresphysicalslotinactive
 
   - name: two clusters share pg-1 - a metric vanished in a is not hidden by b's series of the same name
     interval: 15s
@@ -204,6 +216,8 @@ tests:
               metric: postgresql.replay.backlog
             exp_annotations:
               summary: 'postgresql.replay.backlog vanished on pg-1'
+              description: "A metric of the pack that was present in the last hour has disappeared on an instance whose heartbeat is still present; the metric name is in the alert. Check the Collector log for failing queries and the monitoring role's privileges."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgresseriesvanished
 
   # --- one instance, two pods ---------------------------------------------
   - name: two pod uids for one instance - the division pairs each pod's count with its own limit
@@ -231,6 +245,8 @@ tests:
               k8s.pod.uid: new
             exp_annotations:
               summary: 'pg-1 client connections at or above 95% of capacity'
+              description: "Client connections are above 85 % of the connection limit (critical at 95 %), as the lowest value over the last 75 seconds. Count sessions in pg_stat_activity by state and application to find who holds them."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgresconnectionsaturation
 
   - name: two pod uids for one instance - the old pod's synchronous standby count does not pair with the new pod's requirement
     interval: 15s
@@ -277,6 +293,8 @@ tests:
               service.instance.id: pg-1
             exp_annotations:
               summary: 'pg-1 reports no obenhub.cluster.name'
+              description: "A PostgreSQL target carries no obenhub.cluster.name, so every join of the pack pairs it with nothing and PostgresTargetAbsent fires against its inventory entry. Fix the resource attribute of the Collector."
+              runbook_url: https://msavdert.github.io/obenhub/reference/postgresql-pack-alerts/#postgresclusternamemissing
 
   - name: every target with a cluster name keeps PostgresClusterNameMissing quiet
     interval: 15s

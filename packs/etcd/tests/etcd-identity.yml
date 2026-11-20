@@ -51,6 +51,8 @@ tests:
           - exp_labels: {severity: critical, obenhub.cluster.name: a}
             exp_annotations:
               summary: "Only 1 members of etcd cluster a report: quorum is lost"
+              description: "Fewer etcd members report than a majority of the cluster's inventory (2 of 3), so the cluster has lost quorum or cannot be seen. Check which members are absent (EtcdMemberAbsent) and bring them back."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/etcd/#etcdinsufficientmembers
 
   - name: two clusters share member names - EtcdMemberAbsent names the member of a, not b's etcd-2
     interval: 15s
@@ -82,6 +84,8 @@ tests:
               obenhub.collector: otelcol-x
             exp_annotations:
               summary: etcd member etcd-2 is not scraped
+              description: "An expected etcd member has had no successful scrape for 2 minutes while the Collector that scrapes it is alive. Check whether the etcd process or its metrics endpoint is up on that member."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/etcd/#etcdmemberabsent
 
   - name: leader changes are counted per cluster - three in a fire for a, one in b do not
     interval: 15s
@@ -98,6 +102,8 @@ tests:
           - exp_labels: {severity: warning, obenhub.cluster.name: a}
             exp_annotations:
               summary: 3 leader changes of etcd cluster a within 5 minutes
+              description: "Three or more leader changes of one etcd cluster within 5 minutes (increase of etcd_server_leader_changes_seen_total). Look at the members for restarts, slow disks (EtcdHighFsyncDurations) or network trouble between them."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/etcd/#etcdhighleaderchanges
 
   - name: a member without obenhub.cluster.name fires EtcdClusterNameMissing after 5 m
     interval: 15s
@@ -121,6 +127,8 @@ tests:
               service.instance.id: etcd-1
             exp_annotations:
               summary: etcd member etcd-1 reports no obenhub.cluster.name
+              description: "An etcd member's series carry no obenhub.cluster.name, so the member alerts count it toward no cluster. Fix the resource attribute of the Collector scrape."
+              runbook_url: https://msavdert.github.io/obenhub/reference/etcd-pack-alerts/#etcdclusternamemissing
 
   - name: members with a cluster name keep EtcdClusterNameMissing quiet
     interval: 15s

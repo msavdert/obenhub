@@ -540,6 +540,8 @@ tests:
           - exp_labels: {service.namespace: obenhub-lab, service.name: oracledb, obenhub.cluster.name: cdb19, service.instance.id: CDB19_STBY, obenhub.collector: otelcol-ora-dg-obs, severity: critical}
             exp_annotations:
               summary: "No heartbeat from Oracle database CDB19_STBY"
+              description: "An expected Oracle target has sent no heartbeat for 2 minutes while its Collector is alive. Check that the database is up and that the monitoring account can connect."
+              runbook_url: https://msavdert.github.io/obenhub/reference/oracledb-dg-pack-alerts/#oracletargetabsent
 
   - name: "a stopped Collector (self-metrics and heartbeats gone) does not raise OracleTargetAbsent"
     interval: 15s
@@ -677,6 +679,8 @@ tests:
           - exp_labels: {obenhub.cluster.name: cdb19, severity: warning}
             exp_annotations:
               summary: "A standby of Data Guard cluster cdb19 was promoted to primary"
+              description: "A database reports PRIMARY after having reported another role within the last 3 minutes: a standby was promoted, by switchover or failover (the signal cannot tell them apart). Check the Data Guard broker configuration and its log."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/oracledb-dg/#oracleprimarychanged
       - eval_time: 7m   # still inside the 3m window
         groupname: oracledb-dg
         alertname: OraclePrimaryChanged
@@ -684,6 +688,8 @@ tests:
           - exp_labels: {obenhub.cluster.name: cdb19, severity: warning}
             exp_annotations:
               summary: "A standby of Data Guard cluster cdb19 was promoted to primary"
+              description: "A database reports PRIMARY after having reported another role within the last 3 minutes: a standby was promoted, by switchover or failover (the signal cannot tell them apart). Check the Data Guard broker configuration and its log."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/oracledb-dg/#oracleprimarychanged
       - eval_time: 9m
         groupname: oracledb-dg
         alertname: OraclePrimaryChanged
@@ -806,6 +812,8 @@ tests:
           - exp_labels: {obenhub.cluster.name: cdb19, severity: warning}
             exp_annotations:
               summary: "A standby of Data Guard cluster cdb19 was promoted to primary"
+              description: "A database reports PRIMARY after having reported another role within the last 3 minutes: a standby was promoted, by switchover or failover (the signal cannot tell them apart). Check the Data Guard broker configuration and its log."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/oracledb-dg/#oracleprimarychanged
       - eval_time: 6m
         groupname: oracledb-dg
         alertname: OracleMultiplePrimaries
@@ -1002,6 +1010,8 @@ tests:
           - exp_labels: {obenhub.cluster.name: cdb19, severity: critical}
             exp_annotations:
               summary: "Data Guard cluster cdb19 has 2 primary databases"
+              description: "More than one database of one cluster is PRIMARY and open at the same time for a minute: split brain. Check which database the broker considers primary and stop the other."
+              runbook_url: https://msavdert.github.io/obenhub/reference/oracledb-dg-pack-alerts/#oraclemultipleprimaries
       - eval_time: 3m
         groupname: oracledb-dg
         alertname: OracleNoPrimary
@@ -1131,6 +1141,8 @@ tests:
           - exp_labels: {obenhub.cluster.name: cdb19, severity: critical}
             exp_annotations:
               summary: "Data Guard cluster cdb19 reports no primary database"
+              description: "At least one database of the cluster reports, but none is PRIMARY and open, for a minute: a failover not completed or a primary lost. Check the broker status and the state of both databases."
+              runbook_url: https://msavdert.github.io/obenhub/reference/oracledb-dg-pack-alerts/#oraclenoprimary
 
   - name: "a mounted old primary (role PRIMARY, open 0) next to a mounted standby, both reporting, fires OracleNoPrimary: nothing is open"
     interval: 15s
@@ -1193,6 +1205,8 @@ tests:
           - exp_labels: {obenhub.cluster.name: cdb19, severity: critical}
             exp_annotations:
               summary: "Data Guard cluster cdb19 reports no primary database"
+              description: "At least one database of the cluster reports, but none is PRIMARY and open, for a minute: a failover not completed or a primary lost. Check the broker status and the state of both databases."
+              runbook_url: https://msavdert.github.io/obenhub/reference/oracledb-dg-pack-alerts/#oraclenoprimary
       - eval_time: 8m
         groupname: oracledb-dg
         alertname: OracleNoPrimary
@@ -1200,6 +1214,8 @@ tests:
           - exp_labels: {obenhub.cluster.name: cdb19, severity: critical}
             exp_annotations:
               summary: "Data Guard cluster cdb19 reports no primary database"
+              description: "At least one database of the cluster reports, but none is PRIMARY and open, for a minute: a failover not completed or a primary lost. Check the broker status and the state of both databases."
+              runbook_url: https://msavdert.github.io/obenhub/reference/oracledb-dg-pack-alerts/#oraclenoprimary
 
   - name: "a cluster that reports nothing does not fire OracleNoPrimary"
     interval: 15s
@@ -1321,6 +1337,8 @@ tests:
           - exp_labels: {obenhub.cluster.name: cdb19, service.instance.id: CDB19, service.name: oracledb, service.namespace: obenhub-lab, oracledb.database.unique_name: CDB19, oracledb.dataguard.protection_mode: "MAXIMUM AVAILABILITY", oracledb.dataguard.protection_level: RESYNCHRONIZATION, severity: warning}
             exp_annotations:
               summary: "Protection level of primary CDB19 is RESYNCHRONIZATION, below MAXIMUM AVAILABILITY"
+              description: "The primary's protection level is below its protection mode, so the zero-data-loss guarantee set up for the configuration no longer holds. Check redo transport to the standby, which is unreachable or behind."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/oracledb-dg/#oracleprotectiondegraded
 
   - name: "a degraded flag that comes from the standby is ignored"
     interval: 15s
@@ -1440,6 +1458,8 @@ tests:
           - exp_labels: {obenhub.cluster.name: cdb19, service.instance.id: CDB19, service.name: oracledb, service.namespace: obenhub-lab, oracledb.database.unique_name: CDB19, oracledb.dataguard.protection_mode: "MAXIMUM AVAILABILITY", oracledb.dataguard.protection_level: RESYNCHRONIZATION, severity: warning}
             exp_annotations:
               summary: "Protection level of primary CDB19 is RESYNCHRONIZATION, below MAXIMUM AVAILABILITY"
+              description: "The primary's protection level is below its protection mode, so the zero-data-loss guarantee set up for the configuration no longer holds. Check redo transport to the standby, which is unreachable or behind."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/oracledb-dg/#oracleprotectiondegraded
       - eval_time: 7m
         groupname: oracledb-dg
         alertname: OracleProtectionDegraded
@@ -1506,6 +1526,8 @@ tests:
           - exp_labels: {obenhub.cluster.name: cdb19, service.instance.id: CDB19, service.name: oracledb, service.namespace: obenhub-lab, oracledb.database.unique_name: CDB19, oracledb.fast_start_failover.status: UNSYNCHRONIZED, severity: warning}
             exp_annotations:
               summary: "Fast-start failover on primary CDB19 is UNSYNCHRONIZED, not synchronized"
+              description: "Fast-start failover is enabled but the primary reports it is not SYNCHRONIZED, so the broker will not fail over automatically. Check the standby's transport and apply lag."
+              runbook_url: https://msavdert.github.io/obenhub/reference/oracledb-dg-pack-alerts/#oraclefaststartfailovernotsynchronized
 
   - name: "an unsynchronized flag from the standby is ignored"
     interval: 15s
@@ -1694,6 +1716,8 @@ tests:
           - exp_labels: {obenhub.cluster.name: cdb19, service.instance.id: CDB19, service.name: oracledb, service.namespace: obenhub-lab, oracledb.database.unique_name: CDB19, severity: warning}
             exp_annotations:
               summary: "Primary CDB19 sees no fast-start failover observer"
+              description: "Fast-start failover is enabled but the primary sees no observer for 2 minutes, so the broker cannot fail over automatically. Check that the observer process is running and reaches both databases."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/oracledb-dg/#oraclefaststartfailoverobservermissing
 
   - name: "a missing observer seen only by the standby is ignored"
     interval: 15s
@@ -1815,6 +1839,8 @@ tests:
           - exp_labels: {obenhub.cluster.name: cdb19, service.instance.id: CDB19_STBY, service.name: oracledb, service.namespace: obenhub-lab, oracledb.database.unique_name: CDB19_STBY, severity: critical}
             exp_annotations:
               summary: "Redo apply on standby CDB19_STBY is not running"
+              description: "The managed recovery process of a standby is gone for 3 minutes: redo is received but no longer applied, and the lag will grow. Check V$DATAGUARD_PROCESS and the standby's alert log, then restart apply."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/oracledb-dg/#oraclestandbyapplystopped
 
   - name: "the observed apply start delay after a switchover (0 for 60-75 s, then 1) stays quiet"
     interval: 15s
@@ -2027,6 +2053,8 @@ tests:
           - exp_labels: {obenhub.cluster.name: cdb19, service.instance.id: CDB19_STBY, service.name: oracledb, service.namespace: obenhub-lab, oracledb.database.unique_name: CDB19_STBY, oracledb.dataguard.lag.type: apply, severity: warning}
             exp_annotations:
               summary: "apply lag on standby CDB19_STBY is 90s (lab threshold 60s)"
+              description: "Transport or apply lag on a standby is above 60 seconds for 2 minutes (lab threshold). Check V$DATAGUARD_STATS and whether redo still arrives (OracleStandbyDataStale) and is applied (OracleStandbyApplyStopped)."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/oracledb-dg/#oraclestandbylag
 
   - name: "a lag of 30s is quiet"
     interval: 15s
@@ -2148,6 +2176,8 @@ tests:
           - exp_labels: {obenhub.cluster.name: cdb19, service.instance.id: CDB19_STBY, service.name: oracledb, service.namespace: obenhub-lab, oracledb.database.unique_name: CDB19_STBY, oracledb.dataguard.lag.type: transport, severity: warning}
             exp_annotations:
               summary: "Lag data of type transport on standby CDB19_STBY is 120s old (lab threshold 60s)"
+              description: "The data the standby's lag is computed from is older than 60 seconds for 2 minutes: redo has stopped arriving even if the lag itself is low. Check redo transport from the primary and the archive destination status there."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/oracledb-dg/#oraclestandbydatastale
 
   - name: "a standby with no transport lag row fires OracleStandbyLagUnknown"
     interval: 15s
@@ -2204,6 +2234,8 @@ tests:
           - exp_labels: {obenhub.cluster.name: cdb19, service.instance.id: CDB19_STBY, oracledb.database.unique_name: CDB19_STBY, severity: warning}
             exp_annotations:
               summary: "Standby CDB19_STBY reports no transport or apply lag (value NULL in V$DATAGUARD_STATS)"
+              description: "A reporting standby has fewer than the two lag series (apply and transport) for 2 minutes, because V$DATAGUARD_STATS returns NULL, so OracleStandbyLag cannot fire. Check the standby's Data Guard state in V$DATAGUARD_STATS."
+              runbook_url: https://msavdert.github.io/obenhub/reference/oracledb-dg-pack-alerts/#oraclestandbylagunknown
 
   - name: "a new standby whose apply.running appears 30 s before its lag rows (observed after a switchover) stays quiet"
     interval: 15s
@@ -2404,6 +2436,8 @@ tests:
           - exp_labels: {obenhub.cluster.name: cdb19, service.instance.id: CDB19_STBY, service.name: oracledb, service.namespace: obenhub-lab, oracledb.database.unique_name: CDB19_STBY, severity: warning}
             exp_annotations:
               summary: "Redo gap on CDB19_STBY"
+              description: "A standby lacks archived logs (V$ARCHIVE_GAP) or the primary reports a destination with a gap, for a minute. Check V$ARCHIVE_GAP on the standby and the archive destination status on the primary."
+              runbook_url: https://msavdert.github.io/obenhub/reference/oracledb-dg-pack-alerts/#oracleredogap
 
   - name: "a primary destination with a gap fires OracleRedoGap"
     interval: 15s
@@ -2466,6 +2500,8 @@ tests:
           - exp_labels: {obenhub.cluster.name: cdb19, service.instance.id: CDB19, service.name: oracledb, service.namespace: obenhub-lab, oracledb.database.unique_name: CDB19, oracledb.archive_dest.id: 2, oracledb.archive_dest.destination: cdb19_stby, oracledb.archive_dest.gap_status: GAP, severity: warning}
             exp_annotations:
               summary: "Redo gap on CDB19"
+              description: "A standby lacks archived logs (V$ARCHIVE_GAP) or the primary reports a destination with a gap, for a minute. Check V$ARCHIVE_GAP on the standby and the archive destination status on the primary."
+              runbook_url: https://msavdert.github.io/obenhub/reference/oracledb-dg-pack-alerts/#oracleredogap
 
   - name: "an invalid redo destination fires OracleRedoDestinationInvalid"
     interval: 15s
@@ -2528,6 +2564,8 @@ tests:
           - exp_labels: {obenhub.cluster.name: cdb19, service.instance.id: CDB19, service.name: oracledb, service.namespace: obenhub-lab, oracledb.database.unique_name: CDB19, oracledb.archive_dest.id: 2, oracledb.archive_dest.destination: cdb19_stby, oracledb.archive_dest.status: ERROR, severity: critical}
             exp_annotations:
               summary: "Archive destination 2 (cdb19_stby) of CDB19 is ERROR"
+              description: "An archive destination is not VALID for a minute: for a remote one the primary can no longer ship redo, for the local one archiving stops. Check V$ARCHIVE_DEST for the error of that destination."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/oracledb-dg/#oracleredodestinationinvalid
 
   - name: "a recovered destination resolves OracleRedoDestinationInvalid"
     interval: 15s
@@ -2588,6 +2626,8 @@ tests:
           - exp_labels: {obenhub.cluster.name: cdb19, service.instance.id: CDB19, service.name: oracledb, service.namespace: obenhub-lab, oracledb.database.unique_name: CDB19, oracledb.archive_dest.id: 2, oracledb.archive_dest.destination: cdb19_stby, oracledb.archive_dest.status: ERROR, severity: critical}
             exp_annotations:
               summary: "Archive destination 2 (cdb19_stby) of CDB19 is ERROR"
+              description: "An archive destination is not VALID for a minute: for a remote one the primary can no longer ship redo, for the local one archiving stops. Check V$ARCHIVE_DEST for the error of that destination."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/oracledb-dg/#oracleredodestinationinvalid
       - eval_time: 7m
         groupname: oracledb-dg
         alertname: OracleRedoDestinationInvalid
@@ -2628,6 +2668,8 @@ tests:
           - exp_labels: {service.instance.id: CDB19, oracledb.database.unique_name: CDB19, oracledb.archive_dest.id: 1, oracledb.archive_dest.destination: /u01/app/oracle/product/19.0.0/dbhome_2/dbs/arch, oracledb.archive_dest.status: ERROR, severity: critical}
             exp_annotations:
               summary: "Archive destination 1 (/u01/app/oracle/product/19.0.0/dbhome_2/dbs/arch) of CDB19 is ERROR"
+              description: "An archive destination is not VALID for a minute: for a remote one the primary can no longer ship redo, for the local one archiving stops. Check V$ARCHIVE_DEST for the error of that destination."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/oracledb-dg/#oracleredodestinationinvalid
       - eval_time: 5m   # a local row with no gap status is no gap
         groupname: oracledb-dg
         alertname: OracleRedoGap
@@ -2692,6 +2734,8 @@ tests:
           - exp_labels: {db.system.name: oracle.db, obenhub.cluster.name: cdb19, server.address: ora-dg-stby, server.port: 1521, service.instance.id: CDB19_STBY, service.name: oracledb, service.namespace: obenhub-lab, tcpcheck.endpoint: ora-dg-stby.lab.local:1521, severity: critical}
             exp_annotations:
               summary: "Oracle listener ora-dg-stby.lab.local:1521 does not accept TCP connections"
+              description: "A TCP connect to a listener endpoint failed on every check for a minute (tcpcheck receiver; no login, no service lookup). Check that the listener process runs and the port is reachable from the host that runs the tcpcheck receiver."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/oracledb-dg/#oraclelistenerunreachable
       - eval_time: 9m
         groupname: oracledb-dg
         alertname: OracleListenerUnreachable
@@ -2725,6 +2769,8 @@ tests:
           - exp_labels: {db.system.name: oracle.db, obenhub.cluster.name: cdb19, server.address: ora-au-lab, server.port: 1521, service.instance.id: CDB19, service.name: oracledb, service.namespace: obenhub-lab, tcpcheck.endpoint: ora-au-lab.lab.local:1521, severity: critical}
             exp_annotations:
               summary: "Oracle listener ora-au-lab.lab.local:1521 does not accept TCP connections"
+              description: "A TCP connect to a listener endpoint failed on every check for a minute (tcpcheck receiver; no login, no service lookup). Check that the listener process runs and the port is reachable from the host that runs the tcpcheck receiver."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/oracledb-dg/#oraclelistenerunreachable
       - eval_time: 5m
         groupname: oracledb-dg
         alertname: OracleListenerUnreachable
@@ -2755,6 +2801,8 @@ tests:
           - exp_labels: {db.system.name: oracle.db, obenhub.cluster.name: cdb19, server.address: ora-dg-stby, server.port: 1521, service.instance.id: CDB19_STBY, service.name: oracledb, service.namespace: obenhub-lab, tcpcheck.endpoint: ora-dg-stby.lab.local:1521, severity: critical}
             exp_annotations:
               summary: "Oracle listener ora-dg-stby.lab.local:1521 does not accept TCP connections"
+              description: "A TCP connect to a listener endpoint failed on every check for a minute (tcpcheck receiver; no login, no service lookup). Check that the listener process runs and the port is reachable from the host that runs the tcpcheck receiver."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/oracledb-dg/#oraclelistenerunreachable
       - eval_time: 13m
         groupname: oracledb-dg
         alertname: OracleListenerUnreachable
@@ -2805,6 +2853,8 @@ tests:
           - exp_labels: {obenhub.cluster.name: cdb19, oracledb.database.unique_name: CDB19, oracledb.user.name: "C##OBENHUB_MON", oracledb.user.status: "EXPIRED", service.instance.id: CDB19, service.name: oracledb, service.namespace: obenhub-lab, severity: critical}
             exp_annotations:
               summary: "Monitoring account C##OBENHUB_MON on CDB19 is EXPIRED"
+              description: "A project monitoring account (C##OBENHUB_*) is not OPEN in DBA_USERS (expired, in grace or locked) for a minute; an expired password stops only new logins, so collection can continue until the next reconnect. Check DBA_USERS for the status and reset the account."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/oracledb-dg/#oraclemonitoringaccountnotopen
       - eval_time: 11m
         groupname: oracledb-dg
         alertname: OracleMonitoringAccountNotOpen
@@ -2827,6 +2877,8 @@ tests:
           - exp_labels: {obenhub.cluster.name: cdb19, oracledb.database.unique_name: CDB19, oracledb.user.name: "C##OBENHUB_DG", oracledb.user.status: "LOCKED(TIMED)", service.instance.id: CDB19, service.name: oracledb, service.namespace: obenhub-lab, severity: critical}
             exp_annotations:
               summary: "Monitoring account C##OBENHUB_DG on CDB19 is LOCKED(TIMED)"
+              description: "A project monitoring account (C##OBENHUB_*) is not OPEN in DBA_USERS (expired, in grace or locked) for a minute; an expired password stops only new logins, so collection can continue until the next reconnect. Check DBA_USERS for the status and reset the account."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/oracledb-dg/#oraclemonitoringaccountnotopen
 
   - name: "monitoring accounts: one collection with 0 does not fire"
     interval: 15s
@@ -2885,6 +2937,8 @@ tests:
           - exp_labels: {obenhub.cluster.name: cdb19, service.instance.id: CDB19, severity: critical}
             exp_annotations:
               summary: 'Oracle instance CDB19 uses 95% or more of its PROCESSES limit: new logins fail with ORA-00020'
+              description: "Instance process slots in use are above 85 % of the PROCESSES parameter (critical at 95 %); at the limit a new dedicated server process cannot start. Check V$RESOURCE_LIMIT and which sessions hold the processes."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/oracledb-dg/#oracleprocessessaturation
       - eval_time: 7m45s
         groupname: oracledb-dg
         alertname: OracleProcessesSaturation
@@ -2892,6 +2946,8 @@ tests:
           - exp_labels: {obenhub.cluster.name: cdb19, service.instance.id: CDB19, severity: critical}
             exp_annotations:
               summary: 'Oracle instance CDB19 uses 95% or more of its PROCESSES limit: new logins fail with ORA-00020'
+              description: "Instance process slots in use are above 85 % of the PROCESSES parameter (critical at 95 %); at the limit a new dedicated server process cannot start. Check V$RESOURCE_LIMIT and which sessions hold the processes."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/oracledb-dg/#oracleprocessessaturation
       - eval_time: 8m
         groupname: oracledb-dg
         alertname: OracleProcessesSaturation
@@ -2921,6 +2977,8 @@ tests:
           - exp_labels: {obenhub.cluster.name: cdb19, service.instance.id: CDB19, severity: critical}
             exp_annotations:
               summary: 'Oracle instance CDB19 uses 95% or more of its PROCESSES limit: new logins fail with ORA-00020'
+              description: "Instance process slots in use are above 85 % of the PROCESSES parameter (critical at 95 %); at the limit a new dedicated server process cannot start. Check V$RESOURCE_LIMIT and which sessions hold the processes."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/oracledb-dg/#oracleprocessessaturation
 
   - name: "processes: warm-up, a new series at 0.90 stays quiet until its window is full"
     interval: 30s
@@ -2949,6 +3007,8 @@ tests:
           - exp_labels: {obenhub.cluster.name: cdb19, service.instance.id: CDB19, severity: warning}
             exp_annotations:
               summary: 'Oracle instance CDB19 uses more than 85% of its PROCESSES limit'
+              description: "Instance process slots in use are above 85 % of the PROCESSES parameter (critical at 95 %); at the limit a new dedicated server process cannot start. Check V$RESOURCE_LIMIT and which sessions hold the processes."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/oracledb-dg/#oracleprocessessaturation
 
   - name: "processes: one collection at the limit does not fire"
     interval: 30s
@@ -3011,12 +3071,18 @@ tests:
           - exp_labels: {obenhub.cluster.name: cdb19, service.instance.id: b-273, severity: warning}
             exp_annotations:
               summary: 'Oracle instance b-273 uses more than 85% of its PROCESSES limit'
+              description: "Instance process slots in use are above 85 % of the PROCESSES parameter (critical at 95 %); at the limit a new dedicated server process cannot start. Check V$RESOURCE_LIMIT and which sessions hold the processes."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/oracledb-dg/#oracleprocessessaturation
           - exp_labels: {obenhub.cluster.name: cdb19, service.instance.id: c-303, severity: warning}
             exp_annotations:
               summary: 'Oracle instance c-303 uses more than 85% of its PROCESSES limit'
+              description: "Instance process slots in use are above 85 % of the PROCESSES parameter (critical at 95 %); at the limit a new dedicated server process cannot start. Check V$RESOURCE_LIMIT and which sessions hold the processes."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/oracledb-dg/#oracleprocessessaturation
           - exp_labels: {obenhub.cluster.name: cdb19, service.instance.id: d-304, severity: critical}
             exp_annotations:
               summary: 'Oracle instance d-304 uses 95% or more of its PROCESSES limit: new logins fail with ORA-00020'
+              description: "Instance process slots in use are above 85 % of the PROCESSES parameter (critical at 95 %); at the limit a new dedicated server process cannot start. Check V$RESOURCE_LIMIT and which sessions hold the processes."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/oracledb-dg/#oracleprocessessaturation
 
   - name: "processes: an instance with no limit series, or no usage series, is quiet"
     interval: 30s
@@ -3047,6 +3113,8 @@ tests:
           - exp_labels: {obenhub.cluster.name: cdb19, service.instance.id: CDB19, severity: warning}
             exp_annotations:
               summary: 'Oracle instance CDB19 uses more than 85% of its PROCESSES limit'
+              description: "Instance process slots in use are above 85 % of the PROCESSES parameter (critical at 95 %); at the limit a new dedicated server process cannot start. Check V$RESOURCE_LIMIT and which sessions hold the processes."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/oracledb-dg/#oracleprocessessaturation
       - eval_time: 4m15s
         groupname: oracledb-dg
         alertname: OracleProcessesSaturation
@@ -3054,6 +3122,8 @@ tests:
           - exp_labels: {obenhub.cluster.name: cdb19, service.instance.id: CDB19, severity: warning}
             exp_annotations:
               summary: 'Oracle instance CDB19 uses more than 85% of its PROCESSES limit'
+              description: "Instance process slots in use are above 85 % of the PROCESSES parameter (critical at 95 %); at the limit a new dedicated server process cannot start. Check V$RESOURCE_LIMIT and which sessions hold the processes."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/oracledb-dg/#oracleprocessessaturation
       - eval_time: 4m30s
         groupname: oracledb-dg
         alertname: OracleProcessesSaturation
@@ -3061,6 +3131,8 @@ tests:
           - exp_labels: {obenhub.cluster.name: cdb19, service.instance.id: CDB19, severity: warning}
             exp_annotations:
               summary: 'Oracle instance CDB19 uses more than 85% of its PROCESSES limit'
+              description: "Instance process slots in use are above 85 % of the PROCESSES parameter (critical at 95 %); at the limit a new dedicated server process cannot start. Check V$RESOURCE_LIMIT and which sessions hold the processes."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/oracledb-dg/#oracleprocessessaturation
       - eval_time: 4m45s
         groupname: oracledb-dg
         alertname: OracleProcessesSaturation
@@ -3068,6 +3140,8 @@ tests:
           - exp_labels: {obenhub.cluster.name: cdb19, service.instance.id: CDB19, severity: warning}
             exp_annotations:
               summary: 'Oracle instance CDB19 uses more than 85% of its PROCESSES limit'
+              description: "Instance process slots in use are above 85 % of the PROCESSES parameter (critical at 95 %); at the limit a new dedicated server process cannot start. Check V$RESOURCE_LIMIT and which sessions hold the processes."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/oracledb-dg/#oracleprocessessaturation
       - eval_time: 5m
         groupname: oracledb-dg
         alertname: OracleProcessesSaturation
@@ -3075,6 +3149,8 @@ tests:
           - exp_labels: {obenhub.cluster.name: cdb19, service.instance.id: CDB19, severity: warning}
             exp_annotations:
               summary: 'Oracle instance CDB19 uses more than 85% of its PROCESSES limit'
+              description: "Instance process slots in use are above 85 % of the PROCESSES parameter (critical at 95 %); at the limit a new dedicated server process cannot start. Check V$RESOURCE_LIMIT and which sessions hold the processes."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/oracledb-dg/#oracleprocessessaturation
       - eval_time: 5m15s
         groupname: oracledb-dg
         alertname: OracleProcessesSaturation
@@ -3082,6 +3158,8 @@ tests:
           - exp_labels: {obenhub.cluster.name: cdb19, service.instance.id: CDB19, severity: warning}
             exp_annotations:
               summary: 'Oracle instance CDB19 uses more than 85% of its PROCESSES limit'
+              description: "Instance process slots in use are above 85 % of the PROCESSES parameter (critical at 95 %); at the limit a new dedicated server process cannot start. Check V$RESOURCE_LIMIT and which sessions hold the processes."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/oracledb-dg/#oracleprocessessaturation
       - eval_time: 5m30s
         groupname: oracledb-dg
         alertname: OracleProcessesSaturation
@@ -3089,6 +3167,8 @@ tests:
           - exp_labels: {obenhub.cluster.name: cdb19, service.instance.id: CDB19, severity: warning}
             exp_annotations:
               summary: 'Oracle instance CDB19 uses more than 85% of its PROCESSES limit'
+              description: "Instance process slots in use are above 85 % of the PROCESSES parameter (critical at 95 %); at the limit a new dedicated server process cannot start. Check V$RESOURCE_LIMIT and which sessions hold the processes."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/oracledb-dg/#oracleprocessessaturation
       - eval_time: 5m45s
         groupname: oracledb-dg
         alertname: OracleProcessesSaturation
@@ -3096,6 +3176,8 @@ tests:
           - exp_labels: {obenhub.cluster.name: cdb19, service.instance.id: CDB19, severity: warning}
             exp_annotations:
               summary: 'Oracle instance CDB19 uses more than 85% of its PROCESSES limit'
+              description: "Instance process slots in use are above 85 % of the PROCESSES parameter (critical at 95 %); at the limit a new dedicated server process cannot start. Check V$RESOURCE_LIMIT and which sessions hold the processes."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/oracledb-dg/#oracleprocessessaturation
       - eval_time: 6m
         groupname: oracledb-dg
         alertname: OracleProcessesSaturation
@@ -3103,6 +3185,8 @@ tests:
           - exp_labels: {obenhub.cluster.name: cdb19, service.instance.id: CDB19, severity: warning}
             exp_annotations:
               summary: 'Oracle instance CDB19 uses more than 85% of its PROCESSES limit'
+              description: "Instance process slots in use are above 85 % of the PROCESSES parameter (critical at 95 %); at the limit a new dedicated server process cannot start. Check V$RESOURCE_LIMIT and which sessions hold the processes."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/oracledb-dg/#oracleprocessessaturation
       - eval_time: 6m15s
         groupname: oracledb-dg
         alertname: OracleProcessesSaturation
@@ -3110,6 +3194,8 @@ tests:
           - exp_labels: {obenhub.cluster.name: cdb19, service.instance.id: CDB19, severity: warning}
             exp_annotations:
               summary: 'Oracle instance CDB19 uses more than 85% of its PROCESSES limit'
+              description: "Instance process slots in use are above 85 % of the PROCESSES parameter (critical at 95 %); at the limit a new dedicated server process cannot start. Check V$RESOURCE_LIMIT and which sessions hold the processes."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/oracledb-dg/#oracleprocessessaturation
       - eval_time: 6m30s
         groupname: oracledb-dg
         alertname: OracleProcessesSaturation
@@ -3117,6 +3203,8 @@ tests:
           - exp_labels: {obenhub.cluster.name: cdb19, service.instance.id: CDB19, severity: critical}
             exp_annotations:
               summary: 'Oracle instance CDB19 uses 95% or more of its PROCESSES limit: new logins fail with ORA-00020'
+              description: "Instance process slots in use are above 85 % of the PROCESSES parameter (critical at 95 %); at the limit a new dedicated server process cannot start. Check V$RESOURCE_LIMIT and which sessions hold the processes."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/oracledb-dg/#oracleprocessessaturation
       - eval_time: 6m45s
         groupname: oracledb-dg
         alertname: OracleProcessesSaturation
@@ -3124,6 +3212,8 @@ tests:
           - exp_labels: {obenhub.cluster.name: cdb19, service.instance.id: CDB19, severity: critical}
             exp_annotations:
               summary: 'Oracle instance CDB19 uses 95% or more of its PROCESSES limit: new logins fail with ORA-00020'
+              description: "Instance process slots in use are above 85 % of the PROCESSES parameter (critical at 95 %); at the limit a new dedicated server process cannot start. Check V$RESOURCE_LIMIT and which sessions hold the processes."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/oracledb-dg/#oracleprocessessaturation
       - eval_time: 7m
         groupname: oracledb-dg
         alertname: OracleProcessesSaturation
@@ -3131,6 +3221,8 @@ tests:
           - exp_labels: {obenhub.cluster.name: cdb19, service.instance.id: CDB19, severity: critical}
             exp_annotations:
               summary: 'Oracle instance CDB19 uses 95% or more of its PROCESSES limit: new logins fail with ORA-00020'
+              description: "Instance process slots in use are above 85 % of the PROCESSES parameter (critical at 95 %); at the limit a new dedicated server process cannot start. Check V$RESOURCE_LIMIT and which sessions hold the processes."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/oracledb-dg/#oracleprocessessaturation
       - eval_time: 7m15s
         groupname: oracledb-dg
         alertname: OracleProcessesSaturation
@@ -3138,6 +3230,8 @@ tests:
           - exp_labels: {obenhub.cluster.name: cdb19, service.instance.id: CDB19, severity: critical}
             exp_annotations:
               summary: 'Oracle instance CDB19 uses 95% or more of its PROCESSES limit: new logins fail with ORA-00020'
+              description: "Instance process slots in use are above 85 % of the PROCESSES parameter (critical at 95 %); at the limit a new dedicated server process cannot start. Check V$RESOURCE_LIMIT and which sessions hold the processes."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/oracledb-dg/#oracleprocessessaturation
       - eval_time: 7m30s
         groupname: oracledb-dg
         alertname: OracleProcessesSaturation
@@ -3145,6 +3239,8 @@ tests:
           - exp_labels: {obenhub.cluster.name: cdb19, service.instance.id: CDB19, severity: critical}
             exp_annotations:
               summary: 'Oracle instance CDB19 uses 95% or more of its PROCESSES limit: new logins fail with ORA-00020'
+              description: "Instance process slots in use are above 85 % of the PROCESSES parameter (critical at 95 %); at the limit a new dedicated server process cannot start. Check V$RESOURCE_LIMIT and which sessions hold the processes."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/oracledb-dg/#oracleprocessessaturation
       - eval_time: 7m45s
         groupname: oracledb-dg
         alertname: OracleProcessesSaturation
@@ -3152,6 +3248,8 @@ tests:
           - exp_labels: {obenhub.cluster.name: cdb19, service.instance.id: CDB19, severity: critical}
             exp_annotations:
               summary: 'Oracle instance CDB19 uses 95% or more of its PROCESSES limit: new logins fail with ORA-00020'
+              description: "Instance process slots in use are above 85 % of the PROCESSES parameter (critical at 95 %); at the limit a new dedicated server process cannot start. Check V$RESOURCE_LIMIT and which sessions hold the processes."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/oracledb-dg/#oracleprocessessaturation
       - eval_time: 8m
         groupname: oracledb-dg
         alertname: OracleProcessesSaturation
@@ -3159,6 +3257,8 @@ tests:
           - exp_labels: {obenhub.cluster.name: cdb19, service.instance.id: CDB19, severity: critical}
             exp_annotations:
               summary: 'Oracle instance CDB19 uses 95% or more of its PROCESSES limit: new logins fail with ORA-00020'
+              description: "Instance process slots in use are above 85 % of the PROCESSES parameter (critical at 95 %); at the limit a new dedicated server process cannot start. Check V$RESOURCE_LIMIT and which sessions hold the processes."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/oracledb-dg/#oracleprocessessaturation
 
   # The oracledb receiver reads the role and open mode once at start, and the
   # series carry them as labels, so a restarted Collector can leave two series
@@ -3184,6 +3284,8 @@ tests:
           - exp_labels: {obenhub.cluster.name: cdb19, service.instance.id: CDB19, severity: critical}
             exp_annotations:
               summary: 'Oracle instance CDB19 uses 95% or more of its PROCESSES limit: new logins fail with ORA-00020'
+              description: "Instance process slots in use are above 85 % of the PROCESSES parameter (critical at 95 %); at the limit a new dedicated server process cannot start. Check V$RESOURCE_LIMIT and which sessions hold the processes."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/oracledb-dg/#oracleprocessessaturation
 
   # OracleTablespaceUsageHigh. oracledb.tablespace_size.* come from the
   # oracledb receiver (30s collection), in bytes; the lab Collector adds
@@ -3240,6 +3342,8 @@ tests:
           - exp_labels: {obenhub.cluster.name: cdb19, service.instance.id: CDB19, tablespace_name: OBENHUB_FILL, oracle.db.pdb: PDB19, severity: critical}
             exp_annotations:
               summary: 'Tablespace OBENHUB_FILL (PDB19) of Oracle instance CDB19 is 95% or more full of its maximum size: at 100% a segment that needs a new extent fails with ORA-01653'
+              description: "A tablespace is above 85 % of its limit (critical at 95 %). Check DBA_TABLESPACE_USAGE_METRICS for the tablespace and PDB named in the alert and add space or free it."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/oracledb-dg/#oracletablespaceusagehigh
       - eval_time: 7m45s
         groupname: oracledb-dg
         alertname: OracleTablespaceUsageHigh
@@ -3247,6 +3351,8 @@ tests:
           - exp_labels: {obenhub.cluster.name: cdb19, service.instance.id: CDB19, tablespace_name: OBENHUB_FILL, oracle.db.pdb: PDB19, severity: critical}
             exp_annotations:
               summary: 'Tablespace OBENHUB_FILL (PDB19) of Oracle instance CDB19 is 95% or more full of its maximum size: at 100% a segment that needs a new extent fails with ORA-01653'
+              description: "A tablespace is above 85 % of its limit (critical at 95 %). Check DBA_TABLESPACE_USAGE_METRICS for the tablespace and PDB named in the alert and add space or free it."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/oracledb-dg/#oracletablespaceusagehigh
       - eval_time: 8m
         groupname: oracledb-dg
         alertname: OracleTablespaceUsageHigh
@@ -3273,6 +3379,8 @@ tests:
           - exp_labels: {obenhub.cluster.name: cdb19, service.instance.id: CDB19, tablespace_name: USERS, oracle.db.pdb: PDB19, severity: critical}
             exp_annotations:
               summary: 'Tablespace USERS (PDB19) of Oracle instance CDB19 is 95% or more full of its maximum size: at 100% a segment that needs a new extent fails with ORA-01653'
+              description: "A tablespace is above 85 % of its limit (critical at 95 %). Check DBA_TABLESPACE_USAGE_METRICS for the tablespace and PDB named in the alert and add space or free it."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/oracledb-dg/#oracletablespaceusagehigh
 
   # Tier boundaries on 20 MB (20971520 bytes): 0.85 is 17825792 (stays quiet,
   # the warning is strictly above), one block of 8 KiB more is warning, 0.95
@@ -3309,12 +3417,18 @@ tests:
           - exp_labels: {obenhub.cluster.name: cdb19, service.instance.id: CDB19, tablespace_name: T_085_PLUS, oracle.db.pdb: PDB19, severity: warning}
             exp_annotations:
               summary: 'Tablespace T_085_PLUS (PDB19) of Oracle instance CDB19 is more than 85% full of its maximum size'
+              description: "A tablespace is above 85 % of its limit (critical at 95 %). Check DBA_TABLESPACE_USAGE_METRICS for the tablespace and PDB named in the alert and add space or free it."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/oracledb-dg/#oracletablespaceusagehigh
           - exp_labels: {obenhub.cluster.name: cdb19, service.instance.id: CDB19, tablespace_name: T_095_MINUS, oracle.db.pdb: PDB19, severity: warning}
             exp_annotations:
               summary: 'Tablespace T_095_MINUS (PDB19) of Oracle instance CDB19 is more than 85% full of its maximum size'
+              description: "A tablespace is above 85 % of its limit (critical at 95 %). Check DBA_TABLESPACE_USAGE_METRICS for the tablespace and PDB named in the alert and add space or free it."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/oracledb-dg/#oracletablespaceusagehigh
           - exp_labels: {obenhub.cluster.name: cdb19, service.instance.id: CDB19, tablespace_name: T_095, oracle.db.pdb: PDB19, severity: critical}
             exp_annotations:
               summary: 'Tablespace T_095 (PDB19) of Oracle instance CDB19 is 95% or more full of its maximum size: at 100% a segment that needs a new extent fails with ORA-01653'
+              description: "A tablespace is above 85 % of its limit (critical at 95 %). Check DBA_TABLESPACE_USAGE_METRICS for the tablespace and PDB named in the alert and add space or free it."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/oracledb-dg/#oracletablespaceusagehigh
 
   # The series starts full (a new tablespace, or a restarted Collector): the
   # window of 90s holds one point at 15s, two at 30s and 45s, three at 1m, and
@@ -3346,6 +3460,8 @@ tests:
           - exp_labels: {obenhub.cluster.name: cdb19, service.instance.id: CDB19, tablespace_name: OBENHUB_FILL, oracle.db.pdb: PDB19, severity: critical}
             exp_annotations:
               summary: 'Tablespace OBENHUB_FILL (PDB19) of Oracle instance CDB19 is 95% or more full of its maximum size: at 100% a segment that needs a new extent fails with ORA-01653'
+              description: "A tablespace is above 85 % of its limit (critical at 95 %). Check DBA_TABLESPACE_USAGE_METRICS for the tablespace and PDB named in the alert and add space or free it."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/oracledb-dg/#oracletablespaceusagehigh
 
   - name: "tablespace: warm-up, a new series at 0.90 stays quiet until its window is full"
     interval: 30s
@@ -3374,6 +3490,8 @@ tests:
           - exp_labels: {obenhub.cluster.name: cdb19, service.instance.id: CDB19, tablespace_name: OBENHUB_FILL, oracle.db.pdb: PDB19, severity: warning}
             exp_annotations:
               summary: 'Tablespace OBENHUB_FILL (PDB19) of Oracle instance CDB19 is more than 85% full of its maximum size'
+              description: "A tablespace is above 85 % of its limit (critical at 95 %). Check DBA_TABLESPACE_USAGE_METRICS for the tablespace and PDB named in the alert and add space or free it."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/oracledb-dg/#oracletablespaceusagehigh
 
   # One collection near full does not fire: the window needs three points.
   - name: "tablespace: one collection near full does not fire"
@@ -3454,6 +3572,8 @@ tests:
           - exp_labels: {obenhub.cluster.name: cdb19, service.instance.id: CDB19, severity: warning}
             exp_annotations:
               summary: 'A session on Oracle instance CDB19 has waited 35s for a lock held by another session (lab threshold)'
+              description: "A session has waited more than 30 seconds for a lock held by another session (V$SESSION, wait class Application). The alert does not name the blocker; look for it in V$SESSION by blocking_session."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/oracledb-dg/#oracleblockedsessions
       - eval_time: 7m
         groupname: oracledb-dg
         alertname: OracleBlockedSessions
@@ -3461,6 +3581,8 @@ tests:
           - exp_labels: {obenhub.cluster.name: cdb19, service.instance.id: CDB19, severity: warning}
             exp_annotations:
               summary: 'A session on Oracle instance CDB19 has waited 4m 20s for a lock held by another session (lab threshold)'
+              description: "A session has waited more than 30 seconds for a lock held by another session (V$SESSION, wait class Application). The alert does not name the blocker; look for it in V$SESSION by blocking_session."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/oracledb-dg/#oracleblockedsessions
       - eval_time: 7m15s
         groupname: oracledb-dg
         alertname: OracleBlockedSessions
@@ -3468,6 +3590,8 @@ tests:
           - exp_labels: {obenhub.cluster.name: cdb19, service.instance.id: CDB19, severity: warning}
             exp_annotations:
               summary: 'A session on Oracle instance CDB19 has waited 4m 35s for a lock held by another session (lab threshold)'
+              description: "A session has waited more than 30 seconds for a lock held by another session (V$SESSION, wait class Application). The alert does not name the blocker; look for it in V$SESSION by blocking_session."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/oracledb-dg/#oracleblockedsessions
       - eval_time: 7m30s
         groupname: oracledb-dg
         alertname: OracleBlockedSessions
@@ -3489,6 +3613,8 @@ tests:
           - exp_labels: {obenhub.cluster.name: cdb19, service.instance.id: CDB19B, severity: warning}
             exp_annotations:
               summary: 'A session on Oracle instance CDB19B has waited 31s for a lock held by another session (lab threshold)'
+              description: "A session has waited more than 30 seconds for a lock held by another session (V$SESSION, wait class Application). The alert does not name the blocker; look for it in V$SESSION by blocking_session."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/oracledb-dg/#oracleblockedsessions
 
   # The series starts above the threshold (a new series, or a restarted
   # Collector): the window of 45s holds one point at 0s, two at 15s, three
@@ -3514,6 +3640,8 @@ tests:
           - exp_labels: {obenhub.cluster.name: cdb19, service.instance.id: CDB19, severity: warning}
             exp_annotations:
               summary: 'A session on Oracle instance CDB19 has waited 1m 30s for a lock held by another session (lab threshold)'
+              description: "A session has waited more than 30 seconds for a lock held by another session (V$SESSION, wait class Application). The alert does not name the blocker; look for it in V$SESSION by blocking_session."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/oracledb-dg/#oracleblockedsessions
 
   # One or two collections above 30 s between zeros do not fire: the lowest
   # point of the window is 0.
@@ -3567,6 +3695,8 @@ tests:
               service.instance.id: CDB19
             exp_annotations:
               summary: CDB19 reports no obenhub.cluster.name
+              description: "The database's heartbeat series carries no obenhub.cluster.name, so the role and Data Guard rules cannot group it. Fix the resource attribute of the Collector."
+              runbook_url: https://msavdert.github.io/obenhub/reference/oracledb-dg-pack-alerts/#oracleclusternamemissing
 
   - name: heartbeats with a cluster name keep OracleClusterNameMissing quiet
     interval: 15s

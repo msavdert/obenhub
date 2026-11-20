@@ -29,6 +29,8 @@ tests:
               oracledb.backup.kind: database
             exp_annotations:
               summary: 'No completed RMAN database backup of CDB19 for 95400 s'
+              description: "The newest completed RMAN job of a kind (database or archivelog) is older than the tolerated age (obenhub.backup_age.limit, 26 h by default). Check V$RMAN_BACKUP_JOB_DETAILS and the scheduler that runs the backups."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/oracledb-backup/#oraclebackupstale
           - exp_labels:
               obenhub.cluster.name: cdb19
               severity: warning
@@ -36,3 +38,5 @@ tests:
               oracledb.backup.kind: archivelog
             exp_annotations:
               summary: 'No completed RMAN archivelog backup of CDB19 for 22800 s'
+              description: "The newest completed RMAN job of a kind (database or archivelog) is older than the tolerated age (obenhub.backup_age.limit, 26 h by default). Check V$RMAN_BACKUP_JOB_DETAILS and the scheduler that runs the backups."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/oracledb-backup/#oraclebackupstale

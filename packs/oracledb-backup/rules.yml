@@ -43,6 +43,8 @@ groups:
           severity: warning
         annotations:
           summary: 'No completed RMAN {{ (index $labels "oracledb.backup.kind") }} backup of {{ (index $labels "service.instance.id") }} for {{ $value | printf "%.0f" }} s'
+          description: "The newest completed RMAN job of a kind (database or archivelog) is older than the tolerated age (obenhub.backup_age.limit, 26 h by default). Check V$RMAN_BACKUP_JOB_DETAILS and the scheduler that runs the backups."
+          runbook_url: https://msavdert.github.io/obenhub/runbooks/oracledb-backup/#oraclebackupstale
 
       # The most recent finished RMAN job of a kind failed. It stays until the
       # next job of that kind succeeds (archived logs every 4 h, database
@@ -56,6 +58,8 @@ groups:
           severity: critical
         annotations:
           summary: 'The last RMAN {{ (index $labels "oracledb.backup.kind") }} backup of {{ (index $labels "service.instance.id") }} failed'
+          description: "The most recent finished RMAN job of a kind failed and no later job of that kind has succeeded. Check V$RMAN_BACKUP_JOB_DETAILS for the status and the RMAN log of that job."
+          runbook_url: https://msavdert.github.io/obenhub/runbooks/oracledb-backup/#oraclebackupfailed
 
       # An RMAN backup series without obenhub.cluster.name (ADR 0006, decision
       # 7). OracleBackupMissing joins the backup age to the Data Guard role on
@@ -70,6 +74,8 @@ groups:
           severity: warning
         annotations:
           summary: 'RMAN backup series of {{ (index $labels "service.instance.id") }} carry no obenhub.cluster.name'
+          description: "An RMAN backup series carries no obenhub.cluster.name, so OracleBackupMissing cannot join it to the Data Guard role. Fix the resource attribute of the Collector."
+          runbook_url: https://msavdert.github.io/obenhub/reference/oracledb-backup-pack-alerts/#oraclebackupclusternamemissing
 
       # A database that is primary according to the Data Guard pack has no
       # completed database backup series. It fires on a fresh primary until its
@@ -91,6 +97,8 @@ groups:
           severity: warning
         annotations:
           summary: 'Primary {{ (index $labels "service.instance.id") }} has no completed RMAN database backup on record'
+          description: "A database that is primary according to the Data Guard pack has no completed database backup series for 30 minutes. This is expected on a fresh or newly promoted primary until its first backup; otherwise check the backup job on this site."
+          runbook_url: https://msavdert.github.io/obenhub/reference/oracledb-backup-pack-alerts/#oraclebackupmissing
 
       # The recovery area is nearly full, counting what Oracle can delete by
       # itself (reclaimable) as free. Both databases of the pair. A full area
@@ -112,3 +120,5 @@ groups:
           severity: warning
         annotations:
           summary: 'Recovery area of {{ (index $labels "service.instance.id") }} is {{ $value | humanizePercentage }} full of space that cannot be reclaimed'
+          description: "More than 85 % of the recovery area is in use after counting reclaimable space as free, for 10 minutes. A full area stops archiving on the primary and redo apply on the standby; check what holds the space (V$RECOVERY_AREA_USAGE) and the retention policy."
+          runbook_url: https://msavdert.github.io/obenhub/reference/oracledb-backup-pack-alerts/#oraclerecoveryareafull

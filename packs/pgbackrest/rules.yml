@@ -53,6 +53,8 @@ groups:
           severity: warning
         annotations:
           summary: 'pgBackRest exporter {{ (index $labels "service.instance.id") }} reports no obenhub.cluster.name'
+          description: "The pgBackRest exporter scrape carries no obenhub.cluster.name. Fix the resource attribute of the Collector scrape."
+          runbook_url: https://msavdert.github.io/obenhub/reference/pgbackrest-pack-alerts/#pgbackrestclusternamemissing
 
       # No completed backup for longer than the tolerated age. The comparison
       # joins on no label: obenhub.backup_age.limit is one series without labels,
@@ -67,6 +69,8 @@ groups:
           severity: warning
         annotations:
           summary: 'No completed pgBackRest backup of stanza {{ (index $labels "stanza") }} for {{ $value | printf "%.0f" }} s'
+          description: "The last completed backup of a stanza is older than the tolerated age (obenhub.backup_age.limit, 26 h by default), for a minute. Run pgbackrest info for the stanza and check the job that takes the backups."
+          runbook_url: https://msavdert.github.io/obenhub/runbooks/pgbackrest/#pgbackrestbackupstale
 
       # The last backup found pages whose checksum does not match (data
       # checksums on; `SHOW data_checksums` is on in slice1): damage in the data
@@ -79,6 +83,8 @@ groups:
           severity: critical
         annotations:
           summary: 'The last pgBackRest backup of stanza {{ (index $labels "stanza") }} found invalid page checksums'
+          description: "The last backup of a stanza found pages whose checksum does not match: damage in the data files, which PostgreSQL itself reports only when it reads the page. The backup still completes, so the stale alert stays silent; check pgbackrest info and the PostgreSQL log."
+          runbook_url: https://msavdert.github.io/obenhub/runbooks/pgbackrest/#pgbackrestbackupchecksumerror
 
       # The stanza is not healthy: missing, or without a valid backup (also
       # while the first backup of a new lab runs: about a minute in slice1,
@@ -90,6 +96,8 @@ groups:
           severity: critical
         annotations:
           summary: 'pgBackRest stanza {{ (index $labels "stanza") }} reports status {{ $value | printf "%.0f" }}'
+          description: "pgbackrest_stanza_status is not 0 for 2 minutes: the stanza is missing or has no valid backup (the first backup of a new lab takes about a minute). Run pgbackrest info and pgbackrest check for the stanza."
+          runbook_url: https://msavdert.github.io/obenhub/reference/pgbackrest-pack-alerts/#pgbackreststanzaerror
 
       # The exporter cannot read the repository (pgbackrest_exporter_status 0)
       # or the Collector cannot scrape the exporter (up 0). Not a duplicate of
@@ -106,3 +114,5 @@ groups:
           severity: warning
         annotations:
           summary: 'pgBackRest state is not being collected ({{ (index $labels "service.instance.id") }})'
+          description: "The exporter cannot read the repository (pgbackrest_exporter_status 0) or the Collector cannot scrape the exporter (up 0) for 2 minutes. While it fires the backup age is frozen or absent; check the exporter's log."
+          runbook_url: https://msavdert.github.io/obenhub/reference/pgbackrest-pack-alerts/#pgbackrestexporterdown
