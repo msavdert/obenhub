@@ -148,7 +148,7 @@ groups:
           severity: warning
         annotations:
           summary: 'A standby of Data Guard cluster {{ (index $labels "obenhub.cluster.name") }} was promoted to primary'
-          description: "A database reports PRIMARY after having reported another role within the last 3 minutes: a standby was promoted, by switchover or failover (the signal cannot tell them apart). Check the Data Guard broker configuration and its log."
+          description: "A database reports PRIMARY after having reported another role within the last 3 minutes: a standby was promoted, by switchover or failover (the signal cannot tell them apart). Check the Data Guard broker configuration (dgmgrl show configuration) and its log."
           runbook_url: https://msavdert.github.io/obenhub/runbooks/oracledb-dg/#oracleprimarychanged
 
       # More than one database of one cluster is the current primary and open
@@ -289,7 +289,7 @@ groups:
           severity: warning
         annotations:
           summary: 'Primary {{ (index $labels "service.instance.id") }} sees no fast-start failover observer'
-          description: "Fast-start failover is enabled but the primary sees no observer for 2 minutes, so the broker cannot fail over automatically. Check that the observer process is running and reaches both databases."
+          description: "Fast-start failover is enabled but the primary sees no observer for 2 minutes, so the broker cannot fail over automatically. Check fs_failover_observer_present in V$DATABASE and dgmgrl show configuration, and that the observer process runs and reaches both databases."
           runbook_url: https://msavdert.github.io/obenhub/runbooks/oracledb-dg/#oraclefaststartfailoverobservermissing
 
       # A standby whose managed recovery process is gone (the query counts
@@ -460,7 +460,7 @@ groups:
           severity: critical
         annotations:
           summary: 'Oracle listener {{ (index $labels "tcpcheck.endpoint") }} does not accept TCP connections'
-          description: "A TCP connect to a listener endpoint failed on every check for a minute (tcpcheck receiver; no login, no service lookup). Check that the listener process runs and the port is reachable from the host that runs the tcpcheck receiver."
+          description: "A TCP connect to a listener endpoint failed on every check for a minute (tcpcheck receiver; no login, no service lookup). Check lsnrctl status, that the listener process runs and the port is reachable from the host that runs the tcpcheck receiver."
           runbook_url: https://msavdert.github.io/obenhub/runbooks/oracledb-dg/#oraclelistenerunreachable
 
       # A project monitoring account (C##OBENHUB_*, oracledb.user.open from

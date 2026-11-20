@@ -83,7 +83,7 @@ groups:
           severity: critical
         annotations:
           summary: 'The last pgBackRest backup of stanza {{ (index $labels "stanza") }} found invalid page checksums'
-          description: "The last backup of a stanza found pages whose checksum does not match: damage in the data files, which PostgreSQL itself reports only when it reads the page. The backup still completes, so the stale alert stays silent; check pgbackrest info and the PostgreSQL log."
+          description: "The last backup of a stanza found pages whose checksum does not match: damage in the data files, which PostgreSQL itself reports only when it reads the page. The backup still completes, so the stale alert stays silent; check pgbackrest info and the pgBackRest log of that backup (invalid page checksum found)."
           runbook_url: https://msavdert.github.io/obenhub/runbooks/pgbackrest/#pgbackrestbackupchecksumerror
 
       # The stanza is not healthy: missing, or without a valid backup (also

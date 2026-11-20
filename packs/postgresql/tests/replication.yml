@@ -116,7 +116,7 @@ tests:
               service.instance.id: pg-standby
             exp_annotations:
               summary: pg-standby replay backlog is 19.07MiB
-              description: "A standby has received more than 16 MiB of WAL it has not replayed, for a minute. Check pg_is_wal_replay_paused() on the standby."
+              description: "A standby has received more than 16 MiB of WAL it has not replayed, for a minute. Check pg_get_wal_replay_pause_state() on the standby."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgresreplaybacklog
 
   - name: backlog exactly at the threshold or below does not fire

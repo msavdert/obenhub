@@ -32,7 +32,7 @@ tests:
               metric: postgresql.replay.backlog
             exp_annotations:
               summary: 'postgresql.replay.backlog vanished on pg-standby'
-              description: "A metric of the pack that was present in the last hour has disappeared on an instance whose heartbeat is still present; the metric name is in the alert. Check the Collector log for failing queries and the monitoring role's privileges."
+              description: "A metric of the pack that was present in the last hour has disappeared on an instance whose heartbeat is still present; the metric name is in the alert. Look for ERROR lines of the monitoring role in the PostgreSQL log and for failing queries in the Collector log."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgresseriesvanished
 
   - name: nothing fires when every series keeps reporting
@@ -80,13 +80,13 @@ tests:
         alertname: PostgresSeriesVanished
         exp_alerts:
           - exp_labels: {obenhub.cluster.name: slice1, severity: warning, service.instance.id: pg-standby, metric: postgresql.recovery.active}
-            exp_annotations: {summary: 'postgresql.recovery.active vanished on pg-standby', description: "A metric of the pack that was present in the last hour has disappeared on an instance whose heartbeat is still present; the metric name is in the alert. Check the Collector log for failing queries and the monitoring role's privileges.", runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgresseriesvanished}
+            exp_annotations: {summary: 'postgresql.recovery.active vanished on pg-standby', description: "A metric of the pack that was present in the last hour has disappeared on an instance whose heartbeat is still present; the metric name is in the alert. Look for ERROR lines of the monitoring role in the PostgreSQL log and for failing queries in the Collector log.", runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgresseriesvanished}
           - exp_labels: {obenhub.cluster.name: slice1, severity: warning, service.instance.id: pg-standby, metric: postgresql.replay.backlog}
-            exp_annotations: {summary: 'postgresql.replay.backlog vanished on pg-standby', description: "A metric of the pack that was present in the last hour has disappeared on an instance whose heartbeat is still present; the metric name is in the alert. Check the Collector log for failing queries and the monitoring role's privileges.", runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgresseriesvanished}
+            exp_annotations: {summary: 'postgresql.replay.backlog vanished on pg-standby', description: "A metric of the pack that was present in the last hour has disappeared on an instance whose heartbeat is still present; the metric name is in the alert. Look for ERROR lines of the monitoring role in the PostgreSQL log and for failing queries in the Collector log.", runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgresseriesvanished}
           - exp_labels: {obenhub.cluster.name: slice1, severity: warning, service.instance.id: pg-standby, metric: postgresql.replay.paused}
-            exp_annotations: {summary: 'postgresql.replay.paused vanished on pg-standby', description: "A metric of the pack that was present in the last hour has disappeared on an instance whose heartbeat is still present; the metric name is in the alert. Check the Collector log for failing queries and the monitoring role's privileges.", runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgresseriesvanished}
+            exp_annotations: {summary: 'postgresql.replay.paused vanished on pg-standby', description: "A metric of the pack that was present in the last hour has disappeared on an instance whose heartbeat is still present; the metric name is in the alert. Look for ERROR lines of the monitoring role in the PostgreSQL log and for failing queries in the Collector log.", runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgresseriesvanished}
           - exp_labels: {obenhub.cluster.name: slice1, severity: warning, service.instance.id: pg-standby, metric: postgresql.wal_receiver.streaming}
-            exp_annotations: {summary: 'postgresql.wal_receiver.streaming vanished on pg-standby', description: "A metric of the pack that was present in the last hour has disappeared on an instance whose heartbeat is still present; the metric name is in the alert. Check the Collector log for failing queries and the monitoring role's privileges.", runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgresseriesvanished}
+            exp_annotations: {summary: 'postgresql.wal_receiver.streaming vanished on pg-standby', description: "A metric of the pack that was present in the last hour has disappeared on an instance whose heartbeat is still present; the metric name is in the alert. Look for ERROR lines of the monitoring role in the PostgreSQL log and for failing queries in the Collector log.", runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgresseriesvanished}
 
   - name: a broken postgresqlreceiver is caught through database.count
     interval: 15s
@@ -101,7 +101,7 @@ tests:
         alertname: PostgresSeriesVanished
         exp_alerts:
           - exp_labels: {obenhub.cluster.name: slice1, severity: warning, service.instance.id: pg-primary, metric: postgresql.database.count}
-            exp_annotations: {summary: 'postgresql.database.count vanished on pg-primary', description: "A metric of the pack that was present in the last hour has disappeared on an instance whose heartbeat is still present; the metric name is in the alert. Check the Collector log for failing queries and the monitoring role's privileges.", runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgresseriesvanished}
+            exp_annotations: {summary: 'postgresql.database.count vanished on pg-primary', description: "A metric of the pack that was present in the last hour has disappeared on an instance whose heartbeat is still present; the metric name is in the alert. Look for ERROR lines of the monitoring role in the PostgreSQL log and for failing queries in the Collector log.", runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgresseriesvanished}
 
   - name: a query that is merely slow (samples keep arriving) does not fire
     interval: 15s
@@ -139,7 +139,7 @@ tests:
               obenhub.cluster.name: slice1
             exp_annotations:
               summary: postgresql.replication_slot.retained_wal vanished on pg-primary
-              description: "A metric of the pack that was present in the last hour has disappeared on an instance whose heartbeat is still present; the metric name is in the alert. Check the Collector log for failing queries and the monitoring role's privileges."
+              description: "A metric of the pack that was present in the last hour has disappeared on an instance whose heartbeat is still present; the metric name is in the alert. Look for ERROR lines of the monitoring role in the PostgreSQL log and for failing queries in the Collector log."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgresseriesvanished
 
   - name: a vanished subscription metric is named by PostgresSeriesVanished
@@ -166,7 +166,7 @@ tests:
               obenhub.cluster.name: slice1-subscriber
             exp_annotations:
               summary: postgresql.subscription.apply_worker_running vanished on pg-subscriber
-              description: "A metric of the pack that was present in the last hour has disappeared on an instance whose heartbeat is still present; the metric name is in the alert. Check the Collector log for failing queries and the monitoring role's privileges."
+              description: "A metric of the pack that was present in the last hour has disappeared on an instance whose heartbeat is still present; the metric name is in the alert. Look for ERROR lines of the monitoring role in the PostgreSQL log and for failing queries in the Collector log."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgresseriesvanished
 
   - name: the lock, idle and wraparound pack metrics are covered; a dropped database alone is not a vanished metric
@@ -192,7 +192,7 @@ tests:
               metric: postgresql.lock.oldest_wait_age
             exp_annotations:
               summary: 'postgresql.lock.oldest_wait_age vanished on pg-primary'
-              description: "A metric of the pack that was present in the last hour has disappeared on an instance whose heartbeat is still present; the metric name is in the alert. Check the Collector log for failing queries and the monitoring role's privileges."
+              description: "A metric of the pack that was present in the last hour has disappeared on an instance whose heartbeat is still present; the metric name is in the alert. Look for ERROR lines of the monitoring role in the PostgreSQL log and for failing queries in the Collector log."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgresseriesvanished
 
   - name: a vanished synchronous_standby metric is named by PostgresSeriesVanished
@@ -216,7 +216,7 @@ tests:
               metric: postgresql.replication.synchronous_standby.count
             exp_annotations:
               summary: 'postgresql.replication.synchronous_standby.count vanished on pg-primary'
-              description: "A metric of the pack that was present in the last hour has disappeared on an instance whose heartbeat is still present; the metric name is in the alert. Check the Collector log for failing queries and the monitoring role's privileges."
+              description: "A metric of the pack that was present in the last hour has disappeared on an instance whose heartbeat is still present; the metric name is in the alert. Look for ERROR lines of the monitoring role in the PostgreSQL log and for failing queries in the Collector log."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgresseriesvanished
           - exp_labels:
               obenhub.cluster.name: slice1
@@ -225,5 +225,5 @@ tests:
               metric: postgresql.replication.synchronous_standby.required
             exp_annotations:
               summary: 'postgresql.replication.synchronous_standby.required vanished on pg-primary'
-              description: "A metric of the pack that was present in the last hour has disappeared on an instance whose heartbeat is still present; the metric name is in the alert. Check the Collector log for failing queries and the monitoring role's privileges."
+              description: "A metric of the pack that was present in the last hour has disappeared on an instance whose heartbeat is still present; the metric name is in the alert. Look for ERROR lines of the monitoring role in the PostgreSQL log and for failing queries in the Collector log."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgresseriesvanished

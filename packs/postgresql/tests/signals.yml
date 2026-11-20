@@ -157,7 +157,7 @@ tests:
               postgresql.database.name: postgres
             exp_annotations:
               summary: '1 deadlock(s) in postgres on pg-primary in the last 5 minutes'
-              description: "The deadlock counter of a database rose within the last 5 minutes. PostgreSQL resolves a deadlock by aborting one session, so this is evidence, not an outage; check the PostgreSQL log."
+              description: "The deadlock counter of a database rose within the last 5 minutes. PostgreSQL resolves a deadlock by aborting one session, so this is evidence, not an outage; pg_stat_database.deadlocks shows which database and the PostgreSQL log has the details."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgresdeadlocks
       - eval_time: 6m
         groupname: postgresql
@@ -170,7 +170,7 @@ tests:
               postgresql.database.name: postgres
             exp_annotations:
               summary: '1 deadlock(s) in postgres on pg-primary in the last 5 minutes'
-              description: "The deadlock counter of a database rose within the last 5 minutes. PostgreSQL resolves a deadlock by aborting one session, so this is evidence, not an outage; check the PostgreSQL log."
+              description: "The deadlock counter of a database rose within the last 5 minutes. PostgreSQL resolves a deadlock by aborting one session, so this is evidence, not an outage; pg_stat_database.deadlocks shows which database and the PostgreSQL log has the details."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgresdeadlocks
       - eval_time: 7m30s
         groupname: postgresql
@@ -229,7 +229,7 @@ tests:
               type: requested
             exp_annotations:
               summary: 'pg-primary had 8 requested checkpoints in 5 minutes (lab threshold)'
-              description: "More than 3 requested checkpoints in 5 minutes on a primary: WAL reached max_wal_size before checkpoint_timeout (lab threshold). Check max_wal_size against the WAL volume and what writes it."
+              description: "More than 3 requested checkpoints in 5 minutes on a primary: WAL reached max_wal_size before checkpoint_timeout (lab threshold). Check pg_stat_checkpointer, max_wal_size against the WAL volume and what writes it."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgrescheckpointsrequested
       - eval_time: 20m
         groupname: postgresql

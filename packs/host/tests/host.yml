@@ -99,7 +99,7 @@ tests:
               severity: warning
             exp_annotations:
               summary: 'Less than 10 % of memory is available on pgha-1'
-              description: "MemAvailable (system.linux.memory.available) is under 10 % of the host's memory for 2 minutes. Look for the process that grew, for example with ps sorted by resident memory."
+              description: "MemAvailable (system.linux.memory.available) is under 10 % of the host's memory for 2 minutes. Read MemAvailable and MemTotal in /proc/meminfo, then look for the process that grew."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/host/#hostmemoryavailablelow
       - eval_time: 12m
         groupname: host

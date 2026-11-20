@@ -43,7 +43,7 @@ groups:
           severity: warning
         annotations:
           summary: 'A replica of cluster {{ (index $labels "obenhub.cluster.name") }} ({{ (index $labels "k8s.namespace.name") }}) was promoted'
-          description: "A member that is now writable (postgresql.recovery.active 0) was in recovery within the last 3 minutes: a replica was promoted, by switchover or failover; the signal cannot tell them apart. Check the CloudNativePG Cluster status for the current primary and why it changed."
+          description: "A member that is now writable (postgresql.recovery.active 0) was in recovery within the last 3 minutes: a replica was promoted, by switchover or failover; the signal cannot tell them apart. Check the Kubernetes events of the Cluster's namespace for what promoted the member (VictoriaLogs, object.reason)."
           runbook_url: https://msavdert.github.io/obenhub/runbooks/cnpg/#cnpgprimarychanged
 
       # An instance whose exporter series carry no obenhub.cluster.name (ADR

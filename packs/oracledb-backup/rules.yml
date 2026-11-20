@@ -120,5 +120,5 @@ groups:
           severity: warning
         annotations:
           summary: 'Recovery area of {{ (index $labels "service.instance.id") }} is {{ $value | humanizePercentage }} full of space that cannot be reclaimed'
-          description: "More than 85 % of the recovery area is in use after counting reclaimable space as free, for 10 minutes. A full area stops archiving on the primary and redo apply on the standby; check what holds the space (V$RECOVERY_AREA_USAGE) and the retention policy."
+          description: "More than 85 % of the recovery area is in use after counting reclaimable space as free, for 10 minutes. A full area stops archiving on the primary and redo apply on the standby; check what holds the space and the retention policy."
           runbook_url: https://msavdert.github.io/obenhub/reference/oracledb-backup-pack-alerts/#oraclerecoveryareafull

@@ -1537,7 +1537,7 @@ tests:
               obenhub.collector: otelcol-pgha-2
             exp_annotations:
               summary: etcd member pgha-2 is not scraped
-              description: "An expected etcd member has had no successful scrape for 2 minutes while the Collector that scrapes it is alive. Check whether the etcd process or its metrics endpoint is up on that member."
+              description: "An expected etcd member has had no successful scrape for 2 minutes while the Collector that scrapes it is alive. Run etcdctl endpoint status against all members to see which one does not answer, then check the etcd process on it."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/etcd/#etcdmemberabsent
           - exp_labels:
               severity: warning
@@ -1548,7 +1548,7 @@ tests:
               obenhub.collector: otelcol-pgha-3
             exp_annotations:
               summary: etcd member pgha-3 is not scraped
-              description: "An expected etcd member has had no successful scrape for 2 minutes while the Collector that scrapes it is alive. Check whether the etcd process or its metrics endpoint is up on that member."
+              description: "An expected etcd member has had no successful scrape for 2 minutes while the Collector that scrapes it is alive. Run etcdctl endpoint status against all members to see which one does not answer, then check the etcd process on it."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/etcd/#etcdmemberabsent
       - eval_time: 5m
         groupname: etcd
@@ -1588,7 +1588,7 @@ tests:
               obenhub.collector: otelcol-pgha-2
             exp_annotations:
               summary: etcd member pgha-2 is not scraped
-              description: "An expected etcd member has had no successful scrape for 2 minutes while the Collector that scrapes it is alive. Check whether the etcd process or its metrics endpoint is up on that member."
+              description: "An expected etcd member has had no successful scrape for 2 minutes while the Collector that scrapes it is alive. Run etcdctl endpoint status against all members to see which one does not answer, then check the etcd process on it."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/etcd/#etcdmemberabsent
           - exp_labels:
               severity: warning
@@ -1599,7 +1599,7 @@ tests:
               obenhub.collector: otelcol-pgha-3
             exp_annotations:
               summary: etcd member pgha-3 is not scraped
-              description: "An expected etcd member has had no successful scrape for 2 minutes while the Collector that scrapes it is alive. Check whether the etcd process or its metrics endpoint is up on that member."
+              description: "An expected etcd member has had no successful scrape for 2 minutes while the Collector that scrapes it is alive. Run etcdctl endpoint status against all members to see which one does not answer, then check the etcd process on it."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/etcd/#etcdmemberabsent
       - eval_time: 5m30s
         groupname: etcd
@@ -1639,7 +1639,7 @@ tests:
               obenhub.collector: otelcol-pgha-2
             exp_annotations:
               summary: etcd member pgha-2 is not scraped
-              description: "An expected etcd member has had no successful scrape for 2 minutes while the Collector that scrapes it is alive. Check whether the etcd process or its metrics endpoint is up on that member."
+              description: "An expected etcd member has had no successful scrape for 2 minutes while the Collector that scrapes it is alive. Run etcdctl endpoint status against all members to see which one does not answer, then check the etcd process on it."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/etcd/#etcdmemberabsent
           - exp_labels:
               severity: warning
@@ -1650,7 +1650,7 @@ tests:
               obenhub.collector: otelcol-pgha-3
             exp_annotations:
               summary: etcd member pgha-3 is not scraped
-              description: "An expected etcd member has had no successful scrape for 2 minutes while the Collector that scrapes it is alive. Check whether the etcd process or its metrics endpoint is up on that member."
+              description: "An expected etcd member has had no successful scrape for 2 minutes while the Collector that scrapes it is alive. Run etcdctl endpoint status against all members to see which one does not answer, then check the etcd process on it."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/etcd/#etcdmemberabsent
       - eval_time: 6m
         groupname: etcd
@@ -1690,7 +1690,7 @@ tests:
               obenhub.collector: otelcol-pgha-2
             exp_annotations:
               summary: etcd member pgha-2 is not scraped
-              description: "An expected etcd member has had no successful scrape for 2 minutes while the Collector that scrapes it is alive. Check whether the etcd process or its metrics endpoint is up on that member."
+              description: "An expected etcd member has had no successful scrape for 2 minutes while the Collector that scrapes it is alive. Run etcdctl endpoint status against all members to see which one does not answer, then check the etcd process on it."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/etcd/#etcdmemberabsent
           - exp_labels:
               severity: warning
@@ -1701,7 +1701,7 @@ tests:
               obenhub.collector: otelcol-pgha-3
             exp_annotations:
               summary: etcd member pgha-3 is not scraped
-              description: "An expected etcd member has had no successful scrape for 2 minutes while the Collector that scrapes it is alive. Check whether the etcd process or its metrics endpoint is up on that member."
+              description: "An expected etcd member has had no successful scrape for 2 minutes while the Collector that scrapes it is alive. Run etcdctl endpoint status against all members to see which one does not answer, then check the etcd process on it."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/etcd/#etcdmemberabsent
       - eval_time: 6m30s
         groupname: etcd
@@ -1741,7 +1741,7 @@ tests:
               obenhub.collector: otelcol-pgha-2
             exp_annotations:
               summary: etcd member pgha-2 is not scraped
-              description: "An expected etcd member has had no successful scrape for 2 minutes while the Collector that scrapes it is alive. Check whether the etcd process or its metrics endpoint is up on that member."
+              description: "An expected etcd member has had no successful scrape for 2 minutes while the Collector that scrapes it is alive. Run etcdctl endpoint status against all members to see which one does not answer, then check the etcd process on it."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/etcd/#etcdmemberabsent
           - exp_labels:
               severity: warning
@@ -1752,7 +1752,7 @@ tests:
               obenhub.collector: otelcol-pgha-3
             exp_annotations:
               summary: etcd member pgha-3 is not scraped
-              description: "An expected etcd member has had no successful scrape for 2 minutes while the Collector that scrapes it is alive. Check whether the etcd process or its metrics endpoint is up on that member."
+              description: "An expected etcd member has had no successful scrape for 2 minutes while the Collector that scrapes it is alive. Run etcdctl endpoint status against all members to see which one does not answer, then check the etcd process on it."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/etcd/#etcdmemberabsent
       - eval_time: 7m
         groupname: etcd
@@ -1838,7 +1838,7 @@ tests:
               obenhub.collector: otelcol-pgha-3
             exp_annotations:
               summary: etcd member pgha-3 is not scraped
-              description: "An expected etcd member has had no successful scrape for 2 minutes while the Collector that scrapes it is alive. Check whether the etcd process or its metrics endpoint is up on that member."
+              description: "An expected etcd member has had no successful scrape for 2 minutes while the Collector that scrapes it is alive. Run etcdctl endpoint status against all members to see which one does not answer, then check the etcd process on it."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/etcd/#etcdmemberabsent
       - eval_time: 5m
         groupname: etcd
@@ -1882,7 +1882,7 @@ tests:
               obenhub.collector: otelcol-pgha-3
             exp_annotations:
               summary: etcd member pgha-3 is not scraped
-              description: "An expected etcd member has had no successful scrape for 2 minutes while the Collector that scrapes it is alive. Check whether the etcd process or its metrics endpoint is up on that member."
+              description: "An expected etcd member has had no successful scrape for 2 minutes while the Collector that scrapes it is alive. Run etcdctl endpoint status against all members to see which one does not answer, then check the etcd process on it."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/etcd/#etcdmemberabsent
       - eval_time: 6m
         groupname: etcd
@@ -1926,7 +1926,7 @@ tests:
               obenhub.collector: otelcol-pgha-3
             exp_annotations:
               summary: etcd member pgha-3 is not scraped
-              description: "An expected etcd member has had no successful scrape for 2 minutes while the Collector that scrapes it is alive. Check whether the etcd process or its metrics endpoint is up on that member."
+              description: "An expected etcd member has had no successful scrape for 2 minutes while the Collector that scrapes it is alive. Run etcdctl endpoint status against all members to see which one does not answer, then check the etcd process on it."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/etcd/#etcdmemberabsent
       - eval_time: 7m
         groupname: etcd
@@ -2007,7 +2007,7 @@ tests:
               obenhub.collector: otelcol-pgha-1
             exp_annotations:
               summary: etcd member pgha-1 is not scraped
-              description: "An expected etcd member has had no successful scrape for 2 minutes while the Collector that scrapes it is alive. Check whether the etcd process or its metrics endpoint is up on that member."
+              description: "An expected etcd member has had no successful scrape for 2 minutes while the Collector that scrapes it is alive. Run etcdctl endpoint status against all members to see which one does not answer, then check the etcd process on it."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/etcd/#etcdmemberabsent
           - exp_labels:
               severity: warning
@@ -2018,7 +2018,7 @@ tests:
               obenhub.collector: otelcol-pgha-3
             exp_annotations:
               summary: etcd member pgha-3 is not scraped
-              description: "An expected etcd member has had no successful scrape for 2 minutes while the Collector that scrapes it is alive. Check whether the etcd process or its metrics endpoint is up on that member."
+              description: "An expected etcd member has had no successful scrape for 2 minutes while the Collector that scrapes it is alive. Run etcdctl endpoint status against all members to see which one does not answer, then check the etcd process on it."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/etcd/#etcdmemberabsent
       - eval_time: 5m
         groupname: etcd
@@ -2067,7 +2067,7 @@ tests:
               obenhub.collector: otelcol-pgha-1
             exp_annotations:
               summary: etcd member pgha-1 is not scraped
-              description: "An expected etcd member has had no successful scrape for 2 minutes while the Collector that scrapes it is alive. Check whether the etcd process or its metrics endpoint is up on that member."
+              description: "An expected etcd member has had no successful scrape for 2 minutes while the Collector that scrapes it is alive. Run etcdctl endpoint status against all members to see which one does not answer, then check the etcd process on it."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/etcd/#etcdmemberabsent
           - exp_labels:
               severity: warning
@@ -2078,7 +2078,7 @@ tests:
               obenhub.collector: otelcol-pgha-3
             exp_annotations:
               summary: etcd member pgha-3 is not scraped
-              description: "An expected etcd member has had no successful scrape for 2 minutes while the Collector that scrapes it is alive. Check whether the etcd process or its metrics endpoint is up on that member."
+              description: "An expected etcd member has had no successful scrape for 2 minutes while the Collector that scrapes it is alive. Run etcdctl endpoint status against all members to see which one does not answer, then check the etcd process on it."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/etcd/#etcdmemberabsent
       - eval_time: 6m
         groupname: etcd
@@ -2127,7 +2127,7 @@ tests:
               obenhub.collector: otelcol-pgha-1
             exp_annotations:
               summary: etcd member pgha-1 is not scraped
-              description: "An expected etcd member has had no successful scrape for 2 minutes while the Collector that scrapes it is alive. Check whether the etcd process or its metrics endpoint is up on that member."
+              description: "An expected etcd member has had no successful scrape for 2 minutes while the Collector that scrapes it is alive. Run etcdctl endpoint status against all members to see which one does not answer, then check the etcd process on it."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/etcd/#etcdmemberabsent
           - exp_labels:
               severity: warning
@@ -2138,7 +2138,7 @@ tests:
               obenhub.collector: otelcol-pgha-3
             exp_annotations:
               summary: etcd member pgha-3 is not scraped
-              description: "An expected etcd member has had no successful scrape for 2 minutes while the Collector that scrapes it is alive. Check whether the etcd process or its metrics endpoint is up on that member."
+              description: "An expected etcd member has had no successful scrape for 2 minutes while the Collector that scrapes it is alive. Run etcdctl endpoint status against all members to see which one does not answer, then check the etcd process on it."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/etcd/#etcdmemberabsent
       - eval_time: 7m
         groupname: etcd
@@ -2244,7 +2244,7 @@ tests:
               obenhub.collector: otelcol-pgha-1
             exp_annotations:
               summary: Patroni on pgha-1 is not scraped while PostgreSQL still reports
-              description: "Patroni's REST scrape of a member has not succeeded for 2 minutes while that node's PostgreSQL heartbeat is present: Patroni is down on a node whose PostgreSQL still runs, so no failover logic runs there. Check the Patroni service on the node."
+              description: "Patroni's REST scrape of a member has not succeeded for 2 minutes while that node's PostgreSQL heartbeat is present: Patroni is down on a node whose PostgreSQL still runs, so no failover logic runs there. Check the Patroni service and its log on the node."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/patroni/#patronitargetabsent
       - eval_time: 5m
         groupname: etcd
@@ -2288,7 +2288,7 @@ tests:
               obenhub.collector: otelcol-pgha-1
             exp_annotations:
               summary: Patroni on pgha-1 is not scraped while PostgreSQL still reports
-              description: "Patroni's REST scrape of a member has not succeeded for 2 minutes while that node's PostgreSQL heartbeat is present: Patroni is down on a node whose PostgreSQL still runs, so no failover logic runs there. Check the Patroni service on the node."
+              description: "Patroni's REST scrape of a member has not succeeded for 2 minutes while that node's PostgreSQL heartbeat is present: Patroni is down on a node whose PostgreSQL still runs, so no failover logic runs there. Check the Patroni service and its log on the node."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/patroni/#patronitargetabsent
       - eval_time: 6m
         groupname: etcd
@@ -2332,7 +2332,7 @@ tests:
               obenhub.collector: otelcol-pgha-1
             exp_annotations:
               summary: Patroni on pgha-1 is not scraped while PostgreSQL still reports
-              description: "Patroni's REST scrape of a member has not succeeded for 2 minutes while that node's PostgreSQL heartbeat is present: Patroni is down on a node whose PostgreSQL still runs, so no failover logic runs there. Check the Patroni service on the node."
+              description: "Patroni's REST scrape of a member has not succeeded for 2 minutes while that node's PostgreSQL heartbeat is present: Patroni is down on a node whose PostgreSQL still runs, so no failover logic runs there. Check the Patroni service and its log on the node."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/patroni/#patronitargetabsent
       - eval_time: 7m
         groupname: etcd
@@ -2441,7 +2441,7 @@ tests:
               obenhub.collector: otelcol-pgha-3
             exp_annotations:
               summary: etcd member pgha-3 is not scraped
-              description: "An expected etcd member has had no successful scrape for 2 minutes while the Collector that scrapes it is alive. Check whether the etcd process or its metrics endpoint is up on that member."
+              description: "An expected etcd member has had no successful scrape for 2 minutes while the Collector that scrapes it is alive. Run etcdctl endpoint status against all members to see which one does not answer, then check the etcd process on it."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/etcd/#etcdmemberabsent
       - eval_time: 5m
         groupname: etcd
@@ -2485,7 +2485,7 @@ tests:
               obenhub.collector: otelcol-pgha-3
             exp_annotations:
               summary: etcd member pgha-3 is not scraped
-              description: "An expected etcd member has had no successful scrape for 2 minutes while the Collector that scrapes it is alive. Check whether the etcd process or its metrics endpoint is up on that member."
+              description: "An expected etcd member has had no successful scrape for 2 minutes while the Collector that scrapes it is alive. Run etcdctl endpoint status against all members to see which one does not answer, then check the etcd process on it."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/etcd/#etcdmemberabsent
       - eval_time: 6m
         groupname: etcd
@@ -2529,7 +2529,7 @@ tests:
               obenhub.collector: otelcol-pgha-3
             exp_annotations:
               summary: etcd member pgha-3 is not scraped
-              description: "An expected etcd member has had no successful scrape for 2 minutes while the Collector that scrapes it is alive. Check whether the etcd process or its metrics endpoint is up on that member."
+              description: "An expected etcd member has had no successful scrape for 2 minutes while the Collector that scrapes it is alive. Run etcdctl endpoint status against all members to see which one does not answer, then check the etcd process on it."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/etcd/#etcdmemberabsent
       - eval_time: 7m
         groupname: etcd
@@ -4170,7 +4170,7 @@ tests:
               obenhub.collector: otelcol-pgha-1
             exp_annotations:
               summary: Patroni on pgha-1 is not scraped while PostgreSQL still reports
-              description: "Patroni's REST scrape of a member has not succeeded for 2 minutes while that node's PostgreSQL heartbeat is present: Patroni is down on a node whose PostgreSQL still runs, so no failover logic runs there. Check the Patroni service on the node."
+              description: "Patroni's REST scrape of a member has not succeeded for 2 minutes while that node's PostgreSQL heartbeat is present: Patroni is down on a node whose PostgreSQL still runs, so no failover logic runs there. Check the Patroni service and its log on the node."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/patroni/#patronitargetabsent
       - eval_time: 15m
         groupname: etcd
@@ -4210,7 +4210,7 @@ tests:
               obenhub.collector: otelcol-pgha-1
             exp_annotations:
               summary: Patroni on pgha-1 is not scraped while PostgreSQL still reports
-              description: "Patroni's REST scrape of a member has not succeeded for 2 minutes while that node's PostgreSQL heartbeat is present: Patroni is down on a node whose PostgreSQL still runs, so no failover logic runs there. Check the Patroni service on the node."
+              description: "Patroni's REST scrape of a member has not succeeded for 2 minutes while that node's PostgreSQL heartbeat is present: Patroni is down on a node whose PostgreSQL still runs, so no failover logic runs there. Check the Patroni service and its log on the node."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/patroni/#patronitargetabsent
       - eval_time: 20m
         groupname: etcd
@@ -4250,7 +4250,7 @@ tests:
               obenhub.collector: otelcol-pgha-1
             exp_annotations:
               summary: Patroni on pgha-1 is not scraped while PostgreSQL still reports
-              description: "Patroni's REST scrape of a member has not succeeded for 2 minutes while that node's PostgreSQL heartbeat is present: Patroni is down on a node whose PostgreSQL still runs, so no failover logic runs there. Check the Patroni service on the node."
+              description: "Patroni's REST scrape of a member has not succeeded for 2 minutes while that node's PostgreSQL heartbeat is present: Patroni is down on a node whose PostgreSQL still runs, so no failover logic runs there. Check the Patroni service and its log on the node."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/patroni/#patronitargetabsent
       - eval_time: 25m
         groupname: etcd
@@ -4290,7 +4290,7 @@ tests:
               obenhub.collector: otelcol-pgha-1
             exp_annotations:
               summary: Patroni on pgha-1 is not scraped while PostgreSQL still reports
-              description: "Patroni's REST scrape of a member has not succeeded for 2 minutes while that node's PostgreSQL heartbeat is present: Patroni is down on a node whose PostgreSQL still runs, so no failover logic runs there. Check the Patroni service on the node."
+              description: "Patroni's REST scrape of a member has not succeeded for 2 minutes while that node's PostgreSQL heartbeat is present: Patroni is down on a node whose PostgreSQL still runs, so no failover logic runs there. Check the Patroni service and its log on the node."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/patroni/#patronitargetabsent
       - eval_time: 30m
         groupname: etcd
@@ -4442,7 +4442,7 @@ tests:
               obenhub.collector: otelcol-pgha-2
             exp_annotations:
               summary: Patroni on pgha-2 is not scraped while PostgreSQL still reports
-              description: "Patroni's REST scrape of a member has not succeeded for 2 minutes while that node's PostgreSQL heartbeat is present: Patroni is down on a node whose PostgreSQL still runs, so no failover logic runs there. Check the Patroni service on the node."
+              description: "Patroni's REST scrape of a member has not succeeded for 2 minutes while that node's PostgreSQL heartbeat is present: Patroni is down on a node whose PostgreSQL still runs, so no failover logic runs there. Check the Patroni service and its log on the node."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/patroni/#patronitargetabsent
       - eval_time: 25m
         groupname: etcd
@@ -4491,7 +4491,7 @@ tests:
               obenhub.collector: otelcol-pgha-2
             exp_annotations:
               summary: Patroni on pgha-2 is not scraped while PostgreSQL still reports
-              description: "Patroni's REST scrape of a member has not succeeded for 2 minutes while that node's PostgreSQL heartbeat is present: Patroni is down on a node whose PostgreSQL still runs, so no failover logic runs there. Check the Patroni service on the node."
+              description: "Patroni's REST scrape of a member has not succeeded for 2 minutes while that node's PostgreSQL heartbeat is present: Patroni is down on a node whose PostgreSQL still runs, so no failover logic runs there. Check the Patroni service and its log on the node."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/patroni/#patronitargetabsent
       - eval_time: 30m
         groupname: etcd
@@ -5002,7 +5002,7 @@ tests:
               obenhub.collector: otelcol-pgha-2
             exp_annotations:
               summary: Patroni on pgha-2 is not scraped while PostgreSQL still reports
-              description: "Patroni's REST scrape of a member has not succeeded for 2 minutes while that node's PostgreSQL heartbeat is present: Patroni is down on a node whose PostgreSQL still runs, so no failover logic runs there. Check the Patroni service on the node."
+              description: "Patroni's REST scrape of a member has not succeeded for 2 minutes while that node's PostgreSQL heartbeat is present: Patroni is down on a node whose PostgreSQL still runs, so no failover logic runs there. Check the Patroni service and its log on the node."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/patroni/#patronitargetabsent
       - eval_time: 25m
         groupname: etcd
@@ -5051,7 +5051,7 @@ tests:
               obenhub.collector: otelcol-pgha-2
             exp_annotations:
               summary: Patroni on pgha-2 is not scraped while PostgreSQL still reports
-              description: "Patroni's REST scrape of a member has not succeeded for 2 minutes while that node's PostgreSQL heartbeat is present: Patroni is down on a node whose PostgreSQL still runs, so no failover logic runs there. Check the Patroni service on the node."
+              description: "Patroni's REST scrape of a member has not succeeded for 2 minutes while that node's PostgreSQL heartbeat is present: Patroni is down on a node whose PostgreSQL still runs, so no failover logic runs there. Check the Patroni service and its log on the node."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/patroni/#patronitargetabsent
       - eval_time: 30m
         groupname: etcd

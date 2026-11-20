@@ -53,7 +53,7 @@ groups:
           severity: warning
         annotations:
           summary: 'etcd member {{ (index $labels "service.instance.id") }} is not scraped'
-          description: "An expected etcd member has had no successful scrape for 2 minutes while the Collector that scrapes it is alive. Check whether the etcd process or its metrics endpoint is up on that member."
+          description: "An expected etcd member has had no successful scrape for 2 minutes while the Collector that scrapes it is alive. Run etcdctl endpoint status against all members to see which one does not answer, then check the etcd process on it."
           runbook_url: https://msavdert.github.io/obenhub/runbooks/etcd/#etcdmemberabsent
 
       # Per etcd cluster: fewer members reporting than a majority of the
@@ -114,7 +114,7 @@ groups:
           severity: critical
         annotations:
           summary: 'etcd member {{ (index $labels "service.instance.id") }} has no leader'
-          description: "A reporting etcd member has had no leader (etcd_server_has_leader 0) for a minute; a normal election takes about a second. Check the other members and the network between them."
+          description: "A reporting etcd member has had no leader (etcd_server_has_leader 0) for a minute; a normal election takes about a second. Run etcdctl endpoint status to see which member is leader, and check the network between the members."
           runbook_url: https://msavdert.github.io/obenhub/runbooks/etcd/#etcdnoleader
 
       # Mixin: increase(...[15m:1m]) >= 4, for 5m. Lab: 5 m window, >= 3, for
@@ -132,7 +132,7 @@ groups:
           severity: warning
         annotations:
           summary: '{{ $value }} leader changes of etcd cluster {{ (index $labels "obenhub.cluster.name") }} within 5 minutes'
-          description: "Three or more leader changes of one etcd cluster within 5 minutes (increase of etcd_server_leader_changes_seen_total). Look at the members for restarts, slow disks (EtcdHighFsyncDurations) or network trouble between them."
+          description: "Three or more leader changes of one etcd cluster within 5 minutes (increase of etcd_server_leader_changes_seen_total). Run etcdctl endpoint status for the current leader, and look at the members for restarts, slow disks (EtcdHighFsyncDurations) or network trouble between them."
           runbook_url: https://msavdert.github.io/obenhub/runbooks/etcd/#etcdhighleaderchanges
 
       # Mixin: histogram_quantile(0.99, rate(...[5m])) > 0.5, for 10m (warning),

@@ -217,8 +217,8 @@ run = [
 ]
 
 [tasks."lint:alert-docs"]
-description = "fail when an alert lacks description or runbook_url, the URL does not fit (runbook page when a scenario fires the alert, else reference page), its anchor is missing, or a runbook section exists for an alert no scenario fires; scenario-fired alerts without a runbook section are listed, not failed, until the runbook pages are written (C6 part 2: drop --allow-missing-runbooks then)"
-run = "python3 scripts/check-alert-docs.py --allow-missing-runbooks"
+description = "fail when an alert lacks description or runbook_url, the URL does not fit (runbook page when a scenario fires the alert, else reference page), its anchor is missing, or a runbook section exists for an alert no scenario fires, or a scenario-fired alert has no runbook section"
+run = "python3 scripts/check-alert-docs.py"
 
 [tasks."docs:nav-check"]
 description = "fail when a page under docs/ is missing from the nav in zensical.toml, or the nav names a missing page"

@@ -321,7 +321,7 @@ tests:
               oracledb.database.unique_name: CDB19_STBY
             exp_annotations:
               summary: 'Recovery area of CDB19_STBY is 95% full of space that cannot be reclaimed'
-              description: "More than 85 % of the recovery area is in use after counting reclaimable space as free, for 10 minutes. A full area stops archiving on the primary and redo apply on the standby; check what holds the space (V$RECOVERY_AREA_USAGE) and the retention policy."
+              description: "More than 85 % of the recovery area is in use after counting reclaimable space as free, for 10 minutes. A full area stops archiving on the primary and redo apply on the standby; check what holds the space and the retention policy."
               runbook_url: https://msavdert.github.io/obenhub/reference/oracledb-backup-pack-alerts/#oraclerecoveryareafull
 
   - name: recovery area limit lowered under the usage fires after 10m (archiver-stuck scenario)
@@ -352,7 +352,7 @@ tests:
               oracledb.database.unique_name: CDB19
             exp_annotations:
               summary: 'Recovery area of CDB19 is 173.9% full of space that cannot be reclaimed'
-              description: "More than 85 % of the recovery area is in use after counting reclaimable space as free, for 10 minutes. A full area stops archiving on the primary and redo apply on the standby; check what holds the space (V$RECOVERY_AREA_USAGE) and the retention policy."
+              description: "More than 85 % of the recovery area is in use after counting reclaimable space as free, for 10 minutes. A full area stops archiving on the primary and redo apply on the standby; check what holds the space and the retention policy."
               runbook_url: https://msavdert.github.io/obenhub/reference/oracledb-backup-pack-alerts/#oraclerecoveryareafull
 
   - name: a backup series of another cluster with the same unique_name does not clear the missing alert

@@ -37,7 +37,7 @@ tests:
               obenhub.collector: otelcol-stage3
             exp_annotations:
               summary: etcd member etcd-2 is not scraped
-              description: "An expected etcd member has had no successful scrape for 2 minutes while the Collector that scrapes it is alive. Check whether the etcd process or its metrics endpoint is up on that member."
+              description: "An expected etcd member has had no successful scrape for 2 minutes while the Collector that scrapes it is alive. Run etcdctl endpoint status against all members to see which one does not answer, then check the etcd process on it."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/etcd/#etcdmemberabsent
       - eval_time: 6m
         groupname: etcd
@@ -69,7 +69,7 @@ tests:
               obenhub.collector: otelcol-stage3
             exp_annotations:
               summary: etcd member etcd-3 is not scraped
-              description: "An expected etcd member has had no successful scrape for 2 minutes while the Collector that scrapes it is alive. Check whether the etcd process or its metrics endpoint is up on that member."
+              description: "An expected etcd member has had no successful scrape for 2 minutes while the Collector that scrapes it is alive. Run etcdctl endpoint status against all members to see which one does not answer, then check the etcd process on it."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/etcd/#etcdmemberabsent
 
   - name: two members down names both and fires EtcdInsufficientMembers
@@ -110,7 +110,7 @@ tests:
               obenhub.collector: otelcol-stage3
             exp_annotations:
               summary: etcd member etcd-2 is not scraped
-              description: "An expected etcd member has had no successful scrape for 2 minutes while the Collector that scrapes it is alive. Check whether the etcd process or its metrics endpoint is up on that member."
+              description: "An expected etcd member has had no successful scrape for 2 minutes while the Collector that scrapes it is alive. Run etcdctl endpoint status against all members to see which one does not answer, then check the etcd process on it."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/etcd/#etcdmemberabsent
           - exp_labels:
               obenhub.cluster.name: stage3-etcd
@@ -121,7 +121,7 @@ tests:
               obenhub.collector: otelcol-stage3
             exp_annotations:
               summary: etcd member etcd-3 is not scraped
-              description: "An expected etcd member has had no successful scrape for 2 minutes while the Collector that scrapes it is alive. Check whether the etcd process or its metrics endpoint is up on that member."
+              description: "An expected etcd member has had no successful scrape for 2 minutes while the Collector that scrapes it is alive. Run etcdctl endpoint status against all members to see which one does not answer, then check the etcd process on it."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/etcd/#etcdmemberabsent
 
   - name: all members gone with the Collector raises neither member nor quorum alerts
@@ -170,7 +170,7 @@ tests:
               service.name: etcd
             exp_annotations:
               summary: etcd member etcd-1 has no leader
-              description: "A reporting etcd member has had no leader (etcd_server_has_leader 0) for a minute; a normal election takes about a second. Check the other members and the network between them."
+              description: "A reporting etcd member has had no leader (etcd_server_has_leader 0) for a minute; a normal election takes about a second. Run etcdctl endpoint status to see which member is leader, and check the network between the members."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/etcd/#etcdnoleader
 
   - name: three leader changes in 5 m fire, two do not
@@ -197,7 +197,7 @@ tests:
           - exp_labels: {severity: warning, obenhub.cluster.name: stage3-etcd}
             exp_annotations:
               summary: 4 leader changes of etcd cluster stage3-etcd within 5 minutes
-              description: "Three or more leader changes of one etcd cluster within 5 minutes (increase of etcd_server_leader_changes_seen_total). Look at the members for restarts, slow disks (EtcdHighFsyncDurations) or network trouble between them."
+              description: "Three or more leader changes of one etcd cluster within 5 minutes (increase of etcd_server_leader_changes_seen_total). Run etcdctl endpoint status for the current leader, and look at the members for restarts, slow disks (EtcdHighFsyncDurations) or network trouble between them."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/etcd/#etcdhighleaderchanges
       - eval_time: 14m   # the window has moved past the changes
         groupname: etcd
@@ -244,7 +244,7 @@ tests:
           - exp_labels: {severity: warning, obenhub.cluster.name: stage3-etcd}
             exp_annotations:
               summary: 3 leader changes of etcd cluster stage3-etcd within 5 minutes
-              description: "Three or more leader changes of one etcd cluster within 5 minutes (increase of etcd_server_leader_changes_seen_total). Look at the members for restarts, slow disks (EtcdHighFsyncDurations) or network trouble between them."
+              description: "Three or more leader changes of one etcd cluster within 5 minutes (increase of etcd_server_leader_changes_seen_total). Run etcdctl endpoint status for the current leader, and look at the members for restarts, slow disks (EtcdHighFsyncDurations) or network trouble between them."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/etcd/#etcdhighleaderchanges
 
   # No etcd `up` series at all while the Collector lives: count() is empty and

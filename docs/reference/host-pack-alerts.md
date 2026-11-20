@@ -17,7 +17,7 @@ sum by (host.name, service.instance.id, mountpoint) (system.filesystem.usage{sta
 
 ## HostMemoryAvailableLow
 
-MemAvailable (system.linux.memory.available) is under 10 % of the host's memory for 2 minutes. Look for the process that grew, for example with ps sorted by resident memory.
+MemAvailable (system.linux.memory.available) is under 10 % of the host's memory for 2 minutes. Read MemAvailable and MemTotal in /proc/meminfo, then look for the process that grew.
 
 **warning**, for 2m
 

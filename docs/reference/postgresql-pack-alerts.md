@@ -66,7 +66,7 @@ postgresql.recovery.active == 0
 
 ## PostgresReplayBacklog
 
-A standby has received more than 16 MiB of WAL it has not replayed, for a minute. Check pg_is_wal_replay_paused() on the standby.
+A standby has received more than 16 MiB of WAL it has not replayed, for a minute. Check pg_get_wal_replay_pause_state() on the standby.
 
 **warning**, for 1m
 
@@ -198,7 +198,7 @@ postgresql.lock.oldest_wait_age > 30
 
 ## PostgresDeadlocks
 
-The deadlock counter of a database rose within the last 5 minutes. PostgreSQL resolves a deadlock by aborting one session, so this is evidence, not an outage; check the PostgreSQL log.
+The deadlock counter of a database rose within the last 5 minutes. PostgreSQL resolves a deadlock by aborting one session, so this is evidence, not an outage; pg_stat_database.deadlocks shows which database and the PostgreSQL log has the details.
 
 **warning**, no hold time
 
@@ -208,7 +208,7 @@ last_over_time(postgresql.deadlocks[5m]) - first_over_time(postgresql.deadlocks[
 
 ## PostgresCheckpointsRequested
 
-More than 3 requested checkpoints in 5 minutes on a primary: WAL reached max_wal_size before checkpoint_timeout (lab threshold). Check max_wal_size against the WAL volume and what writes it.
+More than 3 requested checkpoints in 5 minutes on a primary: WAL reached max_wal_size before checkpoint_timeout (lab threshold). Check pg_stat_checkpointer, max_wal_size against the WAL volume and what writes it.
 
 **warning**, for 1m
 
@@ -285,7 +285,7 @@ postgresql.archiver.ready_file.count > 8
 
 ## PostgresSeriesVanished
 
-A metric of the pack that was present in the last hour has disappeared on an instance whose heartbeat is still present; the metric name is in the alert. Check the Collector log for failing queries and the monitoring role's privileges.
+A metric of the pack that was present in the last hour has disappeared on an instance whose heartbeat is still present; the metric name is in the alert. Look for ERROR lines of the monitoring role in the PostgreSQL log and for failing queries in the Collector log.
 
 **warning**, for 1m
 

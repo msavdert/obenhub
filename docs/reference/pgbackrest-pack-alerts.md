@@ -26,7 +26,7 @@ pgbackrest_backup_since_last_completion_seconds{backup_type="incr"}
 
 ## PgBackRestBackupChecksumError
 
-The last backup of a stanza found pages whose checksum does not match: damage in the data files, which PostgreSQL itself reports only when it reads the page. The backup still completes, so the stale alert stays silent; check pgbackrest info and the PostgreSQL log.
+The last backup of a stanza found pages whose checksum does not match: damage in the data files, which PostgreSQL itself reports only when it reads the page. The backup still completes, so the stale alert stays silent; check pgbackrest info and the pgBackRest log of that backup (invalid page checksum found).
 
 **critical**, no hold time
 

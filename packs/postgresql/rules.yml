@@ -137,7 +137,7 @@ groups:
           severity: warning
         annotations:
           summary: '{{ (index $labels "service.instance.id") }} replay backlog is {{ $value | humanize1024 }}B'
-          description: "A standby has received more than 16 MiB of WAL it has not replayed, for a minute. Check pg_is_wal_replay_paused() on the standby."
+          description: "A standby has received more than 16 MiB of WAL it has not replayed, for a minute. Check pg_get_wal_replay_pause_state() on the standby."
           runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgresreplaybacklog
 
       - alert: PostgresSnapshotHeldTooLong
@@ -351,7 +351,7 @@ groups:
           severity: warning
         annotations:
           summary: '{{ $value | printf "%.0f" }} deadlock(s) in {{ (index $labels "postgresql.database.name") }} on {{ (index $labels "service.instance.id") }} in the last 5 minutes'
-          description: "The deadlock counter of a database rose within the last 5 minutes. PostgreSQL resolves a deadlock by aborting one session, so this is evidence, not an outage; check the PostgreSQL log."
+          description: "The deadlock counter of a database rose within the last 5 minutes. PostgreSQL resolves a deadlock by aborting one session, so this is evidence, not an outage; pg_stat_database.deadlocks shows which database and the PostgreSQL log has the details."
           runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgresdeadlocks
 
       # Requested checkpoints (pg_stat_checkpointer.num_requested on
@@ -379,7 +379,7 @@ groups:
           severity: warning
         annotations:
           summary: '{{ (index $labels "service.instance.id") }} had {{ $value | printf "%.0f" }} requested checkpoints in 5 minutes (lab threshold)'
-          description: "More than 3 requested checkpoints in 5 minutes on a primary: WAL reached max_wal_size before checkpoint_timeout (lab threshold). Check max_wal_size against the WAL volume and what writes it."
+          description: "More than 3 requested checkpoints in 5 minutes on a primary: WAL reached max_wal_size before checkpoint_timeout (lab threshold). Check pg_stat_checkpointer, max_wal_size against the WAL volume and what writes it."
           runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgrescheckpointsrequested
 
       # A physical slot without a consumer keeps WAL until
@@ -524,7 +524,7 @@ groups:
           severity: warning
         annotations:
           summary: '{{ $labels.metric }} vanished on {{ (index $labels "service.instance.id") }}'
-          description: "A metric of the pack that was present in the last hour has disappeared on an instance whose heartbeat is still present; the metric name is in the alert. Check the Collector log for failing queries and the monitoring role's privileges."
+          description: "A metric of the pack that was present in the last hour has disappeared on an instance whose heartbeat is still present; the metric name is in the alert. Look for ERROR lines of the monitoring role in the PostgreSQL log and for failing queries in the Collector log."
           runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgresseriesvanished
 
       # Two or more instances of one cluster are writable at the same time

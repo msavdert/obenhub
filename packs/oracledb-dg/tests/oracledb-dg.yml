@@ -679,7 +679,7 @@ tests:
           - exp_labels: {obenhub.cluster.name: cdb19, severity: warning}
             exp_annotations:
               summary: "A standby of Data Guard cluster cdb19 was promoted to primary"
-              description: "A database reports PRIMARY after having reported another role within the last 3 minutes: a standby was promoted, by switchover or failover (the signal cannot tell them apart). Check the Data Guard broker configuration and its log."
+              description: "A database reports PRIMARY after having reported another role within the last 3 minutes: a standby was promoted, by switchover or failover (the signal cannot tell them apart). Check the Data Guard broker configuration (dgmgrl show configuration) and its log."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/oracledb-dg/#oracleprimarychanged
       - eval_time: 7m   # still inside the 3m window
         groupname: oracledb-dg
@@ -688,7 +688,7 @@ tests:
           - exp_labels: {obenhub.cluster.name: cdb19, severity: warning}
             exp_annotations:
               summary: "A standby of Data Guard cluster cdb19 was promoted to primary"
-              description: "A database reports PRIMARY after having reported another role within the last 3 minutes: a standby was promoted, by switchover or failover (the signal cannot tell them apart). Check the Data Guard broker configuration and its log."
+              description: "A database reports PRIMARY after having reported another role within the last 3 minutes: a standby was promoted, by switchover or failover (the signal cannot tell them apart). Check the Data Guard broker configuration (dgmgrl show configuration) and its log."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/oracledb-dg/#oracleprimarychanged
       - eval_time: 9m
         groupname: oracledb-dg
@@ -812,7 +812,7 @@ tests:
           - exp_labels: {obenhub.cluster.name: cdb19, severity: warning}
             exp_annotations:
               summary: "A standby of Data Guard cluster cdb19 was promoted to primary"
-              description: "A database reports PRIMARY after having reported another role within the last 3 minutes: a standby was promoted, by switchover or failover (the signal cannot tell them apart). Check the Data Guard broker configuration and its log."
+              description: "A database reports PRIMARY after having reported another role within the last 3 minutes: a standby was promoted, by switchover or failover (the signal cannot tell them apart). Check the Data Guard broker configuration (dgmgrl show configuration) and its log."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/oracledb-dg/#oracleprimarychanged
       - eval_time: 6m
         groupname: oracledb-dg
@@ -1716,7 +1716,7 @@ tests:
           - exp_labels: {obenhub.cluster.name: cdb19, service.instance.id: CDB19, service.name: oracledb, service.namespace: obenhub-lab, oracledb.database.unique_name: CDB19, severity: warning}
             exp_annotations:
               summary: "Primary CDB19 sees no fast-start failover observer"
-              description: "Fast-start failover is enabled but the primary sees no observer for 2 minutes, so the broker cannot fail over automatically. Check that the observer process is running and reaches both databases."
+              description: "Fast-start failover is enabled but the primary sees no observer for 2 minutes, so the broker cannot fail over automatically. Check fs_failover_observer_present in V$DATABASE and dgmgrl show configuration, and that the observer process runs and reaches both databases."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/oracledb-dg/#oraclefaststartfailoverobservermissing
 
   - name: "a missing observer seen only by the standby is ignored"
@@ -2734,7 +2734,7 @@ tests:
           - exp_labels: {db.system.name: oracle.db, obenhub.cluster.name: cdb19, server.address: ora-dg-stby, server.port: 1521, service.instance.id: CDB19_STBY, service.name: oracledb, service.namespace: obenhub-lab, tcpcheck.endpoint: ora-dg-stby.lab.local:1521, severity: critical}
             exp_annotations:
               summary: "Oracle listener ora-dg-stby.lab.local:1521 does not accept TCP connections"
-              description: "A TCP connect to a listener endpoint failed on every check for a minute (tcpcheck receiver; no login, no service lookup). Check that the listener process runs and the port is reachable from the host that runs the tcpcheck receiver."
+              description: "A TCP connect to a listener endpoint failed on every check for a minute (tcpcheck receiver; no login, no service lookup). Check lsnrctl status, that the listener process runs and the port is reachable from the host that runs the tcpcheck receiver."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/oracledb-dg/#oraclelistenerunreachable
       - eval_time: 9m
         groupname: oracledb-dg
@@ -2769,7 +2769,7 @@ tests:
           - exp_labels: {db.system.name: oracle.db, obenhub.cluster.name: cdb19, server.address: ora-au-lab, server.port: 1521, service.instance.id: CDB19, service.name: oracledb, service.namespace: obenhub-lab, tcpcheck.endpoint: ora-au-lab.lab.local:1521, severity: critical}
             exp_annotations:
               summary: "Oracle listener ora-au-lab.lab.local:1521 does not accept TCP connections"
-              description: "A TCP connect to a listener endpoint failed on every check for a minute (tcpcheck receiver; no login, no service lookup). Check that the listener process runs and the port is reachable from the host that runs the tcpcheck receiver."
+              description: "A TCP connect to a listener endpoint failed on every check for a minute (tcpcheck receiver; no login, no service lookup). Check lsnrctl status, that the listener process runs and the port is reachable from the host that runs the tcpcheck receiver."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/oracledb-dg/#oraclelistenerunreachable
       - eval_time: 5m
         groupname: oracledb-dg
@@ -2801,7 +2801,7 @@ tests:
           - exp_labels: {db.system.name: oracle.db, obenhub.cluster.name: cdb19, server.address: ora-dg-stby, server.port: 1521, service.instance.id: CDB19_STBY, service.name: oracledb, service.namespace: obenhub-lab, tcpcheck.endpoint: ora-dg-stby.lab.local:1521, severity: critical}
             exp_annotations:
               summary: "Oracle listener ora-dg-stby.lab.local:1521 does not accept TCP connections"
-              description: "A TCP connect to a listener endpoint failed on every check for a minute (tcpcheck receiver; no login, no service lookup). Check that the listener process runs and the port is reachable from the host that runs the tcpcheck receiver."
+              description: "A TCP connect to a listener endpoint failed on every check for a minute (tcpcheck receiver; no login, no service lookup). Check lsnrctl status, that the listener process runs and the port is reachable from the host that runs the tcpcheck receiver."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/oracledb-dg/#oraclelistenerunreachable
       - eval_time: 13m
         groupname: oracledb-dg

@@ -261,7 +261,7 @@ tests:
           - exp_labels: {severity: warning, obenhub.cluster.name: stage3}
             exp_annotations:
               summary: Cluster stage3 moved to timeline 4
-              description: "The highest PostgreSQL timeline of the cluster rose compared with the last hour: a switchover or a failover (the metrics cannot tell them apart). It resolves after 3 minutes; patronictl history shows the cause."
+              description: "The highest PostgreSQL timeline of the cluster rose compared with the last hour: a switchover or a failover (the metrics cannot tell them apart). It resolves after 3 minutes; patronictl list shows the new leader and the timeline."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/patroni/#patronifailoverhappened
       - eval_time: 7m
         groupname: patroni
@@ -270,7 +270,7 @@ tests:
           - exp_labels: {severity: warning, obenhub.cluster.name: stage3}
             exp_annotations:
               summary: Cluster stage3 moved to timeline 4
-              description: "The highest PostgreSQL timeline of the cluster rose compared with the last hour: a switchover or a failover (the metrics cannot tell them apart). It resolves after 3 minutes; patronictl history shows the cause."
+              description: "The highest PostgreSQL timeline of the cluster rose compared with the last hour: a switchover or a failover (the metrics cannot tell them apart). It resolves after 3 minutes; patronictl list shows the new leader and the timeline."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/patroni/#patronifailoverhappened
       - eval_time: 10m   # the baseline has caught up
         groupname: patroni
@@ -342,7 +342,7 @@ tests:
               service.instance.id: pg-3
             exp_annotations:
               summary: pg-3 is 47.68MiB behind the leader, beyond maximum_lag_on_failover
-              description: "A replica's WAL position is more than 16 MiB (maximum_lag_on_failover) behind the leader's for a minute, so Patroni will not promote it. Check that the replica receives and replays WAL."
+              description: "A replica's WAL position is more than 16 MiB (maximum_lag_on_failover) behind the leader's for a minute, so Patroni will not promote it. patronictl list shows the replica's lag; check that it receives and replays WAL."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/patroni/#patronireplicanoteligible
 
   - name: the threshold is 16 MiB - 8 MiB behind is silent, 20 MiB behind fires (a 1 MiB or 32 MiB threshold fails this)
@@ -384,7 +384,7 @@ tests:
               service.instance.id: pg-3
             exp_annotations:
               summary: pg-3 is 20MiB behind the leader, beyond maximum_lag_on_failover
-              description: "A replica's WAL position is more than 16 MiB (maximum_lag_on_failover) behind the leader's for a minute, so Patroni will not promote it. Check that the replica receives and replays WAL."
+              description: "A replica's WAL position is more than 16 MiB (maximum_lag_on_failover) behind the leader's for a minute, so Patroni will not promote it. patronictl list shows the replica's lag; check that it receives and replays WAL."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/patroni/#patronireplicanoteligible
 
   - name: a replica with paused replay but a current receive position is not flagged
@@ -530,7 +530,7 @@ tests:
               obenhub.collector: otelcol-stage3
             exp_annotations:
               summary: Patroni on pg-2 is not scraped while PostgreSQL still reports
-              description: "Patroni's REST scrape of a member has not succeeded for 2 minutes while that node's PostgreSQL heartbeat is present: Patroni is down on a node whose PostgreSQL still runs, so no failover logic runs there. Check the Patroni service on the node."
+              description: "Patroni's REST scrape of a member has not succeeded for 2 minutes while that node's PostgreSQL heartbeat is present: Patroni is down on a node whose PostgreSQL still runs, so no failover logic runs there. Check the Patroni service and its log on the node."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/patroni/#patronitargetabsent
 
   - name: Patroni series absent altogether fires the same way
@@ -564,7 +564,7 @@ tests:
               obenhub.collector: otelcol-stage3
             exp_annotations:
               summary: Patroni on pg-2 is not scraped while PostgreSQL still reports
-              description: "Patroni's REST scrape of a member has not succeeded for 2 minutes while that node's PostgreSQL heartbeat is present: Patroni is down on a node whose PostgreSQL still runs, so no failover logic runs there. Check the Patroni service on the node."
+              description: "Patroni's REST scrape of a member has not succeeded for 2 minutes while that node's PostgreSQL heartbeat is present: Patroni is down on a node whose PostgreSQL still runs, so no failover logic runs there. Check the Patroni service and its log on the node."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/patroni/#patronitargetabsent
 
   - name: a node that is gone entirely is PostgresTargetAbsent's case, not this one

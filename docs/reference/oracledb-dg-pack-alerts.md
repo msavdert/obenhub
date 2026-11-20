@@ -38,7 +38,7 @@ label_replace(present_over_time(otelcol_process_uptime[1m]), "obenhub.collector"
 
 ## OraclePrimaryChanged
 
-A database reports PRIMARY after having reported another role within the last 3 minutes: a standby was promoted, by switchover or failover (the signal cannot tell them apart). Check the Data Guard broker configuration and its log.
+A database reports PRIMARY after having reported another role within the last 3 minutes: a standby was promoted, by switchover or failover (the signal cannot tell them apart). Check the Data Guard broker configuration (dgmgrl show configuration) and its log.
 
 **warning**, no hold time
 
@@ -120,7 +120,7 @@ Fast-start failover is enabled but the primary reports it is not SYNCHRONIZED, s
 
 ## OracleFastStartFailoverObserverMissing
 
-Fast-start failover is enabled but the primary sees no observer for 2 minutes, so the broker cannot fail over automatically. Check that the observer process is running and reaches both databases.
+Fast-start failover is enabled but the primary sees no observer for 2 minutes, so the broker cannot fail over automatically. Check fs_failover_observer_present in V$DATABASE and dgmgrl show configuration, and that the observer process runs and reaches both databases.
 
 **warning**, for 2m
 
@@ -200,7 +200,7 @@ last_over_time(oracledb.archive_dest.valid[30s]) == 0
 
 ## OracleListenerUnreachable
 
-A TCP connect to a listener endpoint failed on every check for a minute (tcpcheck receiver; no login, no service lookup). Check that the listener process runs and the port is reachable from the host that runs the tcpcheck receiver.
+A TCP connect to a listener endpoint failed on every check for a minute (tcpcheck receiver; no login, no service lookup). Check lsnrctl status, that the listener process runs and the port is reachable from the host that runs the tcpcheck receiver.
 
 **critical**, for 1m
 

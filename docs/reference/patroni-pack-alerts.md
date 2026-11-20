@@ -47,7 +47,7 @@ count by (obenhub.cluster.name) (
 
 ## PatroniFailoverHappened
 
-The highest PostgreSQL timeline of the cluster rose compared with the last hour: a switchover or a failover (the metrics cannot tell them apart). It resolves after 3 minutes; patronictl history shows the cause.
+The highest PostgreSQL timeline of the cluster rose compared with the last hour: a switchover or a failover (the metrics cannot tell them apart). It resolves after 3 minutes; patronictl list shows the new leader and the timeline.
 
 **warning**, no hold time
 
@@ -59,7 +59,7 @@ max_over_time(max by (obenhub.cluster.name) (patroni_postgres_timeline)[1h:1m] o
 
 ## PatroniReplicaNotEligible
 
-A replica's WAL position is more than 16 MiB (maximum_lag_on_failover) behind the leader's for a minute, so Patroni will not promote it. Check that the replica receives and replays WAL.
+A replica's WAL position is more than 16 MiB (maximum_lag_on_failover) behind the leader's for a minute, so Patroni will not promote it. patronictl list shows the replica's lag; check that it receives and replays WAL.
 
 **warning**, for 1m
 
@@ -100,7 +100,7 @@ patroni_pending_restart == 1
 
 ## PatroniTargetAbsent
 
-Patroni's REST scrape of a member has not succeeded for 2 minutes while that node's PostgreSQL heartbeat is present: Patroni is down on a node whose PostgreSQL still runs, so no failover logic runs there. Check the Patroni service on the node.
+Patroni's REST scrape of a member has not succeeded for 2 minutes while that node's PostgreSQL heartbeat is present: Patroni is down on a node whose PostgreSQL still runs, so no failover logic runs there. Check the Patroni service and its log on the node.
 
 **critical**, for 1m
 

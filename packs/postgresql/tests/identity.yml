@@ -216,7 +216,7 @@ tests:
               metric: postgresql.replay.backlog
             exp_annotations:
               summary: 'postgresql.replay.backlog vanished on pg-1'
-              description: "A metric of the pack that was present in the last hour has disappeared on an instance whose heartbeat is still present; the metric name is in the alert. Check the Collector log for failing queries and the monitoring role's privileges."
+              description: "A metric of the pack that was present in the last hour has disappeared on an instance whose heartbeat is still present; the metric name is in the alert. Look for ERROR lines of the monitoring role in the PostgreSQL log and for failing queries in the Collector log."
               runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgresseriesvanished
 
   # --- one instance, two pods ---------------------------------------------

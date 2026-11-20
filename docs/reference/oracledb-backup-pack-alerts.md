@@ -58,7 +58,7 @@ oracledb.backup.age{oracledb.backup.kind="database"}
 
 ## OracleRecoveryAreaFull
 
-More than 85 % of the recovery area is in use after counting reclaimable space as free, for 10 minutes. A full area stops archiving on the primary and redo apply on the standby; check what holds the space (V$RECOVERY_AREA_USAGE) and the retention policy.
+More than 85 % of the recovery area is in use after counting reclaimable space as free, for 10 minutes. A full area stops archiving on the primary and redo apply on the standby; check what holds the space and the retention policy.
 
 **warning**, for 10m
 
