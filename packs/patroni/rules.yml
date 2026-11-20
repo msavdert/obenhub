@@ -215,6 +215,26 @@ groups:
         annotations:
           summary: 'Patroni on {{ (index $labels "service.instance.id") }} reports no obenhub.cluster.name'
 
+      # The rules of this pack size their windows for a collection every 15 s
+      # (README, "Collection interval"): the [30s] window of
+      # PatroniMultiplePrimaries holds two scrapes. Collected only every 60 s, a 30 s window
+      # holds one sample or none, so the rules go quiet or flap without any
+      # error. This says it: the average distance between the samples of
+      # `up` of the Patroni scrape (the series PatroniTargetAbsent reads) over 5 m is above 20 s.
+      # scrape_interval() is MetricsQL (VictoriaMetrics): the average interval
+      # in seconds between the raw samples in the window. One missed sample at
+      # 15 s gives about 16 s and stays quiet; a series at 30 s, where a 30 s
+      # window holds one sample, fires: the threshold of 20 s leaves room for
+      # jitter at 15 s.
+      # max by (...): one value per target.
+      - alert: PatroniCollectionIntervalTooLong
+        expr: max by (obenhub.cluster.name, service.instance.id) (scrape_interval(up{service.name="patroni"}[5m])) > 20
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'Patroni {{ (index $labels "service.instance.id") }} is collected every {{ $value | printf "%.0f" }} s, the rules assume 15 s'
+
       # Failsafe mode: the DCS is unreachable and the leader keeps running on
       # the failsafe topology. UNIT TESTS ONLY: the lab runs with failsafe_mode
       # off (postgres/patroni.yml), so quorum-lost demotes the leader instead.

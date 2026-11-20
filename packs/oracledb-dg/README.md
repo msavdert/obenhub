@@ -49,3 +49,16 @@ account is not seen by them while the pool lives (scenario `password-expired`).
 `OracleTablespaceUsageHigh` reads `oracledb.tablespace_size.usage` and `oracledb.tablespace_size.limit` of the `oracledb` receiver (30 s), enabled by default upstream; the limit is the size a tablespace can grow to with autoextend. The lab Collector adds `oracle.db.pdb` to both metrics, otherwise a tablespace of the root and of a PDB with the same name are averaged into one series (scenario `tablespace-full`).
 
 `OracleBlockedSessions` reads `oracledb.lock.oldest_wait_age` from `queries-primary.yaml`, the longest wait of a session for a lock held by another session (`V$SESSION`, wait class Application, read at the CDB root); oracledbreceiver has no metric for it (`metadata.yaml` at contrib v0.164.0). One warning tier, lab threshold 30 s (scenario `blocking-session`).
+
+## Collection interval
+
+The rules assume the `sql_query` receivers at 15 s (`lab/oracle/files/otelcol-obs.yaml`):
+the `[30s]` latest-value windows and the `[45s:15s]` subquery hold at least
+two collections. Two sources are slower and have their own windows:
+the `oracledb` receiver (`OracleProcessesSaturation`, `OracleTablespaceUsageHigh`)
+runs at 30 s and reads `[90s:30s]`, three collections; the RMAN backup
+queries run at 60 s and are read as instant values
+([packs/oracledb-backup](../oracledb-backup/README.md)). A window holds at least two
+collections of its own source. `OracleCollectionIntervalTooLong` fires when
+the samples of `oracledb.collection.heartbeat` (the 15 s `sql_query`
+receiver) are on average more than 20 s apart.

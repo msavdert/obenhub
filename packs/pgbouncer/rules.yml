@@ -42,6 +42,26 @@ groups:
         annotations:
           summary: '{{ (index $labels "service.instance.id") }} reports no obenhub.cluster.name'
 
+      # The rules of this pack size their windows for a collection every 15 s
+      # (README, "Collection interval"): the [75s:15s] subqueries and the
+      # [75s] window hold five collections. Collected only every 60 s, a 30 s window
+      # holds one sample or none, so the rules go quiet or flap without any
+      # error. This says it: the average distance between the samples of
+      # pgbouncer.list.item.count{pgbouncer.list.name="databases"} (the heartbeat PgbouncerTargetAbsent reads) over 5 m is above 20 s.
+      # scrape_interval() is MetricsQL (VictoriaMetrics): the average interval
+      # in seconds between the raw samples in the window. One missed sample at
+      # 15 s gives about 16 s and stays quiet; a series at 30 s, where a 30 s
+      # window holds one sample, fires: the threshold of 20 s leaves room for
+      # jitter at 15 s.
+      # max by (...): one value per target.
+      - alert: PgbouncerCollectionIntervalTooLong
+        expr: max by (obenhub.cluster.name, service.instance.id) (scrape_interval(pgbouncer.list.item.count{pgbouncer.list.name="databases"}[5m])) > 20
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'PgBouncer {{ (index $labels "service.instance.id") }} is collected every {{ $value | printf "%.0f" }} s, the rules assume 15 s'
+
       # A client waits for a server connection only when the pool is at
       # pool_size. Over 5 s for 1 m is a lab threshold (assumption: a healthy
       # transaction-mode pool hands over a connection in milliseconds). Not for

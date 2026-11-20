@@ -1,0 +1,86 @@
+# OracleCollectionIntervalTooLong (C5): the rules of the pack assume a collection every 15 s; the
+# rule fires when the samples of the target's heartbeat series are on average
+# more than 20 s apart over 5 m (MetricsQL scrape_interval(), held 10 m).
+rule_files:
+  - ../rules.yml
+evaluation_interval: 15s
+
+tests:
+  - name: collected every 15 s, quiet
+    interval: 15s
+    input_series:
+      - series: 'oracledb.collection.heartbeat{obenhub.cluster.name="cdb19",service.instance.id="CDB19"}'
+        values: '1x240'
+    alert_rule_test:
+      - eval_time: 55m
+        groupname: oracledb-dg
+        alertname: OracleCollectionIntervalTooLong
+        exp_alerts: []
+
+  - name: collected every 60 s, fires after the 10 m hold and not before
+    interval: 60s
+    input_series:
+      - series: 'oracledb.collection.heartbeat{obenhub.cluster.name="cdb19",service.instance.id="CDB19"}'
+        values: '1x60'
+    alert_rule_test:
+      - eval_time: 8m
+        groupname: oracledb-dg
+        alertname: OracleCollectionIntervalTooLong
+        exp_alerts: []
+      - eval_time: 30m
+        groupname: oracledb-dg
+        alertname: OracleCollectionIntervalTooLong
+        exp_alerts:
+          - exp_labels:
+              obenhub.cluster.name: cdb19
+              severity: warning
+              service.instance.id: CDB19
+            exp_annotations:
+              summary: 'Oracle database CDB19 is collected every 60 s, the rules assume 15 s'
+
+  - name: collected every 15 s with one missed sample, quiet
+    interval: 15s
+    input_series:
+      - series: 'oracledb.collection.heartbeat{obenhub.cluster.name="cdb19",service.instance.id="CDB19"}'
+        values: '1x100 _ 1x139'
+    alert_rule_test:
+      - eval_time: 30m
+        groupname: oracledb-dg
+        alertname: OracleCollectionIntervalTooLong
+        exp_alerts: []
+      - eval_time: 55m
+        groupname: oracledb-dg
+        alertname: OracleCollectionIntervalTooLong
+        exp_alerts: []
+
+  - name: collected every 30 s, fires after the 10 m hold and not before
+    interval: 30s
+    input_series:
+      - series: 'oracledb.collection.heartbeat{obenhub.cluster.name="cdb19",service.instance.id="CDB19"}'
+        values: '1x120'
+    alert_rule_test:
+      - eval_time: 8m
+        groupname: oracledb-dg
+        alertname: OracleCollectionIntervalTooLong
+        exp_alerts: []
+      - eval_time: 30m
+        groupname: oracledb-dg
+        alertname: OracleCollectionIntervalTooLong
+        exp_alerts:
+          - exp_labels:
+              obenhub.cluster.name: cdb19
+              severity: warning
+              service.instance.id: CDB19
+            exp_annotations:
+              summary: 'Oracle database CDB19 is collected every 30 s, the rules assume 15 s'
+
+  - name: collected every 20 s (the threshold), quiet
+    interval: 20s
+    input_series:
+      - series: 'oracledb.collection.heartbeat{obenhub.cluster.name="cdb19",service.instance.id="CDB19"}'
+        values: '1x180'
+    alert_rule_test:
+      - eval_time: 55m
+        groupname: oracledb-dg
+        alertname: OracleCollectionIntervalTooLong
+        exp_alerts: []
