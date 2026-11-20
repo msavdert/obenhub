@@ -38,3 +38,15 @@ name of a postgresqlreceiver metric (`upstream-receiver-metrics.txt`).
 the metric list of `PostgresSeriesVanished` in `rules.yml` differs from
 `queries.yaml`; the one metric left out on purpose (the heartbeat) is listed,
 with the reason, in the script.
+
+## Collection interval
+
+The rules assume 15 s for every source of the pack: the `postgresql` receiver
+and each `sqlquery` receiver that reads `queries.yaml` set
+`collection_interval: 15s` in every lab. A window holds at least two
+collections: `[30s]` for the latest value, `[75s:15s]` and `[45s:15s]` for
+the sustained-condition tiers. A source set to 60 s would leave those windows
+with one sample or none, so the rules would go quiet or flap without an
+error; `PostgresCollectionIntervalTooLong` fires when the samples of
+`postgresql.collection.heartbeat` are on average more than 20 s apart. To
+collect slower, widen every window to at least twice the new interval first.

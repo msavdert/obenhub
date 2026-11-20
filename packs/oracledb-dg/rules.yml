@@ -44,6 +44,29 @@ groups:
         annotations:
           summary: '{{ (index $labels "service.instance.id") }} reports no obenhub.cluster.name'
 
+      # The rules of this pack size their windows for a collection every 15 s
+      # (README, "Collection interval"): [30s] holds two collections, the
+      # [45s:15s] subqueries three. Collected only every 60 s, a 30 s window
+      # holds one sample or none, so the rules go quiet or flap without any
+      # error. This says it: the average distance between the samples of
+      # oracledb.collection.heartbeat (the series OracleTargetAbsent reads) over 5 m is above 20 s.
+      # scrape_interval() is MetricsQL (VictoriaMetrics): the average interval
+      # in seconds between the raw samples in the window. One missed sample at
+      # 15 s gives about 16 s and stays quiet; a series at 30 s, where a 30 s
+      # window holds one sample, fires: the threshold of 20 s leaves room for
+      # jitter at 15 s.
+      # max by (...): one value per target.
+      # The heartbeat comes from the sql_query receivers at 15 s. The oracledb
+      # receiver (30 s) and the RMAN backup queries (60 s) have their own
+      # intervals, which their rules' windows already allow for (README).
+      - alert: OracleCollectionIntervalTooLong
+        expr: max by (obenhub.cluster.name, service.instance.id) (scrape_interval(oracledb.collection.heartbeat[5m])) > 20
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'Oracle database {{ (index $labels "service.instance.id") }} is collected every {{ $value | printf "%.0f" }} s, the rules assume 15 s'
+
       # An expected Oracle target (inventory) whose heartbeat has been absent
       # for 2m while the Collector that collects it is alive. Same shape as
       # PostgresTargetAbsent: the Collector's 1m self-metrics window empties

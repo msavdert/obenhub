@@ -29,3 +29,12 @@ form of the names.
 inventory (`lab/slice1/vmalert/rules/postgresql.yml`) and the Collector's own
 `otelcol_process_uptime` (the `collector` pack's prerequisite), matched on the
 `obenhub.collector` label.
+
+## Collection interval
+
+The rules assume 15 s: the `sqlquery` receiver that reads `queries.yaml` sets
+`collection_interval: 15s` in the lab. A window holds at least two
+collections (`[75s:15s]` and `[75s]` in the saturation and wait rules).
+`PgbouncerCollectionIntervalTooLong` fires when the samples of the heartbeat
+row (`pgbouncer.list.item.count`, list `databases`) are on average more than
+20 s apart; widen the windows before collecting slower.

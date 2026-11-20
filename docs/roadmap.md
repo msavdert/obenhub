@@ -128,13 +128,21 @@ the held dependency update batch and closes a release.
       pack README gets a generated threshold table. The owner sets each
       production value. Done when every pack has a defaults test and an
       override test
-- [ ] C5 Collection interval: the rules assume 15 s (windows of 30 s in 17
-      places, which cannot hold at 60 s). Stated in each pack README, and a
-      rule fires when heartbeat samples are more than 30 s apart. A second,
-      slower `sqlquery` tier (5 minutes) for catalog-heavy queries (F1
-      autovacuum, F5 sequences and invalid indexes), so they never run at
-      15 s on a busy primary; its rules use windows that hold at that
-      interval
+- [x] C5 Collection interval: the rules assume 15 s (windows of 30 s in 17
+      places, which cannot hold at 60 s). Each pack README that sizes windows
+      to its interval (postgresql, pgbouncer, patroni, cnpg, oracledb-dg,
+      oracledb-backup) states the interval per source and that a window holds
+      at least two collections. `PostgresCollectionIntervalTooLong`,
+      `OracleCollectionIntervalTooLong`, `PgbouncerCollectionIntervalTooLong`
+      and `PatroniCollectionIntervalTooLong` fire when the samples of the
+      target's heartbeat series are on average more than 20 s apart
+      (`scrape_interval()` over 5 m, held 10 m); the tests are
+      `packs/{postgresql,oracledb-dg,pgbouncer,patroni}/tests/collection-interval.yml`.
+      Every window was checked against the interval of its own source (the
+      `oracledb` receiver at 30 s, the backup queries at 60 s). The second,
+      slower `sqlquery` tier for catalog-heavy queries moved to F1: no
+      current query scales with the number of relations, so a tier now
+      would be an empty placeholder
 - [ ] C6 `description` and `runbook_url` on every alert (82 today, none has
       either), a runbook page only for alerts a scenario fires, with the
       SQL or LogsQL to look at first; a lint fails without both
@@ -191,7 +199,11 @@ the held dependency update batch and closes a release.
       tables without recent writes left out), a count of tables with
       autovacuum disabled, and the global `autovacuum` and `track_counts`
       settings; wait events are sessions by state, wait event type and
-      wait event. Each signal comes with a scenario
+      wait event. The autovacuum count scales with the number of
+      relations, so it is the first query of a second, slower `sqlquery`
+      tier (5 minutes) so it never runs at 15 s on a busy primary; the
+      pack README states that interval (C5) and the rules over it use
+      windows that hold at it. Each signal comes with a scenario
 - [ ] F2 Logs in use: every lab ships logs to VictoriaLogs and no rule or
       dashboard panel reads them. One panel and one log rule per engine
 - [ ] F3 Host rules beyond filesystem, memory and reboot: disk I/O, OOM
@@ -206,8 +218,9 @@ the held dependency update batch and closes a release.
       work below); sequence exhaustion against the owning column's type
       ceiling, as the highest ratio per database; then, lower priority,
       lock-table saturation and a count of invalid indexes and unvalidated
-      constraints. The sequence query needs a grant in the monitoring role
-      (C2)
+      constraints. The sequence and invalid-index queries scale with the
+      number of relations and use the slower tier F1 creates. The sequence
+      query needs a grant in the monitoring role (C2)
 
 Method references for F1 and F5: github.com/dbulashev/dasha is GPL-3.0, so
 it is read for how a signal is derived and nothing is copied from it; the
