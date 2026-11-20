@@ -1,0 +1,36 @@
+{
+  "namespace": "obenhub-lab",
+  "groups": [
+    {
+      "name": "inventory",
+      "records": [
+        {
+          "comment": [
+            "The Collectors this lab expects, by their self-telemetry",
+            "service.instance.id (otelcol-<ssh alias>, and the gateway on the box);",
+            "the VM Collectors send through the gateway (obenhub.upstream), so a",
+            "stopped gateway raises only its own CollectorAbsent."
+          ],
+          "collectors": [
+            {"id": "otelcol-gateway"},
+            {"id": "otelcol-ora-au-lab", "upstream": "otelcol-gateway"},
+            {"id": "otelcol-ora-dg-stby", "upstream": "otelcol-gateway"},
+            {"id": "otelcol-ora-dg-obs", "upstream": "otelcol-gateway"}
+          ]
+        },
+        {
+          "blank_before": true,
+          "comment": [
+            "The databases: service.instance.id is the db_unique_name, and the",
+            "obenhub.collector label names the Collector that collects them (the one",
+            "observer reads both)."
+          ],
+          "targets": [
+            {"service": "oracledb", "cluster": "cdb19", "id": "CDB19", "collector": "otelcol-ora-dg-obs"},
+            {"service": "oracledb", "cluster": "cdb19", "id": "CDB19_STBY", "collector": "otelcol-ora-dg-obs"}
+          ]
+        }
+      ]
+    }
+  ]
+}

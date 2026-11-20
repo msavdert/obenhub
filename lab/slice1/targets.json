@@ -1,0 +1,28 @@
+{
+  "namespace": "obenhub-lab",
+  "groups": [
+    {
+      "name": "inventory",
+      "records": [
+        {
+          "comment": [
+            "The Collectors this lab expects, by their self-telemetry",
+            "service.instance.id; CollectorAbsent reads them. The obenhub.collector",
+            "label on the targets below names the Collector that collects them."
+          ],
+          "collectors": [
+            {"id": "otelcol-slice1"}
+          ]
+        },
+        {
+          "targets": [
+            {"service": "postgresql", "cluster": "slice1", "id": "pg-primary", "collector": "otelcol-slice1"},
+            {"service": "postgresql", "cluster": "slice1", "id": "pg-standby", "collector": "otelcol-slice1"},
+            {"service": "postgresql", "cluster": "slice1-subscriber", "id": "pg-subscriber", "collector": "otelcol-slice1"},
+            {"service": "pgbouncer", "cluster": "slice1", "id": "pgbouncer", "collector": "otelcol-slice1"}
+          ]
+        }
+      ]
+    }
+  ]
+}

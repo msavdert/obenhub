@@ -161,6 +161,10 @@ python3 lab/pgha/mon/vmalert/tests/gen-collectors.py "$t"
 diff -u lab/pgha/mon/vmalert/tests/collectors.yml "$t" || { echo "collectors.yml is stale: regenerate it with gen-collectors.py" >&2; exit 1; }
 """
 
+[tasks."lab:inventory-check"]
+description = "fail when a lab's vmalert inventory differs from what lab/<lab>/targets.json renders (scripts/gen-inventory.py)"
+run = "python3 scripts/gen-inventory.py --check"
+
 [tasks."lab:pack:rules-test"]
 description = "unit-test the shared PostgreSQL pack rules (packs/postgresql, vmalert-tool); needs docker"
 # Every rule-test task runs every *.yml of its test directories
@@ -257,6 +261,7 @@ depends = [
   "lab:stage3:rules-test",
   "lab:pgha:rules-test",
   "lab:pgha:rules-gen-check",
+  "lab:inventory-check",
   "lab:stage3:otelcol-check",
   "lab:k8s:rules-test",
   "lab:cnpg:rules-test",

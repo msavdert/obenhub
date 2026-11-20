@@ -1,0 +1,19 @@
+{
+  "namespace": "obenhub-lab",
+  "groups": [
+    {
+      "name": "inventory",
+      "records": [
+        {
+          "collectors": [
+            {"id": "otelcol-gateway"},
+            {"id": "otelcol-cluster", "upstream": "otelcol-gateway"},
+            {"id": "otelcol-agent-obenhub-worker", "upstream": "otelcol-gateway"},
+            {"id": "otelcol-agent-obenhub-worker2", "upstream": "otelcol-gateway"},
+            {"id": "otelcol-agent-obenhub-worker3", "upstream": "otelcol-gateway"}
+          ]
+        }
+      ]
+    }
+  ]
+}

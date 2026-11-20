@@ -1,0 +1,59 @@
+{
+  "namespace": "obenhub-lab",
+  "groups": [
+    {
+      "name": "inventory",
+      "records": [
+        {
+          "comment": [
+            "The Collectors this lab expects, by their self-telemetry",
+            "service.instance.id; CollectorAbsent reads them. The obenhub.collector",
+            "label on the targets below names the Collector that collects them."
+          ],
+          "collectors": [
+            {"id": "otelcol-stage3"}
+          ]
+        },
+        {
+          "targets": [
+            {"service": "postgresql", "cluster": "stage3", "id": "pg-1", "collector": "otelcol-stage3"},
+            {"service": "postgresql", "cluster": "stage3", "id": "pg-2", "collector": "otelcol-stage3"},
+            {"service": "postgresql", "cluster": "stage3", "id": "pg-3", "collector": "otelcol-stage3"}
+          ]
+        }
+      ]
+    },
+    {
+      "name": "patroni-inventory",
+      "records": [
+        {
+          "comment": [
+            "Patroni REST scrapes expected from the Collector (the etcd ones are in",
+            "etcd-inventory below, same record name)."
+          ],
+          "scrapes": [
+            {"service": "patroni", "cluster": "stage3", "id": "pg-1", "collector": "otelcol-stage3"},
+            {"service": "patroni", "cluster": "stage3", "id": "pg-2", "collector": "otelcol-stage3"},
+            {"service": "patroni", "cluster": "stage3", "id": "pg-3", "collector": "otelcol-stage3"}
+          ]
+        }
+      ]
+    },
+    {
+      "name": "etcd-inventory",
+      "records": [
+        {
+          "comment": [
+            "Same name as the Patroni inventory above; the series differ",
+            "by service.name."
+          ],
+          "scrapes": [
+            {"service": "etcd", "cluster": "stage3-etcd", "id": "etcd-1", "collector": "otelcol-stage3"},
+            {"service": "etcd", "cluster": "stage3-etcd", "id": "etcd-2", "collector": "otelcol-stage3"},
+            {"service": "etcd", "cluster": "stage3-etcd", "id": "etcd-3", "collector": "otelcol-stage3"}
+          ]
+        }
+      ]
+    }
+  ]
+}
