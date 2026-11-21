@@ -391,7 +391,11 @@ checked against existing upstream issues before work starts.
       2026-11-13 with contrib 0.164.0 and 0.165.0 (two broker switchovers;
       [record](https://github.com/msavdert/obenhub/blob/main/lab/oracle/results/role-staleness-2026-11-13/README.md));
       no upstream issue found in a search that day (listings were
-      truncated, so not proof). Next: the owner opens the issue
+      truncated, so not proof). Fix implemented on the owner's fork
+      (branch `receiver-oracledb-role-refresh`), split: PR1 per-scrape
+      role and open mode refresh, PR2 retry of a failed start detection
+      later; [lab evidence](https://github.com/msavdert/obenhub/blob/main/lab/oracle/results/role-refresh-2026-11-21/README.md).
+      Next: the owner opens the issue and PR1
 - [ ] a login probe per check for Oracle (candidate, pending evidence):
       the gap and its sources are in ADR 0008 decision 7. Evidence to
       collect first: the decision 8 scenarios listener stopped, monitoring

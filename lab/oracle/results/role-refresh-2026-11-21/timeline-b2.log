@@ -1,0 +1,84 @@
+2026-11-21T05:26:26Z start: CDB19=[PRIMARY | READ WRITE] CDB19_STBY=[PHYSICAL STANDBY | MOUNTED]
+Connected to "CDB19"
+2026-11-21T05:26:28Z fsfo disabled
+Connected to "CDB19"
+
+Fast-Start Failover:  Disabled
+Connected to "CDB19"
+Converting database "cdb19_stby" to a Snapshot Standby database, please wait...
+Database "cdb19_stby" converted successfully
+2026-11-21T05:26:41Z snapshot standby open: SNAPSHOT STANDBY | READ WRITE
+Connected to "CDB19"
+
+Configuration - dgconfig
+
+  Protection Mode: MaxAvailability
+  Members:
+  cdb19      - Primary database
+    Warning: ORA-16629: database reports a different protection level from the protection mode
+
+    cdb19_stby - Snapshot standby database
+
+Fast-Start Failover:  Disabled
+
+Configuration Status:
+WARNING   (status updated 1 second ago)
+
+2026-11-21T05:26:41Z READY_FOR_COLLECTORS
+2026-11-21T05:27:15Z waiting 75 s with the collectors scraping the snapshot standby
+Connected to "CDB19"
+Converting database "cdb19_stby" to a Physical Standby database, please wait...
+Operation requires shut down of instance "CDB19_STBY" on database "cdb19_stby"
+Shutting down instance "CDB19_STBY"...
+Connected to "CDB19_STBY"
+Database closed.
+Database dismounted.
+ORACLE instance shut down.
+Operation requires start up of instance "CDB19_STBY" on database "cdb19_stby"
+Starting instance "CDB19_STBY"...
+Connected to an idle instance.
+ORACLE instance started.
+Connected to "CDB19_STBY"
+Database mounted.
+Continuing to convert database "cdb19_stby" ...
+Database "cdb19_stby" converted successfully
+2026-11-21T05:29:45Z physical standby again: PHYSICAL STANDBY | MOUNTED
+Connected to "CDB19"
+Performing switchover NOW, please wait...
+Operation requires a connection to database "cdb19_stby"
+Connecting ...
+Connected to "CDB19_STBY"
+Connected as SYSDG.
+New primary database "cdb19_stby" is opening...
+Operation requires start up of instance "CDB19" on database "cdb19"
+Starting instance "CDB19"...
+Connected to an idle instance.
+ORACLE instance started.
+Connected to "CDB19"
+Database mounted.
+Switchover succeeded, new primary is "cdb19_stby"
+2026-11-21T05:30:49Z switched: CDB19_STBY=[PRIMARY | READ WRITE] CDB19=[PHYSICAL STANDBY | MOUNTED]
+2026-11-21T05:30:49Z waiting 150 s
+Connected to "CDB19_STBY"
+Performing switchover NOW, please wait...
+Operation requires a connection to database "cdb19"
+Connecting ...
+Connected to "CDB19"
+Connected as SYSDG.
+New primary database "cdb19" is opening...
+Operation requires start up of instance "CDB19_STBY" on database "cdb19_stby"
+Starting instance "CDB19_STBY"...
+Connected to an idle instance.
+ORACLE instance started.
+Connected to "CDB19_STBY"
+Database mounted.
+Switchover succeeded, new primary is "cdb19"
+2026-11-21T05:34:08Z switched back: CDB19=[PRIMARY | READ WRITE] CDB19_STBY=[PHYSICAL STANDBY | MOUNTED]
+2026-11-21T05:34:08Z waiting 60 s
+Connected to "CDB19"
+Connected to "CDB19"
+Connected to "CDB19"
+Connected to "CDB19"
+Connected to "CDB19"
+Connected to "CDB19"
+2026-11-21T05:37:18Z DONE

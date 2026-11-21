@@ -1,0 +1,5 @@
+##### control standby (plain MON, CDB19_STBY)
+  05:26:48-05:33:18 x30  SNAPSHOT STANDBY | READ WRITE | 19.0.0.0.0
+##### patched standby (plain MON, CDB19_STBY)
+  05:26:48-05:28:28 x11  SNAPSHOT STANDBY | READ WRITE | 19.0.0.0.0
+  05:30:19-05:33:18 x19  PRIMARY | READ WRITE | 19.0.0.0.0
