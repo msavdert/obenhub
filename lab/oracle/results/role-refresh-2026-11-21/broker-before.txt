@@ -1,0 +1,47 @@
+2026-11-21T05:18:42Z
+Connected to "CDB19"
+
+Configuration - dgconfig
+
+  Protection Mode: MaxAvailability
+  Members:
+  cdb19      - Primary database
+    cdb19_stby - (*) Physical standby database
+
+Fast-Start Failover: Enabled in Zero Data Loss Mode
+
+Configuration Status:
+SUCCESS   (status updated 32 seconds ago)
+
+Connected to "CDB19"
+
+Fast-Start Failover: Enabled in Zero Data Loss Mode
+
+  Protection Mode:    MaxAvailability
+  Lag Limit:          30 seconds (not in use)
+  Lag Type:           APPLY
+
+  Threshold:          30 seconds
+  Active Target:      cdb19_stby
+  Potential Targets:  "cdb19_stby"
+    cdb19_stby valid
+  Observer:           ora-dg-obs.lab.local1
+  Shutdown Primary:   TRUE
+  Auto-reinstate:     TRUE
+  Observer Reconnect: (none)
+  Observer Override:  FALSE
+  Lag Grace Time:     0 seconds
+
+Configurable Failover Conditions
+  Health Conditions:
+    Corrupted Controlfile          YES
+    Corrupted Dictionary           YES
+    Inaccessible Logfile            NO
+    Stuck Archiver                  NO
+    Datafile Write Errors          YES
+
+  Oracle Error Conditions:
+    (none)
+
+PRIMARY | READ WRITE
+PHYSICAL STANDBY | MOUNTED

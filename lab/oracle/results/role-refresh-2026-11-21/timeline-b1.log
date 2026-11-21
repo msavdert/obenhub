@@ -1,0 +1,37 @@
+2026-11-21T05:19:32Z switchover 1 requested: CDB19 -> cdb19_stby
+Connected to "CDB19"
+Performing switchover NOW, please wait...
+Operation requires a connection to database "cdb19_stby"
+Connecting ...
+Connected to "CDB19_STBY"
+Connected as SYSDG.
+New primary database "cdb19_stby" is opening...
+Operation requires start up of instance "CDB19" on database "cdb19"
+Starting instance "CDB19"...
+Connected to an idle instance.
+ORACLE instance started.
+Connected to "CDB19"
+Database mounted.
+Switchover succeeded, new primary is "cdb19_stby"
+2026-11-21T05:20:19Z switchover 1 command returned
+2026-11-21T05:20:20Z after sw1: CDB19_STBY=[PRIMARY | READ WRITE] CDB19=[PHYSICAL STANDBY | MOUNTED]
+2026-11-21T05:20:20Z waiting 150 s
+2026-11-21T05:22:50Z switchover 2 requested: CDB19_STBY -> cdb19
+Connected to "CDB19_STBY"
+Performing switchover NOW, please wait...
+Operation requires a connection to database "cdb19"
+Connecting ...
+Connected to "CDB19"
+Connected as SYSDG.
+New primary database "cdb19" is opening...
+Operation requires start up of instance "CDB19_STBY" on database "cdb19_stby"
+Starting instance "CDB19_STBY"...
+Connected to an idle instance.
+ORACLE instance started.
+Connected to "CDB19_STBY"
+Database mounted.
+Switchover succeeded, new primary is "cdb19"
+2026-11-21T05:23:41Z switchover 2 command returned
+2026-11-21T05:23:42Z after sw2: CDB19=[PRIMARY | READ WRITE] CDB19_STBY=[PHYSICAL STANDBY | MOUNTED]
+2026-11-21T05:23:42Z waiting 150 s
+2026-11-21T05:26:12Z DONE

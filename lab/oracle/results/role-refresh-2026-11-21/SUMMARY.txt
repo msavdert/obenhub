@@ -1,0 +1,46 @@
+Oracle role refresh live test on the final PR1 commit, 2026-11-21 UTC
+Patched: branch receiver-oracledb-role-refresh commit 638c8a8996a14b65f4b7cd1ef4bbba9816e9613b (parent origin/main 8f589e911d); patched/build/oralab-patched sha256 bd2c5d6cf40690dd...
+Control: origin/main 8f589e911d; control/build/oralab-control sha256 5bdad4132ff3f3c9...
+Both: ocb v0.165.1-0.20261119222305-0c7a74cd0a4a, go 1.27.4, receiver via replace, file exporter v0.165.1. 10 s interval. Databases 19.0.0.0.0.
+Broker before/after: out/broker-before.txt, out/broker-after.txt (identical apart from timestamps: cdb19 primary, cdb19_stby physical standby, SUCCESS,
+  FSFO Enabled in Zero Data Loss Mode, threshold 30 s, target cdb19_stby, observer ora-dg-obs.lab.local1).
+Note: PR1 has no late detection, so the plain-user 'standby' receiver in B1 that failed at start stays without version/role (both builds), by design.
+
+== B1: switchover CDB19 -> cdb19_stby (05:19:32-05:20:20) and back (05:22:50-05:23:42), 150 s waits
+##### control
+== primary.jsonl
+  05:18:49-05:26:19 x26  PRIMARY | READ WRITE | 19.0.0.0.0
+== primary_sysdg.jsonl
+  05:18:49-05:26:19 x45  PRIMARY | READ WRITE | 19.0.0.0.0
+== standby.jsonl
+  05:19:49-05:22:59 x20  - | - | -
+== standby_sysdg.jsonl
+  05:18:49-05:26:19 x45  PHYSICAL STANDBY | MOUNTED | 19.0.0.0.0
+##### patched
+== primary.jsonl
+  05:18:49-05:19:29 x5  PRIMARY | READ WRITE | 19.0.0.0.0
+  05:19:39-05:19:39 x1  PHYSICAL STANDBY | CLOSED BY SWITCHOVER | 19.0.0.0.0
+  05:23:10-05:26:19 x20  PRIMARY | READ WRITE | 19.0.0.0.0
+== primary_sysdg.jsonl
+  05:18:49-05:19:29 x5  PRIMARY | READ WRITE | 19.0.0.0.0
+  05:19:39-05:19:39 x1  PHYSICAL STANDBY | CLOSED BY SWITCHOVER | 19.0.0.0.0
+  05:19:59-05:19:59 x1  - | - | 19.0.0.0.0
+  05:20:09-05:22:59 x18  PHYSICAL STANDBY | MOUNTED | 19.0.0.0.0
+  05:23:09-05:26:19 x20  PRIMARY | READ WRITE | 19.0.0.0.0
+== standby.jsonl
+  05:19:49-05:22:59 x20  - | - | -
+== standby_sysdg.jsonl
+  05:18:49-05:19:29 x5  PHYSICAL STANDBY | MOUNTED | 19.0.0.0.0
+  05:19:39-05:19:39 x1  PRIMARY | MOUNTED | 19.0.0.0.0
+  05:19:49-05:22:49 x19  PRIMARY | READ WRITE | 19.0.0.0.0
+  05:22:59-05:22:59 x1  PHYSICAL STANDBY | CLOSED BY SWITCHOVER | 19.0.0.0.0
+  05:23:19-05:23:19 x1  - | - | 19.0.0.0.0
+  05:23:29-05:26:19 x18  PHYSICAL STANDBY | MOUNTED | 19.0.0.0.0
+
+== B2: FSFO disabled 05:26:28; CDB19_STBY CONVERT TO SNAPSHOT STANDBY (open READ WRITE 05:26:41); plain C##OBENHUB_MON receiver on CDB19_STBY started 05:26:4x;
+   75 s later CONVERT TO PHYSICAL STANDBY (mounted 05:29:45); switchover to cdb19_stby (primary READ WRITE 05:30:49); 150 s; switchback (05:34:08); FSFO re-enabled, config SUCCESS (05:37)
+##### control standby (plain MON, CDB19_STBY)
+  05:26:48-05:33:18 x30  SNAPSHOT STANDBY | READ WRITE | 19.0.0.0.0
+##### patched standby (plain MON, CDB19_STBY)
+  05:26:48-05:28:28 x11  SNAPSHOT STANDBY | READ WRITE | 19.0.0.0.0
+  05:30:19-05:33:18 x19  PRIMARY | READ WRITE | 19.0.0.0.0

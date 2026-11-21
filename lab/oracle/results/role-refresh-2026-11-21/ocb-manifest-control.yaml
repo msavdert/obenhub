@@ -1,0 +1,17 @@
+# ocb manifest: oracledbreceiver from a local worktree (replace), file exporter from the published module.
+dist:
+  name: oralab-control
+  output_path: ./build
+  otelcol_version: v0.165.1-0.20261119222305-0c7a74cd0a4a
+
+receivers:
+  - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/receiver/oracledbreceiver v0.165.1
+exporters:
+  - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/exporter/fileexporter v0.165.1
+  - gomod: go.opentelemetry.io/collector/exporter/debugexporter v0.165.1-0.20261119222305-0c7a74cd0a4a
+
+replaces:
+  - github.com/open-telemetry/opentelemetry-collector-contrib/receiver/oracledbreceiver => /home/agent/work/upstream/contrib-wt-oracle-ctl/receiver/oracledbreceiver
+  - github.com/open-telemetry/opentelemetry-collector-contrib/internal/common => /home/agent/work/upstream/contrib-wt-oracle-ctl/internal/common
+  - github.com/open-telemetry/opentelemetry-collector-contrib/pkg/golden => /home/agent/work/upstream/contrib-wt-oracle-ctl/pkg/golden
+  - github.com/open-telemetry/opentelemetry-collector-contrib/pkg/pdatatest => /home/agent/work/upstream/contrib-wt-oracle-ctl/pkg/pdatatest
