@@ -186,11 +186,13 @@ the held dependency update batch and closes a release.
       fired and resolved alert in under 15 minutes, timed on a clean VM.
       These are the first Guides pages on the docs site; further Learn
       pages follow, each for a scenario that runs
-- [x] D4 pgha and oracle read their addresses from an untracked file
+- [ ] D4 pgha and oracle read their addresses from an untracked file
       (`lab/pgha/nodes.sh`, `lab/oracle/gateway.sh` and `pair.sh`, copied
       from the tracked `*.example.sh`), so that the labs run elsewhere on a
       clean tree (`mise run check` passes in a fresh clone without the three
-      files; the scripts stop with one line naming the example to copy)
+      files; the scripts stop with one line naming the example to copy);
+      done when the full suites of pgha and oracle pass with it, in the
+      chain of phases B and C
 
 ### E. PostgreSQL versions
 
