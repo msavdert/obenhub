@@ -38,6 +38,11 @@ lab/k8s/scripts/up.sh     # idempotent; about 7 minutes from nothing
 lab/k8s/scripts/down.sh   # deletes the kind cluster, the backend and all data
 ```
 
+`up.sh` waits for the CloudNativePG webhook endpoint (`CNPG_WEBHOOK_TIMEOUT`,
+seconds, default 120, minimum 10) and for a healthy `pg` Cluster with every Pod
+on the pinned images, which covers the operator's rolling restart after an
+operator upgrade (`CLUSTER_READY_TIMEOUT`, default 900, minimum 30).
+
 ## Monitoring
 
 ```text

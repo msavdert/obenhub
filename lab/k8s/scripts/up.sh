@@ -17,6 +17,18 @@ for v in KIND_CLUSTER KIND_NODE_IMAGE PG_IMAGE OTELCOL_IMAGE OTEL_CHART_VERSION 
   esac
 done
 
+# Wait bounds (seconds), overridable from the environment.
+CNPG_WEBHOOK_TIMEOUT="${CNPG_WEBHOOK_TIMEOUT:-120}"
+CLUSTER_READY_TIMEOUT="${CLUSTER_READY_TIMEOUT:-900}"
+case "${CNPG_WEBHOOK_TIMEOUT}" in
+  "" | *[!0-9]* | 0?* | ??????*) echo "CNPG_WEBHOOK_TIMEOUT='${CNPG_WEBHOOK_TIMEOUT}' is not a decimal number of seconds (1-5 digits, no leading zero)" >&2; exit 1 ;;
+esac
+case "${CLUSTER_READY_TIMEOUT}" in
+  "" | *[!0-9]* | 0?* | ??????*) echo "CLUSTER_READY_TIMEOUT='${CLUSTER_READY_TIMEOUT}' is not a decimal number of seconds (1-5 digits, no leading zero)" >&2; exit 1 ;;
+esac
+if [ "${CNPG_WEBHOOK_TIMEOUT}" -lt 10 ]; then echo "CNPG_WEBHOOK_TIMEOUT=${CNPG_WEBHOOK_TIMEOUT}: need at least 10 seconds" >&2; exit 1; fi
+if [ "${CLUSTER_READY_TIMEOUT}" -lt 30 ]; then echo "CLUSTER_READY_TIMEOUT=${CLUSTER_READY_TIMEOUT}: need at least 30 seconds" >&2; exit 1; fi
+
 # The pinned tools (mise.k8s.toml, read only with MISE_ENV=k8s). Run directly
 # from a shell without them on PATH, the script re-runs itself once under
 # `MISE_ENV=k8s mise exec`.
@@ -68,6 +80,32 @@ fi
 k apply --server-side -f "${cnpg_manifest}"
 k -n cnpg-system rollout status deployment/cnpg-controller-manager --timeout=300s
 
+# The rollout is complete before the webhook Service has a ready endpoint
+# (seen on an operator upgrade, 2026-11-22), and the Cluster apply below is
+# validated and mutated by that webhook. Service name: the clientConfig of
+# cnpg-validating-webhook-configuration in the pinned manifest.
+webhook_svc=cnpg-webhook-service
+webhook_ready=
+webhook_err="$(mktemp)"
+trap 'rm -f "${cnpg_manifest}" "${webhook_err}"' EXIT
+webhook_deadline=$(($(date +%s) + CNPG_WEBHOOK_TIMEOUT))
+while :; do
+  if out="$(k -n cnpg-system --request-timeout=10s get endpointslices -l "kubernetes.io/service-name=${webhook_svc}" \
+    -o jsonpath='{.items[*].endpoints[?(@.conditions.ready==true)].addresses[0]}' 2>"${webhook_err}")"; then
+    if [ -n "${out}" ]; then webhook_ready=1; break; fi
+    out=
+  else
+    out="$(cat "${webhook_err}")"
+  fi
+  [ "$(date +%s)" -lt "${webhook_deadline}" ] || break
+  sleep 2
+done
+if [ -z "${webhook_ready}" ]; then
+  echo "timed out after ${CNPG_WEBHOOK_TIMEOUT}s (CNPG_WEBHOOK_TIMEOUT) waiting for a ready endpoint of ${webhook_svc} in cnpg-system" >&2
+  [ -z "${out}" ] || echo "last kubectl call failed: ${out}" >&2
+  exit 1
+fi
+
 # The monitoring role's password: generated once, kept in a Secret (never in a
 # file, a log or the command line). CloudNativePG reads it for the managed role.
 if ! k -n obenhub get secret "${monitor_secret}" >/dev/null 2>&1; then
@@ -78,18 +116,68 @@ if ! k -n obenhub get secret "${monitor_secret}" >/dev/null 2>&1; then
 fi
 k -n obenhub label --overwrite secret "${monitor_secret}" cnpg.io/reload=true >/dev/null
 
-sed "s|\${PG_IMAGE}|${PG_IMAGE}|g" "${here}/cnpg/cluster.yaml" | k apply --server-side -f -
+# A ready endpoint does not mean the Service is routed yet: retry the apply.
+applied=
+for attempt in 1 2 3 4 5 6; do
+  if sed "s|\${PG_IMAGE}|${PG_IMAGE}|g" "${here}/cnpg/cluster.yaml" | k apply --server-side -f -; then applied=1; break; fi
+  [ "${attempt}" -lt 6 ] || break
+  echo "Cluster apply failed (attempt ${attempt}/6), retrying in 10s" >&2
+  sleep 10
+done
+[ -n "${applied}" ] || { echo "Cluster apply failed 6 times" >&2; exit 1; }
 
-echo "waiting for 3 ready instances and the monitoring role"
+# After an operator upgrade the operator rolls the operand pods one by one, so
+# the wait is long by default (CLUSTER_READY_TIMEOUT seconds, 900). The
+# operator Deployment rollout is complete (above). Ready means, on two polls
+# 5 s apart: phase "Cluster in healthy state"; readyInstances, the healthy
+# entries of status.instancesStatus and the instance Pods all equal
+# spec.instances; no Pod terminating; every Pod runs spec.imageName and, in its
+# init container, the operator image; status.image equals spec.imageName;
+# currentPrimary equals targetPrimary; the monitoring role reconciled. The Pod
+# checks catch a roll the operator has not started yet (the phase still reads
+# healthy for a while after the apply). A healthy lab passes in about 5 s.
+# Field names read with `kubectl explain cluster.status` on CNPG 1.30.2.
+operator_image="$(k -n cnpg-system get deployment cnpg-controller-manager -o jsonpath='{.spec.template.spec.containers[0].image}')"
+cluster_ready() {
+  local want ready image spimg role phase_now healthy primary target pods name del pgimg initimg n=0
+  IFS='|' read -r phase_now want ready role spimg image primary target healthy < <(
+    k -n obenhub --request-timeout=10s get cluster pg -o \
+      jsonpath='{.status.phase}|{.spec.instances}|{.status.readyInstances}|{.status.managedRolesStatus.byStatus.reconciled}|{.spec.imageName}|{.status.image}|{.status.currentPrimary}|{.status.targetPrimary}|{.status.instancesStatus.healthy[*]}' 2>/dev/null || true)
+  why="phase '${phase_now:-}', readyInstances '${ready:-}' of '${want:-}', healthy '${healthy:-}', role '${role:-}', currentPrimary '${primary:-}' targetPrimary '${target:-}', status.image '${image:-}'"
+  [ "${phase_now:-}" = "Cluster in healthy state" ] || return 1
+  [ -n "${want:-}" ] && [ "${ready:-0}" = "${want}" ] || return 1
+  [ "$(wc -w <<<"${healthy:-}")" -eq "${want}" ] || return 1
+  [[ "${role:-}" == *otel_monitor* ]] || return 1
+  [ -n "${primary:-}" ] && [ "${primary}" = "${target:-}" ] || return 1
+  [ "${image:-}" = "${spimg:-x}" ] || return 1
+  pods="$(k -n obenhub --request-timeout=10s get pods -l cnpg.io/cluster=pg,cnpg.io/podRole=instance -o \
+    jsonpath='{range .items[*]}{.metadata.name}|{.metadata.deletionTimestamp}|{.spec.containers[?(@.name=="postgres")].image}|{.spec.initContainers[*].image}{"\n"}{end}' 2>/dev/null || true)"
+  while IFS='|' read -r name del pgimg initimg; do
+    [ -n "${name}" ] || continue
+    n=$((n + 1))
+    why="${why}; pod ${name}"
+    [ -z "${del}" ] || return 1
+    [ "${pgimg}" = "${spimg}" ] || return 1
+    [ -z "${initimg}" ] || [[ " ${initimg} " == *" ${operator_image} "* ]] || return 1
+  done <<<"${pods}"
+  [ "${n}" -eq "${want}" ] || return 1
+}
+echo "waiting up to ${CLUSTER_READY_TIMEOUT}s for a healthy Cluster with all instances ready and the monitoring role"
 ok=
-for _ in $(seq 1 120); do
-  ready="$(k -n obenhub get cluster pg -o jsonpath='{.status.readyInstances}' 2>/dev/null || true)"
-  role="$(k -n obenhub get cluster pg -o jsonpath='{.status.managedRolesStatus.byStatus.reconciled}' 2>/dev/null || true)"
-  if [ "${ready:-0}" = 3 ] && [[ "${role}" == *otel_monitor* ]]; then ok=1; break; fi
+streak=0
+why=
+deadline=$(($(date +%s) + CLUSTER_READY_TIMEOUT))
+while [ "$(date +%s)" -lt "${deadline}" ]; do
+  if cluster_ready; then
+    streak=$((streak + 1))
+    if [ "${streak}" -ge 2 ]; then ok=1; break; fi
+  else
+    streak=0
+  fi
   sleep 5
 done
 if [ -z "${ok}" ]; then
-  echo "timed out waiting for readyInstances=3 and role otel_monitor (got '${ready:-}', '${role:-}')" >&2
+  echo "timed out after ${CLUSTER_READY_TIMEOUT}s (CLUSTER_READY_TIMEOUT) waiting for a healthy Cluster; last state: ${why}" >&2
   exit 1
 fi
 k -n obenhub get cluster pg
@@ -118,7 +206,7 @@ k -n "${otel_ns}" create secret generic "${monitor_secret}" \
   --from-file=password=<(k -n obenhub get secret "${monitor_secret}" -o jsonpath='{.data.password}' | base64 -d) \
   --dry-run=client -o yaml | k apply -f - >/dev/null
 ca_file="$(mktemp)"
-trap 'rm -f "${cnpg_manifest}" "${ca_file}"' EXIT
+trap 'rm -f "${cnpg_manifest}" "${webhook_err}" "${ca_file}"' EXIT
 k -n obenhub get secret pg-ca -o jsonpath='{.data.ca\.crt}' | base64 -d >"${ca_file}"
 k -n "${otel_ns}" create configmap obenhub-pack-postgresql \
   --from-file=queries.yaml="${repo_root}/packs/postgresql/queries.yaml" --dry-run=client -o yaml | k apply -f - >/dev/null
