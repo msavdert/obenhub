@@ -166,7 +166,7 @@ done
 env CONTROL_SECONDS= "$repo/lab/scenarios/run-suite.sh" t who >/dev/null 2>&1 \
   && bad "an empty CONTROL_SECONDS is refused too" || ok "an empty CONTROL_SECONDS is refused too"
 # every ${NAME:-default} timing knob under lab/ is refused or named here as not one
-not_timing=" STANDBY_OF_WAIT REMOTE_TIMEOUT RESTORE_TIMEOUT REINSTATE_WAIT FSFO_ENABLE_WAIT S_HOLD SECONDS_DOWN WAIT_S NET_DEADLINE HOLDER "
+not_timing=" STANDBY_OF_WAIT REMOTE_TIMEOUT RESTORE_TIMEOUT REINSTATE_WAIT FSFO_ENABLE_WAIT S_HOLD SECONDS_DOWN WAIT_S NET_DEADLINE HOLDER CLUSTER_READY_TIMEOUT CNPG_WEBHOOK_TIMEOUT "
 unlisted=$(grep -rhoE '\$\{[A-Z_]*(SECONDS|TIMEOUT|DEADLINE|WAIT|HOLD)[A-Z_]*:-' "$src/.." --include='*.sh' \
   | sed 's/^\${//; s/:-$//' | sort -u | while read -r n; do
       case " $timing $not_timing" in *" $n "*) ;; *) echo "$n" ;; esac
