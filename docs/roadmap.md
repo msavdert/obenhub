@@ -182,10 +182,13 @@ the held dependency update batch and closes a release.
       dead-man notifications 60 s apart, 28 panels with data, 15 empty by
       design, 2 replication slot panels accepted empty; line in
       `deploy/results/runs.jsonl`)
-- [ ] D3 Quick start on slice1 and the install guide: a stranger reaches a
-      fired and resolved alert in under 15 minutes, timed on a clean VM.
-      These are the first Guides pages on the docs site; further Learn
-      pages follow, each for a scenario that runs
+- [x] D3 Quick start on slice1 and the install guide: a stranger reaches a
+      fired and resolved alert in under 15 minutes, timed on a clean VM
+      (`docs/guides/quick-start.md` run as written on 2026-11-22 on a clean
+      Debian 13.7 VM at `2eabe0c`: 539 s of commands, `replay-paused` fired
+      in 111.7 s and resolved in 58.3 s, no unexpected alert; reading time
+      not measured). These are the first Guides pages on the docs site;
+      further Learn pages follow, each for a scenario that runs
 - [ ] D4 pgha and oracle read their addresses from an untracked file
       (`lab/pgha/nodes.sh`, `lab/oracle/gateway.sh` and `pair.sh`, copied
       from the tracked `*.example.sh`), so that the labs run elsewhere on a
