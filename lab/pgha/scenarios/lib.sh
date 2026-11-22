@@ -28,8 +28,9 @@ AM_C=obenhub-pgha-alertmanager
 VM=${VM:-http://127.0.0.1:38428}
 # nodes.sh sets NODES to a "name=ip ..." string; keep it as a lookup and make
 # NODES the array of names the core expects
-# shellcheck source=lab/pgha/nodes.sh
-. "$LAB_DIR/nodes.sh"
+# shellcheck source=/dev/null
+. "$LAB_DIR/lab-config.sh"
+lab_config "$LAB_DIR/nodes.sh"
 NODE_MAP=$NODES
 NODES=()
 for _e in $NODE_MAP; do NODES+=("${_e%%=*}"); done

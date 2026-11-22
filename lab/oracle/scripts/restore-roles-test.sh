@@ -5,8 +5,17 @@
 # (part of mise run check).
 set -euo pipefail
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# restore-roles.sh loads scenarios/lib.sh, which needs pair.sh: run it from a
+# copy of the tree with the tracked pair.example.sh, not this site's pair.sh.
+T=$(mktemp -d)
+trap 'rm -rf "${T:?}"' EXIT
+mkdir -p "$T/lab/oracle" "$T/lab/pgha"
+cp -r "$here/../../scenarios" "$T/lab/"
+cp "$here/../../pgha/lab-config.sh" "$T/lab/pgha/"
+cp -r "$here/../scenarios" "$here/../scripts" "$T/lab/oracle/"
+cp "$here/../pair.example.sh" "$T/lab/oracle/pair.sh"
 # shellcheck source=lab/oracle/scripts/restore-roles.sh
-. "$here/restore-roles.sh"
+. "$T/lab/oracle/scripts/restore-roles.sh"
 fail=0
 ok() { echo "[lab:oracle:restore-roles-test] ok   $1"; }
 bad() { echo "[lab:oracle:restore-roles-test] FAIL $1: got '$2', wanted '$3'" >&2; fail=1; }
@@ -28,7 +37,7 @@ expect "no line" "" "$(parse "ORA-38762: redo logs needed for SCN 1 to SCN 2")"
 
 # marker: ora_sh serves a fake broker log; only the lines after the marker are read
 LOG=$(mktemp)
-trap 'rm -f "${LOG:?}"' EXIT
+trap 'rm -rf "${T:?}" "${LOG:?}"' EXIT
 PRIMARY_SID=CDB19
 rr_drc_log() { echo "$LOG"; }
 ora_sh() { shift; bash -c "$1"; }
@@ -49,7 +58,7 @@ expect "no attempt counted" "0/0" "$RR_ARCH_RESTORE_ROUNDS/$RR_ARCH_RESTORE_FAIL
 printf '%s\n' "ORA-38761: redo log sequence 90 in thread 1, x" >>"$LOG"
 RR_LAST_KEY="90:1"
 MSG=$(mktemp)
-trap 'rm -f "${LOG:?}" "${MSG:?}"' EXIT
+trap 'rm -rf "${T:?}" "${LOG:?}" "${MSG:?}"' EXIT
 rr_log() { echo "$*" >>"$MSG"; }
 failed_before=$RR_ARCH_RESTORE_FAILED
 if rr_restore_archivelogs; then bad "repeat of the last sequence is refused" "restored" "fallback"; else ok "repeat of the last sequence is refused"; fi

@@ -37,9 +37,9 @@ set -euo pipefail
 
 dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 # shellcheck source=/dev/null
-. "$dir/pair.sh"
-# shellcheck source=/dev/null
-. "$dir/gateway.sh"
+. "$dir/../pgha/lab-config.sh"
+lab_config "$dir/pair.sh"
+lab_config "$dir/gateway.sh"
 # shellcheck source=/dev/null
 . "$dir/../pgha/versions.sh"
 

@@ -10,7 +10,10 @@ scenarios in `scenarios/` (below). The full suite
 ## Prerequisites
 
 The databases are not built from this repository (ADR 0008, Consequences).
-The scripts expect, as `pair.sh` names them:
+Copy `pair.example.sh` and `gateway.example.sh` to `pair.sh` and
+`gateway.sh` in this directory and edit them (your names and addresses;
+untracked, the scripts stop without them). The scripts expect, as `pair.sh`
+names them:
 
 - ssh aliases `ora-au-lab`, `ora-dg-stby`, `ora-dg-obs` from this box, a user
   with passwordless sudo, the `oracle` OS user owning the Oracle homes;
@@ -20,7 +23,7 @@ The scripts expect, as `pair.sh` names them:
   1521 under the `lab.local` names;
 - a 19c Oracle home on `ora-dg-obs` (the observers'), used to check logins;
 - Docker on this box for the backend, and `ora-dg-obs` able to reach this box
-  at `10.0.0.11` (assumption: the lab LAN address; `gateway.sh` holds it).
+  at `GATEWAY_IP` of `gateway.sh` (assumption: the lab LAN address).
 
 What the repository sets up, in this order, before the scenarios:
 
@@ -256,17 +259,17 @@ Only the gateway listens on the LAN, the rest on `127.0.0.1`:
 
 | Service | Host port |
 | --- | --- |
-| gateway (OTLP/HTTP, mutual TLS) | `10.0.0.11:54318` |
+| gateway (OTLP/HTTP, mutual TLS) | `GATEWAY_IP:GATEWAY_PORT` of `gateway.sh` (owner: `10.0.0.11:54318`) |
 | VictoriaMetrics | 58428 |
 | VictoriaLogs | 59428 |
 | vmalert | 58880 |
 | Alertmanager | 59093 |
 | Grafana | 53000 |
 
-The gateway certificate has `10.0.0.11` as its SAN. `ca.crt` and the VM's
+The gateway certificate has `obenhub-oracle-gateway` and `GATEWAY_IP` as its SANs. `ca.crt` and the VM's
 client certificate (`pki/otelcol.*` for `ora-dg-obs`, `pki/<host>/otelcol.*`
 for the others) go to `/etc/otelcol-contrib/tls` on each VM
-(`OBENHUB_GATEWAY_ENDPOINT=https://10.0.0.11:54318`). On 2026-11-13 the
+(`OBENHUB_GATEWAY_ENDPOINT=https://GATEWAY_IP:GATEWAY_PORT`). On 2026-11-13 the
 Collector configuration above ran in the contrib 0.164.0 container on this box
 against this backend with the client certificate: 38 `oracledb.*` metric names
 reached VictoriaMetrics, 34 for `CDB19` and 11 for `CDB19_STBY` (both pack

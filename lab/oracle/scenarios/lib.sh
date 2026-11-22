@@ -21,8 +21,9 @@
 
 SC_DIR="$(cd "$(dirname "${BASH_SOURCE[1]:-${BASH_SOURCE[0]}}")" && pwd)"
 LAB_DIR="$(cd "$SC_DIR/.." && pwd)"
-# shellcheck source=lab/oracle/pair.sh
-. "$LAB_DIR/pair.sh"
+# shellcheck source=/dev/null
+. "$LAB_DIR/../pgha/lab-config.sh"
+lab_config "$LAB_DIR/pair.sh"
 RESULTS="$LAB_DIR/results/runs.jsonl"
 CLUSTER=cdb19
 VL=${VL:-http://127.0.0.1:59428}

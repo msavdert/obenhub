@@ -7,9 +7,16 @@
 set -euo pipefail
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 backup="$here/../files/rman-backup.sh"
-rmansh="$here/rman.sh"
 T=$(mktemp -d)
 trap 'rm -rf "${T:?}"' EXIT
+# rman.sh runs from a copy of the tree with the tracked pair.example.sh as its
+# pair.sh: the test needs the names the example holds, not this site's.
+mkdir -p "$T/tree/lab/oracle/scripts" "$T/tree/lab/oracle/files" "$T/tree/lab/pgha"
+cp "$here/rman.sh" "$T/tree/lab/oracle/scripts/"
+cp "$backup" "$T/tree/lab/oracle/files/"
+cp "$here/../pair.example.sh" "$T/tree/lab/oracle/pair.sh"
+cp "$here/../../pgha/lab-config.sh" "$T/tree/lab/pgha/"
+rmansh="$T/tree/lab/oracle/scripts/rman.sh"
 fail=0
 ok() { echo "[lab:oracle:rman-test] ok   $1"; }
 bad() { echo "[lab:oracle:rman-test] FAIL $1" >&2; [ -s "${T:-}/out" ] && sed "s/^/    | /" "$T/out" >&2; fail=1; }

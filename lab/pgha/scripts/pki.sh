@@ -28,7 +28,8 @@ set -euo pipefail
 
 dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 # shellcheck source=/dev/null
-. "$dir/nodes.sh"
+. "$dir/lab-config.sh"
+lab_config "$dir/nodes.sh"
 pki="$dir/pki"
 umask 077
 mkdir -p "$pki"

@@ -16,11 +16,13 @@ pgha-N  Collector --OTLP/HTTP, mutual TLS--> gateway :34318 (LAN address of the 
 What `scripts/provision.sh` and the scenarios require; nothing else is
 assumed.
 
-- Three Debian 13 amd64 VMs with the addresses in `nodes.sh`
-  (`pgha-1=10.0.0.16`, `pgha-2=10.0.0.17`, `pgha-3=10.0.0.18`, subnet
-  `10.0.0.0/24`), able to reach the internet over https (apt, PGDG, GitHub
+- `nodes.sh`, your addresses: `cp nodes.example.sh nodes.sh` in this
+  directory and edit it (untracked; the scripts stop without it).
+- Three Debian 13 amd64 VMs with the addresses in `nodes.sh` (the
+  owner's lab: `pgha-1=10.0.0.16`, `pgha-2=10.0.0.17`, `pgha-3=10.0.0.18`,
+  subnet `10.0.0.0/24`), able to reach the internet over https (apt, PGDG, GitHub
   release downloads) and the gateway at `GATEWAY_IP:GATEWAY_PORT` of
-  `nodes.sh` (this box, `10.0.0.11:34318`).
+  `nodes.sh` (this box; the owner's lab uses `10.0.0.11:34318`).
 - ssh aliases `pgha-1`, `pgha-2` and `pgha-3` (the node names) in the ssh
   configuration of the user who runs the scripts, key login without a
   prompt (`BatchMode=yes`), to a user with passwordless `sudo`. The scenarios
