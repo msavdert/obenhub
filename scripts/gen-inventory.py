@@ -16,7 +16,7 @@ owns the groups named in the target list, which must come first after
 (`*-parameters`, with their comment), kept as written. Anything else in the
 file is refused in both modes, and so is an obenhub.expected_* record outside
 the generated groups. The target list is also tied to the lab's own sources
-(nodes.sh, Collector configs, kind.yaml) where they name the same things.
+(nodes.example.sh, Collector configs, kind.yaml) where they name the same things.
 
 Exit status: 0 current, 1 an inventory differs (--check), 2 a file or target
 list that cannot be used. JSON because nothing else in the repository reads
@@ -269,19 +269,20 @@ def tie(lab, data):
         texts = src("lab/oracle/files/otelcol-db.yaml", "lab/oracle/files/otelcol-obs.yaml")
         literal_ids(texts, {t["id"] for t in rows}, "database")
         literal_clusters(texts)
-        pair = read(os.path.join(ROOT, "lab/oracle/pair.sh"))
+        # the tracked example, so that a clean clone checks the same names as the owner's untracked pair.sh
+        pair = read(os.path.join(ROOT, "lab/oracle/pair.example.sh"))
         hosts = re.findall(r"^(?:PRIMARY|STANDBY|OBSERVER)_HOST=(\S+)$", pair, re.M)
         if not has(src("lab/oracle/files/otelcol-host.yaml"), r"value:\s*\"otelcol-\$\{env:OBENHUB_NODE\}\""):
             raise Fail("oracle: otelcol-host.yaml no longer names its Collector otelcol-${env:OBENHUB_NODE}")
         expect = {"otelcol-gateway"} | {f"otelcol-{h}" for h in hosts}
         if len(hosts) != 3 or collectors != expect or not has(gateway, r"value: otelcol-gateway\b"):
             raise Fail(
-                f"oracle: collectors {sorted(collectors)} differ from the gateway and pair.sh hosts {sorted(expect)}"
+                f"oracle: collectors {sorted(collectors)} differ from the gateway and pair.example.sh hosts {sorted(expect)}"
             )
     elif lab == "pgha":
-        m = re.search(r'^NODES="([^"]*)"', read(os.path.join(ROOT, "lab/pgha/nodes.sh")), re.M)
+        m = re.search(r'^NODES="([^"]*)"', read(os.path.join(ROOT, "lab/pgha/nodes.example.sh")), re.M)
         if not m:
-            raise Fail("pgha: no NODES= in lab/pgha/nodes.sh")
+            raise Fail("pgha: no NODES= in lab/pgha/nodes.example.sh")
         nodes = {w.split("=")[0] for w in m.group(1).split()}
         texts = src("lab/pgha/files/otelcol.yaml.tmpl")
         if not has(texts, r"value: otelcol-@NODE@") or not has(texts, r"service\.instance\.id,\s*value:\s*@NODE@"):

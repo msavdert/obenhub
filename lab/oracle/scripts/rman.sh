@@ -36,7 +36,8 @@ set -euo pipefail
 
 dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 # shellcheck source=/dev/null
-. "$dir/pair.sh"
+. "$dir/../pgha/lab-config.sh"
+lab_config "$dir/pair.sh"
 
 SSH_BIN=${SSH_BIN:-ssh}
 SSH_OPTS=(-o BatchMode=yes -o ConnectTimeout=10)

@@ -18,9 +18,9 @@ set -euo pipefail
 
 dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 # shellcheck source=/dev/null
-. "$dir/gateway.sh"
-# shellcheck source=/dev/null
-. "$dir/pair.sh"
+. "$dir/../pgha/lab-config.sh"
+lab_config "$dir/gateway.sh"
+lab_config "$dir/pair.sh"
 pki="$dir/pki"
 umask 077
 mkdir -p "$pki/gateway"

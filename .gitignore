@@ -21,3 +21,6 @@ site/
 /deploy/compose/tls/
 obenhub.env
 /deploy/compose/secrets/
+/lab/pgha/nodes.sh
+/lab/oracle/gateway.sh
+/lab/oracle/pair.sh

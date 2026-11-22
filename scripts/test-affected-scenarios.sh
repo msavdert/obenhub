@@ -257,7 +257,8 @@ rc_is "lab without suite.txt" 2 nolab "$base"
 # Dependencies that are not Compose mounts, with the reason:
 #   k8s     mise.k8s.toml    pins the k8s tools (MISE_ENV=k8s)
 #   oracle  lab/pgha/versions.sh   sourced by lab/oracle/scripts/collector.sh
-declare -A nonmount=([k8s]="mise.k8s.toml" [oracle]="lab/pgha/versions.sh")
+#   oracle  lab/pgha/lab-config.sh sourced by the oracle scripts and scenarios/lib.sh
+declare -A nonmount=([k8s]="mise.k8s.toml" [oracle]="lab/pgha/versions.sh lab/pgha/lab-config.sh")
 # shellcheck source=scripts/evidence-paths.sh
 . "$repo/scripts/evidence-paths.sh"
 # mount_sources FILE: bind-mount sources (short and long syntax) and config and
@@ -301,7 +302,7 @@ for L in "${!seen_lab[@]}" "${!nonmount[@]}"; do
   done_lab[$L]=1
   while IFS= read -r e; do
     [ -n "$e" ] || continue
-    [ "$e" != "${nonmount[$L]:-}" ] || { echo "ok   evidence_extra_paths $L: $e (allow-listed, not a Compose mount)"; continue; }
+    case " ${nonmount[$L]:-} " in *" $e "*) :;; *) false;; esac && { echo "ok   evidence_extra_paths $L: $e (allow-listed, not a Compose mount)"; continue; }
     if [ -f "$tmp/derived.$L" ] && awk -v e="$e" 'index($0, e "/") == 1 || $0 == e {f=1} END {exit !f}' "$tmp/derived.$L"; then
       echo "ok   evidence_extra_paths $L: $e (derived from a Compose mount)"
     else
@@ -309,6 +310,16 @@ for L in "${!seen_lab[@]}" "${!nonmount[@]}"; do
       mounts_fail=1
     fi
   done < <(evidence_extra_paths "$L" | tr ' ' '\n')
+done
+# and every allow-listed path is still in evidence_extra_paths
+for L in "${!nonmount[@]}"; do
+  read -r -a entries <<<"${nonmount[$L]}"
+  for e in "${entries[@]}"; do
+    case " $(evidence_extra_paths "$L") " in
+      *" $e "*) echo "ok   allow-list $L: $e is in evidence_extra_paths" ;;
+      *) echo "FAIL allow-list $L: $e is not in evidence_extra_paths $L" >&2; mounts_fail=1 ;;
+    esac
+  done
 done
 [ "$mounts_fail" = 0 ] || fail=1
 
