@@ -2,7 +2,7 @@
 # "cluster": one Deployment replica for the cluster-wide telemetry (k8s_cluster
 # metrics and Kubernetes events). Placeholders in ${UPPER_CASE} are filled by
 # scripts/up.sh; ${env:...} is the Collector's own syntax.
-# Preset behaviour: chart templates/_config.tpl at chart 0.178.3.
+# Preset behaviour: chart templates/_config.tpl read at chart 0.178.3 (runs on 0.180.0).
 mode: deployment
 replicaCount: 1
 fullnameOverride: otelcol-cluster

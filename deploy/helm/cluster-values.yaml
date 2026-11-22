@@ -2,7 +2,7 @@
 # "cluster": one Deployment replica for the cluster-wide telemetry (k8s_cluster
 # metrics and Kubernetes events). Derived from lab/k8s/otel/cluster-values.yaml;
 # variables and the secret obenhub-gateway-tls as in agent-values.yaml.
-# Preset behaviour: chart templates/_config.tpl at chart 0.178.3.
+# Preset behaviour: chart templates/_config.tpl read at chart 0.178.3 (runs on 0.180.0).
 mode: deployment
 replicaCount: 1
 fullnameOverride: otelcol-cluster

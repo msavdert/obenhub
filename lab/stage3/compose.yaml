@@ -10,7 +10,7 @@
 name: obenhub-stage3
 
 x-etcd: &etcd
-  image: gcr.io/etcd-development/etcd:v3.7.3@sha256:0d27b9478551f431f82d1e0ddb6c87ad07ebae8b904c637f3a99213349523910
+  image: gcr.io/etcd-development/etcd:v3.7.4@sha256:47d217be8ec4ca943954b5f4bf8029ee9bc0ffb05fbe2a44d579a1f640e03ed4
   restart: unless-stopped
   mem_limit: 192m
   environment:
@@ -147,7 +147,7 @@ services:
   # writable. pgbench aborts when its connection is lost, so scripts/load.sh
   # starts it again in a loop.
   load:
-    image: postgres:18.7-trixie@sha256:9f4fd4aa918f52ae3d6f3b687f1de90d8f867cd4d520021545a9a50c120eae3b
+    image: postgres:18.7-trixie@sha256:eb63372c1e05c755f55fa30cbd07aecc443676fc6c0fa90b9002d01537841e1a
     container_name: obenhub-stage3-load
     restart: unless-stopped
     mem_limit: 128m
@@ -196,7 +196,7 @@ services:
 
   # one-shot: the Collector (uid 10001) must own its file_storage volume
   otelcol-init:
-    image: postgres:18.7-trixie@sha256:9f4fd4aa918f52ae3d6f3b687f1de90d8f867cd4d520021545a9a50c120eae3b
+    image: postgres:18.7-trixie@sha256:eb63372c1e05c755f55fa30cbd07aecc443676fc6c0fa90b9002d01537841e1a
     container_name: obenhub-stage3-otelcol-init
     user: root
     network_mode: none

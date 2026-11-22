@@ -15,8 +15,10 @@
 # github.com/open-telemetry/opentelemetry-helm-charts (Apache-2.0; the cached
 # chart archive carries no LICENSE file, the LICENSE of the repository at its
 # main branch was read on 2026-11-20, the licence at the commit of chart
-# 0.178.3 was not checked). Without a rendering of the chart in this repository
-# the values are those of that chart version only.
+# 0.178.3 was not checked); k8s_attributes follows chart 0.180.0
+# (container.image.tag became container.image.tags, its _config.tpl diff
+# against 0.178.3, read 2026-11-22). Without a rendering of the chart in this
+# repository the values are those of those chart versions only.
 receivers:
   kubeletstats/obenhub-k8s:
     collection_interval: 20s
@@ -65,7 +67,7 @@ processors:
         - k8s.cronjob.name
         - k8s.statefulset.name
         - k8s.statefulset.uid
-        - container.image.tag
+        - container.image.tags
         - container.image.name
         - k8s.cluster.uid
         - service.namespace

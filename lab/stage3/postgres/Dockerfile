@@ -1,6 +1,6 @@
 # Stage 3 node image: the stage 2 base image plus the PGDG patroni package.
 # Patroni is MIT licensed (ADR 0004). The package version is pinned.
-FROM postgres:18.7-trixie@sha256:9f4fd4aa918f52ae3d6f3b687f1de90d8f867cd4d520021545a9a50c120eae3b
+FROM postgres:18.7-trixie@sha256:eb63372c1e05c755f55fa30cbd07aecc443676fc6c0fa90b9002d01537841e1a
 
 # renovate: datasource=deb depName=patroni
 ARG PATRONI_VERSION=4.1.5-2.pgdg13+1

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Fail when a page under docs/ is missing from the nav in zensical.toml, or
-the nav names a page that does not exist. `zensical build --strict` (0.1.1)
+the nav names a page that does not exist. `zensical build --strict` (0.1.2)
 reports neither: a page left out of the nav is built but not linked."""
 
 import pathlib

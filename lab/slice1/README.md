@@ -29,7 +29,7 @@ access to `apt.postgresql.org`.
   `postgresqlreceiver` v0.164.0 has no replication slot or subscription
   metrics, so the pack queries `pg_replication_slots`, `pg_subscription`,
   `pg_stat_subscription`, `pg_stat_subscription_stats` and `pg_stat_archiver`.
-- pgBackRest 2.60.0 (ADR 0007): the primary archives WAL with `archive-push`
+- pgBackRest 2.60.1 (ADR 0007; the exporter image bundles 2.60.0): the primary archives WAL with `archive-push`
   into a repository volume; the `pgbackrest-backup` service creates the stanza
   and keeps one backup per 600 s, scheduled from the repository (a full one when
   none exists or the last is older than ten intervals, else incremental);

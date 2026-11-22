@@ -45,7 +45,7 @@ pgc="$project-pg"
 colc="$project-otelcol"
 # PostgreSQL 18 pin of the labs (lab/stage3/compose.yaml, lab/slice1/compose.yaml);
 # scripts/check-deploy-pins.py fails when this line differs from them.
-PG_IMAGE=postgres:18.7-trixie@sha256:9f4fd4aa918f52ae3d6f3b687f1de90d8f867cd4d520021545a9a50c120eae3b
+PG_IMAGE=postgres:18.7-trixie@sha256:eb63372c1e05c755f55fa30cbd07aecc443676fc6c0fa90b9002d01537841e1a
 # the host Collector runs the image of the gateway, as deploy/README.md asks
 OTELCOL_IMAGE="$(sed -n '/^  gateway:/,/^  victoriametrics:/s/^    image: *\(\S*\).*/\1/p' "$repo/deploy/compose/compose.yaml")"
 [ -n "$OTELCOL_IMAGE" ] || { echo "install-test: gateway image not found in compose.yaml" >&2; exit 2; }
