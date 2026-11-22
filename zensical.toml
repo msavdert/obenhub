@@ -10,6 +10,10 @@ site_dir = "site"
 
 nav = [
   { "Home" = "index.md" },
+  { "Guides" = [
+    "guides/quick-start.md",
+    "guides/install.md",
+  ] },
   { "Decisions" = [
     "adr/README.md",
     "adr/0001-goal-and-scope.md",
