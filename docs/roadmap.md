@@ -15,7 +15,12 @@ Each item names the files it starts from and a criterion that is checked by
 running something. Items marked "by reading" were found in the source and
 are reproduced by a test before they are fixed. Within phases B and C the
 items land back to back and share one full suite chain, which also carries
-the held dependency update batch and closes a release.
+the held dependency update batch and closes a release. That chain ran on 2026-11-22
+with the update batch of #145: slice1 `slice1-20261122T073739Z-4f6f8a9`,
+stage3 `stage3-20261122T110328Z-4f6f8a9`, k8s `k8s-20261122T121116Z-4f6f8a9`,
+pgha `pgha-20261122T140350Z-4f6f8a9` and oracle
+`oracle-20261122T174237Z-c0e174e` passed, and `scripts/check-evidence.sh
+--strict --full` passes.
 
 ### A. Tooling and documents, no lab run
 
@@ -72,15 +77,15 @@ the held dependency update batch and closes a release.
       `oracle-20261119T153131Z-4ac9423` (12 of 12; `fsfo-failover` fired
       `OraclePrimaryChanged` twice, for the two promotions). The backup
       kinds are tested on the rule; the SQL itself only by the suite
-- [ ] B2 PostgreSQL and Kubernetes rules. The logical-replication rules
+- [x] B2 PostgreSQL and Kubernetes rules. The logical-replication rules
       used `increase()` without the counter-start handling the pack
       documents (`PostgresDeadlocks`); moved into `packs/postgresql/rules.yml`
       with last-minus-first and a unit test (C2), still to run in the chain.
       `KubernetesNodeNotReady` names its node in
       `service.instance.id`, and stage3, pgha and k8s give the `postgresql`
       receiver the database `app` too; done when the full suites of
-      stage3, pgha and k8s pass with them
-- [ ] B3 Harness (`lab/scenarios/lib-core.sh`, `run-suite.sh`, each lab's
+      stage3, pgha and k8s pass with them (chain of 2026-11-22)
+- [x] B3 Harness (`lab/scenarios/lib-core.sh`, `run-suite.sh`, each lab's
       `lib.sh`), with a test per item (`mise run lab:harness-test`, stub
       VictoriaLogs and Alertmanager): the precondition fails when running and
       declared images differ (slice1, stage3, k8s; the record gains
@@ -88,26 +93,28 @@ the held dependency update batch and closes a release.
       previous scenario of the suite (`window_start`); `control` sends a
       synthetic alert and counts database log records; resolution is searched
       from detection (`resolved_before_revert`). Done when every lab's full
-      suite passes with it
-- [ ] B4 slice1 Alertmanager: slice1 had its own copy with inhibit rules,
+      suite passes with it (chain of 2026-11-22)
+- [x] B4 slice1 Alertmanager: slice1 had its own copy with inhibit rules,
       which race with delivery (`lab/mon/alertmanager.yml`); each was already
       covered by a guard in the rule expression. slice1 now mounts the shared
       file and `scripts/test-alertmanager.sh` checks that nothing is
-      inhibited; done when the full slice1 suite passes with it
+      inhibited; done when the full slice1 suite passes with it (chain of 2026-11-22)
 
 ### C. Packs usable outside the lab
 
-- [ ] C1 `lab/packs` moves to `packs/`, paths only (scripts, `mise.toml`,
+- [x] C1 `lab/packs` moves to `packs/`, paths only (scripts, `mise.toml`,
       lab mounts, tests, generated reference, Renovate file patterns). Done
       when `git grep lab/packs` is empty, `mise run check` passes and every
-      lab's full suite passes with it (the mounts changed)
+      lab's full suite passes with it (the mounts changed) (chain of 2026-11-22)
 - [ ] C2 What the labs kept moved into packs: the logical-replication rules
       (`packs/postgresql`, counter start as in `PostgresDeadlocks`), a
       `pgbouncer` pack, the PostgreSQL, Patroni and CloudNativePG dashboards,
       and `packs/postgresql/monitoring-role.sql` (slice1, stage3, pgha; k8s
       keeps its CNPG managed role, `lab/overhead` its own copy). Done when
       every lab's full suite passes with it, slice1, stage3 and pgha rebuilt
-      first (the role SQL runs only at bootstrap)
+      first (the role SQL runs only at bootstrap). Every full suite passed
+      (chain of 2026-11-22); slice1 and stage3 were rebuilt before it, pgha was updated in
+      place, so its bootstrap path to the role SQL has not run yet
 - [x] C3 Identity, with an amendment to ADR 0006 first. Every join in the
       `postgresql` pack is on `service.instance.id` alone (13 places), so
       two clusters with a `pg-1` in one backend break the rules, and a
@@ -189,13 +196,13 @@ the held dependency update batch and closes a release.
       in 111.7 s and resolved in 58.3 s, no unexpected alert; reading time
       not measured). These are the first Guides pages on the docs site;
       further Learn pages follow, each for a scenario that runs
-- [ ] D4 pgha and oracle read their addresses from an untracked file
+- [x] D4 pgha and oracle read their addresses from an untracked file
       (`lab/pgha/nodes.sh`, `lab/oracle/gateway.sh` and `pair.sh`, copied
       from the tracked `*.example.sh`), so that the labs run elsewhere on a
       clean tree (`mise run check` passes in a fresh clone without the three
       files; the scripts stop with one line naming the example to copy);
       done when the full suites of pgha and oracle pass with it, in the
-      chain of phases B and C
+      chain of phases B and C (chain of 2026-11-22)
 
 ### E. PostgreSQL versions
 
