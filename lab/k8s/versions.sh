@@ -17,29 +17,30 @@ KIND_NODE_IMAGE=kindest/node:v1.36.4@sha256:099e049362a1526b2db71494e1947aae99bd
 # CloudNativePG release manifest at its release tag. The release's
 # cnpg-<version>-checksums.txt lists only the kubectl-cnpg archives, not the
 # manifest, so CNPG_MANIFEST_SHA256 is the sha256 of the manifest downloaded
-# from CNPG_MANIFEST_URL on 2026-11-11 (the same bytes as the release asset
-# cnpg-1.30.1.yaml). A new CNPG_VERSION needs a new sha256: up.sh fails until
+# from CNPG_MANIFEST_URL on 2026-11-22 (the same bytes as the release asset
+# cnpg-1.30.2.yaml). A new CNPG_VERSION needs a new sha256: up.sh fails until
 # it is updated (`curl -fsSL "$CNPG_MANIFEST_URL" | sha256sum`, after reading
 # the diff). The kubectl-cnpg plugin is pinned in mise.k8s.toml at the same
 # version; scripts/check-tools.sh fails when they differ.
 # renovate: datasource=github-releases depName=cloudnative-pg/cloudnative-pg extractVersion=^v(?<version>.+)$
-CNPG_VERSION=1.30.1
+CNPG_VERSION=1.30.2
 CNPG_MANIFEST_URL="https://raw.githubusercontent.com/cloudnative-pg/cloudnative-pg/v${CNPG_VERSION}/releases/cnpg-${CNPG_VERSION}.yaml"
-CNPG_MANIFEST_SHA256=37237f145d8138256ea25ae830f87759255665ff08f8d552fdd8224a5ec032fb
+CNPG_MANIFEST_SHA256=ea4cc355b394e10661d30c6b409cefb19029dd973bccb76b1ed8c789985bc68c
 
-# PostgreSQL 18 operand: DefaultImageName at tag v1.30.1 of
-# cloudnative-pg/cloudnative-pg is ghcr.io/cloudnative-pg/postgresql:18.6-system-trixie;
-# this pin is one minor release newer (18.7, released 2026-11-12, security fixes).
-# The digest is the multi-arch index digest, read from the registry with
-# `docker buildx imagetools inspect` on 2026-11-12.
+# PostgreSQL 18 operand: DefaultImageName at tag v1.30.2 of
+# pkg/versions/versions.go in cloudnative-pg/cloudnative-pg is
+# ghcr.io/cloudnative-pg/postgresql:18.7-system-trixie (read 2026-11-22); the
+# v1.30.1 default was 18.6-system-trixie. The digest is the multi-arch index
+# digest, read from the registry with `docker buildx imagetools inspect` on
+# 2026-11-22.
 # renovate: datasource=docker
-PG_IMAGE=ghcr.io/cloudnative-pg/postgresql:18.7-system-trixie@sha256:13f5dc1b42c5d96233724be976740df031136ca013f98a56a2877a62b362b453
+PG_IMAGE=ghcr.io/cloudnative-pg/postgresql:18.7-system-trixie@sha256:b4bbd2e623f1a8833e9a2a4210480ef215b6d13fc0988b06786a778a5c699a20
 
 # Collector Helm chart opentelemetry-collector, release tag
 # opentelemetry-collector-<version> of open-telemetry/opentelemetry-helm-charts
-# (Chart.yaml version 0.178.3, appVersion 0.163.2, read 2026-11-10).
+# (Chart.yaml version 0.180.0, appVersion 0.163.2, read 2026-11-22).
 # renovate: datasource=github-releases depName=open-telemetry/opentelemetry-helm-charts extractVersion=^opentelemetry-collector-(?<version>.+)$
-OTEL_CHART_VERSION=0.178.3
+OTEL_CHART_VERSION=0.180.0
 OTEL_CHART_REPO=https://open-telemetry.github.io/opentelemetry-helm-charts
 
 # Collector contrib image: the version lab/pgha/versions.sh OTELCOL_VERSION and

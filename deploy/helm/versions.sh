@@ -7,7 +7,7 @@
 # Collector Helm chart opentelemetry-collector, release tag
 # opentelemetry-collector-<version> of open-telemetry/opentelemetry-helm-charts.
 # renovate: datasource=github-releases depName=open-telemetry/opentelemetry-helm-charts extractVersion=^opentelemetry-collector-(?<version>.+)$
-OTEL_CHART_VERSION=0.178.3
+OTEL_CHART_VERSION=0.180.0
 OTEL_CHART_REPO=https://open-telemetry.github.io/opentelemetry-helm-charts
 
 # Collector contrib image, set explicitly in the values (the chart's appVersion

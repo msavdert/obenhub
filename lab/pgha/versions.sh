@@ -6,14 +6,14 @@
 # manager has not yet been seen to open a pull request.
 
 # renovate: datasource=github-releases depName=etcd-io/etcd extractVersion=^v(?<version>.+)$
-ETCD_VERSION=3.7.3
+ETCD_VERSION=3.7.4
 # renovate: datasource=github-releases depName=open-telemetry/opentelemetry-collector-releases extractVersion=^v(?<version>.+)$
 OTELCOL_VERSION=0.165.0
 
 # PGDG (apt.postgresql.org, suite trixie-pgdg), versions seen with apt-cache
-# madison on 2026-11-09 (PostgreSQL 18.7 candidate seen 2026-11-12). Same Patroni and PostgreSQL as lab/stage3/postgres.
+# madison on 2026-11-09 (PostgreSQL 18.7 candidate seen 2026-11-12; 18.7-1.pgdg13+5 seen with apt-cache madison on 2026-11-22). Same Patroni and PostgreSQL as lab/stage3/postgres.
 PG_MAJOR=18
 # renovate: datasource=deb depName=postgresql-18
-PG_PACKAGE_VERSION=18.7-1.pgdg13+2
+PG_PACKAGE_VERSION=18.7-1.pgdg13+5
 # renovate: datasource=deb depName=patroni
 PATRONI_PACKAGE_VERSION=4.1.5-2.pgdg13+1

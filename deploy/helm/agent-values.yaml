@@ -19,7 +19,7 @@
 #   secret pg-otel-monitor      key password: the monitoring role's password
 #   configmap obenhub-pack-postgresql   packs/postgresql/queries.yaml
 #   configmap obenhub-pg-ca             ca.crt: the CA that signed the PostgreSQL server certificates
-# Preset behaviour: chart templates/_config.tpl at chart 0.178.3. Component
+# Preset behaviour: chart templates/_config.tpl read at chart 0.178.3 (runs on 0.180.0). Component
 # keys: receivers kubeletstats, receiver_creator, postgresql, sql_query, prometheus,
 # file_log and processors k8s_attributes, transform in contrib v0.164.0; the
 # chart renames filelog and k8sattributes to those names itself.

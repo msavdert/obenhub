@@ -6,10 +6,10 @@
 name: obenhub-slice1
 
 x-postgres: &postgres
-  # postgres/Dockerfile: the pinned postgres image plus pgBackRest 2.60.0 (PGDG)
+  # postgres/Dockerfile: the pinned postgres image plus pgBackRest 2.60.1 (PGDG)
   build:
     context: ./postgres
-  image: obenhub-slice1-postgres:18.7-pgbackrest-2.60.0
+  image: obenhub-slice1-postgres:18.7-pgbackrest-2.60.1
   entrypoint: ["/entrypoint.sh"]
   shm_size: 256mb
   # same as stage 3; observed use of the slice 1 containers is far below it (docker stats, 2026-11-11)
@@ -190,7 +190,7 @@ services:
   # Scenarios that count checkpoints pause the service (pause_backups in
   # scenarios/lib.sh).
   pgbackrest-backup:
-    image: obenhub-slice1-postgres:18.7-pgbackrest-2.60.0
+    image: obenhub-slice1-postgres:18.7-pgbackrest-2.60.1
     container_name: obenhub-slice1-pgbackrest-backup
     user: postgres
     init: true
@@ -211,7 +211,9 @@ services:
 
   # woblerr/pgbackrest_exporter v0.25.0 (MIT): runs `pgbackrest info` against
   # the repository and serves Prometheus metrics, scraped by the Collector.
-  # The image bundles pgBackRest 2.60.0 (the version of the primary image).
+  # The image bundles pgBackRest 2.60.0 (checked 2026-11-22 with `pgbackrest version`);
+  # the primary image has 2.60.1, a patch release of the same minor (assumption:
+  # the repository format is unchanged; the backup and restore scenarios show it).
   # It starts as root, then runs as BACKREST_USER; uid and gid 999 are the
   # postgres user of the postgres image, the owner of the repository.
   # --collect.interval 30 s: the info run is cheap on a lab repository, and a
@@ -274,7 +276,7 @@ services:
 
   # one-shot: the Collector (uid 10001) must own its file_storage volume
   otelcol-init:
-    image: postgres:18.7-trixie@sha256:9f4fd4aa918f52ae3d6f3b687f1de90d8f867cd4d520021545a9a50c120eae3b
+    image: postgres:18.7-trixie@sha256:eb63372c1e05c755f55fa30cbd07aecc443676fc6c0fa90b9002d01537841e1a
     container_name: obenhub-slice1-otelcol-init
     user: root
     network_mode: none

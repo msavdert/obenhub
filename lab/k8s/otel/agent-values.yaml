@@ -3,7 +3,7 @@
 # tainted, so it has none). Placeholders in ${UPPER_CASE} are filled from
 # versions.sh and the running kind network by scripts/up.sh; ${env:...} is the
 # Collector's own syntax and is left alone.
-# Preset behaviour: chart templates/_config.tpl at chart 0.178.3. Component
+# Preset behaviour: chart templates/_config.tpl read at chart 0.178.3 (runs on 0.180.0). Component
 # keys: receivers kubeletstats, receiver_creator, postgresql, sql_query, prometheus,
 # file_log and processors k8s_attributes, transform in contrib v0.164.0; the
 # chart renames filelog and k8sattributes to those names itself.

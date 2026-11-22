@@ -11,7 +11,7 @@ editorconfig-checker = "4.0.2"
 "npm:markdownlint-cli2" = "0.24.1"
 node = "26.13.1"
 python = "3.13.18"
-"pipx:zensical" = "0.1.1"
+"pipx:zensical" = "0.1.2"
 
 [tasks."docs:build"]
 description = "build the documentation site into site/ (fails on warnings)"

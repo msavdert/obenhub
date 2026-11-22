@@ -6,7 +6,7 @@
 
 `otelcol.yaml` is the Collector fragment of this pack: receivers, processors and the pipelines named `*/obenhub-k8s*`, exporting to `otlp_http/obenhub`. It needs the base in [`../otelcol-base-k8s.yaml`](../otelcol-base-k8s.yaml) (exporter and extensions) and the files of this pack at `/etc/otelcol-contrib/packs/k8s/`. The lab Collector configurations stay hand-written. `mise run lint:otelcol` validates the fragment with its base (it does not start the Collector: the pod observer and the kubelet need a cluster), and fails when a lab block differs from it, except in hosts, ports, endpoints, targets, usernames and TLS settings, identity values, and the entries of `ALLOW` in `scripts/check-otelcol-fragments.py`, each with a reason; a lab credential must stay an `${env:...}` reference ([ADR 0005](../../docs/adr/0005-lab-collection-topology-and-packs.md) decision 3).
 
-The values are those of the `opentelemetry-collector` chart 0.178.3 presets (source and licence in the fragment). The service account needs the chart's ClusterRole rules for these presets (`templates/clusterrole.yaml`): get, list and watch on pods, namespaces, replicasets and the cluster-metrics resources, and get on `nodes/stats`.
+The values are those of the `opentelemetry-collector` chart 0.178.3 presets, `k8s_attributes` as of 0.180.0 (source and licence in the fragment). The service account needs the chart's ClusterRole rules for these presets (`templates/clusterrole.yaml`): get, list and watch on pods, namespaces, replicasets and the cluster-metrics resources, and get on `nodes/stats`.
 
 Variables:
 
