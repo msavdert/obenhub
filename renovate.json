@@ -105,12 +105,21 @@
     {
       "description": "The two VictoriaMetrics Grafana plugins share one compose line",
       "matchPackageNames": [
-        "VictoriaMetrics/victoriametrics-datasource",
-        "VictoriaMetrics/victorialogs-datasource"
+        "victoriametrics-metrics-datasource",
+        "victoriametrics-logs-datasource"
       ],
       "groupName": "grafana plugins"
     }
   ],
+  "customDatasources": {
+    "grafana-plugin": {
+      "defaultRegistryUrlTemplate": "https://grafana.com/api/plugins/{{packageName}}/versions",
+      "format": "json",
+      "transformTemplates": [
+        "{ \"sourceUrl\": items[0].url, \"releases\": items.{ \"version\": version, \"releaseTimestamp\": createdAt } }"
+      ]
+    }
+  },
   "customManagers": [
     {
       "customType": "regex",
@@ -157,29 +166,27 @@
     },
     {
       "customType": "regex",
-      "description": "Grafana plugins preinstalled by the lab and deploy compose files",
+      "description": "Grafana plugins preinstalled by the lab and deploy compose files; versions come from the Grafana catalog (customDatasources.grafana-plugin), not GitHub releases: Grafana installs from the catalog only and 1.0.2 was on GitHub before it (PR #146)",
       "managerFilePatterns": [
         "/^(lab/.+|deploy/compose)/compose(\\.base)?\\.ya?ml$/"
       ],
       "matchStrings": [
         "victoriametrics-metrics-datasource@(?<currentValue>[0-9.]+)"
       ],
-      "depNameTemplate": "VictoriaMetrics/victoriametrics-datasource",
-      "datasourceTemplate": "github-releases",
-      "extractVersionTemplate": "^v(?<version>.+)$"
+      "depNameTemplate": "victoriametrics-metrics-datasource",
+      "datasourceTemplate": "custom.grafana-plugin"
     },
     {
       "customType": "regex",
-      "description": "Grafana plugins preinstalled by the lab and deploy compose files",
+      "description": "Grafana plugins preinstalled by the lab and deploy compose files; versions come from the Grafana catalog (customDatasources.grafana-plugin), not GitHub releases: Grafana installs from the catalog only and 1.0.2 was on GitHub before it (PR #146)",
       "managerFilePatterns": [
         "/^(lab/.+|deploy/compose)/compose(\\.base)?\\.ya?ml$/"
       ],
       "matchStrings": [
         "victoriametrics-logs-datasource@(?<currentValue>[0-9.]+)"
       ],
-      "depNameTemplate": "VictoriaMetrics/victorialogs-datasource",
-      "datasourceTemplate": "github-releases",
-      "extractVersionTemplate": "^v(?<version>.+)$"
+      "depNameTemplate": "victoriametrics-logs-datasource",
+      "datasourceTemplate": "custom.grafana-plugin"
     }
   ]
 }
