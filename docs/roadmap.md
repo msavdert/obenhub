@@ -80,7 +80,7 @@ pgha `pgha-20261122T140350Z-4f6f8a9` and oracle
 - [x] B2 PostgreSQL and Kubernetes rules. The logical-replication rules
       used `increase()` without the counter-start handling the pack
       documents (`PostgresDeadlocks`); moved into `packs/postgresql/rules.yml`
-      with last-minus-first and a unit test (C2), still to run in the chain.
+      with last-minus-first and a unit test (C2).
       `KubernetesNodeNotReady` names its node in
       `service.instance.id`, and stage3, pgha and k8s give the `postgresql`
       receiver the database `app` too; done when the full suites of
@@ -106,15 +106,17 @@ pgha `pgha-20261122T140350Z-4f6f8a9` and oracle
       lab mounts, tests, generated reference, Renovate file patterns). Done
       when `git grep lab/packs` is empty, `mise run check` passes and every
       lab's full suite passes with it (the mounts changed) (chain of 2026-11-22)
-- [ ] C2 What the labs kept moved into packs: the logical-replication rules
+- [x] C2 What the labs kept moved into packs: the logical-replication rules
       (`packs/postgresql`, counter start as in `PostgresDeadlocks`), a
       `pgbouncer` pack, the PostgreSQL, Patroni and CloudNativePG dashboards,
       and `packs/postgresql/monitoring-role.sql` (slice1, stage3, pgha; k8s
       keeps its CNPG managed role, `lab/overhead` its own copy). Done when
       every lab's full suite passes with it, slice1, stage3 and pgha rebuilt
       first (the role SQL runs only at bootstrap). Every full suite passed
-      (chain of 2026-11-22); slice1 and stage3 were rebuilt before it, pgha was updated in
-      place, so its bootstrap path to the role SQL has not run yet
+      (chain of 2026-11-22); slice1 and stage3 were rebuilt before it, pgha
+      was wiped and rebuilt after it (#154) and suite
+      `pgha-20261122T215002Z-8037e39` passed 16 of 16 with the role from
+      bootstrap (`monitor_role_errors` 0)
 - [x] C3 Identity, with an amendment to ADR 0006 first. Every join in the
       `postgresql` pack is on `service.instance.id` alone (13 places), so
       two clusters with a `pg-1` in one backend break the rules, and a
