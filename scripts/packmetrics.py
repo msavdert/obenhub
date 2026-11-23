@@ -46,10 +46,10 @@ def _scalar(text):
     return text
 
 
-def parse_metrics(path):
-    """Return (metrics, mentions): parsed metric dicts and the count of lines naming metric_name."""
+def parse_lines(lines):
+    """Return (metrics, mentions) for an iterable of lines."""
     metrics, mentions = [], 0
-    for line in open(path, encoding="utf-8"):
+    for line in lines:
         if "metric_name:" in line and not line.lstrip().startswith("#"):
             mentions += 1
         m = LINE.match(line)
@@ -65,3 +65,9 @@ def parse_metrics(path):
                 d[key.strip()] = _scalar(value)
         metrics.append(d)
     return metrics, mentions
+
+
+def parse_metrics(path):
+    """Return (metrics, mentions): parsed metric dicts and the count of lines naming metric_name."""
+    with open(path, encoding="utf-8") as f:
+        return parse_lines(f)

@@ -240,6 +240,14 @@ run = "python3 scripts/check-alert-docs.py"
 description = "fail when a page under docs/ is missing from the nav in zensical.toml, or the nav names a missing page"
 run = "python3 scripts/check-docs-nav.py"
 
+[tasks."packs:sql-test"]
+description = "run every packs/postgresql/queries.yaml query on a throwaway container of each supported major and compare with its '# pg-min' comment; needs docker (pulls four images on first use)"
+run = "python3 scripts/test-pack-sql.py"
+
+[tasks."packs:catalog-diff"]
+description = "Markdown list of the pg_catalog relations, columns and functions the PostgreSQL pack reads that differ between two majors: mise run packs:catalog-diff 17 18; needs docker"
+run = "python3 scripts/pack-catalog-diff.py"
+
 [tasks.check]
 description = "all checks as CI runs them (needs docker for the compose, otelcol and rules tests, which pull images on first use)"
 depends = [
@@ -263,6 +271,7 @@ depends = [
   "lab:affected-test",
   "lab:evidence",
   "lint:pack-names",
+  "packs:sql-test",
   "lint:series-vanished",
   "lint:alert-docs",
   "lint:lab-parameters",

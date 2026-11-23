@@ -17,6 +17,9 @@ SELECT format('ALTER ROLE otel_monitor WITH LOGIN PASSWORD %L', :'mon_pw') \gexe
 GRANT pg_monitor TO otel_monitor;
 -- the reserved connection slots: monitoring keeps working when the application
 -- has used up max_connections (the connections-exhausted scenario)
-GRANT pg_use_reserved_connections TO otel_monitor;
+-- (the role exists from PostgreSQL 16; on 15 there is nothing to grant, found by
+-- scripts/test-pack-sql.py)
+SELECT 'GRANT pg_use_reserved_connections TO otel_monitor'
+WHERE EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'pg_use_reserved_connections') \gexec
 -- bounds every monitoring query to 5 s
 ALTER ROLE otel_monitor SET statement_timeout = '5s';

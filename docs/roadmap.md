@@ -213,7 +213,9 @@ pgha `pgha-20261122T140350Z-4f6f8a9` and oracle
       views and columns the packs read that changed between two versions
       of an engine (PostgreSQL majors; Oracle release updates and 19c
       against 26ai), run when Renovate or the EOL check brings a new
-      version. Queries carry the versions they support
+      version. Queries carry the versions they support.
+      The PostgreSQL half is done by `mise run packs:sql-test` and
+      `packs:catalog-diff`; the Oracle half is open
 - [ ] E2 PostgreSQL 19 as the major slice1 runs its suite on, once the
       `postgresql` receiver, pgBackRest and the official image support it
       (not checked yet). The full suite runs on one major; the other

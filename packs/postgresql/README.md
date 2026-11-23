@@ -10,23 +10,31 @@ Names follow [ADR 0006](../../docs/adr/0006-naming-contract.md).
 
 ## PostgreSQL version
 
-The pack needs PostgreSQL 18 and is tested on 18 only. One query needs it:
-the conflict counters query reads `confl_insert_exists` and six more `confl_*`
-columns of `pg_stat_subscription_stats`, which the PostgreSQL 17 documentation
-does not list and the 18 documentation does (both read 2026-11-11). On 17 or
-older that query fails and only `postgresql.subscription.conflict` is lost;
-each query runs on its own, so the others still report.
+Every query in `queries.yaml` has a `# pg-min: <N>` line in its comment block,
+the lowest major it runs on. `mise run packs:sql-test` starts a throwaway
+container of each supported major (15 to 18, the majors not end of life on
+endoflife.date on 2026-11-23; images pinned in `tests/images.sh`), creates the
+monitoring role and runs every query as `otel_monitor`: it must succeed from
+`pg-min` up and fail with an SQL error below it. It is part of `mise run
+check`. A query that fails on an older major loses only its own metrics; the others
+still report. The test prints only ok or an SQL error per major. The reasons
+below are not produced by it: they are read from `packs:catalog-diff` outputs
+(16 to 17, 17 to 18, 15 to 16) on 2026-11-23.
 
-The remaining queries use columns from older releases. These versions are
-from memory and not checked against the documentation (unverified):
+| Query (first metric) | pg-min | Reason |
+| --- | --- | --- |
+| `postgresql.snapshot.oldest_age` | 16 | setting `reserved_connections` |
+| `postgresql.replication_slot.active` | 17 | `inactive_since`, `invalidation_reason` of `pg_replication_slots` |
+| `postgresql.subscription.enabled` | 17 | `pg_stat_subscription.worker_type` |
+| `postgresql.subscription.conflict` | 18 | `confl_*` of `pg_stat_subscription_stats` |
 
-- `reserved_connections` setting: 16.
-- `pg_stat_subscription.worker_type`: 16.
-- `pg_replication_slots.inactive_since` and `invalidation_reason`: 17.
-- `pg_locks.waitstart`, `pg_get_wal_replay_pause_state()`: 14.
-- `pg_stat_subscription_stats` itself: 15.
+The other queries run on 15. `monitoring-role.sql` grants
+`pg_use_reserved_connections` only where the role exists (16 and later).
 
-So the pack as a whole would need 18; the other queries alone would need 17.
+`mise run packs:catalog-diff <old> <new>` (for example `17 18`) lists the
+`pg_catalog` columns and functions the queries mention that were added,
+removed or changed between two majors, from the same images. Run it when a
+new major or minor is pinned; a new query takes its `pg-min` from the test.
 
 ## Checks
 
