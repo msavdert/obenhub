@@ -86,7 +86,7 @@ printf 'groups:\n  - name: lg\n    interval: 15s\n    rules:\n      - alert: Lab
 echo 'groups: []' >lab/x/mon/vmalert/inventory.yml
 for f in packs/p/tests/t.yml lab/x/vmalert/tests/t.yml lab/x/mon/vmalert/tests/t.yml \
   packs/p/dashboards/d.json packs/p/otelcol.yaml packs/otelcol-base.yaml \
-  lab/x/README.md lab/x/results/runs.jsonl lab/other/f lab/scenarios/guard.sh lab/mon/alertmanager.yml; do
+  lab/x/README.md lab/x/results/runs.jsonl lab/other/f lab/scenarios/guard.sh lab/scenarios/test-guard.sh lab/scenarios/test-stub.py lab/mon/alertmanager.yml; do
   echo 1 >"$f"
 done
 printf 'receivers:\n  x: 1\n' >lab/x/otelcol.yaml
@@ -141,6 +141,8 @@ case_ "suite.txt loses a name" - "printf 'a\nb\ncontrol\ns\nj\no\nh\ng\ni\nk\n' 
 case_ "rule unit test of a pack" - "chg packs/p/tests/t.yml"
 case_ "rule unit test of the lab" - "chg lab/x/vmalert/tests/t.yml"
 case_ "rule unit test under mon" - "chg lab/x/mon/vmalert/tests/t.yml"
+case_ "harness self-test script" - "chg lab/scenarios/test-guard.sh"
+case_ "harness self-test stub" - "chg lab/scenarios/test-stub.py"
 case_ "lab dashboard" PANELS "chg lab/x/grafana/dashboards/d.json"
 case_ "pack Collector fragment, pack used" - "chg packs/p/otelcol.yaml"
 case_ "pack Collector base" - "chg packs/otelcol-base.yaml"
