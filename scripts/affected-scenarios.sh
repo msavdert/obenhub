@@ -6,7 +6,9 @@
 # renames count as a delete plus an add) and maps each changed file, the first
 # row that applies winning:
 #   Markdown, results/, rule unit tests,                         nothing
-#     packs/*/upstream-receiver-metrics.txt
+#     packs/*/upstream-receiver-metrics.txt, harness self-tests
+#     (lab/scenarios/test-*.sh and test-*.py: run by mise run check,
+#     never by a lab suite)
 #   versions.sh                                                  nothing; with -f (full mode of
 #                                                                check-evidence.sh) ALL
 #   a .yml/.yaml file that exists at BASE and HEAD with the      nothing
@@ -296,6 +298,8 @@ for f in "${changed[@]}"; do
       ;;
     packs/*/upstream-receiver-metrics.txt) out "$f" "nothing (reference list)" ;;
     packs/*/tests/* | lab/*/vmalert/tests/*) out "$f" nothing ;;
+    lab/scenarios/test-*.sh | lab/scenarios/test-*.py)
+      out "$f" "nothing (harness self-test: mise run check, no lab suite runs it)" ;;
     packs/*/otelcol.yaml | packs/otelcol-base.yaml)
       out "$f" "nothing (Collector fragment: no lab loads it, lint:otelcol compares the labs with it)" ;;
     *) if comment_only "$f"; then out "$f" "nothing (comments or formatting only)"; continue; fi ;;&
