@@ -4,9 +4,11 @@
 # the heartbeat continues. Names follow the naming contract
 # (ADR 0006); attribute columns are dotted aliases. The slot and subscription queries return no rows where
 # there are none, so a node without them simply has no such series.
+# pg-min: 15
 - sql: SELECT 1 AS collection_heartbeat
   metrics:
     - {metric_name: postgresql.collection.heartbeat, value_column: collection_heartbeat, value_type: int, data_type: gauge, unit: "1", description: "1 whenever the heartbeat query succeeded"}
+# pg-min: 15
 - sql: |
     SELECT
       CASE WHEN pg_is_in_recovery() THEN 1 ELSE 0 END AS recovery_active,
@@ -29,6 +31,7 @@
 # a walsender's backend_xmin (hot_standby_feedback) is included; the slot's own
 # xmin and catalog_xmin are read from pg_replication_slots because a physical
 # slot keeps them with no walsender attached.
+# pg-min: 16
 - sql: |
     SELECT
       greatest(
@@ -58,6 +61,7 @@
 # frozen by autovacuum like the rest). age() and mxid_age() count transactions
 # and multixacts since datfrozenxid / datminmxid; both wrap at 2^31 (about 2.1
 # billion), which is the denominator the rules use.
+# pg-min: 15
 - sql: |
     SELECT datname AS "postgresql.database.name", age(datfrozenxid)::bigint AS xid_age, mxid_age(datminmxid)::bigint AS mxid_age
     FROM pg_database
@@ -68,6 +72,7 @@
 # or a held snapshot (postgresql.snapshot.oldest_age): state_change is when the
 # session last changed state, so for an idle session it is the moment it went
 # idle. 0 when no client is idle in a transaction.
+# pg-min: 15
 - sql: |
     SELECT coalesce(max(extract(epoch FROM clock_timestamp() - state_change)), 0)::float8 AS idle_age
     FROM pg_stat_activity
@@ -83,6 +88,7 @@
 # purpose: that would be one call per waiting backend, each taking the lock
 # manager partition locks, where this is one pg_locks scan (which also takes
 # them, once) per collection.
+# pg-min: 15
 - sql: |
     SELECT
       count(DISTINCT pid)::int AS lock_waiting_session_count,
@@ -101,6 +107,7 @@
 # pg_stat_replication lists as sync or quorum. Both are reported on every node;
 # only a primary has senders and a non-empty setting that matters. A num_sync
 # beyond the int range is capped (PostgreSQL accepts it in the setting).
+# pg-min: 15
 - sql: |
     SELECT
       CASE
@@ -120,6 +127,7 @@
 # LSN is used (greatest ignores NULL), never a negative or silent 0
 # wal_status as a number: 0 reserved, 1 extended, 2 unreserved, 3 lost,
 # -1 none (no restart_lsn). inactive_age is 0 while the slot is active.
+# pg-min: 17
 - sql: |
     SELECT
       slot_name AS "postgresql.replication_slot.name",
@@ -143,6 +151,7 @@
 # without a worker still reports (apply_worker_running 0). Only subname
 # and subenabled are read: subconninfo is not readable by pg_monitor.
 # last_msg_age is 0 while there is no apply worker row.
+# pg-min: 17
 - sql: |
     SELECT
       s.subname AS "postgresql.subscription.name",
@@ -160,6 +169,7 @@
     - {metric_name: postgresql.subscription.apply_error, value_column: apply_errors, attribute_columns: ["postgresql.subscription.name"], value_type: int, data_type: sum, monotonic: true, aggregation: cumulative, unit: '{error}', description: "pg_stat_subscription_stats.apply_error_count"}
     - {metric_name: postgresql.subscription.sync_error, value_column: sync_errors, attribute_columns: ["postgresql.subscription.name"], value_type: int, data_type: sum, monotonic: true, aggregation: cumulative, unit: '{error}', description: "pg_stat_subscription_stats.sync_error_count"}
 # The seven PostgreSQL 18 conflict counters as one metric.
+# pg-min: 18
 - sql: |
     SELECT t.subname AS "postgresql.subscription.name", c.conflict_type AS "postgresql.conflict.type", c.n::bigint AS conflicts
     FROM pg_stat_subscription_stats t
@@ -185,6 +195,7 @@
 # pg_ls_archive_statusdir() (pg_monitor may run it) lists pg_wal/archive_status,
 # where a segment waiting for the archiver is a .ready file. With archive_mode
 # off there are no .ready files and the counters stay 0.
+# pg-min: 15
 - sql: |
     SELECT
       archived_count::bigint AS archived_files,

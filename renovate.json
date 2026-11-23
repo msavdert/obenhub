@@ -138,7 +138,7 @@
         "/^(lab|packs|deploy)/.+\\.sh$/"
       ],
       "matchStrings": [
-        "# renovate: datasource=docker\\s+[A-Z_]+=(?<depName>[^:\\s]+):(?<currentValue>[^@\\s]+)@(?<currentDigest>sha256:[0-9a-f]{64})"
+        "# renovate: datasource=docker\\s+[A-Z][A-Z0-9_]*=(?<depName>[^:\\s]+):(?<currentValue>[^@\\s]+)@(?<currentDigest>sha256:[0-9a-f]{64})"
       ],
       "datasourceTemplate": "docker"
     },
