@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Scenario worker-stopped: power cut of the kind node that runs the primary: `docker kill` (SIGKILL), revert `docker start`. docker kill was enough, the node rejoined by itself (Ready 2 s after the start, smoke runs 2026-11-11), so `docker stop` was not needed. The primary must run on a worker without the CloudNativePG operator (its absence would stall the failover) and the load client (its acked ids would be lost); otherwise a preparatory switchover is made and the run waits 210 s for its CNPGPrimaryChanged to pass.
 # Expect CNPGPrimaryChanged, KubernetesNodeNotReady (packs/k8s/rules.yml) and CollectorAbsent for otelcol-agent-<node> (the slowest, about 3.7 minutes after the kill). The pods tolerate not-ready for 300 s (tolerationSeconds, read on the pods), so detection is capped at 270 s (DETECT_DEADLINE in lib-core.sh) plus a 15 s hold: no eviction.
-# Allowed: PostgresStandbyNotStreaming and PostgresPhysicalSlotInactive (seen in one run only) and PostgresSeriesVanished for the surviving replica only: its slot series ended with the promotion and came back after the rejoin, a gap longer than the rule's 2 m window. The killed instance has no heartbeat, which the rule requires. Replication is asynchronous (no spec.postgresql.synchronous, minSyncReplicas 0 in cnpg/cluster.yaml): writer_missing is recorded and fails the run only for a row acknowledged more than 10 s (a choice) before the kill.
+# Allowed: PostgresStandbyNotStreaming and PostgresPhysicalSlotInactive (seen in one run only) and PostgresSeriesVanished for the surviving replica only: its slot series ended with the promotion and came back after the rejoin, a gap longer than the rule's 2 m window (it goes pending before the revert and fires shortly after the rejoin, so revert() waits until vmalert has dropped it: its firing and resolved notifications must fall inside this window, not the next scenario's; seen once, k8s suite 2026-11-23). The killed instance has no heartbeat, which the rule requires. Replication is asynchronous (no spec.postgresql.synchronous, minSyncReplicas 0 in cnpg/cluster.yaml): writer_missing is recorded and fails the run only for a row acknowledged more than 10 s (a choice) before the kill.
 # Events seen: Node NodeNotReady, NodeReady; Pod NodeNotReady, TaintManagerEviction (message "Cancelling deletion of Pod"); Cluster FailingOver, FailoverTarget.
 # shellcheck disable=SC1091,SC2034,SC2153
 set -uo pipefail
@@ -18,6 +18,8 @@ OLD="" TL0="" T0="" NODE="" T_KILLED="" T_STARTED="" SECONDS_DOWN=null NODE_NOT_
 
 node_ready() { [ "$(kcg get node "$1" -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}' 2>/dev/null)" = True ]; }
 vmalert_quiet() { curl -fsS "$VMALERT/api/v1/alerts" | jq -e '[.data.alerts[] | select(.name != "Watchdog")] | length == 0' >/dev/null; }
+# vanished_gone INSTANCE...: vmalert lists no PostgresSeriesVanished (pending or firing) for them
+vanished_gone() { curl -fsS "$VMALERT/api/v1/alerts" | jq -e --args '[.data.alerts[] | select(.name == "PostgresSeriesVanished" and (.labels["service.instance.id"] as $i | $ARGS.positional | index($i)))] | length == 0' "$@" >/dev/null; }
 pod_node() { kc get pod "$1" -o jsonpath='{.spec.nodeName}'; }
 # Precondition: the primary runs on a worker that hosts neither the operator
 # nor the load client. If it does not, switch over (promote_to) to an instance
@@ -84,6 +86,13 @@ revert() {
   SECONDS_DOWN=$(secs "$T_KILLED" "$T_STARTED")
   wait_until 300 "node $NODE Ready" node_ready "$NODE" || return 1
   wait_until 400 "cluster healthy" cluster_healthy
+  local rc=$?
+  # the allowed PostgresSeriesVanished (header) may be pending or firing now; lib-core's
+  # settle sees Alertmanager clean before it fires, so wait for vmalert to drop it
+  local a vi=()
+  for a in "${ALLOW[@]}"; do case $a in PostgresSeriesVanished:*) vi+=("${a#*:}") ;; esac; done
+  if [ ${#vi[@]} -gt 0 ]; then wait_until "$SETTLE_TIMEOUT" "PostgresSeriesVanished gone from vmalert" vanished_gone "${vi[@]}" || return 1; fi
+  return $rc
 }
 extra_checks() {
   local node_events sync="null" f keep=() oldest age=null ep out
