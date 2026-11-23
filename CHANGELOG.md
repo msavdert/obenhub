@@ -1,5 +1,50 @@
 # Changelog
 
+## [0.18.0](https://github.com/msavdert/obenhub/compare/v0.17.0...v0.18.0) (2026-11-23)
+
+
+### Features
+
+* **deploy:** compose backend and gateway, host Collector and Helm values outside the lab (D1) ([#140](https://github.com/msavdert/obenhub/issues/140)) ([bd8e686](https://github.com/msavdert/obenhub/commit/bd8e686cdaa43a333c49261824cbf029a417f6b1))
+* **lab:** inventories generated from a per-lab target list (C7) ([#137](https://github.com/msavdert/obenhub/issues/137)) ([6625ec0](https://github.com/msavdert/obenhub/commit/6625ec0b80fa115cb20b5e4ced5fb96f603df28f))
+* **lab:** map changes to the scenarios they can affect (A2) ([#119](https://github.com/msavdert/obenhub/issues/119)) ([77cc952](https://github.com/msavdert/obenhub/commit/77cc952473d88674a48fafa745282aed1db5add2))
+* **lab:** pgha and oracle read their addresses from untracked files (D4) ([#143](https://github.com/msavdert/obenhub/issues/143)) ([2eabe0c](https://github.com/msavdert/obenhub/commit/2eabe0c73ecbc3ea4a35c1a5f6066d1c49fc8d49))
+* **packs:** collection interval stated per pack, CollectionIntervalTooLong rules (C5) ([#134](https://github.com/msavdert/obenhub/issues/134)) ([51a1742](https://github.com/msavdert/obenhub/commit/51a1742a0faca43648dbd4cc432b349c5437bef2))
+* **packs:** description and runbook_url on every alert, runbooks for scenario-fired alerts (C6) ([#135](https://github.com/msavdert/obenhub/issues/135)) ([872e511](https://github.com/msavdert/obenhub/commit/872e51136df5e8fca21d46cc6d997883d0ec01e3))
+* **packs:** one Collector fragment per pack, checked against the labs by lint:otelcol (C7) ([#138](https://github.com/msavdert/obenhub/issues/138)) ([f9fc8b6](https://github.com/msavdert/obenhub/commit/f9fc8b6274325d921f00f63e0f317d9caa8e9c93))
+* **packs:** production threshold defaults with per-lab override series (C4) ([#139](https://github.com/msavdert/obenhub/issues/139)) ([3584feb](https://github.com/msavdert/obenhub/commit/3584feb6bf2d836e4041b67285372a0192767930))
+
+
+### Bug fixes
+
+* **k8s:** up.sh waits for the CNPG webhook and a healthy Cluster ([#153](https://github.com/msavdert/obenhub/issues/153)) ([8037e39](https://github.com/msavdert/obenhub/commit/8037e39edb8d63a0a4188afd4f1fd79df5562645))
+* **k8s:** worker-stopped waits for its allowed PostgresSeriesVanished ([#156](https://github.com/msavdert/obenhub/issues/156)) ([4510722](https://github.com/msavdert/obenhub/commit/4510722d81f1b00c1a25c1eacbdc4a7246b46d49))
+* **lab:** evidence check counts later failures and requires control last ([#118](https://github.com/msavdert/obenhub/issues/118)) ([181471c](https://github.com/msavdert/obenhub/commit/181471c598c0bb2d0987e12e6d240b9ac9441543))
+* **lab:** harness checks running images, covers gaps between scenarios, proves the sinks (B3) ([#128](https://github.com/msavdert/obenhub/issues/128)) ([3bbd2be](https://github.com/msavdert/obenhub/commit/3bbd2bed36398498c9bd9a29afad289f746e8ac5))
+* **lab:** name the node in KubernetesNodeNotReady; collect database app (B2) ([#126](https://github.com/msavdert/obenhub/issues/126)) ([e57f30f](https://github.com/msavdert/obenhub/commit/e57f30fda724cc9847907c586d3cc3cfeb8200fa))
+* **lab:** slice1 uses the shared Alertmanager config without inhibit rules (B4) ([#127](https://github.com/msavdert/obenhub/issues/127)) ([b225a60](https://github.com/msavdert/obenhub/commit/b225a609cd78e62974ced20d1ee1ce2538a5cbce))
+* **mon:** victoriametrics-metrics-datasource back to 1.0.1 ([#146](https://github.com/msavdert/obenhub/issues/146)) ([4f6f8a9](https://github.com/msavdert/obenhub/commit/4f6f8a914b5d5c1c9f2f04f03518b9a8e4b13c0a))
+* **oracle:** fsfo-failover allows OracleBackupFailed of the promoted standby ([#147](https://github.com/msavdert/obenhub/issues/147)) ([e7a36bd](https://github.com/msavdert/obenhub/commit/e7a36bdfd1216bbc509e9fc7547c3d60410de301))
+* **oracle:** primary-changed ignores demotions; backup kinds, gateway, pools (B1) ([#123](https://github.com/msavdert/obenhub/issues/123)) ([4ac9423](https://github.com/msavdert/obenhub/commit/4ac942364c8441eb1264b6d141fe2a53d6b1cb61))
+* **oracle:** processes-exhausted keeps the instance exhausted while the fault is held ([#148](https://github.com/msavdert/obenhub/issues/148)) ([c0e174e](https://github.com/msavdert/obenhub/commit/c0e174e37fa6ba8cbd12ec6af4c1a7c3a7e04eab))
+* **renovate:** hold back kind and kubectl minors by package name (A4) ([#121](https://github.com/msavdert/obenhub/issues/121)) ([bfa6ee9](https://github.com/msavdert/obenhub/commit/bfa6ee9a2d7ac52784a6a6dd5f7dbe6b6a9bfe0b))
+* **scripts:** harness self-tests do not ask for lab suites ([#155](https://github.com/msavdert/obenhub/issues/155)) ([531d74c](https://github.com/msavdert/obenhub/commit/531d74c3280dc94a8fed9dc6cef8f5e385dc0486))
+
+
+### Documentation
+
+* **adr:** ADR 0005 amendment, a pack holds a Collector fragment (C7) ([#136](https://github.com/msavdert/obenhub/issues/136)) ([887e63d](https://github.com/msavdert/obenhub/commit/887e63d3347f4521978361398a9071259485c2e1))
+* **adr:** ADR 0006 amendment, target identity is cluster plus instance (C3) ([#132](https://github.com/msavdert/obenhub/issues/132)) ([86654c6](https://github.com/msavdert/obenhub/commit/86654c6db971ef5ff18e99e51b6620e98db60f55))
+* fix documents that drifted and check the site navigation (A3) ([#120](https://github.com/msavdert/obenhub/issues/120)) ([6b20ea1](https://github.com/msavdert/obenhub/commit/6b20ea1a77b52fb30625091ee939c2fd34fb5c9f))
+* **guides:** quick start on slice1 and install guide, timed on a clean VM (D3) ([#144](https://github.com/msavdert/obenhub/issues/144)) ([f2cda71](https://github.com/msavdert/obenhub/commit/f2cda7177b393e7f7f95748e809262d23b79a587))
+* **lab:** evidence of the B and C chain of 2026-11-22 ([#149](https://github.com/msavdert/obenhub/issues/149)) ([b32cdb7](https://github.com/msavdert/obenhub/commit/b32cdb7e7877db3a63bf466820f5591991b22757))
+* **lab:** k8s evidence after [#153](https://github.com/msavdert/obenhub/issues/153) and [#156](https://github.com/msavdert/obenhub/issues/156) ([#157](https://github.com/msavdert/obenhub/issues/157)) ([ceb1370](https://github.com/msavdert/obenhub/commit/ceb1370b44ef2ec79c5bfbb9b1efa85e33063e33))
+* **lab:** pgha evidence after the C2 wipe and rebuild ([#154](https://github.com/msavdert/obenhub/issues/154)) ([4a37df6](https://github.com/msavdert/obenhub/commit/4a37df6a3b568f364e63a312cd8b4ae7d14ae20f))
+* **lab:** record the oracle suite after B1 ([#124](https://github.com/msavdert/obenhub/issues/124)) ([cd8c2fc](https://github.com/msavdert/obenhub/commit/cd8c2fc9524b28602bdb7587f8959a224362adb4))
+* **oracle:** lab evidence for the oracledbreceiver role refresh fix ([#142](https://github.com/msavdert/obenhub/issues/142)) ([af2d886](https://github.com/msavdert/obenhub/commit/af2d886a05ed7e23b046f8ca606106760363204a))
+* **roadmap:** order after the 0.17.0 review, packs out of the lab first ([#116](https://github.com/msavdert/obenhub/issues/116)) ([93257fc](https://github.com/msavdert/obenhub/commit/93257fcbdde9169e3280c50edb2c5dc7efa1fbab))
+* **roadmap:** place the ideas from the dasha review in C5, F1 and F5 ([#125](https://github.com/msavdert/obenhub/issues/125)) ([c4edb40](https://github.com/msavdert/obenhub/commit/c4edb4086e10fb4508ba158e4c78ac00e9fd8d4d))
+
 ## [0.17.0](https://github.com/msavdert/obenhub/compare/v0.16.1...v0.17.0) (2026-11-19)
 
 
