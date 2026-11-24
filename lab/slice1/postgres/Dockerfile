@@ -4,7 +4,7 @@
 # compose.yaml bundles its own pgbackrest binary, which should be the same
 # version (2.60.0 checked 2026-11-13). The package moved to 2.60.1 on
 # 2026-11-22 while the exporter image still bundles 2.60.0 (same minor).
-FROM postgres:18.7-trixie@sha256:eb63372c1e05c755f55fa30cbd07aecc443676fc6c0fa90b9002d01537841e1a
+FROM postgres:19.0-trixie@sha256:908d19593a1444b2d4e85783f718b16e0d40f1baf7518420475df9e5f5ac67a2
 
 # renovate: datasource=deb depName=pgbackrest
 ARG PGBACKREST_VERSION=2.60.1-1.pgdg13+1

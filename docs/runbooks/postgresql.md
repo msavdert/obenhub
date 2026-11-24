@@ -201,7 +201,7 @@ SELECT num_requested FROM pg_stat_checkpointer;
 SHOW max_wal_size;
 ```
 
-First statement from `requested()` in `lab/slice1/scenarios/checkpoint-pressure.sh`. Assumption: `pg_stat_checkpointer` exists from PostgreSQL 17; the lab runs 18.
+First statement from `requested()` in `lab/slice1/scenarios/checkpoint-pressure.sh`. Assumption: `pg_stat_checkpointer` exists from PostgreSQL 17; slice1 runs 19, the other labs 18.
 
 Seen in the lab:
 

@@ -36,7 +36,7 @@ it.
 
 | Lab | Topology | Where it runs | Scenarios | Evidence |
 | --- | --- | --- | --- | --- |
-| [slice1](slice1) | PostgreSQL 18 primary, standby, logical subscriber, PgBouncer; one Collector | Docker Compose on the host | `mise run lab:scenarios` | [results](slice1/results) |
+| [slice1](slice1) | PostgreSQL 19 primary, standby, logical subscriber, PgBouncer; one Collector | Docker Compose on the host | `mise run lab:scenarios` | [results](slice1/results) |
 | [stage3](stage3) | Three etcd members and three PostgreSQL 18 nodes under Patroni; one Collector | Docker Compose on the host | `mise run lab:stage3:scenarios` | [results](stage3/results) |
 | [pgha](pgha) | The same Patroni cluster on three Debian VMs; a Collector per node and a gateway | Three VMs plus Compose backend on the host | `mise run lab:pgha:scenarios` | [results](pgha/results) |
 | [k8s](k8s) | CloudNativePG `Cluster` of three PostgreSQL 18 instances on kind; Collector DaemonSet and Deployment | kind on the host | `mise run lab:k8s:scenarios` | [results](k8s/results) |
