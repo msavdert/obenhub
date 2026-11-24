@@ -220,19 +220,22 @@ pgha `pgha-20261122T140350Z-4f6f8a9` and oracle
       lab databases over ssh, outside check (2026-11-24: every query ran
       on 19.32, 19.33 and 26ai; one column widened, see
       `packs/oracledb-dg/README.md`)
-- [ ] E2 PostgreSQL 19 as the major slice1 runs its suite on, once the
+- [x] E2 PostgreSQL 19 as the major slice1 runs its suite on, once the
       `postgresql` receiver, pgBackRest and the official image support it
       (checked 2026-11-24 on the rebuilt slice1: `postgres:19.0-trixie`,
       pgBackRest 2.60.1 stanza and backups, Collector 0.165.0 without
       receiver errors). The full suite runs on one major; the other
-      supported majors are covered by E1
-- [ ] E3 The one query that needs PostgreSQL 18
+      supported majors are covered by E1 (suite
+      slice1-20261124T044836Z-562a6a1, 27 of 27 on 19)
+- [x] E3 The one query that needs PostgreSQL 18
       (`pg_stat_subscription_stats` conflict columns,
       `packs/postgresql/README.md`) is gated by version, so the pack
-      runs on 17, and on 16 if E1 passes there
-- [ ] E4 `CDB26` (26ai, no standby) in `lab/oracle` as a compatibility
+      runs on 17, and on 16 if E1 passes there (2026-11-24: reads
+      on 15 to 19, checked by `packs:sql-test`, #164)
+- [x] E4 `CDB26` (26ai, no standby) in `lab/oracle` as a compatibility
       check of the receiver and the pack queries, not a second suite (ADR
-      0008 decision 3)
+      0008 decision 3; `lab:oracle:cdb26-check`, result in
+      `lab/oracle/README.md`)
 
 ### F. Depth
 
