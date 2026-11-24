@@ -24,6 +24,7 @@ nav = [
     "adr/0006-naming-contract.md",
     "adr/0007-backup-tool.md",
     "adr/0008-oracle-lab-scope.md",
+    "adr/0009-query-and-relation-cardinality.md",
   ] },
   { "Reference" = [
     "reference/postgresql-pack-metrics.md",
