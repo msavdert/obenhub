@@ -405,6 +405,10 @@ docker compose -p obenhub-oracle -f lab/oracle/mon/compose.yaml up -d --wait
 description = "install or converge otelcol-contrib on the three Oracle VMs over ssh (rpm pinned by lab/pgha/versions.sh, host + per-VM config, client certificate, environment file, alert log ACL); restarts only on change; needs lab/oracle/.env and the PKI of lab:oracle:mon:up"
 run = "lab/oracle/scripts/collector.sh"
 
+[tasks."lab:oracle:cdb26-check"]
+description = "CDB26 compatibility check of the oracledb receiver (roadmap E4): converge C##OBENHUB_MON on CDB26, run the pinned otelcol-contrib image on this box against CDB26 and CDB19 for 3 collection intervals each, print scrape errors and the metric difference; changes CDB26 only; needs lab/oracle/.env and docker, not part of check"
+run = "lab/oracle/scripts/cdb26-check.sh"
+
 [tasks."lab:oracle:rman"]
 description = "converge RMAN backups of the CDB19 pair over ssh: rman-backup.sh, oracle crontab lines, RMAN configuration by role, block change tracking; prints every change; starts no backup, restarts nothing"
 run = "lab/oracle/scripts/rman.sh"

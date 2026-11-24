@@ -35,93 +35,14 @@ case "${1:-}" in
   *) echo "usage: provision.sh [--reset-passwords]" >&2; exit 2 ;;
 esac
 
-# gen-env.sh keeps existing values and adds missing keys
-"$dir/../scripts/gen-env.sh" "$dir/.env" ORA_MON_PASSWORD ORA_DG_PASSWORD
-set -a
-# shellcheck source=/dev/null
-. "$dir/.env"
-set +a
-MON_PW=${ORA_MON_PASSWORD:0:30}
-DG_PW=${ORA_DG_PASSWORD:0:30}
-for pw in "$MON_PW" "$DG_PW"; do
-  # hex only: the value is embedded in SQL and in a data source URL unquoted
-  case "$pw" in *[!0-9a-f]*|"") echo "provision: passwords in .env must be hex (gen-env.sh)" >&2; exit 1 ;; esac
-  [ "${#pw}" -eq 30 ] || { echo "provision: passwords in .env must have at least 30 characters" >&2; exit 1; }
-done
-
-SSH_OPTS=(-o BatchMode=yes -o ConnectTimeout=10)
-log() { echo "[$1] $2"; }
-
-# oh <host> <sid>: the Oracle home of a SID from /etc/oratab
-oh() { ssh -n "${SSH_OPTS[@]}" "$1" "awk -F: -v s='$2' '\$1==s {print \$2}' /etc/oratab"; }
-
-# sysdba <host> <sid> < sql: run SQL as SYSDBA through the local bequeath
-sysdba() {
-  local home; home="$(oh "$1" "$2")"
-  [ -n "$home" ] || { echo "provision: $2 not in /etc/oratab on $1" >&2; return 1; }
-  ssh "${SSH_OPTS[@]}" "$1" "sudo -u oracle env ORACLE_SID=$2 ORACLE_HOME=$home $home/bin/sqlplus -s -L / as sysdba"
-}
+# shellcheck source=lab/oracle/scripts/mon-lib.sh
+. "$dir/scripts/mon-lib.sh"
+mon_env
 
 # --- users, profile and grants on the primary --------------------------------
-# The views follow the oracledb receiver README at contrib v0.164.0: instance
-# detection, metrics and per-PDB metrics (CONTAINER=ALL). ASM, the events
-# (query samples, top queries) and the PDB-connection views are left out:
-# the lab has no ASM, runs no events and connects to the root.
-MON_VIEWS="V_\$INSTANCE V_\$DATABASE V_\$DATAFILE V_\$SESSION V_\$SYSSTAT V_\$RESOURCE_LIMIT
-V_\$OSSTAT V_\$SGAINFO V_\$CON_SYSSTAT V_\$CON_SYSMETRIC V_\$CONTAINERS
-DBA_TABLESPACES DBA_DATA_FILES DBA_TABLESPACE_USAGE_METRICS
-CDB_TABLESPACE_USAGE_METRICS CDB_TABLESPACES CDB_DATA_FILES"
-grants=""
-for v in $MON_VIEWS; do
-  grants="$grants  x('GRANT SELECT ON SYS.$v TO \"$MON_USER\" CONTAINER=ALL');
-"
-done
-
+# The views the user may read are MON_VIEWS in mon-lib.sh.
 log "$PRIMARY_HOST" "profile, users and grants on $PRIMARY_SID"
-sysdba "$PRIMARY_HOST" "$PRIMARY_SID" <<SQL
-whenever sqlerror exit failure
-set feedback off verify off define off serveroutput on
-DECLARE
-  n NUMBER;
-  PROCEDURE x(s VARCHAR2) IS BEGIN EXECUTE IMMEDIATE s; END;
-  PROCEDURE ensure_user(u VARCHAR2, pw VARCHAR2) IS
-  BEGIN
-    SELECT COUNT(*) INTO n FROM dba_users WHERE username = u;
-    IF n = 0 THEN
-      x('CREATE USER "' || u || '" IDENTIFIED BY "' || pw || '" PROFILE "$MON_PROFILE" ACCOUNT UNLOCK CONTAINER=ALL');
-      dbms_output.put_line('created user ' || u);
-    ELSIF $reset = 1 THEN
-      x('ALTER USER "' || u || '" IDENTIFIED BY "' || pw || '" ACCOUNT UNLOCK CONTAINER=ALL');
-      dbms_output.put_line('reset password of ' || u);
-    END IF;
-    x('ALTER USER "' || u || '" PROFILE "$MON_PROFILE" CONTAINER=ALL');
-  END;
-BEGIN
-  -- pair.sh names the primary; after a switchover it must be edited first
-  SELECT COUNT(*) INTO n FROM v\$database WHERE database_role = 'PRIMARY' AND open_mode = 'READ WRITE';
-  IF n = 0 THEN
-    raise_application_error(-20001, '$PRIMARY_SID on $PRIMARY_HOST is not an open primary; check pair.sh');
-  END IF;
-  SELECT COUNT(*) INTO n FROM dba_profiles WHERE profile = '$MON_PROFILE';
-  IF n = 0 THEN
-    x('CREATE PROFILE "$MON_PROFILE" LIMIT PASSWORD_LIFE_TIME UNLIMITED CONTAINER=ALL');
-    dbms_output.put_line('created profile $MON_PROFILE');
-  END IF;
-  x('ALTER PROFILE "$MON_PROFILE" LIMIT PASSWORD_LIFE_TIME UNLIMITED PASSWORD_GRACE_TIME UNLIMITED'
-    || ' PASSWORD_REUSE_TIME UNLIMITED PASSWORD_REUSE_MAX UNLIMITED CONTAINER=ALL');
-  ensure_user('$MON_USER', '$MON_PW');
-  ensure_user('$DG_USER', '$DG_PW');
-  x('GRANT CREATE SESSION TO "$MON_USER" CONTAINER=ALL');
-$grants  x('ALTER USER "$MON_USER" SET CONTAINER_DATA=ALL CONTAINER=CURRENT');
-  SELECT COUNT(*) INTO n FROM v\$pwfile_users WHERE username = '$DG_USER' AND sysdg = 'TRUE';
-  IF n = 0 THEN
-    x('GRANT SYSDG TO "$DG_USER" CONTAINER=ALL');
-    dbms_output.put_line('granted SYSDG to $DG_USER');
-  END IF;
-END;
-/
-exit
-SQL
+mon_sql "$PRIMARY_SID" "$PRIMARY_HOST" 1 "$reset" | sysdba "$PRIMARY_HOST" "$PRIMARY_SID"
 
 # --- password file -----------------------------------------------------------
 p_home="$(oh "$PRIMARY_HOST" "$PRIMARY_SID")"

@@ -46,6 +46,47 @@ A rerun creates nothing new and keeps the passwords (it states the profile
 limits and grants again); `--reset-passwords` sets the passwords from `.env`
 again.
 
+## CDB26 receiver check
+
+`mise run lab:oracle:cdb26-check` ([scripts/cdb26-check.sh](scripts/cdb26-check.sh))
+is the receiver half of the `CDB26` compatibility check (ADR 0008 decision 3;
+the pack queries run on it with `mise run packs:oracle-sql-test`). It creates
+`C##OBENHUB_MON` on `CDB26` with the profile, grants and `CONTAINER_DATA=ALL`
+of `provision.sh` (shared code in [scripts/mon-lib.sh](scripts/mon-lib.sh); no
+`C##OBENHUB_DG`, `CDB26` has no standby), then runs the pinned
+otelcol-contrib image on the box, once against `CDB26` and once against
+`CDB19`, with only the `oracledb` receiver block cut out of
+[files/otelcol-obs.yaml](files/otelcol-obs.yaml) (endpoint and service name
+replaced), a file exporter and 95 s per database (first scrape plus three
+30 s intervals). Run of 2026-11-24 (twice; the second changed nothing on the
+database), otelcol-contrib 0.165.0:
+
+- `CDB26` (23.26.3, root of the CDB, user sees 3 of 3 containers): no scrape
+  error; 4 of 4 scrapes with data; 25 metric names, 44 series.
+- `CDB19`: no scrape error; 25 metric names, 45 series.
+- The metric names are the same. One series differs: `oracledb.sessions.usage`
+  has a `USER`/`INACTIVE` series on `CDB19` only, the state of the sessions
+  on each database at that moment (assumption: other clients, such as the
+  running Collector of the observer, hold idle sessions on `CDB19` only; not
+  checked), not a difference of the receiver.
+- Both databases log the same two warnings, once each, at start:
+  `CDB_PROCEDURES not readable` and `CDB_PROCEDURES/CDB_OBJECTS not readable`
+  (ORA-00942); the warning itself says the receiver falls back to the `DBA_*`
+  views, and the scrapes that follow report no error. `MON_VIEWS` does not
+  list those views and no emitted metric needs them; the grant is left as it
+  is. The script logs in once with the `.env` password on both databases before
+  a receiver starts and stops on a failed login (`provision.sh
+  --reset-passwords` converges it).
+- The receiver reports `oracle.db.version` 23.0.0.0.0 for `CDB26` and
+  19.0.0.0.0 for `CDB19`, `oracle.db.role` `PRIMARY` and `oracle.db.open_mode`
+  `READ WRITE` on both.
+
+On `CDB26` the script changes only the profile `C##OBENHUB_MON` and the user
+`C##OBENHUB_MON` (created in the first run), its `CREATE SESSION` and
+`SELECT` grants and `CONTAINER_DATA`; nothing on `CDB19`, a listener or a
+parameter. `CDB26` is not collected by the lab Collector: the check
+shows the receiver would work there, it does not add it to the lab.
+
 ## Collector
 
 One otelcol-contrib per VM (ADR 0008 decision 2), each started with two
