@@ -10,6 +10,7 @@
 | [0006](0006-naming-contract.md) | Naming contract for metrics, attributes and alerts | Accepted |
 | [0007](0007-backup-tool.md) | Backup tool - pgBackRest, compared with pg_basebackup | Accepted |
 | [0008](0008-oracle-lab-scope.md) | Oracle lab - scope, topology and first slice | Accepted |
+| [0009](0009-query-and-relation-cardinality.md) | Query-level and relation-scaled signals - cardinality | Proposed |
 
 ## Template
 
