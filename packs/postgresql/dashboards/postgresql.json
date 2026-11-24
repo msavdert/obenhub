@@ -1523,13 +1523,329 @@
       "description": "Checkpoints per type over a sliding 5 minutes, as in PostgresCheckpointsRequested: more requested than the dashed line (obenhub.postgresql.requested_checkpoints.limit, 3 when the lab records none) for 1 minute fires. Requested ones come from WAL reaching max_wal_size, CHECKPOINT, base backups and promotion; scheduled ones from checkpoint_timeout. A standby counts restartpoints, so it stays near 0."
     },
     {
+      "id": 201,
+      "title": "Sessions by wait event type",
+      "type": "timeseries",
+      "datasource": {
+        "type": "victoriametrics-metrics-datasource",
+        "uid": "vm"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 52,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "vm"
+          },
+          "expr": "sum by (postgresql.wait_event.type) (postgresql.client_session.count{obenhub.cluster.name=\"$cluster\", service.instance.id=\"$instance\"})",
+          "refId": "A",
+          "range": true,
+          "instant": false,
+          "legendFormat": "{{postgresql.wait_event.type}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 30,
+            "showPoints": "never",
+            "stacking": {
+              "mode": "normal",
+              "group": "A"
+            }
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "description": "Client sessions at each scrape grouped by wait_event_type of pg_stat_activity, stacked. 'none' is a session that is not waiting (running, or idle without a wait event). One scan of pg_stat_activity, the scraping backend excluded; a type with no session at a scrape has no point."
+    },
+    {
+      "id": 202,
+      "title": "Sessions by wait event (top 10)",
+      "type": "timeseries",
+      "datasource": {
+        "type": "victoriametrics-metrics-datasource",
+        "uid": "vm"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 52,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "vm"
+          },
+          "expr": "topk_max(10, sum by (postgresql.wait_event.type, postgresql.wait_event.name) (postgresql.client_session.count{obenhub.cluster.name=\"$cluster\", service.instance.id=\"$instance\", postgresql.wait_event.name!=\"none\"}))",
+          "refId": "A",
+          "range": true,
+          "instant": false,
+          "legendFormat": "{{postgresql.wait_event.type}}: {{postgresql.wait_event.name}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 30,
+            "showPoints": "never",
+            "stacking": {
+              "mode": "normal",
+              "group": "A"
+            }
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "description": "The ten wait events with the most sessions at their peak in the selected range (topk_max), sessions that are not waiting left out. Wait event names are PostgreSQL's (pg_stat_activity, wait events); the series set is bounded by that vocabulary, not by the workload."
+    },
+    {
+      "id": 207,
+      "type": "row",
+      "title": "pg_stat_statements (labs with the extension: slice1)",
+      "collapsed": true,
+      "gridPos": {
+        "x": 0,
+        "y": 60,
+        "w": 24,
+        "h": 1
+      },
+      "panels": [
+        {
+          "id": 203,
+          "title": "Statements: execution time per second",
+          "type": "timeseries",
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "vm"
+          },
+          "gridPos": {
+            "x": 0,
+            "y": 61,
+            "w": 6,
+            "h": 8
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "victoriametrics-metrics-datasource",
+                "uid": "vm"
+              },
+              "expr": "clamp_min(deriv(postgresql.statement.execution_time{obenhub.cluster.name=\"$cluster\", service.instance.id=\"$instance\"}[$__rate_interval]), 0)",
+              "refId": "A",
+              "range": true,
+              "instant": false,
+              "legendFormat": "{{postgresql.database.name}}"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "custom": {
+                "lineWidth": 1,
+                "fillOpacity": 10,
+                "showPoints": "never"
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            },
+            "tooltip": {
+              "mode": "multi"
+            }
+          },
+          "description": "pg_stat_statements gauges: the sum of the statements still in the view, which falls when entries are evicted, so the panels use deriv() (not rate(), which reads a fall as a counter reset and spikes) and clamp negative values to 0. A rate under-reports while statements are being evicted (PostgresStatementsEvicted). Seconds of statement execution time per second, per database; above 1 means more than one session's worth of work."
+        },
+        {
+          "id": 204,
+          "title": "Statements: calls per second",
+          "type": "timeseries",
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "vm"
+          },
+          "gridPos": {
+            "x": 6,
+            "y": 61,
+            "w": 6,
+            "h": 8
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "victoriametrics-metrics-datasource",
+                "uid": "vm"
+              },
+              "expr": "clamp_min(deriv(postgresql.statement.call{obenhub.cluster.name=\"$cluster\", service.instance.id=\"$instance\"}[$__rate_interval]), 0)",
+              "refId": "A",
+              "range": true,
+              "instant": false,
+              "legendFormat": "{{postgresql.database.name}}"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "ops",
+              "custom": {
+                "lineWidth": 1,
+                "fillOpacity": 10,
+                "showPoints": "never"
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            },
+            "tooltip": {
+              "mode": "multi"
+            }
+          },
+          "description": "pg_stat_statements gauges: the sum of the statements still in the view, which falls when entries are evicted, so the panels use deriv() (not rate(), which reads a fall as a counter reset and spikes) and clamp negative values to 0. A rate under-reports while statements are being evicted (PostgresStatementsEvicted). Statement executions per second, per database."
+        },
+        {
+          "id": 205,
+          "title": "Statements: temp blocks written per second",
+          "type": "timeseries",
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "vm"
+          },
+          "gridPos": {
+            "x": 12,
+            "y": 61,
+            "w": 6,
+            "h": 8
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "victoriametrics-metrics-datasource",
+                "uid": "vm"
+              },
+              "expr": "clamp_min(deriv(postgresql.statement.temp_block_written{obenhub.cluster.name=\"$cluster\", service.instance.id=\"$instance\"}[$__rate_interval]), 0)",
+              "refId": "A",
+              "range": true,
+              "instant": false,
+              "legendFormat": "{{postgresql.database.name}}"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "custom": {
+                "lineWidth": 1,
+                "fillOpacity": 10,
+                "showPoints": "never"
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            },
+            "tooltip": {
+              "mode": "multi"
+            }
+          },
+          "description": "pg_stat_statements gauges: the sum of the statements still in the view, which falls when entries are evicted, so the panels use deriv() (not rate(), which reads a fall as a counter reset and spikes) and clamp negative values to 0. A rate under-reports while statements are being evicted (PostgresStatementsEvicted). Blocks of temporary files written per second (sorts, hashes and so on that did not fit in work_mem), per database."
+        },
+        {
+          "id": 206,
+          "title": "Statements evicted in the last 5 minutes",
+          "type": "timeseries",
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "vm"
+          },
+          "gridPos": {
+            "x": 18,
+            "y": 61,
+            "w": 6,
+            "h": 8
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "victoriametrics-metrics-datasource",
+                "uid": "vm"
+              },
+              "expr": "last_over_time(postgresql.statement.deallocation{obenhub.cluster.name=\"$cluster\", service.instance.id=\"$instance\"}[5m]) - first_over_time(postgresql.statement.deallocation{obenhub.cluster.name=\"$cluster\", service.instance.id=\"$instance\"}[5m])",
+              "refId": "A",
+              "range": true,
+              "instant": false,
+              "legendFormat": "evictions"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "custom": {
+                "lineWidth": 1,
+                "fillOpacity": 10,
+                "showPoints": "never"
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            },
+            "tooltip": {
+              "mode": "multi"
+            }
+          },
+          "description": "Rise of pg_stat_statements_info.dealloc over a sliding 5 minutes: last minus first sample, the expression of PostgresStatementsEvicted (any value above 0 fires)."
+        }
+      ]
+    },
+    {
       "id": 101,
       "type": "row",
       "title": "Logical replication (labs with a subscriber: slice1)",
       "collapsed": true,
       "gridPos": {
         "x": 0,
-        "y": 52,
+        "y": 61,
         "w": 24,
         "h": 1
       },
@@ -1544,7 +1860,7 @@
           },
           "gridPos": {
             "x": 0,
-            "y": 53,
+            "y": 62,
             "w": 12,
             "h": 8
           },
@@ -1604,7 +1920,7 @@
           },
           "gridPos": {
             "x": 12,
-            "y": 53,
+            "y": 62,
             "w": 12,
             "h": 8
           },
@@ -1664,7 +1980,7 @@
           },
           "gridPos": {
             "x": 0,
-            "y": 61,
+            "y": 70,
             "w": 24,
             "h": 8
           },
@@ -1735,7 +2051,7 @@
           },
           "gridPos": {
             "x": 0,
-            "y": 69,
+            "y": 78,
             "w": 12,
             "h": 8
           },
@@ -1794,7 +2110,7 @@
       "collapsed": true,
       "gridPos": {
         "x": 0,
-        "y": 53,
+        "y": 62,
         "w": 24,
         "h": 1
       },
@@ -1809,7 +2125,7 @@
           },
           "gridPos": {
             "x": 0,
-            "y": 54,
+            "y": 63,
             "w": 8,
             "h": 8
           },
@@ -1869,7 +2185,7 @@
           },
           "gridPos": {
             "x": 8,
-            "y": 54,
+            "y": 63,
             "w": 8,
             "h": 8
           },
@@ -1951,7 +2267,7 @@
           },
           "gridPos": {
             "x": 16,
-            "y": 54,
+            "y": 63,
             "w": 8,
             "h": 8
           },
@@ -2011,7 +2327,7 @@
           },
           "gridPos": {
             "x": 0,
-            "y": 62,
+            "y": 71,
             "w": 12,
             "h": 8
           },
@@ -2071,7 +2387,7 @@
           },
           "gridPos": {
             "x": 12,
-            "y": 62,
+            "y": 71,
             "w": 12,
             "h": 8
           },
@@ -2130,7 +2446,7 @@
       "collapsed": true,
       "gridPos": {
         "x": 0,
-        "y": 54,
+        "y": 63,
         "w": 24,
         "h": 1
       },
@@ -2145,7 +2461,7 @@
           },
           "gridPos": {
             "x": 0,
-            "y": 55,
+            "y": 64,
             "w": 6,
             "h": 4
           },
@@ -2207,7 +2523,7 @@
           },
           "gridPos": {
             "x": 6,
-            "y": 55,
+            "y": 64,
             "w": 6,
             "h": 4
           },
@@ -2288,7 +2604,7 @@
           },
           "gridPos": {
             "x": 12,
-            "y": 55,
+            "y": 64,
             "w": 6,
             "h": 4
           },
@@ -2369,7 +2685,7 @@
           },
           "gridPos": {
             "x": 18,
-            "y": 55,
+            "y": 64,
             "w": 6,
             "h": 4
           },
@@ -2452,7 +2768,7 @@
       },
       "gridPos": {
         "x": 0,
-        "y": 55,
+        "y": 64,
         "w": 24,
         "h": 9
       },
@@ -2489,7 +2805,7 @@
       },
       "gridPos": {
         "x": 0,
-        "y": 64,
+        "y": 73,
         "w": 24,
         "h": 9
       },

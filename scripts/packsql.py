@@ -163,6 +163,7 @@ class Fleet:
                     "docker", "run", "-d", "--name", self.name(major), "--label", self.label, "--label", f"{OWNER}={socket.gethostname()}:{os.getpid()}",
                     "--tmpfs", "/var/lib/postgresql", "-e", "POSTGRES_PASSWORD",
                     image, "-c", "fsync=off", "-c", "max_connections=20",
+                    "-c", "shared_preload_libraries=pg_stat_statements",
                 ],
                 env=self.env,
             )  # fmt: skip

@@ -24,4 +24,5 @@ backup-stale
 backup-checksum-error
 pitr-restore
 basebackup-compare
+statements-evicted
 control

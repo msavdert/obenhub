@@ -416,6 +416,30 @@ groups:
           description: "The deadlock counter of a database rose within the last 5 minutes. PostgreSQL resolves a deadlock by aborting one session, so this is evidence, not an outage; pg_stat_database.deadlocks shows which database and the PostgreSQL log has the details."
           runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgresdeadlocks
 
+      # postgresql.statement.deallocation is pg_stat_statements_info.dealloc:
+      # entries were evicted because more distinct statements arrived than
+      # pg_stat_statements.max, so the per-database statement totals
+      # (postgresql.statement.execution_time, .call, .temp_block_written)
+      # undercount. Absent on a server without the extension (the query returns
+      # no rows), so nothing fires there. Last minus first sample in 5 minutes
+      # (20 collections at 15 s, README "Collection interval") for the reason
+      # given at PostgresDeadlocks: a Collector restart or a counter that
+      # appears high is not a rise, and pg_stat_statements_reset() or a server
+      # restart reads as negative and does not fire; so does a window in which
+      # pg_stat_statements_reset() follows an eviction (accepted, as for
+      # PostgresDeadlocks). Any eviction fires: a
+      # server that evicts routinely (a tool that sends unparameterised
+      # statements) raises pg_stat_statements.max (restart required) or accepts
+      # the undercount and silences the alert in Alertmanager.
+      - alert: PostgresStatementsEvicted
+        expr: last_over_time(postgresql.statement.deallocation[5m]) - first_over_time(postgresql.statement.deallocation[5m]) > 0
+        labels:
+          severity: warning
+        annotations:
+          summary: 'pg_stat_statements on {{ (index $labels "service.instance.id") }} evicted statements {{ $value | printf "%.0f" }} time(s) in the last 5 minutes'
+          description: "More distinct statements arrived than pg_stat_statements.max holds, so the least used entries were evicted and the statement totals of the pack (execution time, calls, temp blocks written per database) undercount. Raise pg_stat_statements.max (needs a restart) or find the source of the distinct statements (unparameterised literals, generated SQL)."
+          runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgresstatementsevicted
+
       # Requested checkpoints (pg_stat_checkpointer.num_requested on
       # PostgreSQL 17+, read by postgresqlreceiver as
       # postgresql.bgwriter.checkpoint.count{type="requested"}): WAL reached
@@ -586,9 +610,9 @@ groups:
       # alerts for up to an hour; that is accepted, not filtered.
       - alert: PostgresSeriesVanished
         expr: |
-          label_copy(last_over_time({__name__=~"postgresql[.](recovery[.]active|wal_receiver[.]streaming|replay[.](backlog|paused)|snapshot[.]oldest_age|xmin_horizon[.]age|client_connection[.](count|limit)|database[.](count|xid_age|mxid_age)|transaction[.]idle_age|lock[.](waiting_session[.]count|oldest_wait_age)|replication[.]synchronous_standby[.](count|required)|replication_slot[.](active|retained_wal|unconfirmed_wal|wal_status|invalidated|inactive_age)|subscription[.](enabled|apply_worker_running|last_msg_age|apply_error|sync_error|conflict)|archiver[.](archived_file|failure|failing|ready_file[.]count))"}[1h]) keep_metric_names, "__name__", "metric")
+          label_copy(last_over_time({__name__=~"postgresql[.](recovery[.]active|wal_receiver[.]streaming|replay[.](backlog|paused)|snapshot[.]oldest_age|xmin_horizon[.]age|client_connection[.](count|limit)|database[.](count|xid_age|mxid_age)|transaction[.]idle_age|lock[.](waiting_session[.]count|oldest_wait_age)|replication[.]synchronous_standby[.](count|required)|replication_slot[.](active|retained_wal|unconfirmed_wal|wal_status|invalidated|inactive_age)|subscription[.](enabled|apply_worker_running|last_msg_age|apply_error|sync_error|conflict)|archiver[.](archived_file|failure|failing|ready_file[.]count)|statement[.](execution_time|call|temp_block_written|deallocation))"}[1h]) keep_metric_names, "__name__", "metric")
             unless on(metric, obenhub.cluster.name, service.instance.id)
-          label_copy(present_over_time({__name__=~"postgresql[.](recovery[.]active|wal_receiver[.]streaming|replay[.](backlog|paused)|snapshot[.]oldest_age|xmin_horizon[.]age|client_connection[.](count|limit)|database[.](count|xid_age|mxid_age)|transaction[.]idle_age|lock[.](waiting_session[.]count|oldest_wait_age)|replication[.]synchronous_standby[.](count|required)|replication_slot[.](active|retained_wal|unconfirmed_wal|wal_status|invalidated|inactive_age)|subscription[.](enabled|apply_worker_running|last_msg_age|apply_error|sync_error|conflict)|archiver[.](archived_file|failure|failing|ready_file[.]count))"}[2m]) keep_metric_names, "__name__", "metric")
+          label_copy(present_over_time({__name__=~"postgresql[.](recovery[.]active|wal_receiver[.]streaming|replay[.](backlog|paused)|snapshot[.]oldest_age|xmin_horizon[.]age|client_connection[.](count|limit)|database[.](count|xid_age|mxid_age)|transaction[.]idle_age|lock[.](waiting_session[.]count|oldest_wait_age)|replication[.]synchronous_standby[.](count|required)|replication_slot[.](active|retained_wal|unconfirmed_wal|wal_status|invalidated|inactive_age)|subscription[.](enabled|apply_worker_running|last_msg_age|apply_error|sync_error|conflict)|archiver[.](archived_file|failure|failing|ready_file[.]count)|statement[.](execution_time|call|temp_block_written|deallocation))"}[2m]) keep_metric_names, "__name__", "metric")
             and on(obenhub.cluster.name, service.instance.id)
           present_over_time(postgresql.collection.heartbeat[2m])
         # Only while the target's heartbeat lives: a dead target or Collector

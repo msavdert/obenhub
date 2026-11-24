@@ -24,6 +24,10 @@ EXCLUDED = {
     # The rule's own gate: it fires only while the heartbeat lives, and a
     # vanished heartbeat is PostgresTargetAbsent or CollectorAbsent.
     "postgresql.collection.heartbeat",
+    # One series for each combination of state and wait event present at the
+    # scrape; a combination that is gone is no series, and an instance with no
+    # client session has none at all, which is no fault.
+    "postgresql.client_session.count",
 }
 
 

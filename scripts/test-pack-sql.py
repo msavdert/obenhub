@@ -25,6 +25,39 @@ import packsql
 MISSING_STATES = {"42703", "42883", "42P01", "42704"}
 
 
+def data_rows(p):
+    """Number of result rows of a psql run with header (-A, footer off)."""
+    return max(len([ln for ln in p.stdout.split("\n") if ln]) - 1, 0)
+
+
+def check_extension_paths(fleet, queries, majors):
+    """The guard of the pg_stat_statements queries (ADR 0009, decision 2), both ways.
+
+    The containers load the library (shared_preload_libraries) but the first
+    pass runs before CREATE EXTENSION: each such query must then succeed with
+    no rows. After CREATE EXTENSION in database postgres each must succeed with
+    at least one row. Returns the list of mismatch lines.
+    """
+    ext = [q for q in queries if "pg_stat_statements" in q["sql"]]
+    errors = []
+    for phase, want_rows in (("without the extension", False), ("with the extension", True)):
+        for major in majors:
+            if want_rows:
+                p = fleet.psql(major, "CREATE EXTENSION pg_stat_statements", role="postgres")
+                if p.returncode != 0:
+                    errors.append(f"CREATE EXTENSION on {major}: {p.stderr.strip()[-200:]}")
+                    continue
+                fleet.psql(major, "SELECT 1")  # at least one tracked statement of database postgres
+            for q in ext:
+                p = fleet.psql(major, q["sql"], header=True)
+                if p.returncode != 0:
+                    errors.append(f"query {q['n']} on {major} {phase}: exit {p.returncode}: {p.stderr.strip()[:120]}")
+                elif (data_rows(p) > 0) != want_rows:
+                    errors.append(f"query {q['n']} on {major} {phase}: {data_rows(p)} rows")
+    print(f"extension guard: {len(ext)} queries, {len(majors)} majors, with and without the extension")
+    return errors
+
+
 def main():
     queries = packsql.read_queries()
     images = packsql.read_images()
@@ -60,6 +93,7 @@ def main():
         with ThreadPoolExecutor(8) as ex:
             for (q, major), res in ex.map(work, jobs):
                 results[(q["n"], major)] = res
+        ext_errors = check_extension_paths(fleet, queries, majors)
 
     mismatches = 0
     print("query  metric" + " " * 44 + "pg-min  " + "  ".join(f"{m:>5}" for m in majors))
@@ -89,6 +123,9 @@ def main():
             f"{q['n']:>5}  {q['metric']:<50}{q['pg_min'] if q['pg_min'] is not None else '-':>6}  " + "  ".join(cells)
         )
     print(f"setup {t1 - t0:.0f}s, queries {time.monotonic() - t1:.0f}s, majors {majors}")
+    for line in ext_errors:
+        print(f"mismatch: {line}", file=sys.stderr)
+    mismatches += len(ext_errors)
     if mismatches or bad:
         print(f"FAILED: {mismatches} mismatches, {len(bad)} queries without pg-min", file=sys.stderr)
         return 1

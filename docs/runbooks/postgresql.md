@@ -190,6 +190,23 @@ Seen in the lab:
 
 - slice1: `deadlock` (suite `slice1-20261118T134118Z-37e22f2`)
 
+## PostgresStatementsEvicted
+
+More distinct statements arrived than `pg_stat_statements.max` holds within 5 minutes, so the least used entries were evicted and the statement totals of the pack (`postgresql.statement.*`) undercount. Reference: [PostgresStatementsEvicted](../reference/postgresql-pack-alerts.md#postgresstatementsevicted).
+
+Look first: On the instance named in the alert.
+
+```sql
+SELECT dealloc, stats_reset FROM pg_stat_statements_info;
+SELECT current_setting('pg_stat_statements.max') AS max, count(*) AS entries FROM pg_stat_statements;
+```
+
+The first statement is the counter the alert reads (the deallocation query of `packs/postgresql/queries.yaml`). Raising `pg_stat_statements.max` needs a restart; statements that differ only in literals are one entry, so a flood of entries usually means unparameterised or generated SQL.
+
+Seen in the lab:
+
+- slice1: `statements-evicted` (suite `none yet`)
+
 ## PostgresCheckpointsRequested
 
 More than 3 requested checkpoints in 5 minutes on a primary. Usually WAL reached `max_wal_size` before `checkpoint_timeout`, but `CHECKPOINT`, `CREATE DATABASE`, base backups, promotion and shutdown also request one (the scenario pauses pgBackRest backups for that reason). Reference: [PostgresCheckpointsRequested](../reference/postgresql-pack-alerts.md#postgrescheckpointsrequested).

@@ -38,6 +38,36 @@ The other queries run on 15. `postgresql.subscription.sync_error` reads
 removed or changed between two majors, from the same images. Run it when a
 new major or minor is pinned; a new query takes its `pg-min` from the test.
 
+## Statements and wait events
+
+`postgresql.statement.*` and `postgresql.client_session.count` follow [ADR 0009](../../docs/adr/0009-query-and-relation-cardinality.md): per-database totals and one series per state and wait event, never a query or its id.
+
+- Requirement: `pg_stat_statements` in `shared_preload_libraries` and `CREATE EXTENSION pg_stat_statements` in database `postgres`, the database the pack connects to (slice1: `shared_preload_libraries` in `lab/slice1/compose.yaml`, the extension in `lab/slice1/postgres/10-init-primary.sh`). The monitoring role needs `pg_monitor`: `pg_read_all_stats` for the view and `pg_read_all_settings` for the preload check; a role without the latter gets no statement series and no error.
+- Guard: without the extension in that database the two statement queries return no rows and no error, so there are no `postgresql.statement.*` series and no alert. The SQL text is passed to `query_to_xml()` behind a `pg_extension` check, because a plain query fails at parse time. `mise run packs:sql-test` runs both queries on every supported major before and after `CREATE EXTENSION` (containers start with the library preloaded) and checks no rows, then rows.
+- `postgresql.statement.execution_time`, `.call` and `.temp_block_written` are gauges, not counters: a statement evicted from the view leaves the sum. Do not `rate()` them (a fall reads as a counter reset); the dashboard uses `deriv()` clamped at 0. `postgresql.statement.deallocation` is the cumulative eviction count and `PostgresStatementsEvicted` fires when it rises: the totals then undercount.
+- `postgresql.client_session.count` has the attributes `postgresql.session.state`, `postgresql.wait_event.type` and `postgresql.wait_event.name`; a missing value is the string `none`.
+
+## Series per table
+
+The upstream `postgresql` receiver's per-table metrics are enabled by default and produce one series per table (and per index for `postgresql.index.*`) with no limit: `postgresql.rows`, `postgresql.operations`, `postgresql.table.size`, `postgresql.table.vacuum.count`, `postgresql.blocks_read`, `postgresql.index.scans` and `postgresql.index.size` (ADR 0009, decision 6, read at contrib v0.165.0). No rule or panel of the pack reads them. On a database with many relations, switch them off in the receiver block of the Collector configuration:
+
+```yaml
+receivers:
+  postgresql/obenhub-postgresql:
+    metrics:
+      postgresql.deadlocks:
+        enabled: true
+      postgresql.rows: {enabled: false}
+      postgresql.operations: {enabled: false}
+      postgresql.table.size: {enabled: false}
+      postgresql.table.vacuum.count: {enabled: false}
+      postgresql.blocks_read: {enabled: false}
+      postgresql.index.scans: {enabled: false}
+      postgresql.index.size: {enabled: false}
+```
+
+Not run in a lab: the `enabled: false` form is the receiver's metric setting (the same form as `postgresql.deadlocks` above), unconfirmed for these seven names until a run.
+
 ## Checks
 
 `scripts/check-pack-names.py` (part of `mise run check`) fails when a pack
