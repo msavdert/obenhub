@@ -296,10 +296,10 @@ A logical subscription raised its apply or sync error counter by 2 or more withi
 Look first: On the subscriber.
 
 ```sql
-SELECT subname, apply_error_count, sync_error_count FROM pg_stat_subscription_stats;
+SELECT * FROM pg_stat_subscription_stats;
 ```
 
-The subscription query of `packs/postgresql/queries.yaml`; the `confl_*` columns of the same view are the conflict counters of the query after it.
+The subscription query of `packs/postgresql/queries.yaml` (its sync error count is `sync_error_count` below 19 and `sync_table_error_count` plus `sync_seq_error_count` from 19); the `confl_*` columns of the same view are the conflict counters of the query after it.
 
 Seen in the lab:
 
