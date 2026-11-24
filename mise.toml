@@ -248,6 +248,14 @@ run = "python3 scripts/test-pack-sql.py"
 description = "Markdown list of the pg_catalog relations, columns and functions the PostgreSQL pack reads that differ between two majors: mise run packs:catalog-diff 17 18; needs docker"
 run = "python3 scripts/pack-catalog-diff.py"
 
+[tasks."packs:oracle-sql-test"]
+description = "run every query of the Oracle packs once on each lab database (default CDB19 CDB19B CDB26, or the SIDs given) and compare with its '# ora-min' comment; needs ssh to the oracle lab host (lab/oracle/pair.sh), not part of check"
+run = "python3 scripts/test-pack-sql-oracle.py"
+
+[tasks."packs:oracle-catalog-diff"]
+description = "Markdown list of the dictionary relations and columns the Oracle packs read that differ between two lab databases: mise run packs:oracle-catalog-diff CDB19B CDB19 (or CDB19 CDB26); needs ssh to the oracle lab host (lab/oracle/pair.sh), not part of check"
+run = "python3 scripts/pack-catalog-diff-oracle.py"
+
 [tasks.check]
 description = "all checks as CI runs them (needs docker for the compose, otelcol and rules tests, which pull images on first use)"
 depends = [

@@ -16,10 +16,25 @@ it (`sql_query/primary_account`, `lab/oracle/files/otelcol-obs.yaml`).
 
 ## Oracle version
 
-Tested on 19.33 only (the `CDB19` pair, 2026-11-13), as SQL*Plus statements
-and through the Collector. Not run on 26ai. That the managed recovery process
+Tested through the Collector on 19.33 only (the `CDB19` pair, 2026-11-13). The
+queries of this pack, `queries-primary.yaml` and the
+[backup pack](../oracledb-backup/queries.yaml) also ran as SQL*Plus
+statements on 19.32, 19.33 and 26ai (23.26.3) primaries on 2026-11-24, as
+SYSDBA: every query ran and returned its metric columns. That the managed recovery process
 disappears when apply is stopped was observed in the apply-stopped trial runs
 of 2026-11-14 (`lab/oracle/results/runs.jsonl`).
+
+A query that needs a newer release carries `# ora-min: <version>` in its
+comment block (none does yet). `mise run packs:oracle-sql-test [SID ...]`
+runs every query of the three Oracle query files once per lab database
+(default `CDB19 CDB19B CDB26`) and compares the result with `ora-min`;
+`mise run packs:oracle-catalog-diff <old SID> <new SID>` (for example `CDB19B
+CDB19` or `CDB19 CDB26`) lists the dictionary relations and columns the
+queries read that differ. Both need ssh to the lab host of
+`lab/oracle/pair.sh`, so they are not part of `mise run check`: run them when a
+release update or a new release lands on the lab. The 19.32 to 19.33 diff is
+empty; 19.33 to 26ai differs only in `V$DATAGUARD_PROCESS.ROLE`
+(`VARCHAR2(24)` to `VARCHAR2(31)`), 2026-11-24.
 
 ## Dashboard
 

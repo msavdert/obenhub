@@ -208,14 +208,18 @@ pgha `pgha-20261122T140350Z-4f6f8a9` and oracle
 
 ### E. PostgreSQL versions
 
-- [ ] E1 The pack's queries run against a throwaway container of every
+- [x] E1 The pack's queries run against a throwaway container of every
       supported major in `mise run check`, and a generated diff lists the
       views and columns the packs read that changed between two versions
       of an engine (PostgreSQL majors; Oracle release updates and 19c
       against 26ai), run when Renovate or the EOL check brings a new
       version. Queries carry the versions they support.
-      The PostgreSQL half is done by `mise run packs:sql-test` and
-      `packs:catalog-diff`; the Oracle half is open
+      PostgreSQL: `mise run packs:sql-test` (in check) and
+      `packs:catalog-diff`. Oracle has no 19c container, so
+      `packs:oracle-sql-test` and `packs:oracle-catalog-diff` run on the
+      lab databases over ssh, outside check (2026-11-24: every query ran
+      on 19.32, 19.33 and 26ai; one column widened, see
+      `packs/oracledb-dg/README.md`)
 - [ ] E2 PostgreSQL 19 as the major slice1 runs its suite on, once the
       `postgresql` receiver, pgBackRest and the official image support it
       (not checked yet). The full suite runs on one major; the other
