@@ -15,8 +15,10 @@ access to `apt.postgresql.org`.
 
 ## What runs
 
-- PostgreSQL 18 primary and physical standby. Replication has its own network,
-  so cutting it does not cut monitoring.
+- PostgreSQL 19 primary and physical standby. Replication has its own network,
+  so cutting it does not cut monitoring. A stack started on 18 (before
+  roadmap E2) is not upgraded in place: `mise run lab:down` (deletes the
+  volumes) before `mise run lab:up`.
 - A logical subscriber `pg-subscriber` (database `app`, subscription
   `app_sub`) on its own `logical` network, so cutting logical replication
   leaves the physical standby and monitoring alone.
@@ -84,7 +86,7 @@ fires, zero monitoring-role errors in the server log). Notable details:
   restores with `pgbackrest restore --type=time` into a throwaway container
   and volume without network, and checks that only the earlier rows exist.
   The counts are in the result row. No alert is expected.
-- `basebackup-compare` does the backup job with PostgreSQL 18's own tools in
+- `basebackup-compare` does the backup job with PostgreSQL's own tools in
   a throwaway container: full `pg_basebackup`, writes, `pg_basebackup
   --incremental`, `pg_combinebackup`, `pg_verifybackup`, then a point-in-time
   restore of the combined backup (WAL from the pgBackRest archive) and a row

@@ -1,7 +1,7 @@
 # Quick start
 
 From a fresh Debian 13 (amd64) host to an alert that fires and resolves on the
-slice1 lab: a PostgreSQL 18 primary and standby, a logical subscriber and
+slice1 lab: a PostgreSQL 19 primary and standby, a logical subscriber and
 PgBouncer, one OpenTelemetry Collector, and the VictoriaMetrics, VictoriaLogs,
 vmalert, Alertmanager and Grafana backend. You break the standby's WAL replay
 on purpose, watch `PostgresReplayBacklog` fire, undo the break and watch it

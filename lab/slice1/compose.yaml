@@ -1,4 +1,4 @@
-# Slice 1, step A: PostgreSQL 18 primary + standby -> one OpenTelemetry
+# Slice 1, step A: PostgreSQL 19 primary + standby -> one OpenTelemetry
 # Collector -> VictoriaMetrics (metrics) and VictoriaLogs (jsonlog lines).
 # Stage 2 adds a logical subscriber (pg-subscriber) and PgBouncer on the same
 # stack.
@@ -9,7 +9,7 @@ x-postgres: &postgres
   # postgres/Dockerfile: the pinned postgres image plus pgBackRest 2.60.1 (PGDG)
   build:
     context: ./postgres
-  image: obenhub-slice1-postgres:18.7-pgbackrest-2.60.1
+  image: obenhub-slice1-postgres:19.0-pgbackrest-2.60.1
   entrypoint: ["/entrypoint.sh"]
   shm_size: 256mb
   # same as stage 3; observed use of the slice 1 containers is far below it (docker stats, 2026-11-11)
@@ -190,7 +190,7 @@ services:
   # Scenarios that count checkpoints pause the service (pause_backups in
   # scenarios/lib.sh).
   pgbackrest-backup:
-    image: obenhub-slice1-postgres:18.7-pgbackrest-2.60.1
+    image: obenhub-slice1-postgres:19.0-pgbackrest-2.60.1
     container_name: obenhub-slice1-pgbackrest-backup
     user: postgres
     init: true
@@ -276,7 +276,7 @@ services:
 
   # one-shot: the Collector (uid 10001) must own its file_storage volume
   otelcol-init:
-    image: postgres:18.7-trixie@sha256:eb63372c1e05c755f55fa30cbd07aecc443676fc6c0fa90b9002d01537841e1a
+    image: postgres:19.0-trixie@sha256:908d19593a1444b2d4e85783f718b16e0d40f1baf7518420475df9e5f5ac67a2
     container_name: obenhub-slice1-otelcol-init
     user: root
     network_mode: none

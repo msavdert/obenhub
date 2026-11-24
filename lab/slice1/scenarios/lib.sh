@@ -29,7 +29,7 @@ SUBSCRIBER=obenhub-slice1-pg-subscriber
 PGBOUNCER=obenhub-slice1-pgbouncer
 BACKUP_SVC=pgbackrest-backup
 BACKUP_C=obenhub-slice1-pgbackrest-backup
-PG_IMAGE=obenhub-slice1-postgres:18.7-pgbackrest-2.60.1
+PG_IMAGE=obenhub-slice1-postgres:19.0-pgbackrest-2.60.1
 REPL_NET=obenhub-slice1_repl
 LOGICAL_NET=obenhub-slice1_logical
 SUBSCRIPTION=app_sub
@@ -106,9 +106,9 @@ app_in_sync() {
 # pgBackRest (ADR 0007). The repository is the volume pgbackrest-repo; pgbackrest
 # runs as postgres in the primary container (local mode, same as the
 # pgbackrest-backup service). PGBR_WAL_DIR is the repository directory that
-# holds the archived WAL of the first PostgreSQL cluster of the stanza (18-1).
+# holds the archived WAL of the first PostgreSQL cluster of the stanza (19-1).
 REPO_VOL=${PROJECT}_pgbackrest-repo
-PGBR_WAL_DIR=/var/lib/pgbackrest/archive/slice1/18-1
+PGBR_WAL_DIR=/var/lib/pgbackrest/archive/slice1/19-1
 pgbr() { docker exec -u postgres "$PRIMARY" pgbackrest --stanza=slice1 "$@"; }
 # a completed backup is in the repository
 backup_exists() { pgbr info --output=json 2>/dev/null | jq -e '.[0].backup | length > 0' >/dev/null; }

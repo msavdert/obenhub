@@ -222,7 +222,9 @@ pgha `pgha-20261122T140350Z-4f6f8a9` and oracle
       `packs/oracledb-dg/README.md`)
 - [ ] E2 PostgreSQL 19 as the major slice1 runs its suite on, once the
       `postgresql` receiver, pgBackRest and the official image support it
-      (not checked yet). The full suite runs on one major; the other
+      (checked 2026-11-24 on the rebuilt slice1: `postgres:19.0-trixie`,
+      pgBackRest 2.60.1 stanza and backups, Collector 0.165.0 without
+      receiver errors). The full suite runs on one major; the other
       supported majors are covered by E1
 - [ ] E3 The one query that needs PostgreSQL 18
       (`pg_stat_subscription_stats` conflict columns,
