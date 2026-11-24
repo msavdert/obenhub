@@ -28,7 +28,8 @@ def cell(text):
 def render(pack, title):
     metrics, files = [], []
     # queries-primary.yaml: queries read by a receiver on the primary only
-    for name in ("queries.yaml", "queries-primary.yaml"):
+    # queries-slow.yaml: the 5 m tier of the PostgreSQL pack
+    for name in ("queries.yaml", "queries-primary.yaml", "queries-slow.yaml"):
         source = ROOT / "packs" / pack / name
         if not source.exists():
             continue

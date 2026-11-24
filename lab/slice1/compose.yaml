@@ -249,6 +249,7 @@ services:
     volumes:
       - ./otelcol/config.yaml:/etc/otelcol/config.yaml:ro
       - ../../packs/postgresql/queries.yaml:/etc/otelcol/packs/postgresql/queries.yaml:ro
+      - ../../packs/postgresql/queries-slow.yaml:/etc/otelcol/packs/postgresql/queries-slow.yaml:ro
       - ../../packs/pgbouncer/queries.yaml:/etc/otelcol/packs/pgbouncer/queries.yaml:ro
       - otelcol-data:/var/lib/otelcol
       - primary-log:/var/log/pg-primary:ro

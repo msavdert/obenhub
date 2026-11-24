@@ -44,10 +44,11 @@ def read_upstream(path):
 
 def main():
     # queries-primary.yaml: queries read by a receiver on the primary only
+    # queries-slow.yaml: the 5 m tier of the PostgreSQL pack
     targets = [
         (d / name, read_upstream(d / "upstream-receiver-metrics.txt"), prefix, receiver)
         for d, prefix, receiver in PACKS
-        for name in ("queries.yaml", "queries-primary.yaml")
+        for name in ("queries.yaml", "queries-primary.yaml", "queries-slow.yaml")
         if (d / name).exists()
     ]
     targets.append((PGBOUNCER, None, "pgbouncer.", None))

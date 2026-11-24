@@ -11,13 +11,14 @@
 #   OBENHUB_CLUSTER_NAME        the CloudNativePG Cluster name; also obenhub.cluster.name
 #   OBENHUB_PG_NAMESPACE        namespace of the Cluster's pods
 #   OBENHUB_PG_DATABASES        YAML list of databases the receiver connects to, e.g. [postgres, app]
+#   OBENHUB_PG_SLOW_DATABASE    the one database the 5 m slow tier reads (packs/postgresql/README.md, "Slow tier"), e.g. app
 #   OBENHUB_OTEL_NAMESPACE      namespace the release is installed into (helm -n); the agent's own
 #                               logs are excluded by it, or it would collect its own output in a loop
 #   OTELCOL_IMAGE_REPOSITORY, OTELCOL_IMAGE_TAG, OTELCOL_IMAGE_DIGEST   from OTELCOL_IMAGE in versions.sh
 # Kubernetes objects it expects in the release namespace (README.md creates them):
 #   secret obenhub-gateway-tls  ca.crt, tls.crt, tls.key: the gateway CA and a client certificate
 #   secret pg-otel-monitor      key password: the monitoring role's password
-#   configmap obenhub-pack-postgresql   packs/postgresql/queries.yaml
+#   configmap obenhub-pack-postgresql   packs/postgresql/queries.yaml and queries-slow.yaml
 #   configmap obenhub-pg-ca             ca.crt: the CA that signed the PostgreSQL server certificates
 # Preset behaviour: chart templates/_config.tpl read at chart 0.178.3 (runs on 0.180.0). Component
 # keys: receivers kubeletstats, receiver_creator, postgresql, sql_query, prometheus,
@@ -172,6 +173,23 @@ config:
             collection_interval: 15s
             timeout: 10s
             queries: ${file:/etc/obenhub/packs/postgresql/queries.yaml}
+        # Slow tier (packs/postgresql/queries-slow.yaml): one database per instance
+        sql_query/slow:
+          rule: type == "pod" && labels["cnpg.io/cluster"] == "${OBENHUB_CLUSTER_NAME}" && labels["cnpg.io/podRole"] == "instance"
+          config:
+            driver: postgres
+            host: '`endpoint`'
+            port: 5432
+            database: ${OBENHUB_PG_SLOW_DATABASE}
+            username: otel_monitor
+            password: ${env:OTEL_MONITOR_PASSWORD}
+            additional_params:
+              sslmode: verify-ca
+              sslrootcert: /etc/obenhub/pg-ca/ca.crt
+            max_open_conn: 1
+            collection_interval: 5m
+            timeout: 60s
+            queries: ${file:/etc/obenhub/packs/postgresql/queries-slow.yaml}
     # CloudNativePG's instance manager exporter (container port `metrics`,
     # 9187, plain HTTP) on every instance pod of this node, for operator
     # state only: cnpg_collector_* and cnpg_last_error. The three series the

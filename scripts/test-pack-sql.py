@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-"""Run every query of packs/postgresql/queries.yaml on every supported major.
+"""Run every query of packs/postgresql/queries.yaml and queries-slow.yaml on every supported major.
 
 One throwaway container per major (packs/postgresql/tests/images.sh), the
 monitoring role applied as postgres, each query run as otel_monitor. A query
@@ -58,6 +58,90 @@ def check_extension_paths(fleet, queries, majors):
     return errors
 
 
+SLOW_SETUP = """
+ALTER SYSTEM SET autovacuum = off;
+SELECT pg_reload_conf();
+CREATE TABLE sv_a (i int) WITH (autovacuum_vacuum_threshold = 5, autovacuum_vacuum_scale_factor = 0);
+CREATE TABLE sv_b (i int) WITH (autovacuum_vacuum_threshold = 100000, autovacuum_vacuum_scale_factor = 0);
+CREATE TABLE sv_c (i int) WITH (autovacuum_enabled = off, autovacuum_vacuum_threshold = 5, autovacuum_vacuum_scale_factor = 0);
+CREATE TABLE sv_e (i int) WITH (autovacuum_enabled = false);
+CREATE TABLE sv_d (i int);
+CREATE TABLE sv_f (i int) WITH (autovacuum_vacuum_threshold = 0, autovacuum_vacuum_scale_factor = 0.5);
+CREATE TABLE sv_g (i int) WITH (autovacuum_vacuum_threshold = 0, autovacuum_vacuum_scale_factor = 0.5);
+INSERT INTO sv_f SELECT generate_series(1, 1000);
+INSERT INTO sv_g SELECT generate_series(1, 1000);
+ANALYZE sv_f;
+ANALYZE sv_g;
+INSERT INTO sv_a SELECT generate_series(1, 100);
+INSERT INTO sv_b SELECT generate_series(1, 100);
+INSERT INTO sv_c SELECT generate_series(1, 100);
+INSERT INTO sv_d SELECT generate_series(1, 10);
+DELETE FROM sv_a;
+DELETE FROM sv_b;
+DELETE FROM sv_c;
+DELETE FROM sv_d;
+DELETE FROM sv_f WHERE i <= 400;
+DELETE FROM sv_g WHERE i <= 600;
+"""
+# 18 and later cap the threshold (autovacuum_vacuum_max_threshold); 500 would not be reached by 150 dead tuples, the cap of 100 is
+SLOW_SETUP_18 = """
+CREATE TABLE sv_h (i int) WITH (autovacuum_vacuum_threshold = 0, autovacuum_vacuum_scale_factor = 0.5, autovacuum_vacuum_max_threshold = 100);
+INSERT INTO sv_h SELECT generate_series(1, 1000);
+ANALYZE sv_h;
+DELETE FROM sv_h WHERE i <= 150;
+ALTER SYSTEM SET autovacuum_vacuum_max_threshold = 100;
+SELECT pg_reload_conf();
+CREATE TABLE sv_i (i int) WITH (autovacuum_vacuum_threshold = 0, autovacuum_vacuum_scale_factor = 0.5, autovacuum_vacuum_max_threshold = -1);
+INSERT INTO sv_i SELECT generate_series(1, 1000);
+ANALYZE sv_i;
+DELETE FROM sv_i WHERE i <= 300;
+"""
+
+
+def check_slow_values(fleet, queries, majors):
+    """The slow-tier queries return the values the setup implies (README, "Slow tier").
+
+    Autovacuum is switched off in the container so that nothing races the
+    counts. Expected in database postgres: pending tables sv_a (storage
+    parameters, 100 > 5), sv_g (600 > 0.5 * 1000) and, from 18, sv_h (150 over
+    its cap of 100) and sv_f (400 over the global cap of 100); not sv_b (100 <
+    100000, and not over the cap of 100 from 18), sv_d (10 < 50), sv_f below 18
+    (400 < 500), sv_i (300 < 500: its per-table -1 lifts the global cap);
+    disabled sv_c and sv_e (`off` and `false`), which are not pending although
+    sv_c is far past its threshold. The settings read 0 for autovacuum and 1
+    for track_counts. The no-row case on a standby is not tested here.
+    """
+    by_metric = {q["metric"]: q for q in queries}
+    errors = []
+
+    def one(major):
+        out = []
+        p = fleet.psql(major, SLOW_SETUP + (SLOW_SETUP_18 if major >= 18 else ""), role="postgres")
+        if p.returncode != 0:
+            return [f"slow setup on {major}: {p.stderr.strip()[-200:]}"]
+        want_pending = 4 if major >= 18 else 2
+        for metric, want in (
+            ("postgresql.collection.slow_heartbeat", "1\tpostgres"),
+            ("postgresql.autovacuum.pending_table.count", f"postgres\t{want_pending}\t2"),
+            ("postgresql.autovacuum.enabled", "postgres\t0\t1"),
+        ):
+            for _ in range(10):  # the reload of autovacuum = off and the statistics flush are asynchronous
+                p = fleet.psql(major, by_metric[metric]["sql"], tuples=True)
+                got = p.stdout.strip()
+                if p.returncode == 0 and got == want:
+                    break
+                time.sleep(1)
+            else:
+                out.append(f"{metric} on {major}: want {want!r}, got {got!r} {p.stderr.strip()[-120:]}")
+        return out
+
+    with ThreadPoolExecutor(len(majors)) as ex:
+        for res in ex.map(one, majors):
+            errors += res
+    print(f"slow tier values: {len(majors)} majors, storage parameters, scale factor, disabled tables and settings")
+    return errors
+
+
 def main():
     queries = packsql.read_queries()
     images = packsql.read_images()
@@ -93,7 +177,7 @@ def main():
         with ThreadPoolExecutor(8) as ex:
             for (q, major), res in ex.map(work, jobs):
                 results[(q["n"], major)] = res
-        ext_errors = check_extension_paths(fleet, queries, majors)
+        ext_errors = check_extension_paths(fleet, queries, majors) + check_slow_values(fleet, queries, majors)
 
     mismatches = 0
     print("query  metric" + " " * 44 + "pg-min  " + "  ".join(f"{m:>5}" for m in majors))

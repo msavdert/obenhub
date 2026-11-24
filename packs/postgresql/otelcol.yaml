@@ -1,5 +1,5 @@
 # Collector fragment of the PostgreSQL pack: the upstream postgresql receiver,
-# the pack's sql_query list (queries.yaml), the jsonlog file reader and the
+# the pack's sql_query lists (queries.yaml, and queries-slow.yaml for the 5 m tier), the jsonlog file reader and the
 # identity of one PostgreSQL instance. One instance per Collector process; run
 # the fragment once per instance with its own variables, or copy it under other
 # component names. Variables: README.md, "Collector fragment". Base: ../otelcol-base.yaml.
@@ -41,6 +41,30 @@ receivers:
     collection_interval: 15s
     timeout: 10s
     queries: ${file:/etc/otelcol-contrib/packs/postgresql/queries.yaml}
+
+  # The slow tier (queries-slow.yaml, ADR 0009 decision 5): queries whose cost
+  # grows with the number of relations, every 5 minutes on one connection.
+  # pg_stat_user_tables and pg_class show only the connected database, so one
+  # instance of this receiver reads one database, OBENHUB_PG_SLOW_DATABASE
+  # (postgres when unset, so an env file from before the slow tier still starts
+  # the Collector; postgres usually holds no tables, so it reports zeros).
+  # Copy the block under another component name (and add it to the pipeline)
+  # for each further database that holds tables worth watching; README, "Slow
+  # tier". The rules over these series assume 5m (README, "Collection interval").
+  sql_query/obenhub-postgresql-slow:
+    driver: postgres
+    host: ${env:OBENHUB_PG_HOST}
+    port: ${env:OBENHUB_PG_PORT}
+    database: ${env:OBENHUB_PG_SLOW_DATABASE:-postgres}
+    username: ${env:OBENHUB_PG_USER}
+    password: ${env:OBENHUB_PG_PASSWORD}
+    additional_params:
+      sslmode: ${env:OBENHUB_PG_SSLMODE}
+      sslrootcert: ${env:OBENHUB_PG_CA_FILE}
+    max_open_conn: 1
+    collection_interval: 5m
+    timeout: 60s
+    queries: ${file:/etc/otelcol-contrib/packs/postgresql/queries-slow.yaml}
 
   # PostgreSQL jsonlog (log_destination jsonlog).
   file_log/obenhub-postgresql:
@@ -87,7 +111,7 @@ processors:
 service:
   pipelines:
     metrics/obenhub-postgresql:
-      receivers: [postgresql/obenhub-postgresql, sql_query/obenhub-postgresql]
+      receivers: [postgresql/obenhub-postgresql, sql_query/obenhub-postgresql, sql_query/obenhub-postgresql-slow]
       processors: [memory_limiter/obenhub, resource/obenhub-postgresql, batch/obenhub]
       exporters: [otlp_http/obenhub]
     logs/obenhub-postgresql:

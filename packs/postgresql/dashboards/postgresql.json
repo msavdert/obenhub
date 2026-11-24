@@ -1839,13 +1839,185 @@
       ]
     },
     {
+      "id": 210,
+      "type": "row",
+      "title": "Autovacuum (slow tier, every 5 minutes; labs: slice1, stage3, pgha, k8s)",
+      "collapsed": true,
+      "gridPos": {
+        "x": 0,
+        "y": 61,
+        "w": 24,
+        "h": 1
+      },
+      "panels": [
+        {
+          "id": 211,
+          "title": "Autovacuum backlog: tables past their threshold",
+          "type": "timeseries",
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "vm"
+          },
+          "gridPos": {
+            "x": 0,
+            "y": 62,
+            "w": 8,
+            "h": 8
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "victoriametrics-metrics-datasource",
+                "uid": "vm"
+              },
+              "expr": "last_over_time(postgresql.autovacuum.pending_table.count{obenhub.cluster.name=\"$cluster\", service.instance.id=\"$instance\"}[10m])",
+              "refId": "A",
+              "range": true,
+              "instant": false,
+              "legendFormat": "{{postgresql.database.name}}"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "custom": {
+                "lineWidth": 1,
+                "fillOpacity": 10,
+                "showPoints": "never"
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            },
+            "tooltip": {
+              "mode": "multi"
+            }
+          },
+          "description": "Tables whose dead tuples exceed autovacuum_vacuum_threshold plus autovacuum_vacuum_scale_factor times reltuples (storage parameters honoured, tables with autovacuum disabled left out); PostgresAutovacuumBacklog fires when it stays above 0 for 15 minutes. Slow tier: collected every 5 minutes, so the panel reads last_over_time over 10 minutes (two collections) and the line is a step; one series per database the slow-tier receiver reads (packs/postgresql/README.md, Slow tier); no series on a standby."
+        },
+        {
+          "id": 212,
+          "title": "Tables with autovacuum disabled",
+          "type": "timeseries",
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "vm"
+          },
+          "gridPos": {
+            "x": 8,
+            "y": 62,
+            "w": 8,
+            "h": 8
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "victoriametrics-metrics-datasource",
+                "uid": "vm"
+              },
+              "expr": "last_over_time(postgresql.autovacuum.disabled_table.count{obenhub.cluster.name=\"$cluster\", service.instance.id=\"$instance\"}[10m])",
+              "refId": "A",
+              "range": true,
+              "instant": false,
+              "legendFormat": "{{postgresql.database.name}}"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "custom": {
+                "lineWidth": 1,
+                "fillOpacity": 10,
+                "showPoints": "never"
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            },
+            "tooltip": {
+              "mode": "multi"
+            }
+          },
+          "description": "Tables with the storage parameter autovacuum_enabled false; PostgresAutovacuumTableDisabled fires when it stays above 0 for 15 minutes. Slow tier: collected every 5 minutes, so the panel reads last_over_time over 10 minutes (two collections) and the line is a step; one series per database the slow-tier receiver reads (packs/postgresql/README.md, Slow tier); no series on a standby."
+        },
+        {
+          "id": 213,
+          "title": "Settings: autovacuum and track_counts (1 = on)",
+          "type": "timeseries",
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "vm"
+          },
+          "gridPos": {
+            "x": 16,
+            "y": 62,
+            "w": 8,
+            "h": 8
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "victoriametrics-metrics-datasource",
+                "uid": "vm"
+              },
+              "expr": "last_over_time(postgresql.autovacuum.enabled{obenhub.cluster.name=\"$cluster\", service.instance.id=\"$instance\"}[10m])",
+              "refId": "A",
+              "range": true,
+              "instant": false,
+              "legendFormat": "autovacuum {{postgresql.database.name}}"
+            },
+            {
+              "datasource": {
+                "type": "victoriametrics-metrics-datasource",
+                "uid": "vm"
+              },
+              "expr": "last_over_time(postgresql.track_counts.enabled{obenhub.cluster.name=\"$cluster\", service.instance.id=\"$instance\"}[10m])",
+              "refId": "B",
+              "range": true,
+              "instant": false,
+              "legendFormat": "track_counts {{postgresql.database.name}}"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "custom": {
+                "lineWidth": 1,
+                "fillOpacity": 10,
+                "showPoints": "never"
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            },
+            "tooltip": {
+              "mode": "multi"
+            }
+          },
+          "description": "1 when the setting is on; PostgresAutovacuumOff fires when either is 0 for 5 minutes. Slow tier: collected every 5 minutes, so the panel reads last_over_time over 10 minutes (two collections) and the line is a step; one series per database the slow-tier receiver reads (packs/postgresql/README.md, Slow tier); no series on a standby."
+        }
+      ]
+    },
+    {
       "id": 101,
       "type": "row",
       "title": "Logical replication (labs with a subscriber: slice1)",
       "collapsed": true,
       "gridPos": {
         "x": 0,
-        "y": 61,
+        "y": 62,
         "w": 24,
         "h": 1
       },
@@ -2110,7 +2282,7 @@
       "collapsed": true,
       "gridPos": {
         "x": 0,
-        "y": 62,
+        "y": 63,
         "w": 24,
         "h": 1
       },
@@ -2446,7 +2618,7 @@
       "collapsed": true,
       "gridPos": {
         "x": 0,
-        "y": 63,
+        "y": 64,
         "w": 24,
         "h": 1
       },
@@ -2768,7 +2940,7 @@
       },
       "gridPos": {
         "x": 0,
-        "y": 64,
+        "y": 65,
         "w": 24,
         "h": 9
       },
@@ -2805,7 +2977,7 @@
       },
       "gridPos": {
         "x": 0,
-        "y": 73,
+        "y": 74,
         "w": 24,
         "h": 9
       },

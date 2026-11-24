@@ -5,7 +5,10 @@
 The rule (packs/postgresql/rules.yml) names the metrics it watches in two
 `__name__` regexes. Both must expand to the same set, and that set must equal
 the metrics of packs/postgresql/queries.yaml, less EXCLUDED, plus metrics
-of postgresqlreceiver (listed in upstream-receiver-metrics.txt). No network.
+of postgresqlreceiver (listed in upstream-receiver-metrics.txt). The metrics of
+queries-slow.yaml (5 m tier) must NOT be in it: its 2 m presence window is
+shorter than their interval, so they would read as vanished between samples;
+the slow tier has its own heartbeat rule. No network.
 """
 
 import re
@@ -17,6 +20,7 @@ from packmetrics import parse_metrics
 ROOT = Path(__file__).resolve().parent.parent
 RULES = ROOT / "packs/postgresql/rules.yml"
 QUERIES = ROOT / "packs/postgresql/queries.yaml"
+SLOW = ROOT / "packs/postgresql/queries-slow.yaml"
 UPSTREAM = ROOT / "packs/postgresql/upstream-receiver-metrics.txt"
 
 # Pack metrics the rule deliberately does not watch, with the reason.
@@ -98,6 +102,14 @@ def main():
     if extra:
         errors.append(
             f"PostgresSeriesVanished names metrics that are neither pack nor receiver metrics: {sorted(extra)}"
+        )
+    slow, slow_mentions = parse_metrics(SLOW)
+    if slow_mentions != len(slow):
+        sys.exit(f"{SLOW}: {slow_mentions} metric_name lines, {len(slow)} parsed")
+    in_rule = {m["metric_name"] for m in slow} & first
+    if in_rule:
+        errors.append(
+            f"slow-tier metrics in PostgresSeriesVanished (its windows are shorter than 5 m): {sorted(in_rule)}"
         )
     stale = EXCLUDED - pack
     if stale:

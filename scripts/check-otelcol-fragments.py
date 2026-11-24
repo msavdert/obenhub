@@ -97,7 +97,18 @@ IGNORE_KEYS = {
 }
 SSL_PARAMS = {"sslmode", "sslrootcert", "sslcert", "sslkey"}
 # keys where a lab may hold another value than the fragment's ${env:...}
-PARAM_KEYS = {"endpoint", "host", "port", "targets", "username", "service", "scheme", "datasource", "password"}
+PARAM_KEYS = {
+    "database",
+    "endpoint",
+    "host",
+    "port",
+    "targets",
+    "username",
+    "service",
+    "scheme",
+    "datasource",
+    "password",
+}
 OPTIONAL_KEYS = {"scheme"}  # may be absent in the lab
 CREDENTIAL_KEYS = {"password"}
 IDENTITY = [
@@ -111,9 +122,9 @@ IDENTITY = [
 STMT = re.compile(
     r'^set\(((?:resource\.|log\.)?attributes\["(?:' + "|".join(re.escape(k) for k in IDENTITY) + r')"\]), .*\)$'
 )
-ENV = re.compile(r"\$\{env:([A-Za-z0-9_]+)\}")
+ENV = re.compile(r"\$\{env:([A-Za-z0-9_]+)(?::-[^}]*)?\}")
 FILE = re.compile(r"\$\{file:[^}]*?/packs/")
-WHOLE_ENV = re.compile(r"^\$\{env:[A-Za-z0-9_]+\}$")
+WHOLE_ENV = re.compile(r"^\$\{env:[A-Za-z0-9_]+(?::-[^}]*)?\}$")
 DSN_PASSWORD_ENV = re.compile(r"://[^:/@]*:\$\{env:[A-Za-z0-9_]+\}@")
 
 # (lab file glob, kind, component glob, mode, reason). kind: receivers,
@@ -204,6 +215,13 @@ ALLOW = [
         "one-off overhead measurement: the Collector's own metrics are not shipped, only the level is set",
     ),
     (
+        "lab/overhead/otelcol.yaml",
+        "pipelines",
+        "metrics/primary",
+        "receivers-subset",
+        "one-off overhead measurement of the 15 s tier (2026-11-07, packs/postgresql/queries.yaml at that commit); the 5 m slow tier is not part of it",
+    ),
+    (
         "*",
         "receivers",
         "postgresql*",
@@ -251,6 +269,7 @@ UNMAPPED_OK = [
 
 SQL_QUERY = {
     ("postgresql", "queries.yaml"): ("postgresql", "sql_query/obenhub-postgresql"),
+    ("postgresql", "queries-slow.yaml"): ("postgresql", "sql_query/obenhub-postgresql-slow"),
     ("pgbouncer", "queries.yaml"): ("pgbouncer", "sql_query/obenhub-pgbouncer"),
     ("oracledb-dg", "queries.yaml"): ("oracledb-dg", "sql_query/obenhub-oracledb-dg"),
     ("oracledb-dg", "queries-primary.yaml"): (
@@ -704,6 +723,7 @@ def dummy(name):
         return "false"
     return {
         "OBENHUB_PG_DATABASES": "[postgres]",
+        "OBENHUB_PG_SLOW_DATABASE": "postgres",
         "OBENHUB_HOST_JOURNAL_UNITS": "[otelcol-contrib]",
         "OBENHUB_PATRONI_SCHEME": "https",
         # nothing listens here: the startup test must not need a backend

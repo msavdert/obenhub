@@ -1,7 +1,8 @@
 # PostgreSQL pack
 
 `queries.yaml` is the `sql_query` list every PostgreSQL target of the labs
-shares; `rules.yml` and `tests/` are its alerts (group `postgresql`, and
+shares (every 15 s), `queries-slow.yaml` the slow tier of queries whose cost
+grows with the number of relations (every 5 minutes, see "Slow tier"); `rules.yml` and `tests/` are its alerts (group `postgresql`, and
 `logical-replication` for subscriptions and logical slots, which fires only
 where those exist). The metric list is generated:
 [docs/reference/postgresql-pack-metrics.md](../../docs/reference/postgresql-pack-metrics.md).
@@ -10,7 +11,7 @@ Names follow [ADR 0006](../../docs/adr/0006-naming-contract.md).
 
 ## PostgreSQL version
 
-Every query in `queries.yaml` has a `# pg-min: <N>` line in its comment block,
+Every query in `queries.yaml` and `queries-slow.yaml` has a `# pg-min: <N>` line in its comment block,
 the lowest major it runs on. `mise run packs:sql-test` starts a throwaway
 container of each supported major (15 to 19, the majors not end of life on
 endoflife.date on 2026-11-23, plus 19, released 2026-11-19; images pinned in `tests/images.sh`), creates the
@@ -46,6 +47,16 @@ new major or minor is pinned; a new query takes its `pg-min` from the test.
 - Guard: without the extension in that database the two statement queries return no rows and no error, so there are no `postgresql.statement.*` series and no alert. The SQL text is passed to `query_to_xml()` behind a `pg_extension` check, because a plain query fails at parse time. `mise run packs:sql-test` runs both queries on every supported major before and after `CREATE EXTENSION` (containers start with the library preloaded) and checks no rows, then rows.
 - `postgresql.statement.execution_time`, `.call` and `.temp_block_written` are gauges, not counters: a statement evicted from the view leaves the sum. Do not `rate()` them (a fall reads as a counter reset); the dashboard uses `deriv()` clamped at 0. `postgresql.statement.deallocation` is the cumulative eviction count and `PostgresStatementsEvicted` fires when it rises: the totals then undercount.
 - `postgresql.client_session.count` has the attributes `postgresql.session.state`, `postgresql.wait_event.type` and `postgresql.wait_event.name`; a missing value is the string `none`.
+
+## Slow tier
+
+`queries-slow.yaml` is read by a second `sql_query` receiver, `sql_query/obenhub-postgresql-slow` in `otelcol.yaml`, with `collection_interval: 5m` and `max_open_conn: 1`, so a catalog-heavy query never runs at 15 s on a busy primary ([ADR 0009](../../docs/adr/0009-query-and-relation-cardinality.md) decision 5; roadmap F1). Its series are one per database: `postgresql.autovacuum.pending_table.count` (tables whose `n_dead_tup` is above `autovacuum_vacuum_threshold + autovacuum_vacuum_scale_factor * reltuples`, storage parameters of the table honoured, tables with autovacuum disabled left out), `postgresql.autovacuum.disabled_table.count`, `postgresql.autovacuum.enabled`, `postgresql.track_counts.enabled` and `postgresql.collection.slow_heartbeat`. Rules: `PostgresAutovacuumOff`, `PostgresAutovacuumBacklog`, `PostgresAutovacuumTableDisabled`, `PostgresSlowCollectionIntervalTooLong` and `PostgresSlowTierStalled` (group `postgresql-slow`).
+
+- One instance reads one database. `pg_stat_user_tables` and `pg_class` show only the connected database, so the `database` of the receiver is the one database read and the attribute `postgresql.database.name` is `current_database()`. The fragment reads `OBENHUB_PG_SLOW_DATABASE`. To read another database, copy the `sql_query/obenhub-postgresql-slow` block under a new name (for example `sql_query/obenhub-postgresql-slow-sales`), set its `database`, and add it to the `receivers` of the metrics pipeline; no other change is needed, the series differ by the database attribute and the rules group by it. A database without tables of interest (the labs leave out `postgres`) needs no instance.
+- The lab Collectors read database `app` only (slice1: primary, standby and subscriber; stage3, pgha and k8s: every node), the one with tables in every lab.
+- On a server in recovery every slow-tier query except the heartbeat returns no row: autovacuum does not run on a standby and its statistics are not those of the primary, so there is no backlog series there, and the series appear after a promotion.
+- The threshold is the one the autovacuum launcher applies (PostgreSQL docs, "Routine Vacuuming"), evaluated from the statistics views. "Tables without recent writes" are not left out: autovacuum does not look at write recency, and no statistics view holds a last-write time. The insert-triggered threshold (13 and later) is not read.
+- The cost grows with the number of tables of the database (one `pg_options_to_table` call per table); at 5 minutes that is 12 scans an hour. Not measured on a database with many tables.
 
 ## Series per table
 
@@ -91,6 +102,8 @@ error; `PostgresCollectionIntervalTooLong` fires when the samples of
 `postgresql.collection.heartbeat` are on average more than 20 s apart. To
 collect slower, widen every window to at least twice the new interval first.
 
+The slow tier is collected every 5 minutes (`sql_query/obenhub-postgresql-slow`, `collection_interval: 5m`) and its rules, in group `postgresql-slow`, are sized for that: `[10m]` for the latest value (two collections), `[15m]` for presence (three), `[30m]` for the interval check (six), and a `for` that is a multiple of 5 minutes, so detection takes up to one interval plus the hold (`PostgresAutovacuumOff` 5 m, `PostgresAutovacuumBacklog` and `PostgresAutovacuumTableDisabled` 15 m). Every rule over a slow-tier series uses `last_over_time` over such a window and does not read the series directly or rely on staleness: how long VictoriaMetrics keeps a 5 minute series as the latest value is not confirmed here. `PostgresSlowCollectionIntervalTooLong` fires when the samples of `postgresql.collection.slow_heartbeat` are on average more than 450 s apart over 30 minutes, and `PostgresSlowTierStalled` when a database that reported it in the last hour has sent none for 15 minutes. `PostgresSeriesVanished` does not watch these series: its 2 minute window is shorter than their interval (`scripts/check-series-vanished.py` fails when one is added to it). To collect the slow tier slower, widen every window of that group to at least twice the new interval first.
+
 ## Thresholds
 
 Every policy threshold is a production default in the rule that a lab can override with a recorded series; the series, defaults and units are in the generated table [postgresql-pack-alerts.md#thresholds](../../docs/reference/postgresql-pack-alerts.md#thresholds).
@@ -111,6 +124,7 @@ Variables:
 | `OBENHUB_PG_LOG_GLOB` | glob of the jsonlog files | `/var/log/postgresql/postgresql-*.json` |
 | `OBENHUB_PG_PASSWORD` | its password; from a secret store, never a file in a repository |  |
 | `OBENHUB_PG_PORT` | PostgreSQL port; also server.port | `5432` |
+| `OBENHUB_PG_SLOW_DATABASE` | the one database the slow tier reads ("Slow tier" below) | `app` |
 | `OBENHUB_PG_SSLMODE` | sslmode of sql_query | `verify-full` |
 | `OBENHUB_PG_TLS_INSECURE` | true turns TLS off for the postgresql receiver; keep it consistent with the sslmode | `false` |
 | `OBENHUB_PG_USER` | monitoring role (packs/postgresql/monitoring-role.sql) | `otel_monitor` |

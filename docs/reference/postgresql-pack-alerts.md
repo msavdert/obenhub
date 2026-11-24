@@ -450,3 +450,59 @@ A logical slot on the publisher has been inactive for over the limit (900 s unle
   (obenhub.postgresql.logical_slot_unconfirmed_wal.limit or on() vector(4294967296))
 )
 ```
+
+## PostgresAutovacuumOff
+
+The autovacuum or track_counts setting is off (the setting label says which), as read at the last collection (every 5 minutes). Dead tuples are not cleaned up except to prevent transaction ID wraparound. Set it back on (ALTER SYSTEM RESET, pg_reload_conf()).
+
+**warning**, for 5m
+
+```text
+label_replace(last_over_time(postgresql.autovacuum.enabled[10m]) == 0, "setting", "autovacuum", "", "")
+  or
+label_replace(last_over_time(postgresql.track_counts.enabled[10m]) == 0, "setting", "track_counts", "", "")
+```
+
+## PostgresAutovacuumBacklog
+
+Tables of the database have held more dead tuples than their autovacuum vacuum threshold (autovacuum_vacuum_threshold plus autovacuum_vacuum_scale_factor times reltuples, storage parameters honoured) at three collections in a row (every 5 minutes). Autovacuum is not keeping up, is held back by an old snapshot or is off for them. Check pg_stat_user_tables, pg_stat_progress_vacuum and the oldest snapshot.
+
+**warning**, for 15m
+
+```text
+last_over_time(postgresql.autovacuum.pending_table.count[10m]) > 0
+```
+
+## PostgresAutovacuumTableDisabled
+
+Tables of the database have the storage parameter autovacuum_enabled set to false, so autovacuum cleans them only to prevent transaction ID wraparound. Find them with pg_class.reloptions and re-enable it (ALTER TABLE ... RESET (autovacuum_enabled)) unless it is deliberate.
+
+**warning**, for 15m
+
+```text
+last_over_time(postgresql.autovacuum.disabled_table.count[10m]) > 0
+```
+
+## PostgresSlowCollectionIntervalTooLong
+
+The slow-tier queries (autovacuum backlog) are collected less often than every 5 minutes (average spacing above 450 s over 30 minutes), while the rules size their windows for 5 minutes, so they go quiet or flap. Set the collection interval of the slow-tier receiver back to 5m.
+
+**warning**, for 10m
+
+```text
+max by (obenhub.cluster.name, service.instance.id, postgresql.database.name) (scrape_interval(postgresql.collection.slow_heartbeat[30m])) > 450
+```
+
+## PostgresSlowTierStalled
+
+The slow-tier receiver has sent no heartbeat for a database for 15 minutes while the instance's 15 s heartbeat is present. Check that the database exists, that the monitoring role can connect to it and the slow-tier receiver's log in the Collector.
+
+**warning**, for 5m
+
+```text
+last_over_time(postgresql.collection.slow_heartbeat[1h])
+  unless on(obenhub.cluster.name, service.instance.id, postgresql.database.name)
+present_over_time(postgresql.collection.slow_heartbeat[15m])
+  and on(obenhub.cluster.name, service.instance.id)
+present_over_time(postgresql.collection.heartbeat[2m])
+```

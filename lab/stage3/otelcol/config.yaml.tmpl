@@ -99,6 +99,23 @@ receivers:
     timeout: 10s
     queries: ${file:/etc/otelcol/packs/postgresql/queries.yaml}
 
+  # Slow tier (queries-slow.yaml, every 5 minutes): database app, the only one
+  # with tables (pg_stat_user_tables shows the connected database only). A node
+  # in recovery answers the heartbeat only.
+  sql_query/@NODE@-slow:
+    driver: postgres
+    host: @NODE@
+    port: 5432
+    database: app
+    username: otel_monitor
+    password: ${env:OTEL_MONITOR_PASSWORD}
+    additional_params:
+      sslmode: disable
+    max_open_conn: 1
+    collection_interval: 5m
+    timeout: 60s
+    queries: ${file:/etc/otelcol/packs/postgresql/queries-slow.yaml}
+
 #@end
 processors:
   memory_limiter:
@@ -168,7 +185,7 @@ service:
   pipelines:
 #@for NODE in pg-1 pg-2 pg-3
     metrics/@NODE@:
-      receivers: [postgresql/@NODE@, sql_query/@NODE@]
+      receivers: [postgresql/@NODE@, sql_query/@NODE@, sql_query/@NODE@-slow]
       processors: [memory_limiter, resource/@NODE@, batch]
       exporters: [otlp_http/vm]
     metrics/@NODE@-patroni:

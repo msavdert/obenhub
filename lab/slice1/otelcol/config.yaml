@@ -100,7 +100,9 @@ receivers:
 
   # The query list is the shared PostgreSQL pack, packs/postgresql/
   # queries.yaml, mounted at /etc/otelcol/packs/postgresql; all three servers
-  # use it.
+  # use it. The slow tier (queries-slow.yaml, every 5 minutes) reads database
+  # app, the only one with tables, once per server (pg_stat_user_tables shows
+  # the connected database only); a standby answers the heartbeat only.
   sql_query/primary:
     driver: postgres
     host: pg-primary
@@ -114,6 +116,19 @@ receivers:
     collection_interval: 15s
     timeout: 10s
     queries: ${file:/etc/otelcol/packs/postgresql/queries.yaml}
+  sql_query/primary-slow:
+    driver: postgres
+    host: pg-primary
+    port: 5432
+    database: app
+    username: otel_monitor
+    password: ${env:OTEL_MONITOR_PASSWORD}
+    additional_params:
+      sslmode: disable
+    max_open_conn: 1
+    collection_interval: 5m
+    timeout: 60s
+    queries: ${file:/etc/otelcol/packs/postgresql/queries-slow.yaml}
   sql_query/standby:
     driver: postgres
     host: pg-standby
@@ -127,6 +142,19 @@ receivers:
     collection_interval: 15s
     timeout: 10s
     queries: ${file:/etc/otelcol/packs/postgresql/queries.yaml}
+  sql_query/standby-slow:
+    driver: postgres
+    host: pg-standby
+    port: 5432
+    database: app
+    username: otel_monitor
+    password: ${env:OTEL_MONITOR_PASSWORD}
+    additional_params:
+      sslmode: disable
+    max_open_conn: 1
+    collection_interval: 5m
+    timeout: 60s
+    queries: ${file:/etc/otelcol/packs/postgresql/queries-slow.yaml}
   sql_query/subscriber:
     driver: postgres
     host: pg-subscriber
@@ -140,6 +168,19 @@ receivers:
     collection_interval: 15s
     timeout: 10s
     queries: ${file:/etc/otelcol/packs/postgresql/queries.yaml}
+  sql_query/subscriber-slow:
+    driver: postgres
+    host: pg-subscriber
+    port: 5432
+    database: app
+    username: otel_monitor
+    password: ${env:OTEL_MONITOR_PASSWORD}
+    additional_params:
+      sslmode: disable
+    max_open_conn: 1
+    collection_interval: 5m
+    timeout: 60s
+    queries: ${file:/etc/otelcol/packs/postgresql/queries-slow.yaml}
 
   # PgBouncer has no metrics endpoint (pgbouncer#1354): the receiver queries
   # the admin console, database `pgbouncer`, as the stats user otel_monitor.
@@ -302,15 +343,15 @@ service:
                 endpoint: http://victoriametrics:8428/opentelemetry/v1/metrics
   pipelines:
     metrics/primary:
-      receivers: [postgresql/primary, sql_query/primary]
+      receivers: [postgresql/primary, sql_query/primary, sql_query/primary-slow]
       processors: [memory_limiter, resource/primary, batch]
       exporters: [otlp_http/vm]
     metrics/standby:
-      receivers: [postgresql/standby, sql_query/standby]
+      receivers: [postgresql/standby, sql_query/standby, sql_query/standby-slow]
       processors: [memory_limiter, resource/standby, batch]
       exporters: [otlp_http/vm]
     metrics/subscriber:
-      receivers: [postgresql/subscriber, sql_query/subscriber]
+      receivers: [postgresql/subscriber, sql_query/subscriber, sql_query/subscriber-slow]
       processors: [memory_limiter, resource/subscriber, batch]
       exporters: [otlp_http/vm]
     metrics/pgbouncer:

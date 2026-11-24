@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
 """Shared helpers of test-pack-sql.py and pack-catalog-diff.py.
 
-Reads packs/postgresql/queries.yaml (the entries and their `# pg-min: <N>`
+Reads packs/postgresql/queries.yaml and queries-slow.yaml (the entries and their `# pg-min: <N>`
 comment) and packs/postgresql/tests/images.sh with the standard library, and
 runs one throwaway PostgreSQL container per major. Passwords travel in the
 environment (`docker exec -e NAME`, no value on the command line), never argv.
@@ -20,6 +20,8 @@ import packmetrics
 
 REPO = Path(__file__).resolve().parent.parent
 QUERIES = REPO / "packs/postgresql/queries.yaml"
+QUERIES_SLOW = REPO / "packs/postgresql/queries-slow.yaml"  # the 5 m tier (ADR 0009, decision 5)
+QUERY_FILES = (QUERIES, QUERIES_SLOW)
 IMAGES = REPO / "packs/postgresql/tests/images.sh"
 ROLE_SQL = REPO / "packs/postgresql/monitoring-role.sql"
 LABEL = "obenhub.packsql"
@@ -34,7 +36,18 @@ def read_images():
     return images
 
 
-def read_queries(path=QUERIES, tag="pg-min"):
+def read_queries(path=None, tag="pg-min"):
+    """read_queries_file() of the PostgreSQL pack's query files (both tiers, numbered on) or of one path."""
+    if path is not None:
+        return read_queries_file(path, tag)
+    entries = []
+    for f in QUERY_FILES:
+        for e in read_queries_file(f, tag):
+            entries.append({**e, "n": len(entries) + 1, "file": f.name})
+    return entries
+
+
+def read_queries_file(path, tag="pg-min"):
     """Return a list of {n, sql, pg_min, min, metric, columns} for each `- sql:` entry.
 
     min is the value of the `# <tag>: V` line (V a major for pg-min, digits and dots otherwise; any other value raises ValueError) in the comment

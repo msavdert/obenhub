@@ -50,6 +50,23 @@ receivers:
           collection_interval: 15s
           timeout: 10s
           queries: ${file:/etc/otelcol-contrib/packs/postgresql/queries.yaml}
+      # Slow tier (packs/postgresql/queries-slow.yaml): one database per instance
+      sql_query/slow:
+        rule: type == "pod" && labels["cnpg.io/cluster"] == "${env:OBENHUB_CNPG_CLUSTER}" && labels["cnpg.io/podRole"] == "instance"
+        config:
+          driver: postgres
+          host: '`endpoint`'
+          port: 5432
+          database: ${env:OBENHUB_PG_SLOW_DATABASE:-postgres}
+          username: ${env:OBENHUB_PG_USER}
+          password: ${env:OBENHUB_PG_PASSWORD}
+          additional_params:
+            sslmode: verify-ca
+            sslrootcert: ${env:OBENHUB_PG_CA_FILE}
+          max_open_conn: 1
+          collection_interval: 5m
+          timeout: 60s
+          queries: ${file:/etc/otelcol-contrib/packs/postgresql/queries-slow.yaml}
   # The instance manager's exporter (container port `metrics`, 9187, plain HTTP)
   # for operator state only: cnpg_collector_* and cnpg_last_error. The three
   # series the exporter's HELP marks Deprecated (backup timestamps) and the Go
