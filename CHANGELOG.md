@@ -1,5 +1,27 @@
 # Changelog
 
+## [0.19.0](https://github.com/msavdert/obenhub/compare/v0.18.0...v0.19.0) (2026-11-24)
+
+
+### ⚠ BREAKING CHANGES
+
+* **slice1:** run the slice1 lab on postgresql 19 ([#166](https://github.com/msavdert/obenhub/issues/166))
+
+### Features
+
+* **oracle:** check the oracledb receiver against CDB26 ([#165](https://github.com/msavdert/obenhub/issues/165)) ([0ab2dee](https://github.com/msavdert/obenhub/commit/0ab2dee92ae536640ae74b111d68d6e494fa8561))
+* **packs:** read the subscription counters on postgresql 15 to 19 ([#164](https://github.com/msavdert/obenhub/issues/164)) ([3be64fe](https://github.com/msavdert/obenhub/commit/3be64fe0b6969449945fa043168aa35191ca8ff2))
+* **packs:** run the oracle pack SQL on 19c release updates and 26ai ([#163](https://github.com/msavdert/obenhub/issues/163)) ([98ad710](https://github.com/msavdert/obenhub/commit/98ad71076c8d7def38af918721c22fc801c70911))
+* **packs:** run the postgresql pack SQL on every supported major ([#160](https://github.com/msavdert/obenhub/issues/160)) ([2d1ed72](https://github.com/msavdert/obenhub/commit/2d1ed723c598a17bec09fbaeab604ce176b14a6d))
+* **slice1:** run the slice1 lab on postgresql 19 ([#166](https://github.com/msavdert/obenhub/issues/166)) ([562a6a1](https://github.com/msavdert/obenhub/commit/562a6a1bbd02f447d9d6db187ec1b018117995a3))
+
+
+### Documentation
+
+* **lab:** evidence for slice1, stage3, k8s and pgha after [#160](https://github.com/msavdert/obenhub/issues/160) ([#161](https://github.com/msavdert/obenhub/issues/161)) ([8751110](https://github.com/msavdert/obenhub/commit/8751110bc7bd9607454b70c25eef80a61415d563))
+* **roadmap:** C2 done after the pgha rebuild ([#158](https://github.com/msavdert/obenhub/issues/158)) ([8907785](https://github.com/msavdert/obenhub/commit/890778509a1792d86ed7de9210fcfd4a92e048fd))
+* **roadmap:** tick E2, E3 and E4 with the suites of 2026-11-24 ([#167](https://github.com/msavdert/obenhub/issues/167)) ([dce28ca](https://github.com/msavdert/obenhub/commit/dce28caed3cdada631810aa31393cc18247d9f1f))
+
 ## [0.18.0](https://github.com/msavdert/obenhub/compare/v0.17.0...v0.18.0) (2026-11-23)
 
 
