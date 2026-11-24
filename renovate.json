@@ -18,7 +18,8 @@
   "prConcurrentLimit": 5,
   "commitBodyTable": true,
   "ignoreDeps": [
-    "obenhub-stage3-node"
+    "obenhub-stage3-node",
+    "obenhub-slice1-postgres"
   ],
   "mise": {
     "managerFilePatterns": [
