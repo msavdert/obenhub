@@ -34,11 +34,12 @@ def read_images():
     return images
 
 
-def read_queries(path=QUERIES):
-    """Return a list of {n, sql, pg_min, metric, columns} for each `- sql:` entry.
+def read_queries(path=QUERIES, tag="pg-min"):
+    """Return a list of {n, sql, pg_min, min, metric, columns} for each `- sql:` entry.
 
-    pg_min is the integer of the `# pg-min: N` line in the comment block
-    directly above the entry, or None. The SQL is the inline value or the
+    min is the value of the `# <tag>: V` line (V a major for pg-min, digits and dots otherwise; any other value raises ValueError) in the comment
+    block directly above the entry, as a string, or None; pg_min is its integer
+    for the default tag `pg-min` (the Oracle half passes `ora-min`). The SQL is the inline value or the
     `|` block (4-space indent) up to the `  metrics:` line. metric is the
     first metric_name, for the matrix; columns are the value_column and
     attribute_columns names of the entry's metrics. Raises ValueError when a
@@ -54,12 +55,15 @@ def read_queries(path=QUERIES):
     entries = []
     for idx, i in enumerate(starts):
         end = starts[idx + 1] if idx + 1 < len(starts) else len(lines)
-        pg_min = None
+        found = None
         j = i - 1
         while j >= 0 and lines[j].startswith("#"):
-            m = re.match(r"#\s*pg-min:\s*(\d+)\s*$", lines[j])
-            if m:
-                pg_min = int(m.group(1))
+            if re.match(rf"#\s*{re.escape(tag)}:", lines[j]):
+                value = r"\d+" if tag == "pg-min" else r"\d+(?:\.\d+)*"
+                m = re.match(rf"#\s*{re.escape(tag)}:\s*({value})\s*$", lines[j])
+                if not m:
+                    raise ValueError(f"{path.name}:{j + 1}: cannot parse '{tag}' line: {lines[j][:60]}")
+                found = m.group(1)
             j -= 1
         rest = lines[i][len("- sql:") :].strip()
         k = i + 1
@@ -80,7 +84,8 @@ def read_queries(path=QUERIES):
             {
                 "n": len(entries) + 1,
                 "sql": sql,
-                "pg_min": pg_min,
+                "min": found,
+                "pg_min": int(found) if found and tag == "pg-min" else None,
                 "metric": metrics[0]["metric_name"] if metrics else "?",
                 "columns": columns,
             }
