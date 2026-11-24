@@ -218,6 +218,23 @@ receivers:
     timeout: 10s
     queries: ${file:/etc/otelcol/packs/postgresql/queries.yaml}
 
+  # Slow tier (queries-slow.yaml, every 5 minutes): database app, the only one
+  # with tables (pg_stat_user_tables shows the connected database only). A node
+  # in recovery answers the heartbeat only.
+  sql_query/pg-1-slow:
+    driver: postgres
+    host: pg-1
+    port: 5432
+    database: app
+    username: otel_monitor
+    password: ${env:OTEL_MONITOR_PASSWORD}
+    additional_params:
+      sslmode: disable
+    max_open_conn: 1
+    collection_interval: 5m
+    timeout: 60s
+    queries: ${file:/etc/otelcol/packs/postgresql/queries-slow.yaml}
+
   sql_query/pg-2:
     driver: postgres
     host: pg-2
@@ -232,6 +249,23 @@ receivers:
     timeout: 10s
     queries: ${file:/etc/otelcol/packs/postgresql/queries.yaml}
 
+  # Slow tier (queries-slow.yaml, every 5 minutes): database app, the only one
+  # with tables (pg_stat_user_tables shows the connected database only). A node
+  # in recovery answers the heartbeat only.
+  sql_query/pg-2-slow:
+    driver: postgres
+    host: pg-2
+    port: 5432
+    database: app
+    username: otel_monitor
+    password: ${env:OTEL_MONITOR_PASSWORD}
+    additional_params:
+      sslmode: disable
+    max_open_conn: 1
+    collection_interval: 5m
+    timeout: 60s
+    queries: ${file:/etc/otelcol/packs/postgresql/queries-slow.yaml}
+
   sql_query/pg-3:
     driver: postgres
     host: pg-3
@@ -245,6 +279,23 @@ receivers:
     collection_interval: 15s
     timeout: 10s
     queries: ${file:/etc/otelcol/packs/postgresql/queries.yaml}
+
+  # Slow tier (queries-slow.yaml, every 5 minutes): database app, the only one
+  # with tables (pg_stat_user_tables shows the connected database only). A node
+  # in recovery answers the heartbeat only.
+  sql_query/pg-3-slow:
+    driver: postgres
+    host: pg-3
+    port: 5432
+    database: app
+    username: otel_monitor
+    password: ${env:OTEL_MONITOR_PASSWORD}
+    additional_params:
+      sslmode: disable
+    max_open_conn: 1
+    collection_interval: 5m
+    timeout: 60s
+    queries: ${file:/etc/otelcol/packs/postgresql/queries-slow.yaml}
 
 processors:
   memory_limiter:
@@ -361,7 +412,7 @@ service:
                 endpoint: http://victoriametrics:8428/opentelemetry/v1/metrics
   pipelines:
     metrics/pg-1:
-      receivers: [postgresql/pg-1, sql_query/pg-1]
+      receivers: [postgresql/pg-1, sql_query/pg-1, sql_query/pg-1-slow]
       processors: [memory_limiter, resource/pg-1, batch]
       exporters: [otlp_http/vm]
     metrics/pg-1-patroni:
@@ -373,7 +424,7 @@ service:
       processors: [memory_limiter, resource/pg-1, batch]
       exporters: [otlp_http/vl]
     metrics/pg-2:
-      receivers: [postgresql/pg-2, sql_query/pg-2]
+      receivers: [postgresql/pg-2, sql_query/pg-2, sql_query/pg-2-slow]
       processors: [memory_limiter, resource/pg-2, batch]
       exporters: [otlp_http/vm]
     metrics/pg-2-patroni:
@@ -385,7 +436,7 @@ service:
       processors: [memory_limiter, resource/pg-2, batch]
       exporters: [otlp_http/vl]
     metrics/pg-3:
-      receivers: [postgresql/pg-3, sql_query/pg-3]
+      receivers: [postgresql/pg-3, sql_query/pg-3, sql_query/pg-3-slow]
       processors: [memory_limiter, resource/pg-3, batch]
       exporters: [otlp_http/vm]
     metrics/pg-3-patroni:

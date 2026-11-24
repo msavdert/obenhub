@@ -27,5 +27,6 @@ Variables:
 | `OBENHUB_PG_CA_FILE` | CA file that verifies the server certificate | `/etc/otelcol-contrib/tls/ca.crt` |
 | `OBENHUB_PG_DATABASES` | databases the receiver connects to, a YAML list | `[postgres, app]` |
 | `OBENHUB_PG_PASSWORD` | its password; from a secret store, never a file in a repository |  |
+| `OBENHUB_PG_SLOW_DATABASE` | the one database the slow tier of the PostgreSQL pack reads | `app` |
 | `OBENHUB_PG_USER` | monitoring role (packs/postgresql/monitoring-role.sql) | `otel_monitor` |
 | `OBENHUB_SERVICE_NAMESPACE` | service.namespace of every series | `obenhub-lab` |

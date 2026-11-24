@@ -241,7 +241,7 @@ description = "fail when a page under docs/ is missing from the nav in zensical.
 run = "python3 scripts/check-docs-nav.py"
 
 [tasks."packs:sql-test"]
-description = "run every packs/postgresql/queries.yaml query on a throwaway container of each supported major and compare with its '# pg-min' comment; needs docker (pulls one image per major on first use)"
+description = "run every packs/postgresql/queries.yaml and queries-slow.yaml query on a throwaway container of each supported major and compare with its '# pg-min' comment; needs docker (pulls one image per major on first use)"
 run = "python3 scripts/test-pack-sql.py"
 
 [tasks."packs:catalog-diff"]

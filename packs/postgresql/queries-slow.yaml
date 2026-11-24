@@ -1,0 +1,107 @@
+# PostgreSQL pack, slow tier: the sql_query list of queries whose cost grows
+# with the number of relations (ADR 0009, decision 5). It is read by its own
+# receiver every 5 minutes (collection_interval 5m, max_open_conn 1), never at
+# 15 s, so a database with many tables is not scanned 240 times an hour. The
+# rules over these series use windows of at least two intervals (README,
+# "Collection interval"). Names follow the naming contract (ADR 0006).
+# One receiver instance reads ONE database: pg_stat_user_tables and pg_class
+# show only the connected database, so the database name is current_database()
+# and every database that holds tables worth watching needs an instance of
+# its own (README, "Slow tier"). Every row is one per database, never one per
+# table (ADR 0009, decision 1). On a standby the queries other than the
+# heartbeat return no rows (the aggregate one through HAVING, since an
+# aggregate without GROUP BY returns a row even when WHERE removes all):
+# autovacuum does not run there and its statistics are not those of the
+# primary; after a promotion they start by themselves.
+# pg-min: 15
+- sql: SELECT 1 AS slow_heartbeat, current_database() AS "postgresql.database.name"
+  metrics:
+    - {metric_name: postgresql.collection.slow_heartbeat, value_column: slow_heartbeat, attribute_columns: ["postgresql.database.name"], value_type: int, data_type: gauge, unit: "1", description: "1 whenever the slow-tier heartbeat query succeeded, per database read by a slow-tier receiver (every 5 minutes)"}
+# Tables past their effective autovacuum vacuum threshold, and tables with
+# autovacuum switched off, in the connected database.
+# Sources read: PostgreSQL 18 docs, "Routine Vacuuming" (routine-vacuuming,
+# "The Autovacuum Daemon": a table is vacuumed when the dead tuples since the
+# last vacuum exceed vacuum threshold = autovacuum_vacuum_threshold +
+# autovacuum_vacuum_scale_factor * number of tuples), "Automatic Vacuuming"
+# (runtime-config-autovacuum) and "Storage Parameters" (sql-createtable,
+# autovacuum_enabled, autovacuum_vacuum_threshold,
+# autovacuum_vacuum_scale_factor, autovacuum_vacuum_max_threshold from 18).
+# The condition is the one the autovacuum launcher applies, evaluated from the
+# statistics: n_dead_tup of pg_stat_user_tables > threshold + scale factor *
+# reltuples of pg_class. Per-table storage parameters (reloptions, read with
+# pg_options_to_table) override the global setting when set; an unset one
+# means the global one. reltuples is -1 for a table never vacuumed
+# or analyzed (PostgreSQL 14 and later) and is read as 0 then. From PostgreSQL
+# 18 the threshold is capped at autovacuum_vacuum_max_threshold (the setting
+# is read with missing_ok, NULL below 18, and -1 or absent means no cap); a
+# per-table autovacuum_vacuum_max_threshold of -1 also means no cap for that
+# table, even under a global cap (checked against autovacuum on 18.7 in the
+# audit of this query). TOAST tables and their toast.* storage parameters are
+# left out: the count is of the user tables of pg_stat_user_tables.
+# n_dead_tup is an estimate maintained by the statistics system, and a table that
+# autovacuum has just processed can still hold dead tuples a long snapshot
+# keeps (postgresql.snapshot.oldest_age); that is the backlog worth seeing.
+# Tables with autovacuum_enabled false are not counted as past threshold (they
+# are in the disabled count); autovacuum still vacuums them to prevent
+# transaction ID wraparound, which postgresql.database.xid_age watches.
+# Left out on purpose: "tables without recent writes". Autovacuum itself does
+# not look at write recency: a table past its threshold is vacuumed whether or
+# not it is written now, and the statistics views hold no last-write time
+# (pg_stat_user_tables has cumulative counters and last_vacuum timestamps
+# only), so no definition would come from them; the rule's sustained window
+# covers a table that crossed the threshold a moment ago. Also left out: the
+# insert-triggered threshold (autovacuum_vacuum_insert_threshold, 13 and
+# later), which serves freezing and the visibility map, not dead tuples.
+# pg_stat_user_tables lists user relations of the connected database only
+# (system catalogs are not in it).
+# pg-min: 15
+- sql: |
+    WITH g AS (
+      SELECT
+        current_setting('autovacuum_vacuum_threshold')::float8 AS vthr,
+        current_setting('autovacuum_vacuum_scale_factor')::float8 AS sf,
+        coalesce(nullif(current_setting('autovacuum_vacuum_max_threshold', true), ''), '-1')::float8 AS mx
+    ), t AS (
+      SELECT
+        s.n_dead_tup::float8 AS dead,
+        greatest(c.reltuples, 0)::float8 AS tuples,
+        o.enabled,
+        CASE WHEN o.vthr >= 0 THEN o.vthr ELSE g.vthr END AS vthr,
+        CASE WHEN o.sf >= 0 THEN o.sf ELSE g.sf END AS sf,
+        coalesce(o.mx, g.mx) AS mx
+      FROM pg_stat_user_tables s
+      JOIN pg_class c ON c.oid = s.relid
+      CROSS JOIN g
+      CROSS JOIN LATERAL (
+        SELECT
+          coalesce((max(option_value) FILTER (WHERE option_name = 'autovacuum_enabled'))::boolean, true) AS enabled,
+          (max(option_value) FILTER (WHERE option_name = 'autovacuum_vacuum_threshold'))::float8 AS vthr,
+          (max(option_value) FILTER (WHERE option_name = 'autovacuum_vacuum_scale_factor'))::float8 AS sf,
+          (max(option_value) FILTER (WHERE option_name = 'autovacuum_vacuum_max_threshold'))::float8 AS mx
+        FROM pg_options_to_table(c.reloptions)
+      ) o
+    )
+    SELECT
+      current_database() AS "postgresql.database.name",
+      count(*) FILTER (WHERE enabled
+        AND dead > CASE WHEN mx >= 0 THEN least(vthr + sf * tuples, mx) ELSE vthr + sf * tuples END)::int AS autovacuum_pending_tables,
+      count(*) FILTER (WHERE NOT enabled)::int AS autovacuum_disabled_tables
+    FROM t
+    HAVING NOT pg_is_in_recovery()
+  metrics:
+    - {metric_name: postgresql.autovacuum.pending_table.count, value_column: autovacuum_pending_tables, attribute_columns: ["postgresql.database.name"], value_type: int, data_type: gauge, unit: '{table}', description: "Tables of the database whose dead tuples exceed their effective autovacuum vacuum threshold (storage parameters honoured, tables with autovacuum disabled left out); one value per database"}
+    - {metric_name: postgresql.autovacuum.disabled_table.count, value_column: autovacuum_disabled_tables, attribute_columns: ["postgresql.database.name"], value_type: int, data_type: gauge, unit: '{table}', description: "Tables of the database with the storage parameter autovacuum_enabled false; one value per database"}
+# The two global settings the dead-tuple signal depends on (PostgreSQL 18
+# docs, runtime-config-autovacuum: autovacuum; runtime-config-statistics:
+# track_counts, which autovacuum needs to know what to vacuum). 1 when on,
+# per database read, so the slow-tier rules join them to the same series.
+# pg-min: 15
+- sql: |
+    SELECT
+      current_database() AS "postgresql.database.name",
+      (current_setting('autovacuum') = 'on')::int AS autovacuum_enabled,
+      (current_setting('track_counts') = 'on')::int AS track_counts_enabled
+    WHERE NOT pg_is_in_recovery()
+  metrics:
+    - {metric_name: postgresql.autovacuum.enabled, value_column: autovacuum_enabled, attribute_columns: ["postgresql.database.name"], value_type: int, data_type: gauge, unit: "1", description: "1 when the autovacuum setting is on (not reported on a standby)"}
+    - {metric_name: postgresql.track_counts.enabled, value_column: track_counts_enabled, attribute_columns: ["postgresql.database.name"], value_type: int, data_type: gauge, unit: "1", description: "1 when the track_counts setting is on, which autovacuum needs (not reported on a standby)"}

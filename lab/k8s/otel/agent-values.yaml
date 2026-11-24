@@ -152,6 +152,23 @@ config:
             collection_interval: 15s
             timeout: 10s
             queries: ${file:/etc/obenhub/packs/postgresql/queries.yaml}
+        # Slow tier (packs/postgresql/queries-slow.yaml): one database per instance
+        sql_query/slow:
+          rule: type == "pod" && labels["cnpg.io/cluster"] == "pg" && labels["cnpg.io/podRole"] == "instance"
+          config:
+            driver: postgres
+            host: '`endpoint`'
+            port: 5432
+            database: app
+            username: otel_monitor
+            password: ${env:OTEL_MONITOR_PASSWORD}
+            additional_params:
+              sslmode: verify-ca
+              sslrootcert: /etc/obenhub/pg-ca/ca.crt
+            max_open_conn: 1
+            collection_interval: 5m
+            timeout: 60s
+            queries: ${file:/etc/obenhub/packs/postgresql/queries-slow.yaml}
     # CloudNativePG's instance manager exporter (container port `metrics`,
     # 9187, plain HTTP) on every instance pod of this node, for operator
     # state only: cnpg_collector_* and cnpg_last_error. The three series the

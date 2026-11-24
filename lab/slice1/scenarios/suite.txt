@@ -25,4 +25,6 @@ backup-checksum-error
 pitr-restore
 basebackup-compare
 statements-evicted
+autovacuum-backlog
+autovacuum-off
 control

@@ -52,6 +52,24 @@ receivers:
     timeout: 10s
     queries: ${file:/etc/otelcol-contrib/packs/postgresql/queries.yaml}
 
+  # Slow tier (packs/postgresql/queries-slow.yaml, every 5 minutes): database
+  # app, the only one with tables (pg_stat_user_tables shows the connected
+  # database only). A node in recovery answers the heartbeat only.
+  sql_query/slow:
+    driver: postgres
+    host: @IP@
+    port: 5432
+    database: app
+    username: otel_monitor
+    password: ${env:OTEL_MONITOR_PASSWORD}
+    additional_params:
+      sslmode: verify-full
+      sslrootcert: /etc/otelcol-contrib/tls/ca.crt
+    max_open_conn: 1
+    collection_interval: 5m
+    timeout: 60s
+    queries: ${file:/etc/otelcol-contrib/packs/postgresql/queries-slow.yaml}
+
   # Patroni REST API /metrics over https, verified with the lab CA. Contrib has
   # no Patroni receiver, so this is the generic prometheusreceiver.
   prometheus/patroni:
@@ -223,7 +241,7 @@ service:
                 client_key: /etc/otelcol-contrib/tls/otelcol.key
   pipelines:
     metrics/postgresql:
-      receivers: [postgresql, sql_query]
+      receivers: [postgresql, sql_query, sql_query/slow]
       processors: [memory_limiter, resource/postgresql, batch]
       exporters: [otlp_http/gateway]
     metrics/patroni:

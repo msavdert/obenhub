@@ -176,6 +176,7 @@ services:
     volumes:
       - ./otelcol/config.yaml:/etc/otelcol/config.yaml:ro
       - ../../packs/postgresql/queries.yaml:/etc/otelcol/packs/postgresql/queries.yaml:ro
+      - ../../packs/postgresql/queries-slow.yaml:/etc/otelcol/packs/postgresql/queries-slow.yaml:ro
       - otelcol-data:/var/lib/otelcol
       - pg-1-log:/var/log/pg-1:ro
       - pg-2-log:/var/log/pg-2:ro

@@ -102,6 +102,12 @@ fires, zero monitoring-role errors in the server log). Notable details:
   `postgres` (created by `postgres/10-init-primary.sh`). `lock-blocked` also
   checks that `postgresql.client_session.count` shows sessions with wait
   event type `Lock`.
+- `autovacuum-backlog` and `autovacuum-off` exercise the slow tier (every 5
+  minutes, database `app` only): a table past its autovacuum threshold with
+  `autovacuum_naptime` at one day, and `autovacuum` off with a table that has
+  `autovacuum_enabled` false. The rules hold 5 to 15 minutes on top of the
+  collection interval, so detection takes up to 20 minutes and each scenario
+  sets its own timeouts (derived, not yet measured).
 - `pgbouncer-pool-saturated` opens more transactions than the pool size.
 
 The Collector's overhead is measured in [lab/overhead](../overhead).

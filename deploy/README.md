@@ -116,8 +116,8 @@ export OTELCOL_IMAGE_REPOSITORY="${OTELCOL_IMAGE%%:*}" OTELCOL_IMAGE_DIGEST="${O
 r="${OTELCOL_IMAGE#*:}"; export OTELCOL_IMAGE_TAG="${r%%@*}"
 export OBENHUB_GATEWAY_ENDPOINT=https://gateway.example.net:4318 OBENHUB_SERVICE_NAMESPACE=obenhub \
   OBENHUB_CLUSTER_NAME=pg OBENHUB_PG_NAMESPACE=db OBENHUB_OTEL_NAMESPACE=obenhub-otel \
-  OBENHUB_PG_DATABASES='[postgres, app]'
-vars='$OBENHUB_GATEWAY_ENDPOINT $OBENHUB_SERVICE_NAMESPACE $OBENHUB_CLUSTER_NAME $OBENHUB_PG_NAMESPACE $OBENHUB_OTEL_NAMESPACE $OBENHUB_PG_DATABASES $OTELCOL_IMAGE_REPOSITORY $OTELCOL_IMAGE_TAG $OTELCOL_IMAGE_DIGEST'
+  OBENHUB_PG_DATABASES='[postgres, app]' OBENHUB_PG_SLOW_DATABASE=app
+vars='$OBENHUB_GATEWAY_ENDPOINT $OBENHUB_SERVICE_NAMESPACE $OBENHUB_CLUSTER_NAME $OBENHUB_PG_NAMESPACE $OBENHUB_OTEL_NAMESPACE $OBENHUB_PG_DATABASES $OBENHUB_PG_SLOW_DATABASE $OTELCOL_IMAGE_REPOSITORY $OTELCOL_IMAGE_TAG $OTELCOL_IMAGE_DIGEST'
 helm repo add otel "$OTEL_CHART_REPO"
 for n in agent cluster; do
   envsubst "$vars" < "deploy/helm/$n-values.yaml" |
@@ -127,11 +127,14 @@ done
 ```
 
 `OBENHUB_OTEL_NAMESPACE` is where the release goes; `OBENHUB_PG_DATABASES`
-is the list of databases to monitor. Create the namespace and, in it, before
+is the list of databases to monitor and `OBENHUB_PG_SLOW_DATABASE` the one
+database the slow tier (autovacuum backlog, every 5 minutes) reads; it is
+required here, since envsubst leaves an unset variable empty and the
+Collector then refuses the receiver. Create the namespace and, in it, before
 the install: the secret `obenhub-gateway-tls`
 (`ca.crt`, `tls.crt` = `client.crt`, `tls.key` = `client.key`), the secret
 `pg-otel-monitor` (key `password`), the ConfigMap `obenhub-pack-postgresql`
-(`packs/postgresql/queries.yaml`) and the ConfigMap `obenhub-pg-ca` (`ca.crt`
+(`packs/postgresql/queries.yaml` and `queries-slow.yaml`) and the ConfigMap `obenhub-pg-ca` (`ca.crt`
 of the PostgreSQL server certificates). Rendering was checked with `helm
 template` (chart version in `helm/versions.sh`); it needs the network, so it
 is not part of `mise run check`.

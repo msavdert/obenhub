@@ -207,6 +207,60 @@ Seen in the lab:
 
 - slice1: `statements-evicted` (suite `none yet`)
 
+## PostgresAutovacuumOff
+
+The `autovacuum` or `track_counts` setting is off (the `setting` label says which), as read by the slow tier every 5 minutes. Without either, dead tuples are cleaned up only to prevent transaction ID wraparound. Reference: [PostgresAutovacuumOff](../reference/postgresql-pack-alerts.md#postgresautovacuumoff).
+
+Look first: On the instance named in the alert.
+
+```sql
+SELECT name, setting, source, sourcefile FROM pg_settings WHERE name IN ('autovacuum', 'track_counts');
+```
+
+A `source` of `configuration file` with `postgresql.auto.conf` means `ALTER SYSTEM`; `ALTER SYSTEM RESET autovacuum` and `SELECT pg_reload_conf()` undo it. The series are `postgresql.autovacuum.enabled` and `postgresql.track_counts.enabled` of `packs/postgresql/queries-slow.yaml`.
+
+Seen in the lab:
+
+- slice1: `autovacuum-off` (suite `none yet`)
+
+## PostgresAutovacuumBacklog
+
+Tables of a database have had more dead tuples than their effective autovacuum vacuum threshold at three collections in a row (every 5 minutes). Reference: [PostgresAutovacuumBacklog](../reference/postgresql-pack-alerts.md#postgresautovacuumbacklog).
+
+Look first: In the database named in the alert, on the instance named in the alert.
+
+```sql
+SELECT s.relname, s.n_dead_tup, c.reltuples, c.reloptions, s.last_autovacuum, s.last_vacuum
+FROM pg_stat_user_tables s JOIN pg_class c ON c.oid = s.relid
+ORDER BY s.n_dead_tup DESC LIMIT 20;
+SELECT pid, relid::regclass, phase FROM pg_stat_progress_vacuum;
+```
+
+The first statement lists the tables the count is made of; the threshold of a table is `autovacuum_vacuum_threshold + autovacuum_vacuum_scale_factor * reltuples` (the storage parameter in `reloptions` when set, else the setting; from PostgreSQL 18 capped by `autovacuum_vacuum_max_threshold`), the condition in the second query of `packs/postgresql/queries-slow.yaml`. A table that is vacuumed but stays past the threshold is held by an old snapshot or a replication slot (`PostgresSnapshotHeldTooLong`, `PostgresXminHorizonHeld`); one that is never vacuumed means autovacuum is off (`PostgresAutovacuumOff`) or too slow for the write rate (`autovacuum_vacuum_cost_limit`, `autovacuum_max_workers`).
+
+Seen in the lab:
+
+- slice1: `autovacuum-backlog` (suite `none yet`)
+
+## PostgresAutovacuumTableDisabled
+
+Tables of a database have the storage parameter `autovacuum_enabled` set to false. Reference: [PostgresAutovacuumTableDisabled](../reference/postgresql-pack-alerts.md#postgresautovacuumtabledisabled).
+
+Look first: In the database named in the alert, on the instance named in the alert.
+
+```sql
+SELECT c.oid::regclass AS tbl, c.reloptions
+FROM pg_class c
+WHERE c.relkind IN ('r', 'm', 't') AND c.reloptions::text ~ 'autovacuum_enabled=(false|off|0)'
+ORDER BY 1;
+```
+
+The same condition as the disabled count of `packs/postgresql/queries-slow.yaml` (which reads the user tables of `pg_stat_user_tables`; this query also lists TOAST tables, whose parameters are set through `toast.autovacuum_enabled`). `ALTER TABLE ... RESET (autovacuum_enabled)` undoes it.
+
+Seen in the lab:
+
+- slice1: `autovacuum-off` (suite `none yet`)
+
 ## PostgresCheckpointsRequested
 
 More than 3 requested checkpoints in 5 minutes on a primary. Usually WAL reached `max_wal_size` before `checkpoint_timeout`, but `CHECKPOINT`, `CREATE DATABASE`, base backups, promotion and shutdown also request one (the scenario pauses pgBackRest backups for that reason). Reference: [PostgresCheckpointsRequested](../reference/postgresql-pack-alerts.md#postgrescheckpointsrequested).

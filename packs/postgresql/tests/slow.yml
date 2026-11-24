@@ -1,0 +1,218 @@
+# Tests for the slow tier rules (group postgresql-slow, queries-slow.yaml). The
+# series are collected every 5 minutes, so every test series has 5 minutes
+# between samples (one point of `interval: 5m`) and every rule must hold at that
+# spacing (README, "Collection interval"). The group is evaluated every minute.
+rule_files:
+  - ../rules.yml
+evaluation_interval: 1m
+
+tests:
+  - name: backlog fires after the 15 m hold at three collections; one positive sample and a clean database do not; resolves after the next 0
+    interval: 5m
+    input_series:
+      # first positive sample at 10m, positive until 40m, 0 from 45m
+      - series: 'postgresql.autovacuum.pending_table.count{obenhub.cluster.name="slice1",service.instance.id="pg-primary",postgresql.database.name="app"}'
+        values: '0 0 1 1 1 1 1 1 1 0x20'
+      # one positive sample at 5m only: the next sample is 0
+      - series: 'postgresql.autovacuum.pending_table.count{obenhub.cluster.name="slice1",service.instance.id="pg-subscriber",postgresql.database.name="app"}'
+        values: '0 1 0x30'
+      - series: 'postgresql.autovacuum.pending_table.count{obenhub.cluster.name="slice1",service.instance.id="pg-standby",postgresql.database.name="app"}'
+        values: '0x30'
+    alert_rule_test:
+      - eval_time: 20m   # pending since 10m, 10 m of the 15 m hold
+        groupname: postgresql-slow
+        alertname: PostgresAutovacuumBacklog
+        exp_alerts: []
+      - eval_time: 30m   # 15 m after the first positive sample; only pg-primary
+        groupname: postgresql-slow
+        alertname: PostgresAutovacuumBacklog
+        exp_alerts:
+          - exp_labels:
+              obenhub.cluster.name: slice1
+              postgresql.database.name: app
+              service.instance.id: pg-primary
+              severity: warning
+            exp_annotations:
+              summary: '1 table(s) in app on pg-primary are past their autovacuum threshold'
+              description: "Tables of the database have held more dead tuples than their autovacuum vacuum threshold (autovacuum_vacuum_threshold plus autovacuum_vacuum_scale_factor times reltuples, storage parameters honoured) at three collections in a row (every 5 minutes). Autovacuum is not keeping up, is held back by an old snapshot or is off for them. Check pg_stat_user_tables, pg_stat_progress_vacuum and the oldest snapshot."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgresautovacuumbacklog
+      - eval_time: 55m   # the sample at 45m is 0: last_over_time returns it and the alert is resolved
+        groupname: postgresql-slow
+        alertname: PostgresAutovacuumBacklog
+        exp_alerts: []
+
+  - name: a backlog series that stops (Collector stopped) is held by last_over_time for 10 m after its last sample, not longer
+    interval: 5m
+    input_series:
+      # the last sample, positive, is at 15m; nothing after it
+      - series: 'postgresql.autovacuum.pending_table.count{obenhub.cluster.name="slice1",service.instance.id="pg-primary",postgresql.database.name="app"}'
+        values: '1x4'
+    alert_rule_test:
+      - eval_time: 14m   # positive since 0, the 15 m hold has not elapsed
+        groupname: postgresql-slow
+        alertname: PostgresAutovacuumBacklog
+        exp_alerts: []
+      - eval_time: 40m   # the window of the last sample (15m) ended at 25m
+        groupname: postgresql-slow
+        alertname: PostgresAutovacuumBacklog
+        exp_alerts: []
+
+  - name: autovacuum off fires after one collection plus the 5 m hold with setting=autovacuum
+    interval: 5m
+    input_series:
+      - series: 'postgresql.autovacuum.enabled{obenhub.cluster.name="slice1",service.instance.id="pg-primary",postgresql.database.name="app"}'
+        values: '1 1 0x6 1x10'
+      # on all the time
+      - series: 'postgresql.autovacuum.enabled{obenhub.cluster.name="slice1",service.instance.id="pg-subscriber",postgresql.database.name="app"}'
+        values: '1x20'
+      - series: 'postgresql.track_counts.enabled{obenhub.cluster.name="slice1",service.instance.id="pg-subscriber",postgresql.database.name="app"}'
+        values: '1x20'
+    alert_rule_test:
+      - eval_time: 12m   # off since the sample at 10m, 2 m into the hold
+        groupname: postgresql-slow
+        alertname: PostgresAutovacuumOff
+        exp_alerts: []
+      - eval_time: 18m
+        groupname: postgresql-slow
+        alertname: PostgresAutovacuumOff
+        exp_alerts:
+          - exp_labels:
+              obenhub.cluster.name: slice1
+              postgresql.database.name: app
+              service.instance.id: pg-primary
+              setting: autovacuum
+              severity: warning
+            exp_annotations:
+              summary: 'autovacuum is off on pg-primary'
+              description: "The autovacuum or track_counts setting is off (the setting label says which), as read at the last collection (every 5 minutes). Dead tuples are not cleaned up except to prevent transaction ID wraparound. Set it back on (ALTER SYSTEM RESET, pg_reload_conf())."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgresautovacuumoff
+      - eval_time: 50m   # on again from the sample at 45m
+        groupname: postgresql-slow
+        alertname: PostgresAutovacuumOff
+        exp_alerts: []
+
+  - name: track_counts off fires with setting=track_counts
+    interval: 5m
+    input_series:
+      - series: 'postgresql.track_counts.enabled{obenhub.cluster.name="slice1",service.instance.id="pg-primary",postgresql.database.name="app"}'
+        values: '1 0x10'
+      - series: 'postgresql.autovacuum.enabled{obenhub.cluster.name="slice1",service.instance.id="pg-primary",postgresql.database.name="app"}'
+        values: '1x11'
+    alert_rule_test:
+      - eval_time: 20m
+        groupname: postgresql-slow
+        alertname: PostgresAutovacuumOff
+        exp_alerts:
+          - exp_labels:
+              obenhub.cluster.name: slice1
+              postgresql.database.name: app
+              service.instance.id: pg-primary
+              setting: track_counts
+              severity: warning
+            exp_annotations:
+              summary: 'track_counts is off on pg-primary'
+              description: "The autovacuum or track_counts setting is off (the setting label says which), as read at the last collection (every 5 minutes). Dead tuples are not cleaned up except to prevent transaction ID wraparound. Set it back on (ALTER SYSTEM RESET, pg_reload_conf())."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgresautovacuumoff
+
+  - name: a table with autovacuum disabled fires after the 15 m hold; none does not
+    interval: 5m
+    input_series:
+      - series: 'postgresql.autovacuum.disabled_table.count{obenhub.cluster.name="slice1",service.instance.id="pg-primary",postgresql.database.name="app"}'
+        values: '0 0 1x12'
+      - series: 'postgresql.autovacuum.disabled_table.count{obenhub.cluster.name="slice1",service.instance.id="pg-subscriber",postgresql.database.name="app"}'
+        values: '0x14'
+    alert_rule_test:
+      - eval_time: 20m   # 10 m of the hold
+        groupname: postgresql-slow
+        alertname: PostgresAutovacuumTableDisabled
+        exp_alerts: []
+      - eval_time: 30m
+        groupname: postgresql-slow
+        alertname: PostgresAutovacuumTableDisabled
+        exp_alerts:
+          - exp_labels:
+              obenhub.cluster.name: slice1
+              postgresql.database.name: app
+              service.instance.id: pg-primary
+              severity: warning
+            exp_annotations:
+              summary: '1 table(s) in app on pg-primary have autovacuum disabled'
+              description: "Tables of the database have the storage parameter autovacuum_enabled set to false, so autovacuum cleans them only to prevent transaction ID wraparound. Find them with pg_class.reloptions and re-enable it (ALTER TABLE ... RESET (autovacuum_enabled)) unless it is deliberate."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgresautovacuumtabledisabled
+
+  - name: the slow heartbeat every 5 m is quiet, also with one missed collection
+    interval: 5m
+    input_series:
+      - series: 'postgresql.collection.slow_heartbeat{obenhub.cluster.name="slice1",service.instance.id="pg-primary",postgresql.database.name="app"}'
+        values: '1x40'
+      - series: 'postgresql.collection.slow_heartbeat{obenhub.cluster.name="slice1",service.instance.id="pg-subscriber",postgresql.database.name="app"}'
+        values: '1x20 _ 1x19'
+    alert_rule_test:
+      - eval_time: 100m
+        groupname: postgresql-slow
+        alertname: PostgresSlowCollectionIntervalTooLong
+        exp_alerts: []
+      - eval_time: 150m
+        groupname: postgresql-slow
+        alertname: PostgresSlowCollectionIntervalTooLong
+        exp_alerts: []
+
+  - name: the slow heartbeat every 10 m fires after the 10 m hold and not before
+    interval: 10m
+    input_series:
+      - series: 'postgresql.collection.slow_heartbeat{obenhub.cluster.name="slice1",service.instance.id="pg-primary",postgresql.database.name="app"}'
+        values: '1x30'
+    alert_rule_test:
+      - eval_time: 15m   # two samples (0, 10m) give 600 s from 10m; 5 m of the 10 m hold
+        groupname: postgresql-slow
+        alertname: PostgresSlowCollectionIntervalTooLong
+        exp_alerts: []
+      - eval_time: 90m
+        groupname: postgresql-slow
+        alertname: PostgresSlowCollectionIntervalTooLong
+        exp_alerts:
+          - exp_labels:
+              obenhub.cluster.name: slice1
+              postgresql.database.name: app
+              service.instance.id: pg-primary
+              severity: warning
+            exp_annotations:
+              summary: 'The slow tier of app on pg-primary is collected every 600 s, the rules assume 300 s'
+              description: "The slow-tier queries (autovacuum backlog) are collected less often than every 5 minutes (average spacing above 450 s over 30 minutes), while the rules size their windows for 5 minutes, so they go quiet or flap. Set the collection interval of the slow-tier receiver back to 5m."
+              runbook_url: https://msavdert.github.io/obenhub/reference/postgresql-pack-alerts/#postgresslowcollectionintervaltoolong
+
+  - name: a database that stops reporting the slow heartbeat while the instance lives is stalled after 15 m plus the hold; one that reports every 5 m and a dead instance are not
+    interval: 1m
+    input_series:
+      # app: a sample every 5 m until 55m, then none
+      - series: 'postgresql.collection.slow_heartbeat{obenhub.cluster.name="slice1",service.instance.id="pg-primary",postgresql.database.name="app"}'
+        values: '1 _x4 1 _x4 1 _x4 1 _x4 1 _x4 1 _x4 1 _x4 1 _x4 1 _x4 1 _x4 1 _x4 1 _x4 _x60'
+      # sales: reports every 5 m for the whole test
+      - series: 'postgresql.collection.slow_heartbeat{obenhub.cluster.name="slice1",service.instance.id="pg-primary",postgresql.database.name="sales"}'
+        values: '1 _x4 1 _x4 1 _x4 1 _x4 1 _x4 1 _x4 1 _x4 1 _x4 1 _x4 1 _x4 1 _x4 1 _x4 1 _x4 1 _x4 1 _x4 1 _x4 1 _x4 1 _x4 1 _x4 1 _x4 1 _x4 1 _x4 1 _x4 1 _x4 1 _x4 1 _x4 1 _x4 1 _x4'
+      # the 15 s tier heartbeat of the instance, once a minute here
+      - series: 'postgresql.collection.heartbeat{obenhub.cluster.name="slice1",service.instance.id="pg-primary"}'
+        values: '1x130'
+      # a dead instance: its slow heartbeat stops with the 15 s one
+      - series: 'postgresql.collection.slow_heartbeat{obenhub.cluster.name="slice1",service.instance.id="pg-dead",postgresql.database.name="app"}'
+        values: '1 _x4 1 _x4 1 _x4 1 _x4 _x100'
+      - series: 'postgresql.collection.heartbeat{obenhub.cluster.name="slice1",service.instance.id="pg-dead"}'
+        values: '1x20 _x110'
+    alert_rule_test:
+      - eval_time: 65m   # last sample at 55m, the 15 m window still holds it
+        groupname: postgresql-slow
+        alertname: PostgresSlowTierStalled
+        exp_alerts: []
+      - eval_time: 80m   # 15 m window empty from 70m, held 5 m
+        groupname: postgresql-slow
+        alertname: PostgresSlowTierStalled
+        exp_alerts:
+          - exp_labels:
+              obenhub.cluster.name: slice1
+              postgresql.database.name: app
+              service.instance.id: pg-primary
+              severity: warning
+            exp_annotations:
+              summary: 'No slow-tier heartbeat for app on pg-primary'
+              description: "The slow-tier receiver has sent no heartbeat for a database for 15 minutes while the instance's 15 s heartbeat is present. Check that the database exists, that the monitoring role can connect to it and the slow-tier receiver's log in the Collector."
+              runbook_url: https://msavdert.github.io/obenhub/reference/postgresql-pack-alerts/#postgresslowtierstalled

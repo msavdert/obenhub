@@ -789,3 +789,124 @@ groups:
           summary: 'Logical slot {{ (index $labels "postgresql.replication_slot.name") }} on {{ (index $labels "service.instance.id") }} is inactive or far behind and retains WAL'
           description: "A logical slot on the publisher has been inactive for over the limit (900 s unless the lab sets obenhub.postgresql.logical_slot_inactive_age.limit), or has more WAL unconfirmed than its limit (4 GiB unless the lab sets obenhub.postgresql.logical_slot_unconfirmed_wal.limit), for a minute. Check pg_replication_slots and the state of the subscriber that reads it."
           runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgreslogicalslotstalled
+
+  # Slow tier (ADR 0009, decision 5; queries-slow.yaml, collected every 5 m,
+  # one receiver instance and one series per database read). Every window here
+  # holds at least two collections: [10m] for the latest value and [15m] for
+  # presence (three), [30m] for the interval check (six). The group is
+  # evaluated every minute: more often would only repeat the same sample.
+  # last_over_time over a window of two intervals is used instead of reading
+  # the series directly, on purpose: how long VictoriaMetrics keeps a 5 m
+  # series as the latest value (its staleness lookback, which it derives from
+  # the sample spacing) is not confirmed here, so no rule depends on it. The
+  # `for` of each rule is a multiple of 5 m. PostgresSeriesVanished does not
+  # watch these series (its 2m window is shorter than the interval;
+  # scripts/check-series-vanished.py enforces that); PostgresSlowTierStalled
+  # does. No series is reported on a standby, which is no fault.
+  - name: postgresql-slow
+    interval: 1m
+    rules:
+      # autovacuum or track_counts off. Without track_counts the statistics
+      # autovacuum works from are not collected, so it vacuums nothing but to
+      # prevent transaction ID wraparound, as with autovacuum off
+      # (PostgreSQL 18 docs, runtime-config-autovacuum, runtime-config-statistics;
+      # the wraparound case is PostgresTransactionIdWraparound). Warning, not
+      # critical: nothing is lost at once, bloat grows and the wraparound
+      # alerts still protect the cluster; the pack keeps critical for data
+      # loss or an outage in progress. Held 5 m (one interval): a setting that
+      # is flipped back before the next collection never fires. The setting
+      # label says which one.
+      - alert: PostgresAutovacuumOff
+        expr: |
+          label_replace(last_over_time(postgresql.autovacuum.enabled[10m]) == 0, "setting", "autovacuum", "", "")
+            or
+          label_replace(last_over_time(postgresql.track_counts.enabled[10m]) == 0, "setting", "track_counts", "", "")
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: '{{ (index $labels "setting") }} is off on {{ (index $labels "service.instance.id") }}'
+          description: "The autovacuum or track_counts setting is off (the setting label says which), as read at the last collection (every 5 minutes). Dead tuples are not cleaned up except to prevent transaction ID wraparound. Set it back on (ALTER SYSTEM RESET, pg_reload_conf())."
+          runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgresautovacuumoff
+
+      # One or more tables of a database past the threshold at which autovacuum
+      # would vacuum them (postgresql.autovacuum.pending_table.count: dead
+      # tuples above the effective threshold, storage parameters honoured, see
+      # queries-slow.yaml), for 15 m. A healthy autovacuum clears a table
+      # within its naptime (1 minute by default) plus the vacuum itself, so a
+      # table past the threshold at three collections in a row is waiting for
+      # a worker, being held by a long snapshot (PostgresSnapshotHeldTooLong),
+      # or not processed at all (PostgresAutovacuumOff). Any table counts: the
+      # hold is the policy, so there is no limit series. The 15 m figure is an
+      # assumption checked against the autovacuum-backlog scenario, not against
+      # a production workload.
+      - alert: PostgresAutovacuumBacklog
+        expr: last_over_time(postgresql.autovacuum.pending_table.count[10m]) > 0
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: '{{ $value | printf "%.0f" }} table(s) in {{ (index $labels "postgresql.database.name") }} on {{ (index $labels "service.instance.id") }} are past their autovacuum threshold'
+          description: "Tables of the database have held more dead tuples than their autovacuum vacuum threshold (autovacuum_vacuum_threshold plus autovacuum_vacuum_scale_factor times reltuples, storage parameters honoured) at three collections in a row (every 5 minutes). Autovacuum is not keeping up, is held back by an old snapshot or is off for them. Check pg_stat_user_tables, pg_stat_progress_vacuum and the oldest snapshot."
+          runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgresautovacuumbacklog
+
+      # A table with the storage parameter autovacuum_enabled false, in a
+      # database read by the slow tier, for 15 m (a bulk load that switches it
+      # off for a while resolves before). Autovacuum still vacuums it to
+      # prevent wraparound, nothing else. No limit series: any such table is
+      # the finding.
+      - alert: PostgresAutovacuumTableDisabled
+        expr: last_over_time(postgresql.autovacuum.disabled_table.count[10m]) > 0
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: '{{ $value | printf "%.0f" }} table(s) in {{ (index $labels "postgresql.database.name") }} on {{ (index $labels "service.instance.id") }} have autovacuum disabled'
+          description: "Tables of the database have the storage parameter autovacuum_enabled set to false, so autovacuum cleans them only to prevent transaction ID wraparound. Find them with pg_class.reloptions and re-enable it (ALTER TABLE ... RESET (autovacuum_enabled)) unless it is deliberate."
+          runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgresautovacuumtabledisabled
+
+      # The slow tier of a database is collected less often than the rules
+      # above assume: the analogue of PostgresCollectionIntervalTooLong for
+      # postgresql.collection.slow_heartbeat. The average distance between its
+      # samples over 30 m (six collections at 5 m) is above 450 s (7.5 m, 1.5
+      # intervals): one missed sample gives about 6 m and stays quiet, a series
+      # at 10 m fires. scrape_interval() is MetricsQL. To collect slower, widen
+      # every window of this group to at least twice the new interval first.
+      # A gap of several intervals (Collector down) keeps the average high for
+      # up to the 30 m window after collection resumes, so this alert can trail
+      # an outage that PostgresSlowTierStalled or CollectorAbsent already
+      # reported; accepted to keep the window wide enough for 5 m samples.
+      # Structural: no override series.
+      - alert: PostgresSlowCollectionIntervalTooLong
+        expr: max by (obenhub.cluster.name, service.instance.id, postgresql.database.name) (scrape_interval(postgresql.collection.slow_heartbeat[30m])) > 450
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'The slow tier of {{ (index $labels "postgresql.database.name") }} on {{ (index $labels "service.instance.id") }} is collected every {{ $value | printf "%.0f" }} s, the rules assume 300 s'
+          description: "The slow-tier queries (autovacuum backlog) are collected less often than every 5 minutes (average spacing above 450 s over 30 minutes), while the rules size their windows for 5 minutes, so they go quiet or flap. Set the collection interval of the slow-tier receiver back to 5m."
+          runbook_url: https://msavdert.github.io/obenhub/reference/postgresql-pack-alerts/#postgresslowcollectionintervaltoolong
+
+      # A database that reported the slow-tier heartbeat in the last hour has
+      # sent none for 15 m (three collections) while the instance's 15 s
+      # heartbeat lives: the slow-tier receiver cannot connect to that database
+      # (renamed, dropped, privilege revoked) or its query fails. The slow tier
+      # has no SeriesVanished of its own for its other series: their queries
+      # are separate from the heartbeat, and a standby reports no autovacuum
+      # series by design, so only the heartbeat is watched. Looks back 1 h: a
+      # database dropped on purpose alerts for up to an hour (accepted, as at
+      # PostgresSeriesVanished).
+      - alert: PostgresSlowTierStalled
+        expr: |
+          last_over_time(postgresql.collection.slow_heartbeat[1h])
+            unless on(obenhub.cluster.name, service.instance.id, postgresql.database.name)
+          present_over_time(postgresql.collection.slow_heartbeat[15m])
+            and on(obenhub.cluster.name, service.instance.id)
+          present_over_time(postgresql.collection.heartbeat[2m])
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'No slow-tier heartbeat for {{ (index $labels "postgresql.database.name") }} on {{ (index $labels "service.instance.id") }}'
+          description: "The slow-tier receiver has sent no heartbeat for a database for 15 minutes while the instance's 15 s heartbeat is present. Check that the database exists, that the monitoring role can connect to it and the slow-tier receiver's log in the Collector."
+          runbook_url: https://msavdert.github.io/obenhub/reference/postgresql-pack-alerts/#postgresslowtierstalled
