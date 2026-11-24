@@ -6,7 +6,8 @@ usage: pack-catalog-diff.py <old-major> <new-major>   (old lower than new)
 Taken from the SQL of packs/postgresql/queries.yaml, outside string literals:
 identifiers are matched against pg_catalog relations (tables, views) of either
 major and, for a relation present on both, only the columns whose name appears
-in the SQL are compared (name, type); a name followed by `(` is matched
+in the SQL are compared (name, type), including names that appear only as
+an identifier-shaped string literal (a jsonb key of to_jsonb(row)); a name followed by `(` is matched
 against pg_catalog functions (compared by argument types and result type); a
 string literal shaped like a setting name is matched against pg_settings
 (existence). Everything is read from both majors and printed as a Markdown
@@ -54,6 +55,8 @@ def lookups(queries):
     idents = sorted(set(re.findall(r"\b[a-z_][a-z0-9_]*\b", bare)))
     funcs = sorted(set(re.findall(r"\b([a-z_][a-z0-9_]*)\s*\(", bare)))
     settings = sorted({lit for lit in literals if re.fullmatch(r"[a-z_][a-z0-9_.]*", lit)})
+    # Column names read as jsonb keys (to_jsonb(t)->>'col') live in literals.
+    idents = sorted(set(idents) | {lit for lit in settings if "." not in lit})
     return idents, funcs, settings
 
 

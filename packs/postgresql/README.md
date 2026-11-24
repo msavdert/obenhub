@@ -12,23 +12,25 @@ Names follow [ADR 0006](../../docs/adr/0006-naming-contract.md).
 
 Every query in `queries.yaml` has a `# pg-min: <N>` line in its comment block,
 the lowest major it runs on. `mise run packs:sql-test` starts a throwaway
-container of each supported major (15 to 18, the majors not end of life on
-endoflife.date on 2026-11-23; images pinned in `tests/images.sh`), creates the
+container of each supported major (15 to 19, the majors not end of life on
+endoflife.date on 2026-11-23, plus 19, released 2026-11-19; images pinned in `tests/images.sh`), creates the
 monitoring role and runs every query as `otel_monitor`: it must succeed from
 `pg-min` up and fail with an SQL error below it. It is part of `mise run
 check`. A query that fails on an older major loses only its own metrics; the others
 still report. The test prints only ok or an SQL error per major. The reasons
 below are not produced by it: they are read from `packs:catalog-diff` outputs
-(16 to 17, 17 to 18, 15 to 16) on 2026-11-23.
+(16 to 17, 17 to 18, 15 to 16) on 2026-11-23 and 18 to 19 on 2026-11-24.
 
 | Query (first metric) | pg-min | Reason |
 | --- | --- | --- |
 | `postgresql.snapshot.oldest_age` | 16 | setting `reserved_connections` |
 | `postgresql.replication_slot.active` | 17 | `inactive_since`, `invalidation_reason` of `pg_replication_slots` |
 | `postgresql.subscription.enabled` | 17 | `pg_stat_subscription.worker_type` |
-| `postgresql.subscription.conflict` | 18 | `confl_*` of `pg_stat_subscription_stats` |
+| `postgresql.subscription.conflict` | 15 | no rows below 18: the `confl_*` columns of `pg_stat_subscription_stats` (18, `confl_update_deleted` 19) are read as keys of `to_jsonb(t)` (roadmap E3) |
 
-The other queries run on 15. `monitoring-role.sql` grants
+The other queries run on 15. `postgresql.subscription.sync_error` reads
+`sync_error_count` below 19 and the sum of `sync_table_error_count` and
+`sync_seq_error_count` from 19, the same way. `monitoring-role.sql` grants
 `pg_use_reserved_connections` only where the role exists (16 and later).
 
 `mise run packs:catalog-diff <old> <new>` (for example `17 18`) lists the
