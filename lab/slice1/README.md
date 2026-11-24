@@ -96,6 +96,12 @@ fires, zero monitoring-role errors in the server log). Notable details:
   pgBackRest backups after taking one, and waits for a 5-minute window without
   a requested checkpoint, because both of its backups are requested
   checkpoints.
+- `statements-evicted` runs `pg_stat_statements.max` plus 500 statements that
+  differ in a table alias, so entries are evicted and
+  `PostgresStatementsEvicted` fires; it needs the extension in database
+  `postgres` (created by `postgres/10-init-primary.sh`). `lock-blocked` also
+  checks that `postgresql.client_session.count` shows sessions with wait
+  event type `Lock`.
 - `pgbouncer-pool-saturated` opens more transactions than the pool size.
 
 The Collector's overhead is measured in [lab/overhead](../overhead).

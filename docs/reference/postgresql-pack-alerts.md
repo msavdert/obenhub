@@ -263,6 +263,16 @@ The deadlock counter of a database rose within the last 5 minutes. PostgreSQL re
 last_over_time(postgresql.deadlocks[5m]) - first_over_time(postgresql.deadlocks[5m]) > 0
 ```
 
+## PostgresStatementsEvicted
+
+More distinct statements arrived than pg_stat_statements.max holds, so the least used entries were evicted and the statement totals of the pack (execution time, calls, temp blocks written per database) undercount. Raise pg_stat_statements.max (needs a restart) or find the source of the distinct statements (unparameterised literals, generated SQL).
+
+**warning**, no hold time
+
+```text
+last_over_time(postgresql.statement.deallocation[5m]) - first_over_time(postgresql.statement.deallocation[5m]) > 0
+```
+
 ## PostgresCheckpointsRequested
 
 More than 3 requested checkpoints in 5 minutes on a primary (3 unless the lab sets obenhub.postgresql.requested_checkpoints.limit). Usually WAL reached max_wal_size before checkpoint_timeout, but CHECKPOINT, CREATE DATABASE, base backups, promotion and shutdown also request one. Check pg_stat_checkpointer, max_wal_size against the WAL volume and what writes it.
@@ -355,9 +365,9 @@ A metric of the pack that was present in the last hour has disappeared on an ins
 **warning**, for 1m
 
 ```text
-label_copy(last_over_time({__name__=~"postgresql[.](recovery[.]active|wal_receiver[.]streaming|replay[.](backlog|paused)|snapshot[.]oldest_age|xmin_horizon[.]age|client_connection[.](count|limit)|database[.](count|xid_age|mxid_age)|transaction[.]idle_age|lock[.](waiting_session[.]count|oldest_wait_age)|replication[.]synchronous_standby[.](count|required)|replication_slot[.](active|retained_wal|unconfirmed_wal|wal_status|invalidated|inactive_age)|subscription[.](enabled|apply_worker_running|last_msg_age|apply_error|sync_error|conflict)|archiver[.](archived_file|failure|failing|ready_file[.]count))"}[1h]) keep_metric_names, "__name__", "metric")
+label_copy(last_over_time({__name__=~"postgresql[.](recovery[.]active|wal_receiver[.]streaming|replay[.](backlog|paused)|snapshot[.]oldest_age|xmin_horizon[.]age|client_connection[.](count|limit)|database[.](count|xid_age|mxid_age)|transaction[.]idle_age|lock[.](waiting_session[.]count|oldest_wait_age)|replication[.]synchronous_standby[.](count|required)|replication_slot[.](active|retained_wal|unconfirmed_wal|wal_status|invalidated|inactive_age)|subscription[.](enabled|apply_worker_running|last_msg_age|apply_error|sync_error|conflict)|archiver[.](archived_file|failure|failing|ready_file[.]count)|statement[.](execution_time|call|temp_block_written|deallocation))"}[1h]) keep_metric_names, "__name__", "metric")
   unless on(metric, obenhub.cluster.name, service.instance.id)
-label_copy(present_over_time({__name__=~"postgresql[.](recovery[.]active|wal_receiver[.]streaming|replay[.](backlog|paused)|snapshot[.]oldest_age|xmin_horizon[.]age|client_connection[.](count|limit)|database[.](count|xid_age|mxid_age)|transaction[.]idle_age|lock[.](waiting_session[.]count|oldest_wait_age)|replication[.]synchronous_standby[.](count|required)|replication_slot[.](active|retained_wal|unconfirmed_wal|wal_status|invalidated|inactive_age)|subscription[.](enabled|apply_worker_running|last_msg_age|apply_error|sync_error|conflict)|archiver[.](archived_file|failure|failing|ready_file[.]count))"}[2m]) keep_metric_names, "__name__", "metric")
+label_copy(present_over_time({__name__=~"postgresql[.](recovery[.]active|wal_receiver[.]streaming|replay[.](backlog|paused)|snapshot[.]oldest_age|xmin_horizon[.]age|client_connection[.](count|limit)|database[.](count|xid_age|mxid_age)|transaction[.]idle_age|lock[.](waiting_session[.]count|oldest_wait_age)|replication[.]synchronous_standby[.](count|required)|replication_slot[.](active|retained_wal|unconfirmed_wal|wal_status|invalidated|inactive_age)|subscription[.](enabled|apply_worker_running|last_msg_age|apply_error|sync_error|conflict)|archiver[.](archived_file|failure|failing|ready_file[.]count)|statement[.](execution_time|call|temp_block_written|deallocation))"}[2m]) keep_metric_names, "__name__", "metric")
   and on(obenhub.cluster.name, service.instance.id)
 present_over_time(postgresql.collection.heartbeat[2m])
 ```

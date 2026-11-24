@@ -213,3 +213,86 @@
     - {metric_name: postgresql.archiver.failure, value_column: failures, value_type: int, data_type: sum, monotonic: true, aggregation: cumulative, unit: '{failure}', description: "pg_stat_archiver.failed_count: failed archive attempts"}
     - {metric_name: postgresql.archiver.failing, value_column: failing, value_type: int, data_type: gauge, unit: "1", description: "1 when the last failed archive attempt is newer than the last success"}
     - {metric_name: postgresql.archiver.ready_file.count, value_column: ready_files, value_type: int, data_type: gauge, unit: '{file}', description: "WAL files waiting for the archiver (.ready files in pg_wal/archive_status)"}
+# Statement totals per database from pg_stat_statements (PostgreSQL 18 docs,
+# pgstatstatements, view pg_stat_statements: total_exec_time in ms, calls,
+# temp_blks_written). One row per database, no queryid and no query text
+# (ADR 0009, decisions 1 and 2). The sums are gauges, not counters: the view
+# holds at most pg_stat_statements.max statements and evicts the least used
+# (see the deallocation query below), and an evicted statement leaves the sum,
+# so a total can fall; a rate over it must not treat a fall as a counter reset.
+# Statements of dropped databases (no pg_database row) are left out.
+# Guard (ADR 0009, decision 2): the view exists only in a database where
+# CREATE EXTENSION pg_stat_statements ran (the pack connects to database
+# postgres), and a plain query fails at parse time without it. Here the
+# statement is a string handed to query_to_xml(), which runs only when
+# pg_extension lists the extension (CASE evaluates its branch lazily); without
+# it the CASE is NULL, xpath() of NULL is NULL and unnest() returns no rows, no
+# error. tableforest false gives one document (<table><row>...) that xpath()
+# accepts. Values travel as text and are cast back. The database travels as its
+# oid and its name is read from pg_database outside the XML, because XML
+# escapes &, < and > in a name. The guard also requires the library in
+# shared_preload_libraries: a created but not preloaded extension makes the
+# view error on every read. The setting is read from pg_settings, which hides
+# it from a role without pg_read_all_settings (part of pg_monitor) instead of
+# raising an error, so such a role gets no rows; current_setting() would fail
+# the query. The pattern accepts the forms PostgreSQL loads: quoted, with
+# $libdir/ and with .so.
+# pg-min: 15
+- sql: |
+    SELECT
+      d.datname AS "postgresql.database.name",
+      (xpath('/row/t/text()', r))[1]::text::float8 AS statement_execution_time,
+      (xpath('/row/c/text()', r))[1]::text::bigint AS statement_calls,
+      (xpath('/row/b/text()', r))[1]::text::bigint AS statement_temp_blocks_written
+    FROM (
+      SELECT unnest(xpath('/table/row',
+        CASE WHEN EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'pg_stat_statements')
+          AND EXISTS (SELECT 1 FROM pg_settings WHERE name = 'shared_preload_libraries' AND setting ~ '(^|,)\s*"?(\$libdir/)?pg_stat_statements(\.so)?"?\s*(,|$)')
+          THEN query_to_xml('SELECT s.dbid AS db, (sum(s.total_exec_time) / 1000)::float8 AS t, sum(s.calls)::bigint AS c, sum(s.temp_blks_written)::bigint AS b FROM pg_stat_statements s GROUP BY s.dbid', false, false, '')
+        END)) AS r
+    ) x
+    JOIN pg_database d ON d.oid = (xpath('/row/db/text()', r))[1]::text::oid
+  metrics:
+    - {metric_name: postgresql.statement.execution_time, value_column: statement_execution_time, attribute_columns: ["postgresql.database.name"], value_type: double, data_type: gauge, unit: s, description: "Sum of pg_stat_statements.total_exec_time of the statements still in the view, per database; falls when statements are evicted, so it is a gauge (rate it with deriv, not rate)"}
+    - {metric_name: postgresql.statement.call, value_column: statement_calls, attribute_columns: ["postgresql.database.name"], value_type: int, data_type: gauge, unit: '{call}', description: "Sum of pg_stat_statements.calls of the statements still in the view, per database; falls when statements are evicted, so it is a gauge"}
+    - {metric_name: postgresql.statement.temp_block_written, value_column: statement_temp_blocks_written, attribute_columns: ["postgresql.database.name"], value_type: int, data_type: gauge, unit: '{block}', description: "Sum of pg_stat_statements.temp_blks_written of the statements still in the view, per database; falls when statements are evicted, so it is a gauge"}
+# Statements evicted from pg_stat_statements: dealloc of pg_stat_statements_info
+# (PostgreSQL 18 docs, pgstatstatements, view pg_stat_statements_info; the view
+# exists from PostgreSQL 14) counts the times entries were evicted because
+# more distinct statements arrived than pg_stat_statements.max; it is reset to
+# 0 by pg_stat_statements_reset(). A rising count means the statement totals
+# above undercount. Same guard as the totals query (no rows without the
+# extension).
+# pg-min: 15
+- sql: |
+    SELECT (xpath('/row/d/text()', r))[1]::text::bigint AS statement_deallocations
+    FROM (
+      SELECT unnest(xpath('/table/row',
+        CASE WHEN EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'pg_stat_statements')
+          AND EXISTS (SELECT 1 FROM pg_settings WHERE name = 'shared_preload_libraries' AND setting ~ '(^|,)\s*"?(\$libdir/)?pg_stat_statements(\.so)?"?\s*(,|$)')
+          THEN query_to_xml('SELECT dealloc AS d FROM pg_stat_statements_info', false, false, '')
+        END)) AS r
+    ) x
+  metrics:
+    - {metric_name: postgresql.statement.deallocation, value_column: statement_deallocations, value_type: int, data_type: sum, monotonic: true, aggregation: cumulative, unit: '{deallocation}', description: "pg_stat_statements_info.dealloc: times statements were evicted from pg_stat_statements (reset by pg_stat_statements_reset())"}
+# Client sessions by state and wait event (PostgreSQL 18 docs, monitoring-stats,
+# view pg_stat_activity; wait_event_type and wait_event are NULL while a
+# backend is not waiting, and state is NULL for a backend not yet initialised).
+# One scan, client backends only, without this scraping backend; a NULL becomes
+# 'none' because a metric attribute has no NULL. Only the combinations present
+# at the scrape produce a series, and the wait event names are PostgreSQL's
+# vocabulary (ADR 0009, decisions 1 and 4); a combination that is gone is no
+# series, not a 0. The existing pg_stat_activity scans are merged in F4.
+# pg-min: 15
+- sql: |
+    SELECT
+      coalesce(state, 'none') AS "postgresql.session.state",
+      coalesce(wait_event_type, 'none') AS "postgresql.wait_event.type",
+      coalesce(wait_event, 'none') AS "postgresql.wait_event.name",
+      count(*)::int AS session_count
+    FROM pg_stat_activity
+    WHERE backend_type = 'client backend'
+      AND pid <> pg_backend_pid()
+    GROUP BY 1, 2, 3
+  metrics:
+    - {metric_name: postgresql.client_session.count, value_column: session_count, attribute_columns: ["postgresql.session.state", "postgresql.wait_event.type", "postgresql.wait_event.name"], value_type: int, data_type: gauge, unit: '{session}', description: "Client sessions by state, wait event type and wait event; 'none' where the backend has none"}

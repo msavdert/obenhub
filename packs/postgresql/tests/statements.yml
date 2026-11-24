@@ -1,0 +1,46 @@
+# Tests for PostgresStatementsEvicted (shared PostgreSQL pack).
+rule_files:
+  - ../rules.yml
+  - lab-values/postgresql.yaml
+evaluation_interval: 15s
+
+tests:
+  - name: a rising deallocation count fires, a flat one, a reset, a late-starting series and a server without the extension do not
+    interval: 15s
+    input_series:
+      # primary: flat at 3, then three evictions after 2 minutes, flat again
+      - series: 'postgresql.statement.deallocation{obenhub.cluster.name="slice1",service.instance.id="pg-primary"}'
+        values: '3x8 4 5 6x50'
+      # flat for the whole test
+      - series: 'postgresql.statement.deallocation{obenhub.cluster.name="slice1",service.instance.id="pg-standby"}'
+        values: '7x60'
+      # pg_stat_statements_reset(): 40 falls to 0 and stays; no eviction after it
+      - series: 'postgresql.statement.deallocation{obenhub.cluster.name="slice1",service.instance.id="pg-reset"}'
+        values: '40x8 0x52'
+      # Collector restart: the series is new and already high (no earlier samples)
+      - series: 'postgresql.statement.deallocation{obenhub.cluster.name="slice1",service.instance.id="pg-restart"}'
+        values: '_x8 500x52'
+      # a server without the extension reports no series at all
+      - series: 'postgresql.collection.heartbeat{obenhub.cluster.name="slice1",service.instance.id="pg-noext"}'
+        values: '1x60'
+    alert_rule_test:
+      - eval_time: 1m   # nothing has risen yet
+        groupname: postgresql
+        alertname: PostgresStatementsEvicted
+        exp_alerts: []
+      - eval_time: 3m   # the evictions between 2m and 2m30s are in the 5 minute window
+        groupname: postgresql
+        alertname: PostgresStatementsEvicted
+        exp_alerts:
+          - exp_labels:
+              obenhub.cluster.name: slice1
+              severity: warning
+              service.instance.id: pg-primary
+            exp_annotations:
+              summary: 'pg_stat_statements on pg-primary evicted statements 3 time(s) in the last 5 minutes'
+              description: "More distinct statements arrived than pg_stat_statements.max holds, so the least used entries were evicted and the statement totals of the pack (execution time, calls, temp blocks written per database) undercount. Raise pg_stat_statements.max (needs a restart) or find the source of the distinct statements (unparameterised literals, generated SQL)."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgresstatementsevicted
+      - eval_time: 10m   # the count has been flat for longer than the window: resolved
+        groupname: postgresql
+        alertname: PostgresStatementsEvicted
+        exp_alerts: []
