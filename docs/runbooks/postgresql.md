@@ -205,7 +205,7 @@ The first statement is the counter the alert reads (the deallocation query of `p
 
 Seen in the lab:
 
-- slice1: `statements-evicted` (suite `none yet`)
+- slice1: `statements-evicted` (suite `slice1-20261125T023101Z-c8f22bd`)
 
 ## PostgresAutovacuumOff
 
@@ -221,7 +221,7 @@ A `source` of `configuration file` with `postgresql.auto.conf` means `ALTER SYST
 
 Seen in the lab:
 
-- slice1: `autovacuum-off` (suite `none yet`)
+- slice1: `autovacuum-off` (suite `slice1-20261125T023101Z-c8f22bd`)
 
 ## PostgresAutovacuumBacklog
 
@@ -240,7 +240,7 @@ The first statement lists the tables the count is made of; the threshold of a ta
 
 Seen in the lab:
 
-- slice1: `autovacuum-backlog` (suite `none yet`)
+- slice1: `autovacuum-backlog` (suite `slice1-20261125T023101Z-c8f22bd`)
 
 ## PostgresAutovacuumTableDisabled
 
@@ -259,7 +259,7 @@ The same condition as the disabled count of `packs/postgresql/queries-slow.yaml`
 
 Seen in the lab:
 
-- slice1: `autovacuum-off` (suite `none yet`)
+- slice1: `autovacuum-off` (suite `slice1-20261125T023101Z-c8f22bd`)
 
 ## PostgresCheckpointsRequested
 
