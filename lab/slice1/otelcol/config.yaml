@@ -24,6 +24,31 @@ receivers:
         enabled: true
     tls:
       insecure: true
+  # Top-K statements of the primary as db.server.top_query log events (ADR
+  # 0009 decision 3): its own receiver, in a logs pipeline only, so that it
+  # emits no metrics. Every 5 minutes it reads the 200 most called statements
+  # of pg_stat_statements (all databases of the server) and emits the 20 with
+  # the largest execution-time delta since the previous read. EXPLAIN is off
+  # (max_explain_each_interval: 0; the scraper explains only while
+  # `explained < max_explain_each_interval`, scraper.go collectTopQuery at
+  # v0.165.0), so the monitoring user runs no PREPARE or EXPLAIN on the server;
+  # the top-query scenario checks that. Signal stability: development.
+  postgresql/primary-topquery:
+    endpoint: pg-primary:5432
+    transport: tcp
+    username: otel_monitor
+    password: ${env:OTEL_MONITOR_PASSWORD}
+    collection_interval: 5m
+    events:
+      db.server.top_query:
+        enabled: true
+    top_query_collection:
+      collection_interval: 5m
+      max_rows_per_query: 200
+      top_n_query: 20
+      max_explain_each_interval: 0
+    tls:
+      insecure: true
   postgresql/standby:
     endpoint: pg-standby:5432
     transport: tcp
@@ -364,6 +389,10 @@ service:
       exporters: [otlp_http/vm]
     logs/primary:
       receivers: [file_log/primary]
+      processors: [memory_limiter, resource/primary, batch]
+      exporters: [otlp_http/vl]
+    logs/primary-topquery:
+      receivers: [postgresql/primary-topquery]
       processors: [memory_limiter, resource/primary, batch]
       exporters: [otlp_http/vl]
     logs/standby:
