@@ -38,18 +38,29 @@
 # table, even under a global cap (checked against autovacuum on 18.7 in the
 # audit of this query). TOAST tables and their toast.* storage parameters are
 # left out: the count is of the user tables of pg_stat_user_tables.
-# n_dead_tup is an estimate maintained by the statistics system, and a table that
-# autovacuum has just processed can still hold dead tuples a long snapshot
-# keeps (postgresql.snapshot.oldest_age); that is the backlog worth seeing.
+# n_dead_tup is an estimate maintained by the statistics system.
+# A table past its threshold counts only when neither autovacuum nor a manual
+# VACUUM finished on it within the last three autovacuum_naptime intervals
+# (greatest of last_autovacuum and last_vacuum of pg_stat_user_tables; never
+# vacuumed counts). autovacuum_naptime is the minimum delay between autovacuum
+# rounds on a database (runtime-config-autovacuum), so a table autovacuum keeps
+# up with is vacuumed about once per round. Without this condition small tables
+# with many updates (the pgbench_branches and pgbench_tellers of the stage3
+# load, 5 and 50 rows) read as past their threshold at almost every collection
+# although autovacuum processed them every minute: stage3, 2026-11-24, 1 or 2
+# such tables at 55 of 73 collections over 6 h, PostgresAutovacuumBacklog
+# fired. The factor three is a choice (one round late plus the collection
+# spacing), not taken from a source. A table autovacuum vacuums on every
+# round while an old snapshot keeps its dead tuples is not counted; that case
+# is postgresql.snapshot.oldest_age. A table under a VACUUM that runs longer
+# than three rounds counts (its last_* time is set when it finishes).
 # Tables with autovacuum_enabled false are not counted as past threshold (they
 # are in the disabled count); autovacuum still vacuums them to prevent
 # transaction ID wraparound, which postgresql.database.xid_age watches.
 # Left out on purpose: "tables without recent writes". Autovacuum itself does
-# not look at write recency: a table past its threshold is vacuumed whether or
-# not it is written now, and the statistics views hold no last-write time
+# not look at write recency, and the statistics views hold no last-write time
 # (pg_stat_user_tables has cumulative counters and last_vacuum timestamps
-# only), so no definition would come from them; the rule's sustained window
-# covers a table that crossed the threshold a moment ago. Also left out: the
+# only), so no definition would come from them. Also left out: the
 # insert-triggered threshold (autovacuum_vacuum_insert_threshold, 13 and
 # later), which serves freezing and the visibility map, not dead tuples.
 # pg_stat_user_tables lists user relations of the connected database only
@@ -60,11 +71,13 @@
       SELECT
         current_setting('autovacuum_vacuum_threshold')::float8 AS vthr,
         current_setting('autovacuum_vacuum_scale_factor')::float8 AS sf,
-        coalesce(nullif(current_setting('autovacuum_vacuum_max_threshold', true), ''), '-1')::float8 AS mx
+        coalesce(nullif(current_setting('autovacuum_vacuum_max_threshold', true), ''), '-1')::float8 AS mx,
+        now() - 3 * current_setting('autovacuum_naptime')::interval AS recent
     ), t AS (
       SELECT
         s.n_dead_tup::float8 AS dead,
         greatest(c.reltuples, 0)::float8 AS tuples,
+        coalesce(greatest(s.last_autovacuum, s.last_vacuum) >= g.recent, false) AS vacuumed_recently,
         o.enabled,
         CASE WHEN o.vthr >= 0 THEN o.vthr ELSE g.vthr END AS vthr,
         CASE WHEN o.sf >= 0 THEN o.sf ELSE g.sf END AS sf,
@@ -83,13 +96,13 @@
     )
     SELECT
       current_database() AS "postgresql.database.name",
-      count(*) FILTER (WHERE enabled
+      count(*) FILTER (WHERE enabled AND NOT vacuumed_recently
         AND dead > CASE WHEN mx >= 0 THEN least(vthr + sf * tuples, mx) ELSE vthr + sf * tuples END)::int AS autovacuum_pending_tables,
       count(*) FILTER (WHERE NOT enabled)::int AS autovacuum_disabled_tables
     FROM t
     HAVING NOT pg_is_in_recovery()
   metrics:
-    - {metric_name: postgresql.autovacuum.pending_table.count, value_column: autovacuum_pending_tables, attribute_columns: ["postgresql.database.name"], value_type: int, data_type: gauge, unit: '{table}', description: "Tables of the database whose dead tuples exceed their effective autovacuum vacuum threshold (storage parameters honoured, tables with autovacuum disabled left out); one value per database"}
+    - {metric_name: postgresql.autovacuum.pending_table.count, value_column: autovacuum_pending_tables, attribute_columns: ["postgresql.database.name"], value_type: int, data_type: gauge, unit: '{table}', description: "Tables of the database whose dead tuples exceed their effective autovacuum vacuum threshold and that no vacuum finished on in the last three autovacuum_naptime intervals (storage parameters honoured, tables with autovacuum disabled left out); one value per database"}
     - {metric_name: postgresql.autovacuum.disabled_table.count, value_column: autovacuum_disabled_tables, attribute_columns: ["postgresql.database.name"], value_type: int, data_type: gauge, unit: '{table}', description: "Tables of the database with the storage parameter autovacuum_enabled false; one value per database"}
 # The two global settings the dead-tuple signal depends on (PostgreSQL 18
 # docs, runtime-config-autovacuum: autovacuum; runtime-config-statistics:

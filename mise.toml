@@ -210,7 +210,11 @@ set -e
 g=http://127.0.0.1:43000
 e=lab/k8s/mon/.env
 scripts/check-panels.sh packs/cnpg/dashboards/cnpg.json $g $e
-scripts/check-panels.sh packs/postgresql/dashboards/postgresql.json $g $e pg-1 pg
+# the primary moves in the scenarios (switchover, primary-deleted); the slow
+# tier and the primary-only panels need its name
+. lab/k8s/versions.sh
+p=$(MISE_ENV=k8s mise exec -- kubectl --context "kind-${KIND_CLUSTER}" -n obenhub get cluster pg -o jsonpath='{.status.currentPrimary}')
+scripts/check-panels.sh packs/postgresql/dashboards/postgresql.json $g $e "${p:?no currentPrimary for cluster pg}" pg
 """
 
 [tasks."lint:pack-names"]

@@ -465,7 +465,7 @@ label_replace(last_over_time(postgresql.track_counts.enabled[10m]) == 0, "settin
 
 ## PostgresAutovacuumBacklog
 
-Tables of the database have held more dead tuples than their autovacuum vacuum threshold (autovacuum_vacuum_threshold plus autovacuum_vacuum_scale_factor times reltuples, storage parameters honoured) at three collections in a row (every 5 minutes). Autovacuum is not keeping up, is held back by an old snapshot or is off for them. Check pg_stat_user_tables, pg_stat_progress_vacuum and the oldest snapshot.
+Tables of the database have held more dead tuples than their autovacuum vacuum threshold (autovacuum_vacuum_threshold plus autovacuum_vacuum_scale_factor times reltuples, storage parameters honoured) without a finished vacuum in the last three autovacuum_naptime intervals, at three collections in a row (every 5 minutes). Autovacuum is not reaching them: workers are busy elsewhere, a long VACUUM is still running, or the launcher is held back. Check pg_stat_user_tables, pg_stat_progress_vacuum and autovacuum_max_workers.
 
 **warning**, for 15m
 

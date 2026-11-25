@@ -1897,7 +1897,7 @@
               "mode": "multi"
             }
           },
-          "description": "Tables whose dead tuples exceed autovacuum_vacuum_threshold plus autovacuum_vacuum_scale_factor times reltuples (storage parameters honoured, tables with autovacuum disabled left out); PostgresAutovacuumBacklog fires when it stays above 0 for 15 minutes. Slow tier: collected every 5 minutes, so the panel reads last_over_time over 10 minutes (two collections) and the line is a step; one series per database the slow-tier receiver reads (packs/postgresql/README.md, Slow tier); no series on a standby."
+          "description": "Tables whose dead tuples exceed autovacuum_vacuum_threshold plus autovacuum_vacuum_scale_factor times reltuples and that no vacuum finished on in the last three autovacuum_naptime intervals (storage parameters honoured, tables with autovacuum disabled left out; a small table autovacuum vacuums every round is not counted although it crosses its threshold between rounds); PostgresAutovacuumBacklog fires when it stays above 0 for 15 minutes. Slow tier: collected every 5 minutes, so the panel reads last_over_time over 10 minutes (two collections) and the line is a step; one series per database the slow-tier receiver reads (packs/postgresql/README.md, Slow tier); no series on a standby."
         },
         {
           "id": 212,

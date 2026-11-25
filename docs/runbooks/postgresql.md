@@ -225,7 +225,7 @@ Seen in the lab:
 
 ## PostgresAutovacuumBacklog
 
-Tables of a database have had more dead tuples than their effective autovacuum vacuum threshold at three collections in a row (every 5 minutes). Reference: [PostgresAutovacuumBacklog](../reference/postgresql-pack-alerts.md#postgresautovacuumbacklog).
+Tables of a database have had more dead tuples than their effective autovacuum vacuum threshold, with no vacuum finished on them in the last three `autovacuum_naptime` intervals, at three collections in a row (every 5 minutes). Reference: [PostgresAutovacuumBacklog](../reference/postgresql-pack-alerts.md#postgresautovacuumbacklog).
 
 Look first: In the database named in the alert, on the instance named in the alert.
 
@@ -236,7 +236,7 @@ ORDER BY s.n_dead_tup DESC LIMIT 20;
 SELECT pid, relid::regclass, phase FROM pg_stat_progress_vacuum;
 ```
 
-The first statement lists the tables the count is made of; the threshold of a table is `autovacuum_vacuum_threshold + autovacuum_vacuum_scale_factor * reltuples` (the storage parameter in `reloptions` when set, else the setting; from PostgreSQL 18 capped by `autovacuum_vacuum_max_threshold`), the condition in the second query of `packs/postgresql/queries-slow.yaml`. A table that is vacuumed but stays past the threshold is held by an old snapshot or a replication slot (`PostgresSnapshotHeldTooLong`, `PostgresXminHorizonHeld`); one that is never vacuumed means autovacuum is off (`PostgresAutovacuumOff`) or too slow for the write rate (`autovacuum_vacuum_cost_limit`, `autovacuum_max_workers`).
+The first statement lists the tables the count is made of; the threshold of a table is `autovacuum_vacuum_threshold + autovacuum_vacuum_scale_factor * reltuples` (the storage parameter in `reloptions` when set, else the setting; from PostgreSQL 18 capped by `autovacuum_vacuum_max_threshold`), the condition in the second query of `packs/postgresql/queries-slow.yaml`. A table vacuumed within the last three `autovacuum_naptime` intervals is not counted, even when it is past the threshold again: autovacuum reaches it (a small table with many updates crosses its threshold between rounds), and a table whose dead tuples a VACUUM cannot remove is held by an old snapshot or a replication slot, which `PostgresSnapshotHeldTooLong` and `PostgresXminHorizonHeld` report. A counted table was not vacuumed for longer: autovacuum is off for it (`PostgresAutovacuumOff`), too slow for the write rate (`autovacuum_vacuum_cost_limit`, `autovacuum_max_workers`), or one VACUUM on it runs longer than three rounds (`pg_stat_progress_vacuum`).
 
 Seen in the lab:
 

@@ -82,6 +82,10 @@ DELETE FROM sv_c;
 DELETE FROM sv_d;
 DELETE FROM sv_f WHERE i <= 400;
 DELETE FROM sv_g WHERE i <= 600;
+CREATE TABLE sv_j (i int) WITH (autovacuum_vacuum_threshold = 5, autovacuum_vacuum_scale_factor = 0);
+INSERT INTO sv_j SELECT generate_series(1, 100);
+VACUUM sv_j;
+DELETE FROM sv_j;
 """
 # 18 and later cap the threshold (autovacuum_vacuum_max_threshold); 500 would not be reached by 150 dead tuples, the cap of 100 is
 SLOW_SETUP_18 = """
@@ -108,7 +112,9 @@ def check_slow_values(fleet, queries, majors):
     100000, and not over the cap of 100 from 18), sv_d (10 < 50), sv_f below 18
     (400 < 500), sv_i (300 < 500: its per-table -1 lifts the global cap);
     disabled sv_c and sv_e (`off` and `false`), which are not pending although
-    sv_c is far past its threshold. The settings read 0 for autovacuum and 1
+    sv_c is far past its threshold; not sv_j (100 > 5, but a VACUUM finished on
+    it within three autovacuum_naptime intervals, the recency condition that
+    keeps small hot tables autovacuum keeps up with out). The settings read 0 for autovacuum and 1
     for track_counts. The no-row case on a standby is not tested here.
     """
     by_metric = {q["metric"]: q for q in queries}
@@ -138,7 +144,9 @@ def check_slow_values(fleet, queries, majors):
     with ThreadPoolExecutor(len(majors)) as ex:
         for res in ex.map(one, majors):
             errors += res
-    print(f"slow tier values: {len(majors)} majors, storage parameters, scale factor, disabled tables and settings")
+    print(
+        f"slow tier values: {len(majors)} majors, storage parameters, scale factor, disabled and recently vacuumed tables, settings"
+    )
     return errors
 
 
