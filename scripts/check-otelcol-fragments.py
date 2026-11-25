@@ -260,6 +260,12 @@ ALLOW = [
 # (lab file glob, kind, component glob, reason): no pack component to compare.
 UNMAPPED_OK = [
     (
+        "lab/slice1/otelcol/config.yaml",
+        "receivers",
+        "postgresql/primary-topquery",
+        "db.server.top_query events, on in slice1 only and off in the pack (ADR 0009 decision 3)",
+    ),
+    (
         "lab/oracle/files/otelcol-obs.yaml",
         "receivers",
         "journald/observer",
@@ -395,12 +401,26 @@ def attr_value(cfg, key):
     return None
 
 
+def top_query_receiver(cid, cfg):
+    """A postgresql receiver with db.server.top_query on (ADR 0009 decision 3)."""
+    if cid.split("/")[0] != "postgresql" or not isinstance(cfg, dict):
+        return False
+    ev = cfg.get("events")
+    ev = ev.get("db.server.top_query") if isinstance(ev, dict) else None
+    return isinstance(ev, dict) and bool(ev.get("enabled"))
+
+
 def classify(kind, cid, cfg):
     """List of (pack, fragment component) targets, or None when unmapped."""
     t = cid.split("/")[0]
     cfg = cfg if isinstance(cfg, dict) else {}
     if kind == "receivers":
         if t == "postgresql":
+            # a receiver that emits db.server.top_query is a lab diagnostic
+            # stream, not the pack's receiver (ADR 0009 decision 3): no pack
+            # maps it, so it needs an UNMAPPED_OK entry
+            if top_query_receiver(cid, cfg):
+                return None
             return [("postgresql", "postgresql/obenhub-postgresql")]
         if t == "sql_query":
             m = re.search(r"packs/([a-z-]+)/(queries[a-z-]*\.yaml)", str(cfg.get("queries", "")))
@@ -562,6 +582,8 @@ def check_pipelines(frags, label, doc, used_allow):
         for r in pl.get("receivers") or []:
             if r not in defined:
                 continue  # supplied by a chart preset
+            if top_query_receiver(r, defined[r]) and sig != "logs":
+                fail(f"{label}: pipeline {pname}: {r} emits db.server.top_query and belongs in a logs pipeline only")
             tg = classify("receivers", r, defined[r])
             if tg:
                 by_pack.setdefault(tg[0][0], []).append(tg[0][1])

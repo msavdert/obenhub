@@ -31,6 +31,12 @@ access to `apt.postgresql.org`.
   `postgresqlreceiver` v0.164.0 has no replication slot or subscription
   metrics, so the pack queries `pg_replication_slots`, `pg_subscription`,
   `pg_stat_subscription`, `pg_stat_subscription_stats` and `pg_stat_archiver`.
+- The top statements of the primary as `db.server.top_query` log events in
+  VictoriaLogs (ADR 0009 decision 3): receiver `postgresql/primary-topquery`,
+  every 5 minutes, the 20 statements with the largest execution-time delta
+  among the 200 most called, `EXPLAIN` off (`max_explain_each_interval: 0`).
+  The query text is normalised by the receiver. No rule reads them; in
+  VictoriaLogs: `event_name:="db.server.top_query"`.
 - pgBackRest 2.60.1 (ADR 0007; the exporter image bundles 2.60.0): the primary archives WAL with `archive-push`
   into a repository volume; the `pgbackrest-backup` service creates the stanza
   and keeps one backup per 600 s, scheduled from the repository (a full one when
@@ -102,6 +108,10 @@ fires, zero monitoring-role errors in the server log). Notable details:
   `postgres` (created by `postgres/10-init-primary.sh`). `lock-blocked` also
   checks that `postgresql.client_session.count` shows sessions with wait
   event type `Lock`.
+- `top-query` runs a marker statement ten times in database `app` and waits
+  up to 12 minutes for its `db.server.top_query` record; it checks the calls,
+  the database, that no plan is attached and that the monitoring user ran no
+  `PREPARE` or `EXPLAIN`. No alert is expected.
 - `autovacuum-backlog` and `autovacuum-off` exercise the slow tier (every 5
   minutes, database `app` only): a table past its autovacuum threshold with
   `autovacuum_naptime` at one day, and `autovacuum` off with a table that has

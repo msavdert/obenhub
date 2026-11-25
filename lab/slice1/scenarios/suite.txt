@@ -27,4 +27,5 @@ basebackup-compare
 statements-evicted
 autovacuum-backlog
 autovacuum-off
+top-query
 control
