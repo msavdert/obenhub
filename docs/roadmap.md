@@ -239,7 +239,7 @@ pgha `pgha-20261122T140350Z-4f6f8a9` and oracle
 
 ### F. Depth
 
-- [ ] F1 Query-level telemetry from `pg_stat_statements` (an ADR on
+- [x] F1 Query-level telemetry from `pg_stat_statements` (an ADR on
       cardinality first; database-level totals and a bounded top-K, never a
       series per `queryid`), autovacuum and dead tuples, wait events.
       First step: read what the pinned `postgresqlreceiver` already emits
@@ -254,6 +254,10 @@ pgha `pgha-20261122T140350Z-4f6f8a9` and oracle
       tier (5 minutes) so it never runs at 15 s on a busy primary; the
       pack README states that interval (C5) and the rules over it use
       windows that hold at it. Each signal comes with a scenario
+      (2026-11-25: ADR 0009; slice1 suite
+      `slice1-20261125T185820Z-2edce7c`, 31 of 31, with
+      `statements-evicted`, `autovacuum-backlog`, `autovacuum-off` and
+      `top-query`)
 - [ ] F2 Logs in use: every lab ships logs to VictoriaLogs and no rule or
       dashboard panel reads them. One panel and one log rule per engine
 - [ ] F3 Host rules beyond filesystem, memory and reboot: disk I/O, OOM
