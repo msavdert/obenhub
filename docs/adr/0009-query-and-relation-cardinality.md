@@ -85,10 +85,12 @@ two queries (F4).
    pack and on in slice1 at a 5 m interval with `top_n_query: 20`,
    `max_rows_per_query: 200` and `max_explain_each_interval: 0`, so that
    the monitoring user runs no `EXPLAIN` on the monitored server;
-   `db.server.query_plan` stays off. Unconfirmed until a slice1 run: that
-   0 disables `EXPLAIN` (the source tests `explained <
-   max_explain_each_interval`, false for 0) and that the config accepts it
-   (`Validate` in `config.go` does not check the field). Because the signal is at stability
+   `db.server.query_plan` stays off. That 0 disables `EXPLAIN` (the source
+   tests `explained < max_explain_each_interval`, false for 0) and that the
+   config accepts it (`Validate` in `config.go` does not check the field)
+   was confirmed by the `top-query` scenario in slice1 suite
+   `slice1-20261125T185820Z-2edce7c`: two `db.server.top_query` records,
+   no `EXPLAIN` from the monitoring user. Because the signal is at stability
    `development` and sees only the most called statements, no rule depends
    on it; it is a diagnostic stream.
 4. Wait events are one `pg_stat_activity` scan grouped by `state`,
