@@ -237,6 +237,45 @@ pgha `pgha-20261122T140350Z-4f6f8a9` and oracle
       0008 decision 3; `lab:oracle:cdb26-check`, result in
       `lab/oracle/README.md`)
 
+### G. Monitoring a database obenhub did not build
+
+Added by the owner on 2026-11-26 and placed before F2, F3 and F5 on the
+same day; F4 finishes first, its measurement has already run. The
+question each item answers:
+someone already runs a database on a VM, in Docker, on Kubernetes or as a
+managed service, and wants it watched by one backend and one Grafana. The
+labs keep a backend each so their scenarios do not see each other;
+`deploy/compose` is the single backend (it already provisions the host,
+postgresql, patroni, cnpg and oracledb-dg dashboards).
+
+- [ ] G1 One guide, "Monitor what you already run", with one page per
+      target kind: VM or bare metal (today's `docs/guides/install.md`),
+      a PostgreSQL container, PostgreSQL on Kubernetes (Helm values in
+      `deploy/helm/`, a plain StatefulSet and CloudNativePG) and a managed
+      service (Stage 5 below supplies the evidence). A table of what changes
+      on the database: `pg_monitor` through
+      `packs/postgresql/monitoring-role.sql` is required; the
+      `pg_stat_statements` signals need `shared_preload_libraries` (a
+      restart) and `CREATE EXTENSION`, and are skipped without them
+      (`packs/postgresql/queries.yaml`); `pg_hba.conf` and network reach.
+      Criterion: each page is followed by a test against a target built
+      without this repository's lab files (a stock `postgres` image, a
+      StatefulSet on kind, the Stage 5 free service), all reporting into
+      one `deploy/compose` backend
+- [ ] G2 Oracle from empty VMs: scripts under `lab/oracle/build/` that take
+      three blank Oracle Linux 9 VMs to what `lab/oracle/README.md` lists
+      today (19c home, `CDB19` and `CDB19B`, physical standbys by RMAN
+      duplicate, broker with fast-start failover, observers on
+      `ora-dg-obs`, `CDB26`). Source: the owner's lab runbooks (OL9
+      template, 19c and 26ai install via AutoUpgrade, the 19c Data Guard
+      lab of 2026-11-04/05), turned into scripts. Closes the known gap
+      below. Criterion: the VMs rebuilt from the clean snapshot by the
+      scripts alone, then the oracle full suite passes
+- [ ] G3 Oracle in the G1 guide: the monitoring user and grants of
+      `lab/oracle/scripts/provision.sh` as a standalone script, the
+      Collector fragment, and an install test against an Oracle the lab
+      did not provision (the 26ai Free container)
+
 ### F. Depth
 
 - [x] F1 Query-level telemetry from `pg_stat_statements` (an ADR on
@@ -289,43 +328,6 @@ pipeline.
 stage3 stays in the release gate next to pgha (owner, 2026-11-19): its full
 suite takes about an hour (66 minutes, `stage3-20261118T214721Z-e47dc14`),
 and it is the Patroni lab that runs without the owner's VMs.
-
-### G. Monitoring a database obenhub did not build
-
-Added by the owner on 2026-11-26, after F. The question each item answers:
-someone already runs a database on a VM, in Docker, on Kubernetes or as a
-managed service, and wants it watched by one backend and one Grafana. The
-labs keep a backend each so their scenarios do not see each other;
-`deploy/compose` is the single backend (it already provisions the host,
-postgresql, patroni, cnpg and oracledb-dg dashboards).
-
-- [ ] G1 One guide, "Monitor what you already run", with one page per
-      target kind: VM or bare metal (today's `docs/guides/install.md`),
-      a PostgreSQL container, PostgreSQL on Kubernetes (Helm values in
-      `deploy/helm/`, a plain StatefulSet and CloudNativePG) and a managed
-      service (Stage 5 below supplies the evidence). A table of what changes
-      on the database: `pg_monitor` through
-      `packs/postgresql/monitoring-role.sql` is required; the
-      `pg_stat_statements` signals need `shared_preload_libraries` (a
-      restart) and `CREATE EXTENSION`, and are skipped without them
-      (`packs/postgresql/queries.yaml`); `pg_hba.conf` and network reach.
-      Criterion: each page is followed by a test against a target built
-      without this repository's lab files (a stock `postgres` image, a
-      StatefulSet on kind, the Stage 5 free service), all reporting into
-      one `deploy/compose` backend
-- [ ] G2 Oracle from empty VMs: scripts under `lab/oracle/build/` that take
-      three blank Oracle Linux 9 VMs to what `lab/oracle/README.md` lists
-      today (19c home, `CDB19` and `CDB19B`, physical standbys by RMAN
-      duplicate, broker with fast-start failover, observers on
-      `ora-dg-obs`, `CDB26`). Source: the owner's lab runbooks (OL9
-      template, 19c and 26ai install via AutoUpgrade, the 19c Data Guard
-      lab of 2026-11-04/05), turned into scripts. Closes the known gap
-      below. Criterion: the VMs rebuilt from the clean snapshot by the
-      scripts alone, then the oracle full suite passes
-- [ ] G3 Oracle in the G1 guide: the monitoring user and grants of
-      `lab/oracle/scripts/provision.sh` as a standalone script, the
-      Collector fragment, and an install test against an Oracle the lab
-      did not provision (the 26ai Free container)
 
 ## Known gaps, accepted for now
 
