@@ -3,6 +3,8 @@
 # (10.0.0.13, Debian 13) over ssh from the box; it changes only pg-lab.
 #
 # What it does (idempotent):
+#   - installs PostgreSQL 18 from the PGDG apt repository if cluster 18/main
+#     is missing (a pg-lab rolled back to its clean snapshot has none);
 #   - installs otelcol-contrib (VERSION below) from the official release tarball,
 #     verified against the release's per-asset .sha256 file;
 #   - creates the system user otelcol, /etc/otelcol-contrib/env (root, 0600,
@@ -33,6 +35,15 @@ scp -q "$HERE/../../packs/postgresql/queries.yaml" "$HOST:/tmp/obenhub-queries.y
 
 ssh -o ServerAliveInterval=30 -o ServerAliveCountMax=4 "$HOST" sudo VERSION="$VERSION" SCALE="$SCALE" bash -s <<'REMOTE'
 set -euo pipefail
+# PostgreSQL 18 from the PGDG apt repository, set up with the script Debian's
+# postgresql-common ships; skipped when the cluster 18/main exists.
+if [ ! -d /etc/postgresql/18/main ]; then
+  export DEBIAN_FRONTEND=noninteractive
+  apt-get update -q </dev/null
+  apt-get install -y -q postgresql-common </dev/null
+  /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y </dev/null
+  apt-get install -y -q postgresql-18 </dev/null
+fi
 base=https://github.com/open-telemetry/opentelemetry-collector-releases/releases/download/v$VERSION
 f=otelcol-contrib_${VERSION}_linux_amd64.tar.gz
 
