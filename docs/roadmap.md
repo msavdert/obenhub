@@ -299,8 +299,6 @@ and it is the Patroni lab that runs without the owner's VMs.
 - `PostgresTransactionIdWraparound` is unit-tested only; no scenario
   induces it (owner decision 2026-11-19: burning a billion transaction IDs
   tests the lab, and `pg_resetwal` tests `pg_resetwal`)
-- `pg_stat_statements` is preloaded in slice1 but nothing reads it
-  (`lab/slice1/compose.yaml`); F1
 - k8s Collectors and the CloudNativePG Cluster have no resource requests or
   limits (`lab/k8s/otel`, `lab/k8s/cnpg/cluster.yaml`)
 - Split-brain alerts (`PatroniMultiplePrimaries`,

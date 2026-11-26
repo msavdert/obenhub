@@ -24,7 +24,6 @@ below are not produced by it: they are read from `packs:catalog-diff` outputs
 
 | Query (first metric) | pg-min | Reason |
 | --- | --- | --- |
-| `postgresql.snapshot.oldest_age` | 16 | setting `reserved_connections` |
 | `postgresql.replication_slot.active` | 17 | `inactive_since`, `invalidation_reason` of `pg_replication_slots` |
 | `postgresql.subscription.enabled` | 17 | `pg_stat_subscription.worker_type` |
 | `postgresql.subscription.conflict` | 15 | no rows below 18: the `confl_*` columns of `pg_stat_subscription_stats` (18, `confl_update_deleted` 19) are read as keys of `to_jsonb(t)` (roadmap E3) |
