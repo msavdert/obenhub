@@ -24,6 +24,24 @@
     - {metric_name: postgresql.wal_receiver.streaming, value_column: wal_receiver_streaming, value_type: int, data_type: gauge, unit: "1", description: "1 when a WAL receiver is streaming (always 0 on a primary)"}
     - {metric_name: postgresql.replay.backlog, value_column: replay_backlog, value_type: double, data_type: gauge, unit: By, description: "Received but not yet replayed WAL"}
     - {metric_name: postgresql.replay.paused, value_column: replay_paused, value_type: int, data_type: gauge, unit: "1", description: "1 when WAL replay is paused"}
+# Every read of pg_stat_activity in this file is one statement over one
+# MATERIALIZED scan of the view (F4, ADR 0009 decision 4); the postgresql
+# receiver's postgresql.backends (on by default, contrib v0.165.0 client.go
+# getBackends) is its own scan. PostgreSQL copies the backend status array
+# once per transaction, sized by the backend slots (MaxBackends plus auxiliary
+# processes) rather than by live sessions (backend_status.c
+# pgstat_read_current_status, read on REL_15 and REL_18), but each reference
+# to the view runs pg_stat_get_activity(NULL) over that copy and joins
+# pg_database and pg_authid again, so the scan is taken once and every
+# subquery reads the CTE. The result is one row with row_kind 'instance' for
+# the per-instance values and one row with row_kind 'session' per session
+# combination; every metric of a sqlquery query is read from every row, and
+# row_condition picks the rows of each (internal/sqlquery scraper.go, contrib
+# v0.165.0). The columns a row kind does not use are 0 or 'none', never NULL,
+# so no row logs a NULL warning. pid <> pg_backend_pid() leaves this scraping
+# backend out everywhere except client_connection_count, which counts every
+# client backend as max_connections does.
+#
 # snapshot_oldest_age covers what has a timestamp: client transactions that
 # hold a snapshot or an xid, and prepared transactions (pg_prepared_xacts.
 # prepared). Replication slots and walsender feedback have no timestamp; they
@@ -31,32 +49,77 @@
 # a walsender's backend_xmin (hot_standby_feedback) is included; the slot's own
 # xmin and catalog_xmin are read from pg_replication_slots because a physical
 # slot keeps them with no walsender attached.
-# pg-min: 16
+#
+# idle_age is the time spent idle inside a transaction, as opposed to a long
+# running statement or a held snapshot (snapshot_oldest_age): state_change is
+# when the session last changed state, so for an idle session it is the moment
+# it went idle. 0 when no client is idle in a transaction.
+#
+# Client sessions by state and wait event (PostgreSQL 18 docs, monitoring-stats,
+# view pg_stat_activity; wait_event_type and wait_event are NULL while a
+# backend is not waiting, and state is NULL for a backend not yet initialised):
+# client backends only, without this scraping backend; a NULL becomes 'none'
+# because a metric attribute has no NULL. Only the combinations present at the
+# scrape produce a series, and the wait event names are PostgreSQL's
+# vocabulary (ADR 0009, decisions 1 and 4); a combination that is gone is no
+# series, not a 0.
+#
+# reserved_connections exists from PostgreSQL 16; current_setting(name, true)
+# returns NULL below that, read as 0.
+# pg-min: 15
 - sql: |
+    WITH a AS MATERIALIZED (
+      SELECT pid, backend_type, state, wait_event_type, wait_event,
+        xact_start, state_change, backend_xmin, backend_xid
+      FROM pg_stat_activity
+    )
     SELECT
+      'instance' AS row_kind,
       greatest(
         coalesce((SELECT max(extract(epoch FROM clock_timestamp() - xact_start))
-                    FROM pg_stat_activity
+                    FROM a
                     WHERE (backend_xmin IS NOT NULL OR backend_xid IS NOT NULL)
                       AND backend_type = 'client backend'
                       AND pid <> pg_backend_pid()), 0),
         coalesce((SELECT max(extract(epoch FROM clock_timestamp() - prepared))
                     FROM pg_prepared_xacts), 0))::float8 AS snapshot_oldest_age,
       coalesce((SELECT max(age(x)) FROM (
-                  SELECT backend_xmin AS x FROM pg_stat_activity WHERE pid <> pg_backend_pid()
-                  UNION ALL SELECT backend_xid FROM pg_stat_activity WHERE pid <> pg_backend_pid()
+                  SELECT backend_xmin AS x FROM a WHERE pid <> pg_backend_pid()
+                  UNION ALL SELECT backend_xid FROM a WHERE pid <> pg_backend_pid()
                   UNION ALL SELECT xmin FROM pg_replication_slots
                   UNION ALL SELECT catalog_xmin FROM pg_replication_slots
                   UNION ALL SELECT transaction FROM pg_prepared_xacts) h), 0)::bigint AS xmin_horizon_age,
-      (SELECT count(*) FROM pg_stat_activity WHERE backend_type = 'client backend')::int AS client_connection_count,
+      (SELECT count(*) FROM a WHERE backend_type = 'client backend')::int AS client_connection_count,
       (current_setting('max_connections')::int
           - current_setting('superuser_reserved_connections')::int
-          - current_setting('reserved_connections')::int) AS client_connection_limit
+          - coalesce(current_setting('reserved_connections', true)::int, 0)) AS client_connection_limit,
+      coalesce((SELECT max(extract(epoch FROM clock_timestamp() - state_change))
+                  FROM a
+                  WHERE backend_type = 'client backend'
+                    AND state IN ('idle in transaction', 'idle in transaction (aborted)')
+                    AND pid <> pg_backend_pid()), 0)::float8 AS idle_age,
+      'none' AS "postgresql.session.state",
+      'none' AS "postgresql.wait_event.type",
+      'none' AS "postgresql.wait_event.name",
+      0 AS session_count
+    UNION ALL
+    SELECT
+      'session', 0, 0, 0, 0, 0,
+      coalesce(state, 'none'),
+      coalesce(wait_event_type, 'none'),
+      coalesce(wait_event, 'none'),
+      count(*)::int
+    FROM a
+    WHERE backend_type = 'client backend'
+      AND pid <> pg_backend_pid()
+    GROUP BY state, wait_event_type, wait_event
   metrics:
-    - {metric_name: postgresql.snapshot.oldest_age, value_column: snapshot_oldest_age, value_type: double, data_type: gauge, unit: s, description: "Age of the oldest client transaction holding a snapshot or an xid, or of the oldest prepared transaction"}
-    - {metric_name: postgresql.xmin_horizon.age, value_column: xmin_horizon_age, value_type: int, data_type: gauge, unit: '{transaction}', description: "Largest age() of any xmin or xid held by a backend (walsender feedback included), a replication slot (xmin, catalog_xmin) or a prepared transaction"}
-    - {metric_name: postgresql.client_connection.count, value_column: client_connection_count, value_type: int, data_type: gauge, unit: '{connection}', description: "Client backends"}
-    - {metric_name: postgresql.client_connection.limit, value_column: client_connection_limit, value_type: int, data_type: gauge, unit: '{connection}', description: "max_connections minus reserved slots"}
+    - {metric_name: postgresql.snapshot.oldest_age, value_column: snapshot_oldest_age, row_condition: {column: row_kind, value: instance}, value_type: double, data_type: gauge, unit: s, description: "Age of the oldest client transaction holding a snapshot or an xid, or of the oldest prepared transaction"}
+    - {metric_name: postgresql.xmin_horizon.age, value_column: xmin_horizon_age, row_condition: {column: row_kind, value: instance}, value_type: int, data_type: gauge, unit: '{transaction}', description: "Largest age() of any xmin or xid held by a backend (walsender feedback included), a replication slot (xmin, catalog_xmin) or a prepared transaction"}
+    - {metric_name: postgresql.client_connection.count, value_column: client_connection_count, row_condition: {column: row_kind, value: instance}, value_type: int, data_type: gauge, unit: '{connection}', description: "Client backends"}
+    - {metric_name: postgresql.client_connection.limit, value_column: client_connection_limit, row_condition: {column: row_kind, value: instance}, value_type: int, data_type: gauge, unit: '{connection}', description: "max_connections minus reserved slots"}
+    - {metric_name: postgresql.transaction.idle_age, value_column: idle_age, row_condition: {column: row_kind, value: instance}, value_type: double, data_type: gauge, unit: s, description: "Longest time a client session has been idle in a transaction (0 when none)"}
+    - {metric_name: postgresql.client_session.count, value_column: session_count, row_condition: {column: row_kind, value: session}, attribute_columns: ["postgresql.session.state", "postgresql.wait_event.type", "postgresql.wait_event.name"], value_type: int, data_type: gauge, unit: '{session}', description: "Client sessions by state, wait event type and wait event; 'none' where the backend has none"}
 # Wraparound: one row per database, template databases included (they are
 # frozen by autovacuum like the rest). age() and mxid_age() count transactions
 # and multixacts since datfrozenxid / datminmxid; both wrap at 2^31 (about 2.1
@@ -68,19 +131,6 @@
   metrics:
     - {metric_name: postgresql.database.xid_age, value_column: xid_age, attribute_columns: ["postgresql.database.name"], value_type: int, data_type: gauge, unit: '{transaction}', description: "age(datfrozenxid) of the database, in transactions"}
     - {metric_name: postgresql.database.mxid_age, value_column: mxid_age, attribute_columns: ["postgresql.database.name"], value_type: int, data_type: gauge, unit: '{multixact}', description: "mxid_age(datminmxid) of the database, in multixacts"}
-# Time spent idle inside a transaction, as opposed to a long running statement
-# or a held snapshot (postgresql.snapshot.oldest_age): state_change is when the
-# session last changed state, so for an idle session it is the moment it went
-# idle. 0 when no client is idle in a transaction.
-# pg-min: 15
-- sql: |
-    SELECT coalesce(max(extract(epoch FROM clock_timestamp() - state_change)), 0)::float8 AS idle_age
-    FROM pg_stat_activity
-    WHERE backend_type = 'client backend'
-      AND state IN ('idle in transaction', 'idle in transaction (aborted)')
-      AND pid <> pg_backend_pid()
-  metrics:
-    - {metric_name: postgresql.transaction.idle_age, value_column: idle_age, value_type: double, data_type: gauge, unit: s, description: "Longest time a client session has been idle in a transaction (0 when none)"}
 # Sessions waiting for a lock: pg_locks rows that are not granted.
 # pg_locks.waitstart (PostgreSQL 14+) is when the wait began; it is not
 # guaranteed to be set for every waiting row, so a NULL counts as 0
@@ -275,24 +325,3 @@
     ) x
   metrics:
     - {metric_name: postgresql.statement.deallocation, value_column: statement_deallocations, value_type: int, data_type: sum, monotonic: true, aggregation: cumulative, unit: '{deallocation}', description: "pg_stat_statements_info.dealloc: times statements were evicted from pg_stat_statements (reset by pg_stat_statements_reset())"}
-# Client sessions by state and wait event (PostgreSQL 18 docs, monitoring-stats,
-# view pg_stat_activity; wait_event_type and wait_event are NULL while a
-# backend is not waiting, and state is NULL for a backend not yet initialised).
-# One scan, client backends only, without this scraping backend; a NULL becomes
-# 'none' because a metric attribute has no NULL. Only the combinations present
-# at the scrape produce a series, and the wait event names are PostgreSQL's
-# vocabulary (ADR 0009, decisions 1 and 4); a combination that is gone is no
-# series, not a 0. The existing pg_stat_activity scans are merged in F4.
-# pg-min: 15
-- sql: |
-    SELECT
-      coalesce(state, 'none') AS "postgresql.session.state",
-      coalesce(wait_event_type, 'none') AS "postgresql.wait_event.type",
-      coalesce(wait_event, 'none') AS "postgresql.wait_event.name",
-      count(*)::int AS session_count
-    FROM pg_stat_activity
-    WHERE backend_type = 'client backend'
-      AND pid <> pg_backend_pid()
-    GROUP BY 1, 2, 3
-  metrics:
-    - {metric_name: postgresql.client_session.count, value_column: session_count, attribute_columns: ["postgresql.session.state", "postgresql.wait_event.type", "postgresql.wait_event.name"], value_type: int, data_type: gauge, unit: '{session}', description: "Client sessions by state, wait event type and wait event; 'none' where the backend has none"}
