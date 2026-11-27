@@ -19,8 +19,7 @@ a kind cluster of its own (one node, Kubernetes 1.36, kind 0.33.0), built by the
 test and deleted by it; the Collector releases are chart 0.180.0 with the
 Collector 0.165.0 image of the gateway.
 
-**StatefulSet** (2026-11-27, commit 909010f, `git_dirty` true: a run before the
-commit of this page): passed in 1734 s against `postgres:18.7-trixie` with default
+**StatefulSet** (2026-11-27 11:53 UTC, commit 9e48300): passed in 1269 s against `postgres:18.7-trixie` with default
 settings, no TLS and no `pg_stat_statements`, with `agent-values.yaml` only.
 After a 1020 s settle the heartbeat of `pgdemo-0` was in VictoriaMetrics (1
 series), nothing but `Watchdog` fired and nothing was pending, no alert but
@@ -28,28 +27,31 @@ series), nothing but `Watchdog` fired and nothing was pending, no alert but
 tolerated for 120 s after their start, as in the other tests), the dead-man receiver got `Watchdog` six times 60 s
 apart, no Collector container had restarted and the Collectors' logs held no line
 with "error". The pod's `k8s.pod.phase` and `k8s.pod.cpu.time` series were in
-VictoriaMetrics and 2 container log records of the pod in VictoriaLogs. 21
+VictoriaMetrics and 4 container log records of the pod in VictoriaLogs, one of
+them the `division by zero` error of the test's own `SELECT 1/0`. 21
 panels of the PostgreSQL dashboard had data, 18 are empty by design (four of them
 the "Statements" panels, because the stock image does not preload
 `pg_stat_statements`) and 2 replication slot panels are accepted empty because a
 plain server has none. The host dashboard and the CloudNativePG one were not run
 (the line lists them with the reason).
 
-**CloudNativePG** (2026-11-27, commit 909010f, `git_dirty` true, as above): passed
-in 1633 s against operator 1.30.2 (manifest checksum verified) and a two-instance
-Cluster `pgdemo` with default settings and TLS on, with `agent-values.yaml` and
+**CloudNativePG** (2026-11-27 12:39 UTC, commit e196fd3): passed in 1353 s
+against operator 1.30.2 (manifest checksum verified) and a two-instance Cluster
+`pgdemo` with default settings and TLS on, with `agent-values.yaml` and
 `cnpg-values.yaml`. After the same 1020 s settle the heartbeat was in
 VictoriaMetrics for both instances (2 series), nothing but `Watchdog` fired and
-nothing was pending, no alert but `Watchdog` fired after the start (same 120 s tolerance), the
-dead-man receiver got `Watchdog` six times 60 s apart, no Collector container
-had restarted, `cnpg_collector_up` had one series per instance, and VictoriaLogs
-held 10 PostgreSQL records parsed from the JSON logs (`service.name`
-`postgresql`, cluster `pgdemo`). 43 panels of the PostgreSQL dashboard (for the
-primary) and the CloudNativePG dashboard had data and 18 are empty by design, the
-same list as above: the Statements panels are empty here too (the test enables
-no `pg_stat_statements`). The Collectors' logs held one line with "error" (the count is recorded in the
-line as `collector_log_error_lines` and printed, not asserted; what it said is not
-recorded). The host dashboard was not run.
+nothing was pending, no alert but `Watchdog` fired after the start (same 120 s
+tolerance), the dead-man receiver got `Watchdog` five times 60 s apart, no
+Collector container had restarted, `cnpg_collector_up` had one series per
+instance, VictoriaLogs held 3 container log records of the primary (one the
+`division by zero` of the test's `SELECT 1/0`) and 6 PostgreSQL records parsed
+from the JSON logs (`service.name` `postgresql`, cluster `pgdemo`). 44 panels of
+the PostgreSQL dashboard (for the primary) and the CloudNativePG dashboard had
+data and 17 are empty by design, the list above less the server-log panel: the
+Statements panels are empty here too (the test enables no
+`pg_stat_statements`). The Collectors' logs held one line with "error" (the
+count is recorded in the line as `collector_log_error_lines` and printed, not
+asserted; what it said is not recorded). The host dashboard was not run.
 
 What the test does not exercise: see "Limitations" below. The ones that matter
 most: one node, no failover, no TLS to a StatefulSet's PostgreSQL, no
