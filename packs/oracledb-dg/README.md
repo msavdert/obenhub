@@ -84,6 +84,8 @@ Every policy threshold is a production default in the rule that a lab can overri
 
 ## Collector fragment
 
+The two accounts the fragment logs in with (`OBENHUB_ORACLE_MON_USER`, `OBENHUB_ORACLE_DG_USER`) are created outside the lab by [`deploy/oracle/monitoring-user.sql`](../../deploy/oracle/monitoring-user.sql), as the [Oracle guide page](../../docs/guides/monitor/oracle.md) says; the lab's `lab/oracle/scripts/provision.sh` builds the same grants from `mon-lib.sh`, and `mise run lint:oracle-user-sql` keeps the two equal.
+
 `otelcol.yaml` is the Collector fragment of this pack: receivers, processors and the pipelines named `*/obenhub-oracledb-dg*`, exporting to `otlp_http/obenhub`. It needs the base in [`../otelcol-base.yaml`](../otelcol-base.yaml) (exporter and extensions) and the files of this pack at `/etc/otelcol-contrib/packs/oracledb-dg/`. The lab Collector configurations stay hand-written. `mise run lint:otelcol` validates the fragment with its base, starts the Collector once with it (a receiver that cannot reach its target is fine, one that cannot start is not), and fails when a lab block differs from it, except in hosts, ports, endpoints, targets, usernames and TLS settings, identity values, and the entries of `ALLOW` in `scripts/check-otelcol-fragments.py`, each with a reason; a lab credential must stay an `${env:...}` reference ([ADR 0005](../../docs/adr/0005-lab-collection-topology-and-packs.md) decision 3).
 
 One database per Collector process; the alert log is read on the database VM, the other receivers may run elsewhere.
