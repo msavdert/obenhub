@@ -10,16 +10,14 @@ says so.
 
 ## What the Oracle test proves, and what it does not
 
-The latest run (2026-11-27 09:33 UTC, commit 909010f plus the uncommitted G3
-files, so the line says `git_dirty`; to be repeated on the committed tree; line
-with `"test": "oracle-test"` in `deploy/results/runs.jsonl`) passed in 1142 s
+The latest run (2026-11-27 13:26 UTC, commit 53f6d15, line with
+`"test": "oracle-test"` in `deploy/results/runs.jsonl`) passed in 1013 s
 against Oracle AI Database 26ai Free 23.26.4.0.0 in a container with default
-settings (ready after 160 s), on a shared box. After a 720 s settle the heartbeat
+settings (ready after 120 s), on a shared box. After a 720 s settle the heartbeat
 of the database was in VictoriaMetrics, nothing but `Watchdog` fired and nothing
 was pending, the dead-man receiver got
 `Watchdog` six times 60 s apart, and 18 panels of the Oracle dashboard had data;
-5 are empty by design (below). The Collector log had two lines with "error":
-the two `CDB_PROCEDURES` warnings of step 2. It does not exercise a database on
+5 are empty by design (below). It does not exercise a database on
 another host than a container, the alert log, a standby or broker, a PDB-only
 service, 19c, RAC or ASM, a Collector as a host binary with these packs, or
 Oracle Linux packages of any kind.
