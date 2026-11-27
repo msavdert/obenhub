@@ -10,12 +10,13 @@ text says so.
 
 ## What the install test proves, and what it does not
 
-The latest run (2026-11-20, commit 119ff5c, clean tree, line in
-`deploy/results/runs.jsonl`) passed in 844 s against a plain `postgres:18.7`
+The latest run (2026-11-27, commit 0abd499, clean tree, line in
+`deploy/results/runs.jsonl`) passed in 1207 s against a plain `postgres:18.7`
 container with default settings: the heartbeat of the database was in
-VictoriaMetrics, nothing but `Watchdog` fired after a 720 s settle, the
-dead-man receiver got `Watchdog` every 60 s, and 28 dashboard panels had data
-(15 are empty by design, 2 replication slot panels are accepted empty because a
+VictoriaMetrics, nothing but `Watchdog` fired after a 1020 s settle, the
+dead-man receiver got `Watchdog` every 60 s, the Collector's secrets were mode
+600, and 33 dashboard panels had data
+(19 are empty by design, 2 replication slot panels are accepted empty because a
 plain server has none). It does not exercise journald or PostgreSQL log
 collection (the [VM page](vm.md) has the first for the Collector's own unit), a
 Collector running as a host binary (this test runs the Collector image in a
