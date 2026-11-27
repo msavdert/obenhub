@@ -213,7 +213,7 @@ keeps the same passwords.
 
 ## Next
 
-- [Install guide](install.md): the backend and a host Collector against your own
-  PostgreSQL, without the lab.
+- [Monitor what you already run](monitor/index.md): the backend and a Collector
+  against your own PostgreSQL, without the lab.
 - The other 26 slice1 scenarios: `ls lab/slice1/scenarios`, run with
   `mise run --skip-tools lab:scenario <name>`.

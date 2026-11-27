@@ -17,7 +17,7 @@ page are described in
 
 ## Start here
 
-- Guides: the [quick start](guides/quick-start.md), from a fresh Debian host to a fired and resolved alert on the slice1 lab, and the [install guide](guides/install.md) for your own PostgreSQL.
+- Guides: the [quick start](guides/quick-start.md), from a fresh Debian host to a fired and resolved alert on the slice1 lab, and the guide [Monitor what you already run](guides/monitor/index.md) for your own PostgreSQL.
 - [Decisions](adr/README.md): the ADRs.
 - Reference: the [PostgreSQL pack](reference/postgresql-pack-metrics.md), [PgBouncer pack](reference/pgbouncer-pack-metrics.md), [Oracle Data Guard pack](reference/oracledb-dg-pack-metrics.md) and [Oracle RMAN backup pack](reference/oracledb-backup-pack-metrics.md) metrics.
 - [Roadmap](roadmap.md): what is planned, and in what order.

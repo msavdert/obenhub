@@ -12,7 +12,11 @@ nav = [
   { "Home" = "index.md" },
   { "Guides" = [
     "guides/quick-start.md",
-    "guides/install.md",
+    { "Monitor what you already run" = [
+      "guides/monitor/index.md",
+      "guides/monitor/vm.md",
+      "guides/monitor/container.md",
+    ] },
   ] },
   { "Decisions" = [
     "adr/README.md",
