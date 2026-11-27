@@ -7,14 +7,17 @@ Compose) receives from a Collector next to each database. This page holds what
 every target kind shares: the backend, the monitoring role, the changes the
 database needs and how to see that it works. Then one page per kind of target:
 
-- [A database on a VM or bare metal](vm.md): the Collector as a host binary.
+- [A database on a VM or bare metal](vm.md): the Collector as a host binary
+  under systemd, and what `mise run deploy:vm-test` proves.
 - [A PostgreSQL container](container.md): the Collector as a container, and
   what `mise run deploy:install-test` proves.
 
-The guide follows what that test does
-([`deploy/test/install-test.sh`](https://github.com/msavdert/obenhub/blob/main/deploy/test/install-test.sh)),
-so each step names the evidence for it; where it goes beyond the test, the step
-says so. The reference for every file is
+The guide follows what two tests do: the container page what
+[`deploy/test/install-test.sh`](https://github.com/msavdert/obenhub/blob/main/deploy/test/install-test.sh)
+runs, the VM page what
+[`deploy/test/vm-test.sh`](https://github.com/msavdert/obenhub/blob/main/deploy/test/vm-test.sh)
+runs. Each step names the evidence for it; where it goes beyond the tests, the
+step says so. The reference for every file is
 [`deploy/README.md`](https://github.com/msavdert/obenhub/blob/main/deploy/README.md).
 To see an alert fire first, do the [quick start](../quick-start.md).
 
@@ -27,14 +30,15 @@ To see an alert fire first, do the [quick start](../quick-start.md).
   `lab/mon/grafana/provisioning` from it:
   `git clone https://github.com/msavdert/obenhub`.
 - A PostgreSQL server and a superuser connection to it (`psql`), and a host that
-  can reach the server, running the Collector. In the test the host and the
-  backend are one machine and the server is a container; separate machines are
-  the intended layout and are not tested.
+  can reach the server, running the Collector. In the container test the host and
+  the backend are one machine and the server is a container. In the VM test the
+  database and the Collector are on a second machine, which reaches the backend
+  over the network; a server on a third machine than the Collector is not tested.
 - Free ports 3000, 8428, 8880, 9093 and 9428 on `127.0.0.1` of the backend
   machine, and 4318 (the gateway, on all interfaces by default). They are
   variables in `deploy/compose/.env` (`OBENHUB_*_PORT`, `OBENHUB_BIND`,
-  `OBENHUB_GATEWAY_BIND`); the test moves them to `INSTALL_TEST_PORT_BASE`
-  (61000) and up.
+  `OBENHUB_GATEWAY_BIND`); the tests move them to `INSTALL_TEST_PORT_BASE`
+  (61000) and `VM_TEST_PORT_BASE` (61100) and up.
 
 ## 1. The backend
 
@@ -54,13 +58,15 @@ docker compose up -d --wait
 - `tls.sh` takes the DNS names and IP addresses the Collectors will use to reach
   the gateway (replace `gateway.example.net`; give several, separated by
   spaces). It writes a CA, the gateway certificate and one client certificate to
-  `deploy/compose/tls/` (git ignores it). The test passes `gateway`, the
-  container's network alias. A Collector that runs as a container on the
+  `deploy/compose/tls/` (git ignores it). The container test passes `gateway`, the
+  container's network alias; the VM test passes the backend's IP address, the one
+  the database host connects to. A Collector that runs as a container on the
   backend's Docker network reaches the gateway by that alias, so `gateway` must
   be one of the names too (`bash tls.sh gateway.example.net gateway`); the
   [container page](container.md) says what happens otherwise.
-- `.env` needs three values and the test sets exactly these (plus the ports and
-  the gateway bind address, which it moves to `127.0.0.1`):
+- `.env` needs three values and the tests set exactly these (plus the ports and
+  the gateway bind address, which the container test moves to `127.0.0.1` and the
+  VM test to the backend's address):
   the Grafana admin password, and the user and group id of the user who ran
   `tls.sh`, because the gateway container must read the keys. The
   `sed` above is the test's, with the random password generated the way the test
@@ -85,9 +91,10 @@ psql -h <server> -U postgres -v ON_ERROR_STOP=1 -q \
   -f packs/postgresql/monitoring-role.sql
 ```
 
-Run it from the repository root. The test runs the same file the same way
-(`psql` inside the server container, file on standard input) and fails on an
-error. The script is safe to run again: an existing role keeps its grants and
+Run it from the repository root. The container test runs the same file the same
+way (`psql` inside the server container, file on standard input) and fails on an
+error; the VM test runs it as the `postgres` user through the local socket
+(see the [VM page](vm.md)). The script is safe to run again: an existing role keeps its grants and
 gets the new password. Keep `OTEL_MONITOR_PASSWORD` in your shell for the
 Collector step. The statements carry the password; the labs silence statement
 logging and `pg_stat_statements` for that session, the test does not (the
@@ -113,10 +120,14 @@ Next to the database, as a [host binary](vm.md) or as a
 
 ## 4. What you should see
 
-Wait before you judge. The test waits 720 s from the Collector's start: the
-longest `for:` among the collector, host and postgresql rules is 10 minutes
-(`PostgresCollectionIntervalTooLong`, `packs/postgresql/rules.yml`), plus a
-120 s margin that is an assumption of the test. Right after the start the
+Wait before you judge. The tests wait from the Collector's start for the
+longest `for:` among the collector, host and postgresql rules plus a 120 s margin
+that is an assumption of the tests (`settle_wait` in `deploy/test/lib.sh` reads
+the rule files; the value is `settle_seconds` in each line of
+`deploy/results/runs.jsonl`). Today that is 900 s, the `for: 15m` of
+`PostgresAutovacuumBacklog` and `PostgresAutovacuumTableDisabled`
+(`packs/postgresql/rules.yml`), so 1020 s; the install test's recorded line of
+2026-11-20 shows 720 s because it ran before those rules existed. Right after the start the
 `CollectorAbsent` alert for `otelcol-host-1` may fire, because the inventory
 expects a Collector that has not exported yet; the test tolerates it for the
 first 120 s only (it was firing for 18 s in the recorded run).
