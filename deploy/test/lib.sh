@@ -20,6 +20,7 @@
 #   backend_prepare    a function called by backend_up after the copy of deploy/compose is
 #                      configured and before compose up (the k8s test rewrites inventory.yml there)
 #   settle_packs       packs whose rules count for the settle (default "collector host postgresql")
+#   hb_metric          the heartbeat metric (default postgresql.collection.heartbeat)
 #   hb_matcher, hb_expect   the heartbeat selector (default "service.instance.id"="pg-1","obenhub.cluster.name"="main")
 #                      and how many series it must give (default 1)
 #   grace_collectors   space separated service.instance.id values whose CollectorAbsent may fire
@@ -251,7 +252,7 @@ assert_backend() {
 
   # heartbeat
   local hbsel=${hb_matcher:-'"service.instance.id"="pg-1","obenhub.cluster.name"="main"'}
-  hb=$(curl -fsS --max-time 20 "$vm/api/v1/query" --data-urlencode "query=count(last_over_time({__name__=\"postgresql.collection.heartbeat\",$hbsel}[2m]))" | jq -r '.data.result[0].value[1] // "0"')
+  hb=$(curl -fsS --max-time 20 "$vm/api/v1/query" --data-urlencode "query=count(last_over_time({__name__=\"${hb_metric:-postgresql.collection.heartbeat}\",$hbsel}[2m]))" | jq -r '.data.result[0].value[1] // "0"')
   if [ "$hb" = "${hb_expect:-1}" ]; then log "heartbeat series of {$hbsel}: $hb"; else fail "heartbeat series of {$hbsel} in the last 2m: $hb, want ${hb_expect:-1}"; fi
 
   # alerts: only Watchdog may fire, and nothing may be pending

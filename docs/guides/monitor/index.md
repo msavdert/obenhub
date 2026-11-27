@@ -14,13 +14,18 @@ database needs and how to see that it works. Then one page per kind of target:
 - [PostgreSQL on Kubernetes](kubernetes.md): a StatefulSet with the stock image
   or a CloudNativePG Cluster, the Collector as two Helm releases, and what
   `mise run deploy:k8s-test` proves.
+- [An Oracle database](oracle.md): the monitoring users, the Collector with the
+  Oracle packs as a container, and what `mise run deploy:oracle-test` proves.
+  Step 2 below is PostgreSQL's; that page has its own.
 
-The guide follows what three tests do: the container page what
+The guide follows what its tests do: the container page what
 [`deploy/test/install-test.sh`](https://github.com/msavdert/obenhub/blob/main/deploy/test/install-test.sh)
 runs, the VM page what
 [`deploy/test/vm-test.sh`](https://github.com/msavdert/obenhub/blob/main/deploy/test/vm-test.sh)
 runs, the Kubernetes page what
 [`deploy/test/k8s-test.sh`](https://github.com/msavdert/obenhub/blob/main/deploy/test/k8s-test.sh)
+runs, the Oracle page what
+[`deploy/test/oracle-test.sh`](https://github.com/msavdert/obenhub/blob/main/deploy/test/oracle-test.sh)
 runs. Each step names the evidence for it; where it goes beyond the tests, the
 step says so. The reference for every file is
 [`deploy/README.md`](https://github.com/msavdert/obenhub/blob/main/deploy/README.md).
@@ -43,7 +48,8 @@ To see an alert fire first, do the [quick start](../quick-start.md).
   machine, and 4318 (the gateway, on all interfaces by default). They are
   variables in `deploy/compose/.env` (`OBENHUB_*_PORT`, `OBENHUB_BIND`,
   `OBENHUB_GATEWAY_BIND`); the tests move them to `INSTALL_TEST_PORT_BASE`
-  (61000), `VM_TEST_PORT_BASE` (61100) and `K8S_TEST_PORT_BASE` (61200) and up.
+  (61000), `VM_TEST_PORT_BASE` (61100), `K8S_TEST_PORT_BASE` (61200) and
+  `ORACLE_TEST_PORT_BASE` (61300) and up.
 
 ## 1. The backend
 

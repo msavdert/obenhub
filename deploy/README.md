@@ -12,6 +12,8 @@ fails when they differ). This page lists what is here and the commands.
 | `compose/inventory.yml` | what you expect to see (Collectors, databases); an example you edit |
 | `compose/alertmanager.yml` | routes by severity, a dead-man route for `Watchdog` |
 | `collector/otelcol-tls.yaml`, `collector/obenhub.env.example` | mutual-TLS overlay and variables of a host Collector |
+| `oracle/monitoring-user.sql` | the two Oracle monitoring users and their grants, run by a DBA with `sqlplus` ([guide page](../docs/guides/monitor/oracle.md)) |
+| `collector/obenhub-oracle.env.example` | variables of a Collector that monitors an Oracle CDB ([guide page](../docs/guides/monitor/oracle.md)) |
 | `helm/agent-values.yaml`, `helm/cnpg-values.yaml`, `helm/cluster-values.yaml`, `helm/versions.sh` | values for the `opentelemetry-collector` chart (the agent for any PostgreSQL pod, the CloudNativePG additions, the cluster-wide Collector), and its pin |
 
 Prerequisites: Docker with the Compose plugin, bash 4+ and OpenSSL 1.1.1+
@@ -130,6 +132,15 @@ fails the run. Its read-only preflight refuses a target that has a cluster
 `*.vm-test-aside`, whatever the flags; a leftover `/etc/otelcol-contrib`,
 `/var/lib/otelcol-contrib` or drop-in directory is moved aside and back only
 with `--force`. It appends a line with `"test": "vm-test"` to
+`results/runs.jsonl`.
+
+## Oracle test
+
+`mise run deploy:oracle-test` (docker, about 25 minutes, 4 GiB of free memory,
+not part of `mise run check`) is the install test of the
+[Oracle page](../docs/guides/monitor/oracle.md), which describes what it runs,
+what it asserts, which panels stay empty and why, and the licence of the Oracle
+Free image it pulls. It appends a line with `"test": "oracle-test"` to
 `results/runs.jsonl`.
 
 ## Kubernetes
