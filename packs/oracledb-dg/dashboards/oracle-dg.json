@@ -1356,6 +1356,43 @@
           "mode": "multi"
         }
       }
+    },
+    {
+      "id": 24,
+      "title": "Alert log: entries with an ORA- code",
+      "type": "logs",
+      "datasource": {
+        "type": "victoriametrics-logs-datasource",
+        "uid": "vl"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 89,
+        "w": 24,
+        "h": 9
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "victoriametrics-logs-datasource",
+            "uid": "vl"
+          },
+          "expr": "service.name:=oracledb db.response.status_code:*",
+          "refId": "A",
+          "queryType": "range"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {
+        "showTime": true,
+        "wrapLogMessage": true,
+        "sortOrder": "Descending",
+        "enableLogDetails": true
+      },
+      "description": "Alert log entries that carry an ORA- code, read by filelog, for every database whose alert log is shipped (service.instance.id is the database unique name). The code is db.response.status_code; ORA-00060, 00028, 01013, 02396 and 03136 are WARN, the others ERROR."
     }
   ]
 }
