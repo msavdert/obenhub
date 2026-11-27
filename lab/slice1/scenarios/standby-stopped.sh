@@ -6,6 +6,10 @@ set -uo pipefail
 
 HOLD_AFTER_DETECT=180   # seconds; suppressed alerts must not fire in this time
 EXPECT=("PostgresTargetAbsent:pg-standby" "PostgresPhysicalSlotInactive:pg-primary")
+# The standby is down for about 7 minutes: its slow-tier heartbeat loses samples, so
+# PostgresSlowCollectionIntervalTooLong trails the outage (packs/postgresql/rules.yml); it may fire and
+# resolve while revert() waits for the slow tier to settle, and must not reach the next scenario.
+ALLOW=("PostgresSlowCollectionIntervalTooLong:pg-standby")
 inject() { dc stop pg-standby >/dev/null; }
-revert() { dc start pg-standby >/dev/null && wait_until 180 "standby streaming again" is_streaming; }
+revert() { dc start pg-standby >/dev/null && wait_until 180 "standby streaming again" is_streaming && wait_slow_tier_settled; }
 run_scenario standby-stopped

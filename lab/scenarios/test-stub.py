@@ -10,8 +10,14 @@ pipes stats [by (f,...)] count() n, sort by (_time [desc]), limit N,
 fields f,... Times compare as strings (the harness writes fixed-width UTC).
 Alertmanager: POST /-/reload and /api/v2/alerts, GET /api/v2/alerts. A posted
 ObenhubSinkProbe is turned into a firing and a resolved record in RECORDS_FILE
-unless PROBE_MODE is "dead". Not a model of either product; it only lets the
-harness code run without a lab.
+unless PROBE_MODE is "dead".
+VictoriaMetrics: POST /api/v1/query answers every query with one sample whose
+value is a number of the file RECORDS_FILE.slow ("OVER ALERTS STALE": the first
+for the spacing query, the second when the query mentions ALERTS, the third
+when it mentions tlast_over_time, the series without a sample after the
+revert; missing numbers are 0), the series counts wait_slow_tier_settled
+asks for. Not a model of any of the products; it only
+lets the harness code run without a lab.
 """
 
 import json
@@ -124,6 +130,24 @@ class H(BaseHTTPRequestHandler):
                 print("stub:", e, file=sys.stderr, flush=True)
                 return self.send(400, str(e), "text/plain")
             return self.send(200, out)
+        if self.path == "/api/v1/query":
+            q = urllib.parse.parse_qs(self.body())["query"][0]
+            try:
+                with open(RECORDS + ".slow") as f:
+                    nums = f.read().split()
+            except FileNotFoundError:
+                nums = []
+            over, alerts, stale = (nums + ["0", "0", "0"])[:3]
+            v = stale if "tlast_over_time" in q else alerts if "ALERTS" in q else over
+            return self.send(
+                200,
+                json.dumps(
+                    {
+                        "status": "success",
+                        "data": {"resultType": "vector", "result": [{"metric": {}, "value": [time.time(), v]}]},
+                    }
+                ),
+            )
         if self.path == "/-/reload":
             return self.send(200, "")
         if self.path == "/api/v2/alerts":

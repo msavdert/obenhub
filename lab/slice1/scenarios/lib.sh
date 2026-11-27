@@ -50,6 +50,8 @@ CRASH_RESTARTS=null
 
 # shellcheck source=lab/scenarios/lib-core.sh
 . "$SC_DIR/../../scenarios/lib-core.sh"
+# shellcheck source=lab/slice1/scenarios/lib-slow-tier.sh
+. "$SC_DIR/lib-slow-tier.sh"
 
 dc() { docker compose -p "$PROJECT" -f "$LAB_DIR/compose.yaml" "$@"; }
 

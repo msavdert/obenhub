@@ -6,6 +6,10 @@ set -uo pipefail
 
 HOLD_AFTER_DETECT=300   # seconds; suppressed alerts must not fire in this time
 EXPECT=("CollectorAbsent:otelcol-slice1")
+# The 5 m slow tier of every database loses samples while the Collector is down (about 9 minutes here), so
+# PostgresSlowCollectionIntervalTooLong trails the outage (packs/postgresql/rules.yml): it may fire and
+# resolve while revert() waits for the slow tier to settle, and must not reach the next scenario.
+ALLOW=("PostgresSlowCollectionIntervalTooLong:pg-primary" "PostgresSlowCollectionIntervalTooLong:pg-standby" "PostgresSlowCollectionIntervalTooLong:pg-subscriber")
 inject() { dc stop otelcol >/dev/null; }
-revert() { dc start otelcol >/dev/null; }
+revert() { dc start otelcol >/dev/null && wait_slow_tier_settled; }
 run_scenario collector-stopped
