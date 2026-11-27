@@ -261,7 +261,10 @@ postgresql, patroni, cnpg and oracledb-dg dashboards).
       Criterion: each page is followed by a test against a target built
       without this repository's lab files (a stock `postgres` image, a
       StatefulSet on kind, the Stage 5 free service), all reporting into
-      one `deploy/compose` backend
+      one `deploy/compose` backend. Open: the managed-service page (G1d),
+      which waits for the Stage 5 provider; the VM, container and
+      Kubernetes pages run (`deploy:vm-test`, `deploy:install-test`,
+      `deploy:k8s-test`)
 - [ ] G2 Oracle from empty VMs: scripts under `lab/oracle/build/` that take
       three blank Oracle Linux 9 VMs to what `lab/oracle/README.md` lists
       today (19c home, `CDB19` and `CDB19B`, physical standbys by RMAN
@@ -271,10 +274,11 @@ postgresql, patroni, cnpg and oracledb-dg dashboards).
       lab of 2026-11-04/05), turned into scripts. Closes the known gap
       below. Criterion: the VMs rebuilt from the clean snapshot by the
       scripts alone, then the oracle full suite passes
-- [ ] G3 Oracle in the G1 guide: the monitoring user and grants of
+- [x] G3 Oracle in the G1 guide: the monitoring user and grants of
       `lab/oracle/scripts/provision.sh` as a standalone script, the
       Collector fragment, and an install test against an Oracle the lab
-      did not provision (the 26ai Free container)
+      did not provision (the 26ai Free container;
+      `docs/guides/monitor/oracle.md`, `deploy:oracle-test`)
 
 ### F. Depth
 
