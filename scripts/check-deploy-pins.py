@@ -12,6 +12,8 @@ lab/mon/compose.base.yaml (the gateway: lab/pgha/mon/compose.yaml).
 lab/stage3/compose.yaml.
 4. deploy/helm/versions.sh OTEL_CHART_VERSION, OTEL_CHART_REPO and OTELCOL_IMAGE
 equal lab/k8s/versions.sh, and OTELCOL_IMAGE equals the gateway image.
+5. The StatefulSet manifest of docs/guides/monitor/kubernetes.md uses the PostgreSQL image
+of deploy/test/install-test.sh (deploy/test/k8s-test.sh reads it from there).
 
 Plain text matching, standard library only, no network.
 """
@@ -84,6 +86,11 @@ def main():
     for name in ("OTEL_CHART_VERSION", "OTEL_CHART_REPO", "OTELCOL_IMAGE"):
         same(f"helm {name}", shell_var(helm, name), shell_var(k8s, name), "lab/k8s/versions.sh")
     same("helm OTELCOL_IMAGE", shell_var(helm, "OTELCOL_IMAGE"), d.get("gateway"), "the compose gateway")
+    # the Kubernetes page repeats the StatefulSet manifest of deploy/test/k8s-test.sh, which takes
+    # its image from install-test.sh
+    page = (ROOT / "docs/guides/monitor/kubernetes.md").read_text()
+    if pg and f"image: {pg.group(1)}\n" not in page:
+        errors.append(f"docs/guides/monitor/kubernetes.md does not use the install-test PostgreSQL image {pg.group(1)}")
 
     for e in errors:
         print(f"check-deploy-pins: {e}", file=sys.stderr)

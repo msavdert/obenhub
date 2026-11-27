@@ -16,6 +16,7 @@ nav = [
       "guides/monitor/index.md",
       "guides/monitor/vm.md",
       "guides/monitor/container.md",
+      "guides/monitor/kubernetes.md",
     ] },
   ] },
   { "Decisions" = [

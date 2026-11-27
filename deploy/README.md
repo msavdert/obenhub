@@ -12,7 +12,7 @@ fails when they differ). This page lists what is here and the commands.
 | `compose/inventory.yml` | what you expect to see (Collectors, databases); an example you edit |
 | `compose/alertmanager.yml` | routes by severity, a dead-man route for `Watchdog` |
 | `collector/otelcol-tls.yaml`, `collector/obenhub.env.example` | mutual-TLS overlay and variables of a host Collector |
-| `helm/agent-values.yaml`, `helm/cluster-values.yaml`, `helm/versions.sh` | values for the `opentelemetry-collector` chart, and its pin |
+| `helm/agent-values.yaml`, `helm/cnpg-values.yaml`, `helm/cluster-values.yaml`, `helm/versions.sh` | values for the `opentelemetry-collector` chart (the agent for any PostgreSQL pod, the CloudNativePG additions, the cluster-wide Collector), and its pin |
 
 Prerequisites: Docker with the Compose plugin, bash 4+ and OpenSSL 1.1.1+
 (not LibreSSL: `tls.sh` uses `-addext`) on the backend
@@ -134,35 +134,11 @@ with `--force`. It appends a line with `"test": "vm-test"` to
 
 ## Kubernetes
 
-The values are derived from the kind lab (`lab/k8s/otel/`) and are for
-CloudNativePG clusters; the variables in their header are filled by
-`envsubst`.
-
-```sh
-. deploy/helm/versions.sh
-export OTELCOL_IMAGE_REPOSITORY="${OTELCOL_IMAGE%%:*}" OTELCOL_IMAGE_DIGEST="${OTELCOL_IMAGE#*@}"
-r="${OTELCOL_IMAGE#*:}"; export OTELCOL_IMAGE_TAG="${r%%@*}"
-export OBENHUB_GATEWAY_ENDPOINT=https://gateway.example.net:4318 OBENHUB_SERVICE_NAMESPACE=obenhub \
-  OBENHUB_CLUSTER_NAME=pg OBENHUB_PG_NAMESPACE=db OBENHUB_OTEL_NAMESPACE=obenhub-otel \
-  OBENHUB_PG_DATABASES='[postgres, app]' OBENHUB_PG_SLOW_DATABASE=app
-vars='$OBENHUB_GATEWAY_ENDPOINT $OBENHUB_SERVICE_NAMESPACE $OBENHUB_CLUSTER_NAME $OBENHUB_PG_NAMESPACE $OBENHUB_OTEL_NAMESPACE $OBENHUB_PG_DATABASES $OBENHUB_PG_SLOW_DATABASE $OTELCOL_IMAGE_REPOSITORY $OTELCOL_IMAGE_TAG $OTELCOL_IMAGE_DIGEST'
-helm repo add otel "$OTEL_CHART_REPO"
-for n in agent cluster; do
-  envsubst "$vars" < "deploy/helm/$n-values.yaml" |
-    helm upgrade --install "$n" otel/opentelemetry-collector --version "$OTEL_CHART_VERSION" \
-      -n "$OBENHUB_OTEL_NAMESPACE" --create-namespace -f -
-done
-```
-
-`OBENHUB_OTEL_NAMESPACE` is where the release goes; `OBENHUB_PG_DATABASES`
-is the list of databases to monitor and `OBENHUB_PG_SLOW_DATABASE` the one
-database the slow tier (autovacuum backlog, every 5 minutes) reads; it is
-required here, since envsubst leaves an unset variable empty and the
-Collector then refuses the receiver. Create the namespace and, in it, before
-the install: the secret `obenhub-gateway-tls`
-(`ca.crt`, `tls.crt` = `client.crt`, `tls.key` = `client.key`), the secret
-`pg-otel-monitor` (key `password`), the ConfigMap `obenhub-pack-postgresql`
-(`packs/postgresql/queries.yaml` and `queries-slow.yaml`) and the ConfigMap `obenhub-pg-ca` (`ca.crt`
-of the PostgreSQL server certificates). Rendering was checked with `helm
-template` (chart version in `helm/versions.sh`); it needs the network, so it
-is not part of `mise run check`.
+The values are derived from the kind lab (`lab/k8s/otel/`). The variables in
+their headers, the objects to create first and the helm commands are on the
+guide's page [PostgreSQL on Kubernetes](../docs/guides/monitor/kubernetes.md),
+which `deploy/test/k8s-test.sh` runs (`mise run deploy:k8s-test -- sts` or
+`-- cnpg`, about 30 minutes, appends a line with `"test": "k8s-sts-test"` or
+`"k8s-cnpg-test"` to `results/runs.jsonl`). Rendering was also checked with
+`helm template` (chart version in `helm/versions.sh`); it needs the network, so
+it is not part of `mise run check`.
