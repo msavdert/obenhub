@@ -1,0 +1,3 @@
+seq,mode,start_utc,duration_s,txns,tps,lat_mean_ms,lat_p50_ms,lat_p95_ms,lat_p99_ms,lat_max_ms,failed,pg_cpu_s,col_cpu_s,col_mem_peak_mb,col_mem_cur_max_mb,otel_sessions_mid,otel_sessions_max,collector_metric_batches,collector_procs,steal_pct,disk_await_ms,host_cpu_busy_pct
+2,ON,2026-11-27T08:20:14Z,300,86015,286.7,27.8847,21.8010,56.1970,134.5010,984.5910,0,155.106,13.122,63.3,62.6,3,3,21,1,16.802,6.494,28.00
+3,ON,2026-11-27T08:25:51Z,300,80988,269.8,29.6286,20.3330,66.9490,193.1810,1870.5250,0,115.029,9.940,62.5,61.8,3,3,22,1,10.584,8.500,20.28

@@ -314,7 +314,7 @@ postgresql, patroni, cnpg and oracledb-dg dashboards).
       constraints. The sequence and invalid-index queries scale with the
       number of relations and use the slower tier F1 creates. The sequence
       query needs a grant in the monitoring role (C2)
-- [ ] F6 A cheaper guard for the two `pg_stat_statements` queries (owner,
+- [x] F6 A cheaper guard for the two `pg_stat_statements` queries (owner,
       2026-11-27, from the F4 measurement): they are 79-86% of the pack's
       execution time, and each runs a `pg_settings` lookup (a scan of
       `pg_show_all_settings()`) and a `pg_extension` lookup on every
@@ -325,6 +325,8 @@ postgresql, patroni, cnpg and oracledb-dg dashboards).
       means against the F4 ones (`lab/overhead/results/pack-cost.csv`)
       and the unit tests cover the missing-extension, not-preloaded and
       unprivileged cases
+      (measured in `lab/overhead/results/results.md`, section "F6: one
+      statement and a cheaper guard")
 
 Method references for F1 and F5: github.com/dbulashev/dasha is GPL-3.0, so
 it is read for how a signal is derived and nothing is copied from it; the

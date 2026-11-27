@@ -201,7 +201,7 @@ SELECT dealloc, stats_reset FROM pg_stat_statements_info;
 SELECT current_setting('pg_stat_statements.max') AS max, count(*) AS entries FROM pg_stat_statements;
 ```
 
-The first statement is the counter the alert reads (the deallocation query of `packs/postgresql/queries.yaml`). Raising `pg_stat_statements.max` needs a restart; statements that differ only in literals are one entry, so a flood of entries usually means unparameterised or generated SQL.
+The first statement is the counter the alert reads (the `instance` row of the `pg_stat_statements` query in `packs/postgresql/queries.yaml`). Raising `pg_stat_statements.max` needs a restart; statements that differ only in literals are one entry, so a flood of entries usually means unparameterised or generated SQL.
 
 Seen in the lab:
 
