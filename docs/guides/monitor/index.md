@@ -1,31 +1,27 @@
-# Install against your PostgreSQL
+# Monitor what you already run
 
-How to install the `deploy/` files of obenhub against a PostgreSQL server you
-already run, without the lab: the backend (VictoriaMetrics, VictoriaLogs,
-vmalert, Alertmanager, Grafana and a mutual-TLS gateway Collector) in Docker
-Compose, and a Collector on the database host. This guide follows what
-`mise run deploy:install-test` does and checks
+How to watch a PostgreSQL you already run with the `deploy/` files of obenhub,
+without the lab. One backend (`deploy/compose`: VictoriaMetrics, VictoriaLogs,
+vmalert, Alertmanager, Grafana and a mutual-TLS gateway Collector, in Docker
+Compose) receives from a Collector next to each database. This page holds what
+every target kind shares: the backend, the monitoring role, the changes the
+database needs and how to see that it works. Then one page per kind of target:
+
+- [A database on a VM or bare metal](vm.md): the Collector as a host binary.
+- [A PostgreSQL container](container.md): the Collector as a container, and
+  what `mise run deploy:install-test` proves.
+
+The guide follows what that test does
 ([`deploy/test/install-test.sh`](https://github.com/msavdert/obenhub/blob/main/deploy/test/install-test.sh)),
-so each step names the evidence for it. The reference for every file is
+so each step names the evidence for it; where it goes beyond the test, the step
+says so. The reference for every file is
 [`deploy/README.md`](https://github.com/msavdert/obenhub/blob/main/deploy/README.md).
-To see an alert fire first, do the [quick start](quick-start.md).
-
-What the install test proves, and what it does not. The latest run
-(2026-11-20, commit 119ff5c, clean tree, line in `deploy/results/runs.jsonl`)
-passed in 844 s against a plain `postgres:18.7` container with default settings:
-the heartbeat of the database was in VictoriaMetrics, nothing but `Watchdog`
-fired after a 720 s settle, the dead-man receiver got `Watchdog` every 60 s, and
-28 dashboard panels had data (15 are empty by design, 2 replication slot panels
-are accepted empty because a plain server has none). It does not exercise
-journald or PostgreSQL log collection, a Collector running as a host binary (the
-test runs the Collector image in a container, as `mise run lint:otelcol` does),
-a database on another machine, or any pack but collector, host and postgresql.
-Where this guide goes beyond that, the step says so.
+To see an alert fire first, do the [quick start](../quick-start.md).
 
 ## What you need
 
 - A backend machine with Docker and the Compose plugin ([quick start, step
-  1](quick-start.md#1-docker-engine-with-the-compose-plugin)), bash 4 or later,
+  1](../quick-start.md#1-docker-engine-with-the-compose-plugin)), bash 4 or later,
   OpenSSL 1.1.1 or later (not LibreSSL: `tls.sh` uses `-addext`), `curl`, `jq`
   and a checkout of the repository, because Compose mounts `packs/` and
   `lab/mon/grafana/provisioning` from it:
@@ -59,7 +55,10 @@ docker compose up -d --wait
   the gateway (replace `gateway.example.net`; give several, separated by
   spaces). It writes a CA, the gateway certificate and one client certificate to
   `deploy/compose/tls/` (git ignores it). The test passes `gateway`, the
-  container's network alias.
+  container's network alias. A Collector that runs as a container on the
+  backend's Docker network reaches the gateway by that alias, so `gateway` must
+  be one of the names too (`bash tls.sh gateway.example.net gateway`); the
+  [container page](container.md) says what happens otherwise.
 - `.env` needs three values and the test sets exactly these (plus the ports and
   the gateway bind address, which it moves to `127.0.0.1`):
   the Grafana admin password, and the user and group id of the user who ran
@@ -89,68 +88,28 @@ psql -h <server> -U postgres -v ON_ERROR_STOP=1 -q \
 Run it from the repository root. The test runs the same file the same way
 (`psql` inside the server container, file on standard input) and fails on an
 error. The script is safe to run again: an existing role keeps its grants and
-gets the new password. Keep `OTEL_MONITOR_PASSWORD` in your shell for step 3.
-The statements carry the password; the labs silence statement logging and
-`pg_stat_statements` for that session, the test does not (the file's header
-says so).
+gets the new password. Keep `OTEL_MONITOR_PASSWORD` in your shell for the
+Collector step. The statements carry the password; the labs silence statement
+logging and `pg_stat_statements` for that session, the test does not (the
+file's header says so).
 
-## 3. The Collector on the database host
+## What changes on the database
 
-The Collector fragments read their query files from
-`/etc/otelcol-contrib/packs/<pack>/`, so the files go there. As root on the
-database host, from a checkout of the repository. This is the layout of the
-test (collector, host and postgresql packs):
+Everything the monitoring needs from the database you run, and what is lost
+without it.
 
-```sh
-install -d /etc/otelcol-contrib/packs /etc/otelcol-contrib/tls
-cp packs/otelcol-base.yaml /etc/otelcol-contrib/packs/
-for p in collector host postgresql; do cp -r "packs/$p" /etc/otelcol-contrib/packs/; done
-cp deploy/collector/otelcol-tls.yaml /etc/otelcol-contrib/
-cp deploy/collector/obenhub.env.example /etc/otelcol-contrib/obenhub.env
-chmod 0600 /etc/otelcol-contrib/obenhub.env
-```
+| Change | Required or optional | Without it | Source |
+| --- | --- | --- | --- |
+| Role `otel_monitor` with `pg_monitor`, `pg_use_reserved_connections` when that role exists (PostgreSQL 16 and later) and `statement_timeout` 5 s, from the script of step 2 | Required | No monitoring login, and no read access to the statistics views the queries use. Without `pg_use_reserved_connections` monitoring stops when the application has used up `max_connections`; without the setting a monitoring query is not bounded to 5 s | `packs/postgresql/monitoring-role.sql` lines 12-14 (role and password), 16-17 (`pg_monitor`: read-only access to the statistics views and functions), 18-23 (reserved connection slots; the role does not exist on 15), 24-25 (5 s) |
+| A `pg_hba.conf` entry that lets `otel_monitor` connect from the Collector's address, and a `listen_addresses` that includes the interface the Collector reaches | Required, unless an existing rule and listen address already admit it | The server refuses the connection. The test changes neither: the stock `postgres` image appends `host all all all <password_encryption>` to `pg_hba.conf` on first start and sets `listen_addresses = '*'` | PostgreSQL 18 docs: [auth-pg-hba-conf](https://www.postgresql.org/docs/18/auth-pg-hba-conf.html) (`host` records match TCP/IP connections; remote connections need `listen_addresses`) and [runtime-config-connection](https://www.postgresql.org/docs/18/runtime-config-connection.html) (default `localhost`). Image: `postgres:18.7`, function `pg_setup_hba_conf` in `/usr/local/bin/docker-entrypoint.sh` and line 60 of `/usr/share/postgresql/18/postgresql.conf.sample` (read 2026-11-26) |
+| `pg_stat_statements` in `shared_preload_libraries` (a server restart) and `CREATE EXTENSION pg_stat_statements` in database `postgres` | Optional | The `postgresql.statement.*` metrics (`execution_time`, `call`, `temp_block_written`, `deallocation`) are not emitted: the two queries return no rows, without an error | `packs/postgresql/queries.yaml` lines 266-290 (comment: guard and why), 299-300 and 321-322 (guard), 306-308 and 327 (metrics); `packs/postgresql/otelcol.yaml` line 34 (the database the query list connects to) |
+| `log_destination` with `jsonlog` and `logging_collector` on, and the Collector's read access to those files, with `OBENHUB_PG_LOG_GLOB` set to them | Optional | No PostgreSQL log signals: the glob matches nothing, as in the test. Metrics are not affected | `packs/postgresql/otelcol.yaml` lines 69-93 (file reader of jsonlog, parser, `start_at: beginning`); `deploy/collector/obenhub.env.example` line 37 (default glob `/var/log/postgresql/postgresql-*.json`); PostgreSQL 18 docs, [runtime-config-logging](https://www.postgresql.org/docs/18/runtime-config-logging.html) (`jsonlog` needs `logging_collector`; the file name ends in `.json`) |
+| Network: Collector to the PostgreSQL port (5432 by default), Collector to the gateway on 4318 with the client certificate `tls.sh` wrote | Required | No metrics reach the database or the backend. The gateway rejects a client without a certificate that the CA signed | `deploy/compose/otelcol-gateway.yaml` lines 19-25 (port 4318, `client_ca_file` makes the server require and verify a client certificate); `deploy/compose/tls.sh` lines 1-9 (what it writes; client certificate for every host Collector); `deploy/compose/compose.yaml` line 31 (published port, default bind `0.0.0.0`) |
 
-Copy `ca.crt`, `client.crt` and `client.key` from `deploy/compose/tls/` of the
-backend machine to `/etc/otelcol-contrib/tls/` (never `ca.key`). Then edit
-`/etc/otelcol-contrib/obenhub.env`; the test changes these four values and keeps
-every other one of the example:
+## 3. The Collector
 
-| Variable | Set it to | In the test |
-| --- | --- | --- |
-| `OBENHUB_GATEWAY_ENDPOINT` | `https://` plus a name given to `tls.sh`, port 4318 | `https://gateway:4318` |
-| `OBENHUB_PG_HOST` | the PostgreSQL host the Collector connects to | `pg` |
-| `OBENHUB_PG_PASSWORD` | `OTEL_MONITOR_PASSWORD` of step 2 | the generated password |
-| `OBENHUB_PG_LOG_GLOB` | where your server writes jsonlog files, or a path that matches nothing | `/nonexistent/postgresql-*.json` (a default server writes no jsonlog) |
-
-The unchanged defaults the test relies on: namespace `obenhub`, collector
-instance `otelcol-host-1`, host instance `host-1`, PostgreSQL instance `pg-1` in
-cluster `main`, port 5432, user `otel_monitor`, databases `[postgres]`,
-`OBENHUB_PG_SSLMODE=disable`. The namespace, the collector instance, the PostgreSQL
-instance and the cluster name are the ones `deploy/compose/inventory.yml`
-expects (its header says: one host Collector `otelcol-host-1` collecting `pg-1`
-of cluster `main`); that file lists what the alerts expect to see, so a
-Collector or database you add must be added there too
-(`docker compose kill -s SIGHUP vmalert` reloads it). The other variables and
-what they mean are in `packs/<pack>/README.md`, "Collector fragment".
-
-Start the Collector with the same version as the gateway image (the `gateway`
-service in `deploy/compose/compose.yaml`, `otel/opentelemetry-collector-contrib`
-0.165.0 at the time of writing; the file is the authority):
-
-```sh
-set -a; . /etc/otelcol-contrib/obenhub.env; set +a
-otelcol-contrib \
-  --config=/etc/otelcol-contrib/packs/otelcol-base.yaml \
-  --config=/etc/otelcol-contrib/packs/collector/otelcol.yaml \
-  --config=/etc/otelcol-contrib/packs/host/otelcol.yaml \
-  --config=/etc/otelcol-contrib/packs/postgresql/otelcol.yaml \
-  --config=/etc/otelcol-contrib/otelcol-tls.yaml
-```
-
-The order matters: the TLS overlay comes last. This is `deploy/README.md`,
-"Host Collector". The test and `mise run lint:otelcol` run exactly these
-arguments in the contrib image, not a host binary; running it as a host binary
-or under systemd is unconfirmed (assumption).
+Next to the database, as a [host binary](vm.md) or as a
+[container](container.md).
 
 ## 4. What you should see
 
@@ -214,8 +173,10 @@ On the backend machine (ports as in `.env`; the defaults are shown):
    of components only some labs run (subscription, PgBouncer, pgBackRest), in log
    panels and in the panels that only have data during a fault scenario. On a
    server without replication slots the two "Replication slots" panels are
-   empty too. (The test accepts exactly those; the script needs `jq` and
-   `curl`.)
+   empty too, and so are the four "Statements" panels until
+   `pg_stat_statements` is enabled (see "What changes on the database").
+   (The script needs `jq` and `curl`. The test accepts the two replication
+   slot panels; the statement panels are newer than its recorded run.)
 
 One caveat from the test's own header: `HostFilesystemSpaceLow` fires on a
 nearly full host. That is a correct report, and it makes the test fail on such a
@@ -232,23 +193,3 @@ This stops the backend and deletes its volumes. Stop the Collector on the
 database host yourself, and drop the `otel_monitor` role if you want it gone
 (the test never removes it from a real server: its server is a throwaway
 container).
-
-## What the test cleans up and what you keep
-
-The test builds everything in a temporary directory and removes it, the
-containers and the network on exit; you are installing for real, so
-`deploy/compose/tls/` and `.env` stay. The certificates are modelled on the
-labs' PKI with lifetimes chosen by the author (CA 10 years, leaf 2 years, an
-assumption recorded in `deploy/compose/tls.sh`); keep `ca.key` off the database
-hosts.
-
-## Run the test yourself
-
-```sh
-mise run --skip-tools deploy:install-test
-```
-
-Needs Docker, `jq`, `curl` and `openssl`, takes about 15 minutes and is not part
-of `mise run check`. It appends a line to `deploy/results/runs.jsonl` and prints
-a final `install-test: PASS in <n>s, ...` line; set `INSTALL_TEST_EVIDENCE=0` to
-skip the line.

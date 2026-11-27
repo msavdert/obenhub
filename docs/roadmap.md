@@ -249,7 +249,7 @@ labs keep a backend each so their scenarios do not see each other;
 postgresql, patroni, cnpg and oracledb-dg dashboards).
 
 - [ ] G1 One guide, "Monitor what you already run", with one page per
-      target kind: VM or bare metal (today's `docs/guides/install.md`),
+      target kind: VM or bare metal (today's `docs/guides/monitor/vm.md`),
       a PostgreSQL container, PostgreSQL on Kubernetes (Helm values in
       `deploy/helm/`, a plain StatefulSet and CloudNativePG) and a managed
       service (Stage 5 below supplies the evidence). A table of what changes
