@@ -113,7 +113,7 @@ write_evidence() {
   local sha dirty
   mkdir -p "$repo/deploy/results"
   sha=$(git -C "$repo" rev-parse --short HEAD)
-  dirty=false; [ -z "$(git -C "$repo" status --porcelain -- deploy packs scripts mise.toml lab/mon/grafana)" ] || dirty=true
+  dirty=false; [ -z "$(git -C "$repo" status --porcelain -- deploy packs scripts mise.toml lab/mon/grafana ':(exclude)deploy/results')" ] || dirty=true
   jq -nc --arg test "$TEST_NAME" --arg ts "$(date -u +%Y-%m-%dT%H:%M:%SZ)" --arg sha "$sha" --argjson dirty "$dirty" --arg outcome "$1" \
     --arg firing "$firing" --arg pending "$pending" --arg ever "$ever_firing" --argjson dmn "$dm_n" --arg gaps "${gaps# }" --argjson dm_age_s "$dm_age" \
     --argjson ok "$p_ok" --argjson empty "$p_empty" --argjson legit "$p_legit" --argjson pfail "$p_fail" --argjson empty_names "$empty_names" \
