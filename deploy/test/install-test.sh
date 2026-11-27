@@ -102,7 +102,7 @@ sed -i -e "s#^OBENHUB_GATEWAY_ENDPOINT=.*#OBENHUB_GATEWAY_ENDPOINT=https://gatew
   -e "s#^OBENHUB_PG_HOST=.*#OBENHUB_PG_HOST=pg#" -e "s#^OBENHUB_PG_PASSWORD=.*#OBENHUB_PG_PASSWORD=$monpw#" \
   -e "s#^OBENHUB_PG_LOG_GLOB=.*#OBENHUB_PG_LOG_GLOB=/nonexistent/postgresql-*.json#" "$oc/obenhub.env"
 # docker --env-file keeps single quotes that a shell would strip
-sed -n "s/^\([A-Z_0-9]*\)='\(.*\)'$/\1=\2/p;t;/^[A-Z_0-9]*=/p" "$oc/obenhub.env" >"$tmp/docker.env"
+(umask 077; sed -n "s/^\([A-Z_0-9]*\)='\(.*\)'$/\1=\2/p;t;/^[A-Z_0-9]*=/p" "$oc/obenhub.env" >"$tmp/docker.env")
 cat >"$oc/install-test-overlay.yaml" <<'YAML'
 # test only (see install-test.sh): no journalctl in the contrib image, and the
 # host's / is mounted at /hostfs so the filesystem scraper has something to read
@@ -114,7 +114,11 @@ service:
     logs/obenhub-host:
       receivers: [nop]
 YAML
-chmod -R a+rX "$oc"
+# the secrets stay owner-only: the container runs as their owner (--user)
+for f in "$oc/obenhub.env" "$tmp/docker.env" "$oc/tls/client.key"; do
+  m=$(stat -c %a "$f")
+  [ "$m" = 600 ] || fail "${f##*/} has mode $m, want 600"
+done
 log "host Collector: start $OTELCOL_IMAGE"
 docker run -d --name "$colc" --network "$net" --user "$(id -u):$(id -g)" --env-file "$tmp/docker.env" \
   --tmpfs /var/lib/otelcol-contrib:mode=1777 -v "$oc:/etc/otelcol-contrib:ro" -v /:/hostfs:ro "$OTELCOL_IMAGE" \

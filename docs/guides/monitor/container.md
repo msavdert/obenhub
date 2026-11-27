@@ -92,12 +92,12 @@ sed -i -e "s#^OBENHUB_GATEWAY_ENDPOINT=.*#OBENHUB_GATEWAY_ENDPOINT=https://gatew
   -e "s#^OBENHUB_PG_HOST=.*#OBENHUB_PG_HOST=pg#" \
   -e "s#^OBENHUB_PG_PASSWORD=.*#OBENHUB_PG_PASSWORD=$OTEL_MONITOR_PASSWORD#" \
   -e "s#^OBENHUB_PG_LOG_GLOB=.*#OBENHUB_PG_LOG_GLOB=/nonexistent/postgresql-*.json#" "$oc/obenhub.env"
-sed -n "s/^\([A-Z_0-9]*\)='\(.*\)'$/\1=\2/p;t;/^[A-Z_0-9]*=/p" "$oc/obenhub.env" > "$oc/docker.env"
+(umask 077; sed -n "s/^\([A-Z_0-9]*\)='\(.*\)'$/\1=\2/p;t;/^[A-Z_0-9]*=/p" "$oc/obenhub.env" > "$oc/docker.env")
 ```
 
 Two things in this layout differ from a host, and the test handles both with
 one overlay file that it writes next to the configuration (it is not a file of
-the repository; the test's heredoc, lines 191-201 of the script, is the source
+the repository; the heredoc `install-test-overlay.yaml` of `deploy/test/install-test.sh` is the source
 of the text below):
 
 - The Collector image has no `journalctl`, so the journald receivers of the
@@ -123,7 +123,6 @@ service:
     logs/obenhub-host:
       receivers: [nop]
 YAML
-chmod -R a+rX "$oc"
 docker run -d --name otelcol --network pgnet --user "$(id -u):$(id -g)" --env-file "$oc/docker.env" \
   --tmpfs /var/lib/otelcol-contrib:mode=1777 -v "$oc:/etc/otelcol-contrib:ro" -v /:/hostfs:ro "$OTELCOL_IMAGE" \
   --config=/etc/otelcol-contrib/packs/otelcol-base.yaml \
@@ -146,13 +145,12 @@ What still differs from the test, all of it naming only:
 - The test names its network, containers and Compose project
   `obenhub-install-test-*`, moves the backend's ports to 61000 and up, and
   gives `tls.sh` only `gateway`.
-- `--user`, `chmod -R a+rX` and the `tmpfs` are the test's: the container runs
-  as the user who owns the files, the directory is made readable for it
-  (including `client.key`), and `/var/lib/otelcol-contrib` (the default
+- `--user` and the `tmpfs` are the test's: the container runs as the user who
+  owns the files, so `obenhub.env`, `docker.env` and `client.key` stay readable
+  by that user only (mode 0600), and `/var/lib/otelcol-contrib` (the default
   `OBENHUB_STORAGE_DIR` of the example is below it) is a tmpfs, so the
   checkpoints of the log reader do not survive a restart. For a real install
-  keep `client.key` owner-only and give the storage directory a volume
-  (assumption, not tested).
+  give the storage directory a volume (assumption, not tested).
 
 Then see [what you should see](index.md#4-what-you-should-see) and, when you
 are done, [take it down](index.md#5-take-it-down). The test also removes what
