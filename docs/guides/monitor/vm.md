@@ -11,10 +11,8 @@ would run, the text says so.
 
 ## What the VM test proves, and what it does not
 
-`deploy/results/runs.jsonl` holds the lines of the runs on a committed tree
-(`"test": "vm-test"`). The run of 2026-11-27 on commit 71da319 plus the then
-uncommitted test files (its line was not kept, because `git_dirty` was true)
-passed in 1164 s. Backend: this machine (Docker). Target: a second machine, Debian 13
+The latest run (2026-11-27, commit 8d7fa95, clean tree, line with
+`"test": "vm-test"` in `deploy/results/runs.jsonl`) passed in 1310 s. Backend: this machine (Docker). Target: a second machine, Debian 13
 amd64, PostgreSQL 18.7 from PGDG with a fresh cluster made by `pg_createcluster`,
 the Collector 0.165.0 from the upstream `.deb` under the package's unit. After a
 1020 s settle the heartbeat of the database was in VictoriaMetrics, nothing but
