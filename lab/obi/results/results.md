@@ -19,7 +19,7 @@ pgbench's own latency?
 | component | version | source |
 |---|---|---|
 | OBI | v1.0.0, revision d23be0d6b (its startup log) | release tarball `obi-v1.0.0-linux-amd64.tar.gz`, checked against the release `SHA256SUMS`; binary sha256 `b239d223...4462` |
-| PostgreSQL, pgbench | 18.6 (PGDG), cluster `main` on 5432, pgbench scale 100, 4 vCPU Debian 13, kernel 6.12.113 | settings as in `lab/overhead/results/results.md` |
+| PostgreSQL, pgbench | 18.6 (PGDG), cluster `main` on 5432, pgbench scale 100, 4 vCPU Debian 13, kernel 6.12.113 | settings as in the 2026-11-12 overhead series (`git show dad67be:lab/overhead/results/results.md`) |
 | PgBouncer | 1.26.1 (`1.26.1-1.pgdg13+1`) | PGDG apt; transaction pooling, `default_pool_size = 5`, `max_prepared_statements = 200` (needed for `-M prepared` through transaction pooling since 1.21; 0 breaks it), `server_tls_sslmode = disable` |
 | Collector | otelcol-contrib 0.164.0 | OTLP/HTTP in, `file` exporter out (keeps every cumulative point) |
 

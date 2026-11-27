@@ -1,4 +1,5 @@
-Raw terminal output kept from the 2026-11-12 session on pg-lab. Copied from the
+Raw terminal output kept from the 2026-11-12 session on pg-lab (first part) and
+from 2026-11-27 (last section). The 2026-11-12 lines were copied from the
 session transcript, not re-measured; only the lines shown were captured.
 
 == versions (after the series) ==
@@ -38,3 +39,124 @@ second run (after the CPU-arm extension; three lines captured):
         fdatasync                           205.476 ops/sec    4867 usecs/op
         fsync                                76.484 ops/sec   13075 usecs/op
 (The 2026-11-07 series has no pg_test_fsync reading to compare with.)
+
+== 2026-11-27, after the 2026-11-26 series: pg-lab facts (ssh, commands traced with set -x)
++ date -u
+Fri Nov 27 02:01:00 UTC 2026
++ uname -r
+6.12.111+deb13-cloud-amd64
++ /usr/local/bin/otelcol-contrib --version
+otelcol-contrib version 0.165.0
++ psql --version
+psql (PostgreSQL) 18.7 (Debian 18.7-1.pgdg13+5)
++ findmnt -T /var/lib/postgresql
+TARGET SOURCE    FSTYPE OPTIONS
+/      /dev/sdb1 ext4   rw,relatime,discard,errors=remount-ro
++ lsblk -o NAME,SIZE,MOUNTPOINT
+NAME     SIZE MOUNTPOINT
+sda       50G
+sdb       40G
+├─sdb1  39.9G /
+├─sdb14    3M
+└─sdb15  124M /boot/efi
+sr0        4M
++ journalctl -u obenhub-otelcol --since '2026-11-26 03:19 UTC' --until '2026-11-26 07:47 UTC' --no-pager -o cat
++ grep -cE '\serror\s'
+0
++ journalctl -u obenhub-otelcol --since '2026-11-26 03:19 UTC' --until '2026-11-26 07:47 UTC' --no-pager -o cat
++ grep -cE '\swarn\s.*separateSchemaAttr'
+24
++ journalctl -u obenhub-otelcol --since '2026-11-26 03:19 UTC' --until '2026-11-26 07:47 UTC' --no-pager -o cat
++ grep -cE '\swarn\s'
+24
+
++ nproc
+4
++ head -2
++ free -m
+               total        used        free      shared  buff/cache   available
+Mem:            7947         760         912         147        6724        7187
+
+== 2026-11-27 02:01 UTC: psql on pg-lab as postgres, local socket, idle (\timing is client-side)
+SELECT now() AT TIME ZONE 'UTC' AS utc;
+            utc
+----------------------------
+ 2026-11-27 02:01:13.603604
+(1 row)
+Time: 4.806 ms
+SELECT pg_size_pretty(pg_database_size('postgres')) AS db_size;
+ db_size
+---------
+ 1627 MB
+(1 row)
+Time: 2.200 ms
+SELECT count(*) FROM pg_stat_statements;
+ count
+-------
+    37
+(1 row)
+Time: 1.883 ms
+SELECT count(*) FROM pg_settings WHERE name = 'shared_preload_libraries' AND setting ~ 'pg_stat_statements';
+ count
+-------
+     1
+(1 row)
+Time: 4.343 ms
+SELECT count(*) FROM pg_settings WHERE name = 'shared_preload_libraries' AND setting ~ 'pg_stat_statements';
+ count
+-------
+     1
+(1 row)
+Time: 3.305 ms
+SELECT count(*) FROM pg_settings WHERE name = 'shared_preload_libraries' AND setting ~ 'pg_stat_statements';
+ count
+-------
+     1
+(1 row)
+Time: 2.732 ms
+SELECT dealloc FROM pg_stat_statements_info;
+ dealloc
+---------
+       0
+(1 row)
+Time: 0.528 ms
+SELECT dealloc FROM pg_stat_statements_info;
+ dealloc
+---------
+       0
+(1 row)
+Time: 0.287 ms
+SELECT dealloc FROM pg_stat_statements_info;
+ dealloc
+---------
+       0
+(1 row)
+Time: 0.663 ms
+SELECT s.dbid, sum(s.total_exec_time), sum(s.calls) FROM pg_stat_statements s GROUP BY s.dbid;
+ dbid |        sum        |   sum
+------+-------------------+---------
+    5 | 1221103.508797001 | 4539003
+(1 row)
+Time: 2.373 ms
+SELECT s.dbid, sum(s.total_exec_time), sum(s.calls) FROM pg_stat_statements s GROUP BY s.dbid;
+ dbid |        sum        |   sum
+------+-------------------+---------
+    5 | 1221103.705073001 | 4539004
+(1 row)
+Time: 2.130 ms
+SELECT s.dbid, sum(s.total_exec_time), sum(s.calls) FROM pg_stat_statements s GROUP BY s.dbid;
+ dbid |        sum        |   sum
+------+-------------------+---------
+    5 | 1221103.925746001 | 4539005
+(1 row)
+Time: 1.806 ms
+EXPLAIN (ANALYZE, COSTS OFF) SELECT 1 FROM pg_settings WHERE name = 'shared_preload_libraries';
+                                      QUERY PLAN
+--------------------------------------------------------------------------------------
+ Function Scan on pg_show_all_settings a (actual time=2.752..2.765 rows=1.00 loops=1)
+   Filter: (name = 'shared_preload_libraries'::text)
+   Rows Removed by Filter: 404
+ Planning Time: 0.060 ms
+ Execution Time: 2.869 ms
+(5 rows)
+Time: 3.669 ms
