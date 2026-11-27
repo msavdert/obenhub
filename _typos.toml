@@ -4,6 +4,8 @@
 extend-ignore-re = [
   '"(git_sha|config_sha256)":"[0-9a-f]+"',
   '\[[0-9a-f]{7,40}\]\([^)]*/commit/[0-9a-f]{7,40}\)',
+  # "commit 0abd499" in the guide pages' latest-run paragraphs
+  'commit `?[0-9a-f]{7,40}`?',
 ]
 
 [default.extend-words]
