@@ -11,8 +11,14 @@
 #   - control proves the sinks: the synthetic alert must come back firing and
 #     resolved, PostgreSQL log records must exist in the window
 #   - resolution is searched from detection, not from the revert
+#   - wait_slow_tier_settled (lab/slice1/scenarios/lib-slow-tier.sh, sourced
+#     into the fake lab) returns at once when settled, waits for a trailing
+#     gap and for a first sample after the revert, fails the revert on a
+#     timeout, a pending alert or a dead backend, does not wait after a failure
+#     or an abort; its expression and limit equal the rule's
 # HARNESS_DIR (default: this directory) names the directory with lib-core.sh,
-# guard.sh and run-suite.sh to test, to run the test against an older copy.
+# guard.sh and run-suite.sh to test, to run the test against an older copy;
+# SLOW_TIER_LIB names the lib-slow-tier.sh to test (default: slice 1's).
 # Run it with `mise run lab:harness-test` (part of `mise run check`).
 set -u
 
@@ -50,6 +56,7 @@ export AM_OK=http://127.0.0.1:$P_OK AM_DEAD=http://127.0.0.1:$P_DEAD
 export SUITE_LOCK_FILE=$work/lock
 export RESULTS=$work/runs.jsonl
 export RECORDS
+export VM=http://127.0.0.1:$P_OK
 
 # stub docker: the ID a container runs is $work/running/<service>, the ID of
 # the declared image img-<service> is $work/declared/img-<service>
@@ -71,17 +78,20 @@ export PATH=$work/bin:$PATH
 tree=$work/tree
 mkdir -p "$tree/lab/scenarios" "$tree/lab/t/scenarios" "$tree/lab/t/results"
 cp "$HD/guard.sh" "$HD/lib-core.sh" "$HD/run-suite.sh" "$tree/lab/scenarios/"
+SLOW_TIER_LIB=${SLOW_TIER_LIB:-$src/../slice1/scenarios/lib-slow-tier.sh}
+cp "$SLOW_TIER_LIB" "$tree/lab/t/scenarios/lib-slow-tier.sh"
 : >"$tree/lab/t/results/.keep"
 cat >"$tree/lab/t/scenarios/lib.sh" <<'EOF'
 # shellcheck disable=SC2034
 SC_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 LAB_DIR="$(cd "$SC_DIR/.." && pwd)"
 PROJECT=t
-VMALERT=http://127.0.0.1:1 VM=http://127.0.0.1:1 VMALERT_C=x AM_C=x CONFIG_FILES=() NODES=()
+VMALERT=http://127.0.0.1:1 VM=${VM:-http://127.0.0.1:1} VMALERT_C=x AM_C=x CONFIG_FILES=() NODES=()
 AM=${AM:-$AM_OK}
 RESOLVE_TIMEOUT=2
 SINK_PROBE_TIMEOUT=2
 . "$SC_DIR/../../scenarios/lib-core.sh"
+. "$SC_DIR/lib-slow-tier.sh"
 sleep() { command sleep 0.2; }
 reload_config() { CONFIG_HASH=test; }
 component_versions() { echo '[]'; }
@@ -128,6 +138,15 @@ revert() { :; }'
 mk late 'EXPECT=(Foo:x)
 inject() { sleep 1; emit firing Foo x; }
 revert() { sleep 1; emit resolved Foo x; }'
+mk settle 'EXPECT=()
+inject() { :; }
+revert() { wait_slow_tier_settled "${SETTLE_T:-4}"; }'
+mk settle_failed 'EXPECT=()
+inject() { FAILS+=("an earlier check failed"); }
+revert() { wait_slow_tier_settled "${SETTLE_T:-4}"; }'
+mk settle_abort 'EXPECT=()
+inject() { exit 7; }
+revert() { wait_slow_tier_settled "${SETTLE_T:-4}"; }'
 git -C "$tree" init -q
 git -C "$tree" add -A
 git -C "$tree" -c user.name=t -c user.email=t@t commit -qm init
@@ -203,6 +222,63 @@ reset
 run flap; rc=$?
 check "a resolve that a new firing follows is not a resolution" test "$rc" -ne 0
 check "the reason is not resolved" rec '.failure_reasons | join(" ") | test("not resolved")'
+
+echo "--- slow tier settle"
+SLOW=$RECORDS.slow
+reset
+printf '0 0\n' >"$SLOW"
+run settle; rc=$?
+check "no gap and no alert: settled at once" test "$rc" -eq 0
+check "it says how long it waited (under 2 s)" grep -q 'slow tier settled after [01]s' "$work/out"
+reset
+printf '2 0\n' >"$SLOW"
+( command sleep 2; printf '0 0\n' >"$SLOW" ) &
+PIDS+=("$!")
+run settle; rc=$?
+check "a trailing gap that clears while waiting: the revert waits and passes" test "$rc" -eq 0
+check "it waited for the gap (at least 1 s)" bash -c '! grep -q "slow tier settled after 0s" "$1" && grep -q "slow tier settled after" "$1"' _ "$work/out"
+reset
+printf '2 0\n' >"$SLOW"
+run settle; rc=$?
+check "a gap that does not clear within the timeout fails the scenario" test "$rc" -ne 0
+check "the reason names the slow tier and the timeout" rec '.pass == false and (.failure_reasons | join(" ") | test("slow tier not settled within 4s") and test("revert failed"))'
+reset
+printf '0 1\n' >"$SLOW"
+run settle; rc=$?
+check "a pending or firing alert alone keeps the wait going, then fails" test "$rc" -ne 0
+reset
+printf '0 0\n' >"$SLOW"
+VM=http://127.0.0.1:1 run settle; rc=$?
+check "an unreachable VictoriaMetrics does not read as settled" test "$rc" -ne 0
+reset
+printf '0 0 1\n' >"$SLOW"
+run settle; rc=$?
+check "no sample after the revert yet (spacing still fine, no alert): not settled" test "$rc" -ne 0
+check "the reason names the slow tier" rec '.failure_reasons | join(" ") | test("slow tier not settled")'
+reset
+printf '0 0 1\n' >"$SLOW"
+( command sleep 2; printf '0 0 0\n' >"$SLOW" ) &
+PIDS+=("$!")
+run settle; rc=$?
+check "the first sample after the revert lands while waiting: settled" test "$rc" -eq 0
+check "it asked the freshness query, not only the spacing" bash -c '! grep -q "settled after 0s" "$1"' _ "$work/out"
+reset
+printf '2 1 1\n' >"$SLOW"
+run settle_failed
+check "a scenario that failed already does not wait (no 4 s timeout, no slow-tier reason)" bash -c '
+  grep -q "not waiting for the slow tier" "$1" && ! jq -e ".failure_reasons | join(\" \") | test(\"slow tier not settled\")" "$2" >/dev/null' _ "$work/out" "$RESULTS"
+reset
+run settle_abort
+check "a revert from the abort path does not wait" bash -c '
+  grep -q "not waiting for the slow tier" "$1" && ! jq -e ".failure_reasons | join(\" \") | test(\"slow tier not settled\")" "$2" >/dev/null' _ "$work/out" "$RESULTS"
+rm -f "$SLOW"
+
+echo "--- slow tier expression equals the rule's"
+rule=$src/../../packs/postgresql/rules.yml
+rule_expr=$(awk '/- alert: PostgresSlowCollectionIntervalTooLong$/ {f=1} f && /^ *expr: / {sub(/^ *expr: /, ""); print; exit}' "$rule")
+lib_expr=$(sed -n "s/^SLOW_TIER_SPACING='\(.*\)'\$/\1/p" "$SLOW_TIER_LIB")
+lib_limit=$(sed -n 's/^SLOW_TIER_LIMIT=\([0-9]*\)$/\1/p' "$SLOW_TIER_LIB")
+check "the helper's spacing expression and limit are the rule's expr (rule: $rule_expr)" test -n "$rule_expr" -a "$rule_expr" = "$lib_expr > $lib_limit"
 
 [ "$FAILED" = 0 ] && echo "all harness tests passed"
 exit "$FAILED"

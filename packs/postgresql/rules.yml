@@ -949,6 +949,8 @@ groups:
       # up to the 30 m window after collection resumes, so this alert can trail
       # an outage that PostgresSlowTierStalled or CollectorAbsent already
       # reported; accepted to keep the window wide enough for 5 m samples.
+      # The slice 1 scenarios that cause such a gap wait for it to clear before
+      # they end (wait_slow_tier_settled in lab/slice1/scenarios/lib-slow-tier.sh).
       # Structural: no override series.
       - alert: PostgresSlowCollectionIntervalTooLong
         expr: max by (obenhub.cluster.name, service.instance.id, postgresql.database.name) (scrape_interval(postgresql.collection.slow_heartbeat[30m])) > 450
