@@ -103,9 +103,10 @@ sql() { docker exec -i "$orac" sqlplus -s -L "$@"; }
 # (grep -q would end the pipe early and, under pipefail, fail the test on SIGPIPE: grep to /dev/null instead)
 # a. fresh state: certificates, .env, compose project (the repo checkout stays clean)
 log "licence: the Oracle Free image is pulled for this test only, under the Oracle Free Use Terms and Conditions (/licenses/license.txt in the image)"
-backend_up gateway
 # the inventory of the page: this install expects the Oracle target, not the example's PostgreSQL;
-# written in place (the file is bind-mounted), then vmalert re-reads it as the guide says
+# written before compose up (backend_prepare of lib.sh), so the example's pg-1 is never expected
+# (the page edits it in place and reloads vmalert instead)
+backend_prepare() {
 cat >"$cdir/inventory.yml" <<'YAML'
 groups:
   - name: inventory
@@ -121,7 +122,8 @@ groups:
       - record: obenhub.expected_target
         expr: label_set(vector(1), "service.namespace", "obenhub", "service.name", "oracledb", "obenhub.cluster.name", "free", "service.instance.id", "FREE", "obenhub.collector", "otelcol-host-1")
 YAML
-(cd "$cdir" && docker compose -p "$project" kill -s SIGHUP vmalert >/dev/null) || fail "vmalert reload"
+}
+backend_up gateway
 
 # b. Oracle Database Free: own network, default settings, no lab file
 log "oracle: pull and start $ORACLE_IMAGE"
