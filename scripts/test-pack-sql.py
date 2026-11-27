@@ -238,6 +238,117 @@ def check_slow_values(fleet, queries, majors):
     return errors
 
 
+def check_slot_safe_wal(fleet, queries, majors):
+    """safe_wal_size and the WAL counter (F5), on every major, as the monitoring role.
+
+    By metric: the query of postgresql.replication_slot.safe_wal_size has no row for
+    a slot while max_slot_wal_keep_size is -1 (the NULL case, filtered), one row with a
+    value in (0, keep + one segment] once it is set to 64MB (the finite case), and no row for a slot
+    that is lost (about 200 MB written and a CHECKPOINT with the slot unconsumed); a slot
+    created without reserving WAL (no restart_lsn) has no row either.
+    postgresql.wal.written returns one row on the primary whose value grows after a
+    WAL record. Returns the list of mismatch lines.
+    """
+    by_metric = {q["metric"]: q for q in queries}
+    safe_sql = by_metric["postgresql.replication_slot.safe_wal_size"]["sql"]
+    wal_sql = by_metric["postgresql.wal.written"]["sql"]
+
+    def rows(major, sql):
+        p = fleet.psql(major, sql, tuples=True)
+        if p.returncode != 0:
+            return None, p.stderr.strip()[-160:]
+        return [ln for ln in p.stdout.split("\n") if ln], ""
+
+    def one(major):
+        out = []
+
+        def adm(sql):
+            p = fleet.psql(major, sql, role="postgres")
+            if p.returncode != 0:
+                out.append(f"slot setup on {major}: {p.stderr.strip()[-160:]}")
+            return p.returncode == 0
+
+        if not adm(
+            "SELECT pg_create_physical_replication_slot('sw_reserved', true);"
+            "SELECT pg_create_physical_replication_slot('sw_noreserve', false)"
+        ):
+            return out
+        got, err = rows(major, safe_sql)
+        if got != []:
+            out.append(f"safe_wal_size on {major} with max_slot_wal_keep_size -1: want no row, got {got} {err}")
+        if not adm("ALTER SYSTEM SET max_slot_wal_keep_size = '64MB'; SELECT pg_reload_conf()"):
+            return out
+        for _ in range(10):
+            got, err = rows(major, safe_sql)
+            if got:
+                break
+            time.sleep(1)
+        ok = got is not None and len(got) == 1 and got[0].split("\t")[0] == "sw_reserved"
+        if ok:
+            val = float(got[0].split("\t")[2])
+            ok = (
+                0 < val <= 80 * 1024 * 1024
+            )  # the limit plus up to one 16 MB segment of slack (restart_lsn is mid-segment)
+        if not ok:
+            out.append(
+                f"safe_wal_size on {major} with 64MB: want one row for sw_reserved in (0, 80 MiB], got {got} {err}"
+            )
+        got1, _ = rows(major, wal_sql)
+        adm("SELECT pg_logical_emit_message(false, 'obenhub', 'x')")
+        got2, err = rows(major, wal_sql)
+        if not (got1 and got2 and len(got1) == 1 and len(got2) == 1 and int(got2[0]) > int(got1[0]) > 0):
+            out.append(f"wal.written on {major}: want one growing row, got {got1} then {got2} {err}")
+        # 200 MB past the limit, before any CHECKPOINT: the slot is unreserved and the raw
+        # safe_wal_size is negative; the query must give a row of 0, not a negative number
+        adm(
+            "CREATE TABLE sw_fill AS SELECT g, repeat('x', 100) AS pad FROM generate_series(1, 1500000) g;"
+            "SELECT pg_switch_wal()"
+        )
+        p = fleet.psql(
+            major,
+            "SELECT wal_status, safe_wal_size FROM pg_replication_slots WHERE slot_name = 'sw_reserved'",
+            tuples=True,
+        )
+        raw = p.stdout.strip()
+        got, err = rows(major, safe_sql)
+        if raw.startswith("unreserved"):
+            if not (
+                int(raw.split("\t")[1]) < 0
+                and got
+                and got[0].split("\t")[0] == "sw_reserved"
+                and float(got[0].split("\t")[2]) == 0
+            ):
+                out.append(
+                    f"safe_wal_size on {major} for an unreserved slot: want one row of 0 (raw {raw!r}), got {got} {err}"
+                )
+            else:
+                print(f"  unreserved case reached on {major}: raw {raw.split(chr(9))[1]} -> 0")
+        else:
+            out.append(f"unreserved case not reached on {major} (status {raw!r}); the clamp is untested there")
+        # then CHECKPOINT: the slot is lost, safe_wal_size is NULL
+        adm("CHECKPOINT; CHECKPOINT")
+        for _ in range(10):
+            got, err = rows(major, safe_sql)
+            if got == []:
+                break
+            time.sleep(1)
+        else:
+            p = fleet.psql(
+                major, "SELECT wal_status FROM pg_replication_slots WHERE slot_name = 'sw_reserved'", tuples=True
+            )
+            out.append(
+                f"safe_wal_size on {major} for a lost slot: want no row, got {got} (wal_status {p.stdout.strip()!r})"
+            )
+        return out
+
+    errors = []
+    with ThreadPoolExecutor(len(majors)) as ex:
+        for res in ex.map(one, majors):
+            errors += res
+    print(f"slot safe_wal_size and WAL counter: {len(majors)} majors, NULL for -1, finite, lost and no-reserve slots")
+    return errors
+
+
 def main():
     queries = packsql.read_queries()
     images = packsql.read_images()
@@ -274,7 +385,11 @@ def main():
         with ThreadPoolExecutor(8) as ex:
             for (q, major), res in ex.map(work, jobs):
                 results[(q["n"], major)] = res
-        ext_errors = check_extension_paths(fleet, fleet_np, queries, majors) + check_slow_values(fleet, queries, majors)
+        ext_errors = (
+            check_extension_paths(fleet, fleet_np, queries, majors)
+            + check_slow_values(fleet, queries, majors)
+            + check_slot_safe_wal(fleet, queries, majors)
+        )
 
     mismatches = 0
     print("query  metric" + " " * 44 + "pg-min  " + "  ".join(f"{m:>5}" for m in majors))

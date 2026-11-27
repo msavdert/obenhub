@@ -66,6 +66,12 @@ fires, zero monitoring-role errors in the server log). Notable details:
 - `slot-retaining-wal` holds an inactive physical slot while 640 MiB of WAL
   is written, below `max_slot_wal_keep_size`, so the slot retains WAL without
   being invalidated; `PostgresPhysicalSlotInactive` fires with it.
+- `slot-near-loss` holds an inactive physical slot while about 1 MiB/s of WAL
+  is written for 7 minutes (up to 420 MiB, below the 512 MiB of
+  `slot-retaining-wal`), so the time to loss computed from `safe_wal_size` and
+  the WAL rate is under an hour while the slot is still reserved;
+  `PostgresReplicationSlotNearLoss` fires, and `PostgresPhysicalSlotInactive`
+  with it.
 - `archiver-failing` removes all access to the repository directory that
   holds the archived WAL (`chmod 000`) and switches WAL segments; both
   archiving alerts fire. Only the primary archives, with pgBackRest

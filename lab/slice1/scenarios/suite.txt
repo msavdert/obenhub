@@ -19,6 +19,7 @@ checkpoint-pressure
 physical-slot-inactive
 slot-invalidated
 slot-retaining-wal
+slot-near-loss
 archiver-failing
 backup-stale
 backup-checksum-error

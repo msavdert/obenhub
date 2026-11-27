@@ -32,6 +32,7 @@
 # unit obenhub.postgresql.requested_checkpoints.limit {checkpoint}
 # unit obenhub.postgresql.physical_slot_inactive_age.limit s
 # unit obenhub.postgresql.slot_retained_wal.limit By
+# unit obenhub.postgresql.slot_time_to_loss.limit s
 # unit obenhub.postgresql.archive_ready_files.limit {file}
 # unit obenhub.postgresql.subscription_msg_age.limit s
 # unit obenhub.postgresql.apply_errors.limit {error}
@@ -554,6 +555,78 @@ groups:
           summary: 'Slot {{ (index $labels "postgresql.replication_slot.name") }} on {{ (index $labels "service.instance.id") }} retains {{ $value | humanize1024 }}B of WAL'
           description: "A valid slot on a primary holds back more than the limit of WAL (8 GiB unless the lab sets obenhub.postgresql.slot_retained_wal.limit) for 2 minutes, so the volume is filling. Check pg_replication_slots (retained WAL, active) and bring the consumer back or drop the slot."
           runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgresreplicationslotretainingwal
+
+      # The time until a slot is lost: its safe_wal_size (bytes that can still be
+      # written before PostgreSQL may remove WAL the slot needs, PostgreSQL 15-18
+      # docs, pg_replication_slots) divided by the WAL rate of the last 5 minutes
+      # (postgresql.wal.written). It is the projection if the slot never catches
+      # up; it fires below 1 h (3600 s unless a lab sets
+      # obenhub.postgresql.slot_time_to_loss.limit): long enough to bring the
+      # consumer back, add disk or raise max_slot_wal_keep_size, short enough
+      # that a slot with a hours-long runway stays quiet. The assumption that
+      # the slot does not catch up is checked, not taken: a healthy slot has a
+      # large safe_wal_size and a WAL rate of its own, and without the second
+      # condition it would "run out" in ~1000 s at 1 MB/s of ordinary writes. The
+      # second condition requires safe_wal_size itself to be falling at least
+      # half as fast as WAL is written (deriv over 5 m), i.e. the consumer is
+      # not keeping up. No series where max_slot_wal_keep_size is -1 (unlimited,
+      # NULL in the view, nothing to run into) or the slot is lost: nothing to
+      # divide, no alert. A WAL rate of 0 gives +Inf, never below the limit. An
+      # invalidated slot is excluded as in the alerts above and is
+      # PostgresReplicationSlotInvalidated's. Primary only. It can fire together
+      # with PostgresReplicationSlotRetainingWAL when the guard is small; the
+      # two answer different questions (how much is held / how long is left) and
+      # are not suppressed against each other. The WAL rate is a 5 m average, so
+      # a burst shorter than the window (a few segment switches) shows as a
+      # rate of its own size / 300 s.
+      # Primary for the whole 5 m window (max_over_time of recovery.active, not
+      # the instant value): a standby reports a safe_wal_size of its own (about
+      # 118 GB in pgha, no limit applied) and the promoted node about 1.08 GB
+      # (lab runs 2026-11-27, pgha network-partition and switchover); the series
+      # keeps its labels, so for 5 m after a promotion the deriv window would hold
+      # that step as a fall and fire on a healthy slot. A node promoted in the
+      # last 5 minutes is therefore not evaluated.
+      # The falling-behind gate has a second branch, safe_wal_size == 0: an
+      # unreserved slot (the column is greatest(safe_wal_size, 0) in
+      # queries.yaml) sits flat at 0, deriv is then 0 and the gate alone would
+      # resolve the alert exactly when the slot is closest to loss. The branch
+      # keeps the same label set (cluster, instance, slot name, slot type) as
+      # the deriv side, so the `and on(...)` below still matches.
+      # Lab scenario: lab/slice1/scenarios/slot-near-loss.sh.
+      - alert: PostgresReplicationSlotNearLoss
+        expr: |
+          (
+            (
+              (
+                postgresql.replication_slot.safe_wal_size
+                  / on(obenhub.cluster.name, service.instance.id) group_left()
+                rate(postgresql.wal.written[5m])
+              )
+                < on() group_left()
+              (obenhub.postgresql.slot_time_to_loss.limit or on() vector(3600))
+            )
+              and on(obenhub.cluster.name, service.instance.id, postgresql.replication_slot.name)
+            (
+              (
+                (-deriv(postgresql.replication_slot.safe_wal_size[5m]))
+                  > on(obenhub.cluster.name, service.instance.id) group_left()
+                (0.5 * rate(postgresql.wal.written[5m]))
+              )
+                or
+              postgresql.replication_slot.safe_wal_size == 0
+            )
+              unless on(obenhub.cluster.name, service.instance.id, postgresql.replication_slot.name)
+            postgresql.replication_slot.invalidated == 1
+          )
+            and on(obenhub.cluster.name, service.instance.id)
+          max_over_time(postgresql.recovery.active[5m]) == 0
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'Slot {{ (index $labels "postgresql.replication_slot.name") }} on {{ (index $labels "service.instance.id") }} is lost in about {{ $value | humanizeDuration }} at the current WAL rate'
+          description: "A slot on a primary falls behind (its safe_wal_size is shrinking) and, at the WAL rate of the last 5 minutes, runs out of safe WAL (max_slot_wal_keep_size) in less than the limit (1 h unless the lab sets obenhub.postgresql.slot_time_to_loss.limit) for 2 minutes; a lost slot needs a rebuilt standby or a re-synchronised subscriber. Check pg_replication_slots (safe_wal_size, active), bring the consumer back, or raise max_slot_wal_keep_size. A slot with max_slot_wal_keep_size -1 is never evaluated, a slot at 0 (unreserved: its WAL may be removed at the next checkpoint) keeps it firing although safe_wal_size no longer falls, and a node promoted in the last 5 minutes is not evaluated yet."
+          runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgresreplicationslotnearloss
 
       # WAL archiving, two alerts that fail differently (PostgreSQL 18 docs,
       # 25.3.1 Setting Up WAL Archiving). PostgresArchivingFailing reads

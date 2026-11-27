@@ -22,6 +22,7 @@ Each row is a limit a rule compares against: the default is in the rule, and a l
 | PostgresCheckpointsRequested | `obenhub.postgresql.requested_checkpoints.limit` |  | 3 | `{checkpoint}` | above the limit |
 | PostgresPhysicalSlotInactive | `obenhub.postgresql.physical_slot_inactive_age.limit` |  | 900 | `s` | above the limit |
 | PostgresReplicationSlotRetainingWAL | `obenhub.postgresql.slot_retained_wal.limit` |  | 8589934592 | `By` | above the limit |
+| PostgresReplicationSlotNearLoss | `obenhub.postgresql.slot_time_to_loss.limit` |  | 3600 | `s` | below the limit |
 | PostgresArchiveBacklog | `obenhub.postgresql.archive_ready_files.limit` |  | 64 | `{file}` | above the limit |
 | PostgresLogicalApplyErrors | `obenhub.postgresql.apply_errors.limit` |  | 2 | `{error}` | at or above the limit |
 | PostgresLogicalSubscriptionNotStreaming | `obenhub.postgresql.subscription_msg_age.limit` |  | 300 | `s` | above the limit |
@@ -334,6 +335,40 @@ A valid slot on a primary holds back more than the limit of WAL (8 GiB unless th
 )
   and on(obenhub.cluster.name, service.instance.id)
 postgresql.recovery.active == 0
+```
+
+## PostgresReplicationSlotNearLoss
+
+A slot on a primary falls behind (its safe_wal_size is shrinking) and, at the WAL rate of the last 5 minutes, runs out of safe WAL (max_slot_wal_keep_size) in less than the limit (1 h unless the lab sets obenhub.postgresql.slot_time_to_loss.limit) for 2 minutes; a lost slot needs a rebuilt standby or a re-synchronised subscriber. Check pg_replication_slots (safe_wal_size, active), bring the consumer back, or raise max_slot_wal_keep_size. A slot with max_slot_wal_keep_size -1 is never evaluated, a slot at 0 (unreserved: its WAL may be removed at the next checkpoint) keeps it firing although safe_wal_size no longer falls, and a node promoted in the last 5 minutes is not evaluated yet.
+
+**warning**, for 2m
+
+```text
+(
+  (
+    (
+      postgresql.replication_slot.safe_wal_size
+        / on(obenhub.cluster.name, service.instance.id) group_left()
+      rate(postgresql.wal.written[5m])
+    )
+      < on() group_left()
+    (obenhub.postgresql.slot_time_to_loss.limit or on() vector(3600))
+  )
+    and on(obenhub.cluster.name, service.instance.id, postgresql.replication_slot.name)
+  (
+    (
+      (-deriv(postgresql.replication_slot.safe_wal_size[5m]))
+        > on(obenhub.cluster.name, service.instance.id) group_left()
+      (0.5 * rate(postgresql.wal.written[5m]))
+    )
+      or
+    postgresql.replication_slot.safe_wal_size == 0
+  )
+    unless on(obenhub.cluster.name, service.instance.id, postgresql.replication_slot.name)
+  postgresql.replication_slot.invalidated == 1
+)
+  and on(obenhub.cluster.name, service.instance.id)
+max_over_time(postgresql.recovery.active[5m]) == 0
 ```
 
 ## PostgresArchivingFailing
