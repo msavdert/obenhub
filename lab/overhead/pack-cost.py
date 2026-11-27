@@ -25,7 +25,7 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 # the pack the series was measured with (a copy of packs/postgresql/
-# queries.yaml at commit 5266555); the shared pack has changed since
+# queries.yaml at commit dad67be)
 PACK = HERE / "results/pack-measured/queries.yaml"
 ARMS = (("tpcb", "pgss.csv", "runs.csv"), ("cpu", "pgss-cpu.csv", "runs-cpu.csv"))
 

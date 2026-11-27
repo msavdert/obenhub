@@ -4,9 +4,11 @@
 # the heartbeat continues. Names follow the naming contract
 # (ADR 0006); attribute columns are dotted aliases. The slot and subscription queries return no rows where
 # there are none, so a node without them simply has no such series.
+# pg-min: 15
 - sql: SELECT 1 AS collection_heartbeat
   metrics:
     - {metric_name: postgresql.collection.heartbeat, value_column: collection_heartbeat, value_type: int, data_type: gauge, unit: "1", description: "1 whenever the heartbeat query succeeded"}
+# pg-min: 15
 - sql: |
     SELECT
       CASE WHEN pg_is_in_recovery() THEN 1 ELSE 0 END AS recovery_active,
@@ -22,43 +24,113 @@
     - {metric_name: postgresql.wal_receiver.streaming, value_column: wal_receiver_streaming, value_type: int, data_type: gauge, unit: "1", description: "1 when a WAL receiver is streaming (always 0 on a primary)"}
     - {metric_name: postgresql.replay.backlog, value_column: replay_backlog, value_type: double, data_type: gauge, unit: By, description: "Received but not yet replayed WAL"}
     - {metric_name: postgresql.replay.paused, value_column: replay_paused, value_type: int, data_type: gauge, unit: "1", description: "1 when WAL replay is paused"}
+# Every read of pg_stat_activity in this file is one statement over one
+# MATERIALIZED scan of the view (F4, ADR 0009 decision 4); the postgresql
+# receiver's postgresql.backends (on by default, contrib v0.165.0 client.go
+# getBackends) is its own scan. PostgreSQL copies the backend status array
+# once per transaction, sized by the backend slots (MaxBackends plus auxiliary
+# processes) rather than by live sessions (backend_status.c
+# pgstat_read_current_status, read on REL_15 and REL_18), but each reference
+# to the view runs pg_stat_get_activity(NULL) over that copy and joins
+# pg_database and pg_authid again, so the scan is taken once and every
+# subquery reads the CTE. The result is one row with row_kind 'instance' for
+# the per-instance values and one row with row_kind 'session' per session
+# combination; every metric of a sqlquery query is read from every row, and
+# row_condition picks the rows of each (internal/sqlquery scraper.go, contrib
+# v0.165.0). The columns a row kind does not use are 0 or 'none', never NULL,
+# so no row logs a NULL warning. pid <> pg_backend_pid() leaves this scraping
+# backend out everywhere except client_connection_count, which counts every
+# client backend as max_connections does.
+#
+# snapshot_oldest_age covers what has a timestamp: client transactions that
+# hold a snapshot or an xid, and prepared transactions (pg_prepared_xacts.
+# prepared). Replication slots and walsender feedback have no timestamp; they
+# are in xmin_horizon_age, in transactions. Every backend type counts there, so
+# a walsender's backend_xmin (hot_standby_feedback) is included; the slot's own
+# xmin and catalog_xmin are read from pg_replication_slots because a physical
+# slot keeps them with no walsender attached.
+#
+# idle_age is the time spent idle inside a transaction, as opposed to a long
+# running statement or a held snapshot (snapshot_oldest_age): state_change is
+# when the session last changed state, so for an idle session it is the moment
+# it went idle. 0 when no client is idle in a transaction.
+#
+# Client sessions by state and wait event (PostgreSQL 18 docs, monitoring-stats,
+# view pg_stat_activity; wait_event_type and wait_event are NULL while a
+# backend is not waiting, and state is NULL for a backend not yet initialised):
+# client backends only, without this scraping backend; a NULL becomes 'none'
+# because a metric attribute has no NULL. Only the combinations present at the
+# scrape produce a series, and the wait event names are PostgreSQL's
+# vocabulary (ADR 0009, decisions 1 and 4); a combination that is gone is no
+# series, not a 0.
+#
+# reserved_connections exists from PostgreSQL 16; current_setting(name, true)
+# returns NULL below that, read as 0.
+# pg-min: 15
 - sql: |
+    WITH a AS MATERIALIZED (
+      SELECT pid, backend_type, state, wait_event_type, wait_event,
+        xact_start, state_change, backend_xmin, backend_xid
+      FROM pg_stat_activity
+    )
     SELECT
-      coalesce((SELECT max(extract(epoch FROM clock_timestamp() - xact_start))
-                  FROM pg_stat_activity
-                  WHERE (backend_xmin IS NOT NULL OR backend_xid IS NOT NULL)
-                    AND backend_type = 'client backend'
-                    AND pid <> pg_backend_pid()), 0)::float8 AS snapshot_oldest_age,
-      (SELECT count(*) FROM pg_stat_activity WHERE backend_type = 'client backend')::int AS client_connection_count,
+      'instance' AS row_kind,
+      greatest(
+        coalesce((SELECT max(extract(epoch FROM clock_timestamp() - xact_start))
+                    FROM a
+                    WHERE (backend_xmin IS NOT NULL OR backend_xid IS NOT NULL)
+                      AND backend_type = 'client backend'
+                      AND pid <> pg_backend_pid()), 0),
+        coalesce((SELECT max(extract(epoch FROM clock_timestamp() - prepared))
+                    FROM pg_prepared_xacts), 0))::float8 AS snapshot_oldest_age,
+      coalesce((SELECT max(age(x)) FROM (
+                  SELECT backend_xmin AS x FROM a WHERE pid <> pg_backend_pid()
+                  UNION ALL SELECT backend_xid FROM a WHERE pid <> pg_backend_pid()
+                  UNION ALL SELECT xmin FROM pg_replication_slots
+                  UNION ALL SELECT catalog_xmin FROM pg_replication_slots
+                  UNION ALL SELECT transaction FROM pg_prepared_xacts) h), 0)::bigint AS xmin_horizon_age,
+      (SELECT count(*) FROM a WHERE backend_type = 'client backend')::int AS client_connection_count,
       (current_setting('max_connections')::int
           - current_setting('superuser_reserved_connections')::int
-          - current_setting('reserved_connections')::int) AS client_connection_limit
+          - coalesce(current_setting('reserved_connections', true)::int, 0)) AS client_connection_limit,
+      coalesce((SELECT max(extract(epoch FROM clock_timestamp() - state_change))
+                  FROM a
+                  WHERE backend_type = 'client backend'
+                    AND state IN ('idle in transaction', 'idle in transaction (aborted)')
+                    AND pid <> pg_backend_pid()), 0)::float8 AS idle_age,
+      'none' AS "postgresql.session.state",
+      'none' AS "postgresql.wait_event.type",
+      'none' AS "postgresql.wait_event.name",
+      0 AS session_count
+    UNION ALL
+    SELECT
+      'session', 0, 0, 0, 0, 0,
+      coalesce(state, 'none'),
+      coalesce(wait_event_type, 'none'),
+      coalesce(wait_event, 'none'),
+      count(*)::int
+    FROM a
+    WHERE backend_type = 'client backend'
+      AND pid <> pg_backend_pid()
+    GROUP BY state, wait_event_type, wait_event
   metrics:
-    - {metric_name: postgresql.snapshot.oldest_age, value_column: snapshot_oldest_age, value_type: double, data_type: gauge, unit: s, description: "Age of the oldest client transaction holding a snapshot or an xid"}
-    - {metric_name: postgresql.client_connection.count, value_column: client_connection_count, value_type: int, data_type: gauge, unit: '{connection}', description: "Client backends"}
-    - {metric_name: postgresql.client_connection.limit, value_column: client_connection_limit, value_type: int, data_type: gauge, unit: '{connection}', description: "max_connections minus reserved slots"}
+    - {metric_name: postgresql.snapshot.oldest_age, value_column: snapshot_oldest_age, row_condition: {column: row_kind, value: instance}, value_type: double, data_type: gauge, unit: s, description: "Age of the oldest client transaction holding a snapshot or an xid, or of the oldest prepared transaction"}
+    - {metric_name: postgresql.xmin_horizon.age, value_column: xmin_horizon_age, row_condition: {column: row_kind, value: instance}, value_type: int, data_type: gauge, unit: '{transaction}', description: "Largest age() of any xmin or xid held by a backend (walsender feedback included), a replication slot (xmin, catalog_xmin) or a prepared transaction"}
+    - {metric_name: postgresql.client_connection.count, value_column: client_connection_count, row_condition: {column: row_kind, value: instance}, value_type: int, data_type: gauge, unit: '{connection}', description: "Client backends"}
+    - {metric_name: postgresql.client_connection.limit, value_column: client_connection_limit, row_condition: {column: row_kind, value: instance}, value_type: int, data_type: gauge, unit: '{connection}', description: "max_connections minus reserved slots"}
+    - {metric_name: postgresql.transaction.idle_age, value_column: idle_age, row_condition: {column: row_kind, value: instance}, value_type: double, data_type: gauge, unit: s, description: "Longest time a client session has been idle in a transaction (0 when none)"}
+    - {metric_name: postgresql.client_session.count, value_column: session_count, row_condition: {column: row_kind, value: session}, attribute_columns: ["postgresql.session.state", "postgresql.wait_event.type", "postgresql.wait_event.name"], value_type: int, data_type: gauge, unit: '{session}', description: "Client sessions by state, wait event type and wait event; 'none' where the backend has none"}
 # Wraparound: one row per database, template databases included (they are
 # frozen by autovacuum like the rest). age() and mxid_age() count transactions
 # and multixacts since datfrozenxid / datminmxid; both wrap at 2^31 (about 2.1
 # billion), which is the denominator the rules use.
+# pg-min: 15
 - sql: |
     SELECT datname AS "postgresql.database.name", age(datfrozenxid)::bigint AS xid_age, mxid_age(datminmxid)::bigint AS mxid_age
     FROM pg_database
   metrics:
     - {metric_name: postgresql.database.xid_age, value_column: xid_age, attribute_columns: ["postgresql.database.name"], value_type: int, data_type: gauge, unit: '{transaction}', description: "age(datfrozenxid) of the database, in transactions"}
     - {metric_name: postgresql.database.mxid_age, value_column: mxid_age, attribute_columns: ["postgresql.database.name"], value_type: int, data_type: gauge, unit: '{multixact}', description: "mxid_age(datminmxid) of the database, in multixacts"}
-# Time spent idle inside a transaction, as opposed to a long running statement
-# or a held snapshot (postgresql.snapshot.oldest_age): state_change is when the
-# session last changed state, so for an idle session it is the moment it went
-# idle. 0 when no client is idle in a transaction.
-- sql: |
-    SELECT coalesce(max(extract(epoch FROM clock_timestamp() - state_change)), 0)::float8 AS idle_age
-    FROM pg_stat_activity
-    WHERE backend_type = 'client backend'
-      AND state IN ('idle in transaction', 'idle in transaction (aborted)')
-      AND pid <> pg_backend_pid()
-  metrics:
-    - {metric_name: postgresql.transaction.idle_age, value_column: idle_age, value_type: double, data_type: gauge, unit: s, description: "Longest time a client session has been idle in a transaction (0 when none)"}
 # Sessions waiting for a lock: pg_locks rows that are not granted.
 # pg_locks.waitstart (PostgreSQL 14+) is when the wait began; it is not
 # guaranteed to be set for every waiting row, so a NULL counts as 0
@@ -66,6 +138,7 @@
 # purpose: that would be one call per waiting backend, each taking the lock
 # manager partition locks, where this is one pg_locks scan (which also takes
 # them, once) per collection.
+# pg-min: 15
 - sql: |
     SELECT
       count(DISTINCT pid)::int AS lock_waiting_session_count,
@@ -75,18 +148,43 @@
   metrics:
     - {metric_name: postgresql.lock.waiting_session.count, value_column: lock_waiting_session_count, value_type: int, data_type: gauge, unit: '{session}', description: "Sessions waiting for a lock"}
     - {metric_name: postgresql.lock.oldest_wait_age, value_column: oldest_wait_age, value_type: double, data_type: gauge, unit: s, description: "Longest current lock wait (0 when none)"}
+# Synchronous replication. required is the number of synchronous standbys a
+# commit waits for, taken from synchronous_standby_names (PostgreSQL 18 docs,
+# runtime-config-replication): "FIRST num_sync (...)", "ANY num_sync (...)" and
+# "num_sync (...)" give num_sync; a plain list ("a, b", FIRST 1 by the docs) or
+# "*" (a one-entry plain list; inferred, the page does not say) means 1; empty
+# means 0 (asynchronous). count is the number of connected standbys that
+# pg_stat_replication lists as sync or quorum. Both are reported on every node;
+# only a primary has senders and a non-empty setting that matters. A num_sync
+# beyond the int range is capped (PostgreSQL accepts it in the setting).
+# pg-min: 15
+- sql: |
+    SELECT
+      CASE
+        WHEN btrim(s.names) = '' THEN 0
+        ELSE least(coalesce((regexp_match(s.names, '^\s*(?:FIRST|ANY)?\s*([0-9]+)\s*\(', 'i'))[1]::numeric, 1), 2147483647)::int
+      END AS synchronous_standby_required,
+      (SELECT count(*) FROM pg_stat_replication WHERE sync_state IN ('sync', 'quorum'))::int AS synchronous_standby_count
+    FROM (SELECT current_setting('synchronous_standby_names') AS names) s
+  metrics:
+    - {metric_name: postgresql.replication.synchronous_standby.required, value_column: synchronous_standby_required, value_type: int, data_type: gauge, unit: '{standby}', description: "Synchronous standbys a commit waits for, parsed from synchronous_standby_names (0 when empty, 1 for a plain list or *)"}
+    - {metric_name: postgresql.replication.synchronous_standby.count, value_column: synchronous_standby_count, value_type: int, data_type: gauge, unit: '{standby}', description: "Standbys that pg_stat_replication reports as sync or quorum (0 where there are no WAL senders)"}
 # One row per replication slot, on every node. Without a slot there is
 # no series, which is no fault. The current LSN is read with
-# pg_last_wal_receive_lsn() in recovery, where pg_current_wal_lsn() errors.
+# pg_last_wal_receive_lsn() in recovery, where pg_current_wal_lsn() errors;
+# a standby that never streamed has no receive LSN (NULL) and one in archive
+# recovery replays past what it received, so the greater of receive and replay
+# LSN is used (greatest ignores NULL), never a negative or silent 0
 # wal_status as a number: 0 reserved, 1 extended, 2 unreserved, 3 lost,
 # -1 none (no restart_lsn). inactive_age is 0 while the slot is active.
+# pg-min: 17
 - sql: |
     SELECT
       slot_name AS "postgresql.replication_slot.name",
       slot_type AS "postgresql.replication_slot.type",
       active::int AS active,
-      coalesce(pg_wal_lsn_diff(CASE WHEN pg_is_in_recovery() THEN pg_last_wal_receive_lsn() ELSE pg_current_wal_lsn() END, restart_lsn), 0)::float8 AS retained_wal,
-      coalesce(pg_wal_lsn_diff(CASE WHEN pg_is_in_recovery() THEN pg_last_wal_receive_lsn() ELSE pg_current_wal_lsn() END, confirmed_flush_lsn), 0)::float8 AS unconfirmed_wal,
+      coalesce(pg_wal_lsn_diff(CASE WHEN pg_is_in_recovery() THEN greatest(pg_last_wal_receive_lsn(), pg_last_wal_replay_lsn()) ELSE pg_current_wal_lsn() END, restart_lsn), 0)::float8 AS retained_wal,
+      coalesce(pg_wal_lsn_diff(CASE WHEN pg_is_in_recovery() THEN greatest(pg_last_wal_receive_lsn(), pg_last_wal_replay_lsn()) ELSE pg_current_wal_lsn() END, confirmed_flush_lsn), 0)::float8 AS unconfirmed_wal,
       CASE wal_status WHEN 'reserved' THEN 0 WHEN 'extended' THEN 1 WHEN 'unreserved' THEN 2 WHEN 'lost' THEN 3 ELSE -1 END AS wal_status,
       (invalidation_reason IS NOT NULL)::int AS invalidated,
       coalesce(invalidation_reason, '') AS "postgresql.replication_slot.invalidation_reason",
@@ -103,6 +201,11 @@
 # without a worker still reports (apply_worker_running 0). Only subname
 # and subenabled are read: subconninfo is not readable by pg_monitor.
 # last_msg_age is 0 while there is no apply worker row.
+# PostgreSQL 19 splits sync_error_count into sync_table_error_count and
+# sync_seq_error_count (19 release notes, Migration to Version 19); sync_errors
+# is the old column below 19 and the sum of the two from 19, read through
+# to_jsonb(t) so the query parses on both.
+# pg-min: 17
 - sql: |
     SELECT
       s.subname AS "postgresql.subscription.name",
@@ -110,7 +213,7 @@
       (EXISTS (SELECT 1 FROM pg_stat_subscription a WHERE a.subid = s.oid AND a.worker_type = 'apply' AND a.pid IS NOT NULL))::int AS apply_worker_running,
       coalesce((SELECT extract(epoch FROM clock_timestamp() - max(a.last_msg_receipt_time)) FROM pg_stat_subscription a WHERE a.subid = s.oid AND a.worker_type = 'apply'), 0)::float8 AS last_msg_age,
       coalesce(t.apply_error_count, 0)::bigint AS apply_errors,
-      coalesce(t.sync_error_count, 0)::bigint AS sync_errors
+      coalesce((to_jsonb(t)->>'sync_error_count')::bigint, (to_jsonb(t)->>'sync_table_error_count')::bigint + (to_jsonb(t)->>'sync_seq_error_count')::bigint, 0) AS sync_errors
     FROM pg_subscription s
     LEFT JOIN pg_stat_subscription_stats t ON t.subid = s.oid
   metrics:
@@ -118,19 +221,107 @@
     - {metric_name: postgresql.subscription.apply_worker_running, value_column: apply_worker_running, attribute_columns: ["postgresql.subscription.name"], value_type: int, data_type: gauge, unit: "1", description: "1 when an apply worker process exists for the subscription"}
     - {metric_name: postgresql.subscription.last_msg_age, value_column: last_msg_age, attribute_columns: ["postgresql.subscription.name"], value_type: double, data_type: gauge, unit: s, description: "Seconds since the apply worker last received a message from the publisher (0 without a worker)"}
     - {metric_name: postgresql.subscription.apply_error, value_column: apply_errors, attribute_columns: ["postgresql.subscription.name"], value_type: int, data_type: sum, monotonic: true, aggregation: cumulative, unit: '{error}', description: "pg_stat_subscription_stats.apply_error_count"}
-    - {metric_name: postgresql.subscription.sync_error, value_column: sync_errors, attribute_columns: ["postgresql.subscription.name"], value_type: int, data_type: sum, monotonic: true, aggregation: cumulative, unit: '{error}', description: "pg_stat_subscription_stats.sync_error_count"}
-# The seven PostgreSQL 18 conflict counters as one metric.
+    - {metric_name: postgresql.subscription.sync_error, value_column: sync_errors, attribute_columns: ["postgresql.subscription.name"], value_type: int, data_type: sum, monotonic: true, aggregation: cumulative, unit: '{error}', description: "pg_stat_subscription_stats.sync_error_count (sync_table_error_count + sync_seq_error_count from PostgreSQL 19)"}
+# The conflict counters of pg_stat_subscription_stats as one metric (seven
+# from PostgreSQL 18, update_deleted added in 19). The confl_*
+# columns are read through to_jsonb(t), so the query parses on every major:
+# below 18 the keys are absent and it returns no rows instead of failing
+# (roadmap E3). The list is fixed; a counter a later major adds is not read
+# until it is added here (packs:catalog-diff shows it).
+# pg-min: 15
 - sql: |
-    SELECT t.subname AS "postgresql.subscription.name", c.conflict_type AS "postgresql.conflict.type", c.n::bigint AS conflicts
+    SELECT t.subname AS "postgresql.subscription.name", substr(c.key, 7) AS "postgresql.conflict.type", c.value::bigint AS conflicts
     FROM pg_stat_subscription_stats t
-    CROSS JOIN LATERAL (VALUES
-      ('insert_exists', t.confl_insert_exists),
-      ('update_origin_differs', t.confl_update_origin_differs),
-      ('update_exists', t.confl_update_exists),
-      ('update_missing', t.confl_update_missing),
-      ('delete_origin_differs', t.confl_delete_origin_differs),
-      ('delete_missing', t.confl_delete_missing),
-      ('multiple_unique_conflicts', t.confl_multiple_unique_conflicts)
-    ) AS c(conflict_type, n)
+    CROSS JOIN LATERAL jsonb_each_text(to_jsonb(t)) AS c(key, value)
+    WHERE c.key IN (
+      'confl_insert_exists', 'confl_update_origin_differs', 'confl_update_exists',
+      'confl_update_deleted', 'confl_update_missing', 'confl_delete_origin_differs', 'confl_delete_missing',
+      'confl_multiple_unique_conflicts')
   metrics:
     - {metric_name: postgresql.subscription.conflict, value_column: conflicts, attribute_columns: ["postgresql.subscription.name", "postgresql.conflict.type"], value_type: int, data_type: sum, monotonic: true, aggregation: cumulative, unit: '{conflict}', description: "pg_stat_subscription_stats confl_* counters, by conflict type"}
+# WAL archiver (pg_stat_archiver, PostgreSQL 18 docs, monitoring-stats). Not in
+# postgresqlreceiver at v0.164.0 (metadata.yaml has no archiver metric).
+# `failing` is the state the view's columns define: the last attempt that
+# failed is newer than the last that succeeded (or none ever succeeded), so a
+# transient failure clears itself and a restart of the Collector changes
+# nothing. A failure that aborts the archiver process (killed by a signal, exit
+# status above 125) is not counted in pg_stat_archiver (PostgreSQL 18 docs,
+# 25.3.1), so the number of segments still waiting is read as well:
+# pg_ls_archive_statusdir() (pg_monitor may run it) lists pg_wal/archive_status,
+# where a segment waiting for the archiver is a .ready file. With archive_mode
+# off there are no .ready files and the counters stay 0.
+# pg-min: 15
+- sql: |
+    SELECT
+      archived_count::bigint AS archived_files,
+      failed_count::bigint AS failures,
+      (last_failed_time IS NOT NULL AND (last_archived_time IS NULL OR last_failed_time > last_archived_time))::int AS failing,
+      (SELECT count(*) FROM pg_ls_archive_statusdir() WHERE name LIKE '%.ready')::int AS ready_files
+    FROM pg_stat_archiver
+  metrics:
+    - {metric_name: postgresql.archiver.archived_file, value_column: archived_files, value_type: int, data_type: sum, monotonic: true, aggregation: cumulative, unit: '{file}', description: "pg_stat_archiver.archived_count: WAL files archived successfully"}
+    - {metric_name: postgresql.archiver.failure, value_column: failures, value_type: int, data_type: sum, monotonic: true, aggregation: cumulative, unit: '{failure}', description: "pg_stat_archiver.failed_count: failed archive attempts"}
+    - {metric_name: postgresql.archiver.failing, value_column: failing, value_type: int, data_type: gauge, unit: "1", description: "1 when the last failed archive attempt is newer than the last success"}
+    - {metric_name: postgresql.archiver.ready_file.count, value_column: ready_files, value_type: int, data_type: gauge, unit: '{file}', description: "WAL files waiting for the archiver (.ready files in pg_wal/archive_status)"}
+# Statement totals per database from pg_stat_statements (PostgreSQL 18 docs,
+# pgstatstatements, view pg_stat_statements: total_exec_time in ms, calls,
+# temp_blks_written). One row per database, no queryid and no query text
+# (ADR 0009, decisions 1 and 2). The sums are gauges, not counters: the view
+# holds at most pg_stat_statements.max statements and evicts the least used
+# (see the deallocation query below), and an evicted statement leaves the sum,
+# so a total can fall; a rate over it must not treat a fall as a counter reset.
+# Statements of dropped databases (no pg_database row) are left out.
+# Guard (ADR 0009, decision 2): the view exists only in a database where
+# CREATE EXTENSION pg_stat_statements ran (the pack connects to database
+# postgres), and a plain query fails at parse time without it. Here the
+# statement is a string handed to query_to_xml(), which runs only when
+# pg_extension lists the extension (CASE evaluates its branch lazily); without
+# it the CASE is NULL, xpath() of NULL is NULL and unnest() returns no rows, no
+# error. tableforest false gives one document (<table><row>...) that xpath()
+# accepts. Values travel as text and are cast back. The database travels as its
+# oid and its name is read from pg_database outside the XML, because XML
+# escapes &, < and > in a name. The guard also requires the library in
+# shared_preload_libraries: a created but not preloaded extension makes the
+# view error on every read. The setting is read from pg_settings, which hides
+# it from a role without pg_read_all_settings (part of pg_monitor) instead of
+# raising an error, so such a role gets no rows; current_setting() would fail
+# the query. The pattern accepts the forms PostgreSQL loads: quoted, with
+# $libdir/ and with .so.
+# pg-min: 15
+- sql: |
+    SELECT
+      d.datname AS "postgresql.database.name",
+      (xpath('/row/t/text()', r))[1]::text::float8 AS statement_execution_time,
+      (xpath('/row/c/text()', r))[1]::text::bigint AS statement_calls,
+      (xpath('/row/b/text()', r))[1]::text::bigint AS statement_temp_blocks_written
+    FROM (
+      SELECT unnest(xpath('/table/row',
+        CASE WHEN EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'pg_stat_statements')
+          AND EXISTS (SELECT 1 FROM pg_settings WHERE name = 'shared_preload_libraries' AND setting ~ '(^|,)\s*"?(\$libdir/)?pg_stat_statements(\.so)?"?\s*(,|$)')
+          THEN query_to_xml('SELECT s.dbid AS db, (sum(s.total_exec_time) / 1000)::float8 AS t, sum(s.calls)::bigint AS c, sum(s.temp_blks_written)::bigint AS b FROM pg_stat_statements s GROUP BY s.dbid', false, false, '')
+        END)) AS r
+    ) x
+    JOIN pg_database d ON d.oid = (xpath('/row/db/text()', r))[1]::text::oid
+  metrics:
+    - {metric_name: postgresql.statement.execution_time, value_column: statement_execution_time, attribute_columns: ["postgresql.database.name"], value_type: double, data_type: gauge, unit: s, description: "Sum of pg_stat_statements.total_exec_time of the statements still in the view, per database; falls when statements are evicted, so it is a gauge (rate it with deriv, not rate)"}
+    - {metric_name: postgresql.statement.call, value_column: statement_calls, attribute_columns: ["postgresql.database.name"], value_type: int, data_type: gauge, unit: '{call}', description: "Sum of pg_stat_statements.calls of the statements still in the view, per database; falls when statements are evicted, so it is a gauge"}
+    - {metric_name: postgresql.statement.temp_block_written, value_column: statement_temp_blocks_written, attribute_columns: ["postgresql.database.name"], value_type: int, data_type: gauge, unit: '{block}', description: "Sum of pg_stat_statements.temp_blks_written of the statements still in the view, per database; falls when statements are evicted, so it is a gauge"}
+# Statements evicted from pg_stat_statements: dealloc of pg_stat_statements_info
+# (PostgreSQL 18 docs, pgstatstatements, view pg_stat_statements_info; the view
+# exists from PostgreSQL 14) counts the times entries were evicted because
+# more distinct statements arrived than pg_stat_statements.max; it is reset to
+# 0 by pg_stat_statements_reset(). A rising count means the statement totals
+# above undercount. Same guard as the totals query (no rows without the
+# extension).
+# pg-min: 15
+- sql: |
+    SELECT (xpath('/row/d/text()', r))[1]::text::bigint AS statement_deallocations
+    FROM (
+      SELECT unnest(xpath('/table/row',
+        CASE WHEN EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'pg_stat_statements')
+          AND EXISTS (SELECT 1 FROM pg_settings WHERE name = 'shared_preload_libraries' AND setting ~ '(^|,)\s*"?(\$libdir/)?pg_stat_statements(\.so)?"?\s*(,|$)')
+          THEN query_to_xml('SELECT dealloc AS d FROM pg_stat_statements_info', false, false, '')
+        END)) AS r
+    ) x
+  metrics:
+    - {metric_name: postgresql.statement.deallocation, value_column: statement_deallocations, value_type: int, data_type: sum, monotonic: true, aggregation: cumulative, unit: '{deallocation}', description: "pg_stat_statements_info.dealloc: times statements were evicted from pg_stat_statements (reset by pg_stat_statements_reset())"}

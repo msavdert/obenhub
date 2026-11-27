@@ -301,7 +301,7 @@ postgresql, patroni, cnpg and oracledb-dg dashboards).
       dashboard panel reads them. One panel and one log rule per engine
 - [ ] F3 Host rules beyond filesystem, memory and reboot: disk I/O, OOM
       kills; volume fill and restarts on Kubernetes
-- [ ] F4 The overhead measurement repeated with the current pack, after
+- [x] F4 The overhead measurement repeated with the current pack, after
       the `pg_stat_activity` queries (five scans every 15 s) are merged
       into one
 - [ ] F5 Signals taken as ideas from the dasha review (owner, 2026-11-19),
