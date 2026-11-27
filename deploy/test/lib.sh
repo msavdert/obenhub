@@ -1,19 +1,34 @@
 # shellcheck shell=bash
 # shellcheck disable=SC2154  # p_*, project, tcol are set by the sourcing script
 # SPDX-License-Identifier: Apache-2.0
-# Code both install tests of deploy/ share (roadmap G1): install-test.sh (the
-# Collector as a container) and vm-test.sh (the Collector as a host binary on
-# another machine). Sourced, not run. What is here is the throwaway backend of
+# Code the install tests of deploy/ share (roadmap G1): install-test.sh (the
+# Collector as a container), vm-test.sh (the Collector as a host binary on
+# another machine) and k8s-test.sh (Collector releases of the Helm chart in a
+# kind cluster). Sourced, not run. What is here is the throwaway backend of
 # deploy/compose, the settle wait, the assertions (heartbeat, firing alerts,
 # dead-man cadence, dashboard panels) and the summary and runs.jsonl line that
 # the EXIT trap writes. Everything about the target (what is installed, how the
-# Collector runs, how it is torn down) stays in the two scripts.
+# Collector runs, how it is torn down) stays in the scripts.
 #
 # A script that sources this file sets TEST_NAME, then calls lib_init, and sets
 #   project            compose project name (TEST_NAME names the evidence line's test)
 #   p_grafana p_vm p_vl p_vmalert p_am p_gw   host ports of the backend
 #   EVIDENCE_IMAGES    space separated images to add to the line's "images"
 #   EVIDENCE_EXTRA     JSON object merged into the line (default {})
+# and may set, all optional (the defaults are what install-test and vm-test use)
+#   ENV_PREFIX         prefix of the variables <prefix>_EVIDENCE and <prefix>_SETTLE (default TEST_NAME, upper case, dashes to underscores)
+#   backend_prepare    a function called by backend_up after the copy of deploy/compose is
+#                      configured and before compose up (the k8s test rewrites inventory.yml there)
+#   settle_packs       packs whose rules count for the settle (default "collector host postgresql")
+#   hb_matcher, hb_expect   the heartbeat selector (default "service.instance.id"="pg-1","obenhub.cluster.name"="main")
+#                      and how many series it must give (default 1)
+#   grace_collectors   space separated service.instance.id values whose CollectorAbsent may fire
+#                      until 120 s after tcol (default otelcol-host-1)
+#   panel_runs         array of "dashboard-path|instance|cluster|namespace" for assert_panels (instance and
+#                      cluster may be empty); default the PostgreSQL dashboard for pg-1 of main,
+#                      and the host dashboard
+#   panel_legit        associative array title -> reason: panels that are accepted at 0 rows
+#                      (a failing query that returned no rows, never an error)
 # and defines teardown(), called from the EXIT trap before the summary and the
 # evidence row (a teardown failure calls fail and so fails the run), and
 # collector_alive / collector_diag for settle_wait.
@@ -79,11 +94,11 @@ finish() {
   fi
 }
 summarize() {
-  local outcome=pass dur evvar=${TEST_NAME^^}
+  local outcome=pass dur evvar=${ENV_PREFIX:-${TEST_NAME^^}}
   evvar=${evvar//-/_}
   { $completed && [ ${#failures[@]} -eq 0 ]; } || outcome=fail
   dur=$(( $(date +%s) - t0 ))
-  # INSTALL_TEST_EVIDENCE / VM_TEST_EVIDENCE=0 and *_SETTLE set: no evidence line
+  # INSTALL_TEST_EVIDENCE / VM_TEST_EVIDENCE / K8S_TEST_EVIDENCE=0 and *_SETTLE set: no evidence line
   local ev="${evvar}_EVIDENCE" st="${evvar}_SETTLE"
   if [ "${!ev:-1}" != 0 ] && [ -z "${!st:-}" ]; then
     write_evidence "$outcome" "$dur"
@@ -138,25 +153,87 @@ backend_up() {
       -e "s/^OBENHUB_ALERTMANAGER_PORT=.*/OBENHUB_ALERTMANAGER_PORT=$p_am/" -e "s/^OBENHUB_GATEWAY_PORT=.*/OBENHUB_GATEWAY_PORT=$p_gw/" \
       -e "s/^OBENHUB_GATEWAY_BIND=.*/OBENHUB_GATEWAY_BIND=${gateway_bind:-127.0.0.1}/" .env
   )
+  if declare -F backend_prepare >/dev/null; then backend_prepare; fi
   log "backend: docker compose up"
-  (cd "$cdir" && docker compose -p "$project" up -d --wait) >"$tmp/compose-up.log" 2>&1 || { cat "$tmp/compose-up.log" >&2; fail "docker compose up --wait"; }
+  # `up --wait` gives up when a service is unhealthy once; Grafana's first start
+  # took more than the health check allows on a loaded machine (2026-11-27, load
+  # average 25 to 48), and then became healthy. So when it fails, wait up to 10
+  # minutes more until every service of the project has a container that is
+  # healthy (or running, when the service has no health check). A service without
+  # a container, or whose container exited, never counts. This wait applies to
+  # all three tests (a deliberate change to install-test and vm-test: a slow
+  # first Grafana start no longer fails them); compose-up.log is kept in the
+  # failure output.
+  if ! (cd "$cdir" && docker compose -p "$project" up -d --wait) >"$tmp/compose-up.log" 2>&1; then
+    # a broken project (config error, image or port failure) fails at once; only a
+    # health check that has not passed yet is worth the wait
+    if ! (cd "$cdir" && docker compose -p "$project" config --services) >/dev/null 2>&1 \
+      || ! grep -qi 'unhealthy\|health' "$tmp/compose-up.log"; then
+      cat "$tmp/compose-up.log" >&2
+      fail "docker compose up --wait"
+      return 0
+    fi
+    log "backend: a service is not healthy yet, waiting up to 600 s"
+    local end=$(( $(date +%s) + 600 ))
+    until backend_healthy; do
+      if [ "$(date +%s)" -ge "$end" ]; then
+        cat "$tmp/compose-up.log" >&2
+        fail "docker compose up --wait (not healthy after 600 s more: $backend_why)"
+        return 0
+      fi
+      sleep 5
+    done
+  fi
 }
 
+# backend_healthy: every service of the project's compose file has at least one
+# container (running or not: ps -a) and every such container is healthy, or
+# running when it has no health check. Sets backend_why to the first fault.
+backend_healthy() {
+  local svc ids c st n=0
+  backend_why=
+  for svc in $(cd "$cdir" && docker compose -p "$project" config --services); do
+    n=$((n + 1))
+    ids=$(cd "$cdir" && docker compose -p "$project" ps -aq "$svc")
+    if [ -z "$ids" ]; then backend_why="service $svc has no container"; return 1; fi
+    for c in $ids; do
+      st=$(docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}{{.State.Status}}{{end}}' "$c")
+      case "$st" in healthy | running) ;; *) backend_why="service $svc is $st"; return 1 ;; esac
+    done
+  done
+  [ "$n" -gt 0 ] || { backend_why="the project has no service"; return 1; }
+}
+
+# backend_down: takes the project down with its volumes, and fails the run (fail)
+# when that fails or when a container, volume or network labelled with the project
+# is left. Called from teardown().
 backend_down() {
-  [ -d "$cdir" ] && (cd "$cdir" && docker compose -p "$project" down -v --remove-orphans >/dev/null 2>&1)
+  [ -d "${cdir:-}" ] || return 0
+  (cd "$cdir" && docker compose -p "$project" down -v --remove-orphans >/dev/null 2>&1) || fail "teardown: docker compose down of $project"
+  [ -z "$(docker ps -aq --filter "label=com.docker.compose.project=$project")" ] || fail "teardown: containers of the compose project $project are left"
+  [ -z "$(docker volume ls -q --filter "label=com.docker.compose.project=$project")" ] || fail "teardown: volumes of the compose project $project are left"
+  [ -z "$(docker network ls -q --filter "label=com.docker.compose.project=$project")" ] || fail "teardown: networks of the compose project $project are left"
+  return 0
+}
+
+# tmp_remove: removes the temporary directory; a failure fails the run.
+tmp_remove() {
+  rm -rf "${tmp:?}" || fail "teardown: removing $tmp"
+  [ ! -e "$tmp" ] || fail "teardown: $tmp still exists"
 }
 
 # settle_wait <alive command> <diagnostics command>: the longest `for:` among
 # the rules that can fire here, plus a margin, counted from $tcol (the
-# Collector's start). Packs loaded with data: collector, host, postgresql.
-# Other packs' rules watch components this setup does not run. Margin 120 s
+# Collector's start). Packs loaded with data: collector, host, postgresql, or
+# settle_packs. Other packs' rules watch components this setup does not run. Margin 120 s
 # (assumption: vmalert evaluates every 15 s, Alertmanager group_wait 5 s, scrape
 # and export lag). <alive command> failing ends the wait with a failure.
 settle_wait() {
-  local evvar=${TEST_NAME^^} st
+  local evvar=${ENV_PREFIX:-${TEST_NAME^^}} st pk files=()
   evvar=${evvar//-/_}
   st="${evvar}_SETTLE"
-  max_for=$(grep -h '^ *for: *[0-9]' "$repo"/packs/{collector,host,postgresql}/rules.yml | sed 's/^ *for: *"\{0,1\}\([0-9]*\)\([sm]\).*/\1 \2/' |
+  for pk in ${settle_packs:-collector host postgresql}; do files+=("$repo/packs/$pk/rules.yml"); done
+  max_for=$(grep -h '^ *for: *[0-9]' "${files[@]}" | sed 's/^ *for: *"\{0,1\}\([0-9]*\)\([sm]\).*/\1 \2/' |
     awk '{ s = ($2 == "m") ? $1 * 60 : $1; if (s > m) m = s } END { print m }')
   settle=$((max_for + 120))
   if [ -n "${!st:-}" ]; then settle=${!st}; fi
@@ -173,8 +250,9 @@ assert_backend() {
   vm="http://127.0.0.1:$p_vm" vl="http://127.0.0.1:$p_vl" vma="http://127.0.0.1:$p_vmalert" gf="http://127.0.0.1:$p_grafana"
 
   # heartbeat
-  hb=$(curl -fsS --max-time 20 "$vm/api/v1/query" --data-urlencode 'query=count(last_over_time({__name__="postgresql.collection.heartbeat","service.instance.id"="pg-1","obenhub.cluster.name"="main"}[2m]))' | jq -r '.data.result[0].value[1] // "0"')
-  if [ "$hb" = 1 ]; then log "heartbeat of pg-1 (cluster main): present"; else fail "no postgresql.collection.heartbeat of pg-1 in the last 2m"; fi
+  local hbsel=${hb_matcher:-'"service.instance.id"="pg-1","obenhub.cluster.name"="main"'}
+  hb=$(curl -fsS --max-time 20 "$vm/api/v1/query" --data-urlencode "query=count(last_over_time({__name__=\"postgresql.collection.heartbeat\",$hbsel}[2m]))" | jq -r '.data.result[0].value[1] // "0"')
+  if [ "$hb" = "${hb_expect:-1}" ]; then log "heartbeat series of {$hbsel}: $hb"; else fail "heartbeat series of {$hbsel} in the last 2m: $hb, want ${hb_expect:-1}"; fi
 
   # alerts: only Watchdog may fire, and nothing may be pending
   local alerts ever startup_grace=120 name inst last off dm prev e g
@@ -206,7 +284,7 @@ assert_backend() {
     [ -n "$name" ] || continue
     off=$(( last / 1000 - tcol ))
     log "alert $name ($inst) last fired ${off}s after the Collector start"
-    if [ "$name" = CollectorAbsent ] && [ "$inst" = otelcol-host-1 ] && [ "$off" -le "$startup_grace" ]; then
+    if [ "$name" = CollectorAbsent ] && [[ " ${grace_collectors:-otelcol-host-1} " == *" $inst "* ]] && [ "$off" -le "$startup_grace" ]; then
       continue
     fi
     ever_firing="${ever_firing:+$ever_firing,}$name"
@@ -247,7 +325,7 @@ assert_panels() {
     ["Replication slots: active and inactive time"]="a plain server has no replication slot"
   )
   local -A category=()
-  local panels_out="$tmp/panels.txt" envf="$cdir/.env" line status title t c accounted
+  local panels_out="$tmp/panels.txt" envf="$cdir/.env" line status title t c d i n accounted
   local empty_titles=()
   : >"$panels_out"
   run_panels() {
@@ -260,8 +338,19 @@ assert_panels() {
           elif ((.description // "") | startswith("Data only during a scenario")) then "data only during a scenario"
           else "log panel" end)] | @tsv' "$1")
   }
-  run_panels "$repo/packs/postgresql/dashboards/postgresql.json" "$gf" "$envf" pg-1 main
-  run_panels "$repo/packs/host/dashboards/host.json" "$gf" "$envf"
+  local k run
+  if declare -p panel_legit >/dev/null 2>&1; then for k in "${!panel_legit[@]}"; do legit_empty["$k"]="${panel_legit[$k]}"; done; fi
+  if [ -z "${panel_runs+x}" ]; then
+    panel_runs=("$repo/packs/postgresql/dashboards/postgresql.json|pg-1|main" "$repo/packs/host/dashboards/host.json||")
+  fi
+  for run in "${panel_runs[@]}"; do
+    IFS='|' read -r d i c n <<<"$run"
+    # instance and cluster are optional arguments of check-panels.sh, in that order
+    if [ -n "$n" ]; then run_panels "$d" "$gf" "$envf" "$i" "$c" "$n"
+    elif [ -n "$c" ]; then run_panels "$d" "$gf" "$envf" "$i" "$c"
+    elif [ -n "$i" ]; then run_panels "$d" "$gf" "$envf" "$i"
+    else run_panels "$d" "$gf" "$envf"; fi
+  done
   while IFS= read -r line; do
     status=${line%% *}
     title=$(sed -E 's/^[A-Za-z]+ +//;s/ +(ok|FAIL|empty \(allowed\)) [A-Z]:.*$//' <<<"$line")

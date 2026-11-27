@@ -80,6 +80,10 @@ run = "deploy/test/install-test.sh"
 description = "install test of docs/guides/monitor/vm.md: a host-binary Collector under systemd on a second machine (deploy/test/vm-test.sh; ssh target, default pg-lab); needs docker and ssh, about 20 minutes, not part of check"
 run = "deploy/test/vm-test.sh"
 
+[tasks."deploy:k8s-test"]
+description = "install test of docs/guides/monitor/kubernetes.md: a kind cluster of its own with PostgreSQL as a StatefulSet (sts) or a CloudNativePG Cluster (cnpg), watched by the Helm chart values of deploy/helm (deploy/test/k8s-test.sh; pass sts or cnpg after --); needs docker and the tools of mise.k8s.toml, about 30 minutes, not part of check"
+run = "MISE_ENV=k8s exec mise exec -- deploy/test/k8s-test.sh"
+
 [tasks."lint:deploy-pins"]
 description = "images and Helm chart pinned in deploy/ equal the lab's pins (no network)"
 run = "python3 -I scripts/check-deploy-pins.py"
@@ -213,7 +217,7 @@ run = """
 set -e
 g=http://127.0.0.1:43000
 e=lab/k8s/mon/.env
-scripts/check-panels.sh packs/cnpg/dashboards/cnpg.json $g $e
+scripts/check-panels.sh packs/cnpg/dashboards/cnpg.json $g $e "" "" obenhub
 # the primary moves in the scenarios (switchover, primary-deleted); the slow
 # tier and the primary-only panels need its name
 . lab/k8s/versions.sh

@@ -68,7 +68,7 @@ teardown() {
   docker rm -f "$colc" "$pgc" >/dev/null 2>&1
   backend_down
   docker network rm "$net" >/dev/null 2>&1
-  rm -rf "${tmp:?}"
+  tmp_remove
 }
 collector_alive() { docker ps -q -f name="^$colc\$" | grep -q .; }
 collector_diag() { docker logs --tail 30 "$colc"; }

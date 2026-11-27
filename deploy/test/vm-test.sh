@@ -170,7 +170,7 @@ teardown() {
   done
   if [ "${#moved[@]}" -gt 0 ]; then t 'sudo systemctl daemon-reload' >/dev/null 2>&1; fi
   backend_down
-  rm -rf "${tmp:?}"
+  tmp_remove
 }
 collector_alive() { t 'systemctl is-active --quiet otelcol-contrib'; }
 collector_diag() { t 'sudo journalctl -u otelcol-contrib -n 30 --no-pager'; }

@@ -15,7 +15,25 @@
   },
   "timezone": "utc",
   "templating": {
-    "list": []
+    "list": [
+      {
+        "name": "namespace",
+        "label": "Namespace",
+        "type": "query",
+        "datasource": {
+          "type": "victoriametrics-metrics-datasource",
+          "uid": "vm"
+        },
+        "query": "label_values(k8s.pod.phase, k8s.namespace.name)",
+        "refresh": 2,
+        "sort": 1,
+        "includeAll": false,
+        "current": {
+          "text": "obenhub",
+          "value": "obenhub"
+        }
+      }
+    ]
   },
   "panels": [
     {
@@ -818,7 +836,7 @@
             "type": "victoriametrics-metrics-datasource",
             "uid": "vm"
           },
-          "expr": "k8s.container.restarts{k8s.namespace.name=\"obenhub\"}",
+          "expr": "k8s.container.restarts{k8s.namespace.name=\"$namespace\"}",
           "refId": "A",
           "range": true,
           "instant": false,
@@ -866,7 +884,7 @@
             "type": "victoriametrics-metrics-datasource",
             "uid": "vm"
           },
-          "expr": "k8s.container.ready{k8s.namespace.name=\"obenhub\"}",
+          "expr": "k8s.container.ready{k8s.namespace.name=\"$namespace\"}",
           "refId": "A",
           "range": true,
           "instant": false,
@@ -916,7 +934,7 @@
             "type": "victoriametrics-metrics-datasource",
             "uid": "vm"
           },
-          "expr": "k8s.pod.cpu.usage{k8s.namespace.name=\"obenhub\"}",
+          "expr": "k8s.pod.cpu.usage{k8s.namespace.name=\"$namespace\"}",
           "refId": "A",
           "range": true,
           "instant": false,
@@ -965,7 +983,7 @@
             "type": "victoriametrics-metrics-datasource",
             "uid": "vm"
           },
-          "expr": "k8s.pod.memory.working_set{k8s.namespace.name=\"obenhub\"}",
+          "expr": "k8s.pod.memory.working_set{k8s.namespace.name=\"$namespace\"}",
           "refId": "A",
           "range": true,
           "instant": false,
@@ -1014,7 +1032,7 @@
             "type": "victoriametrics-metrics-datasource",
             "uid": "vm"
           },
-          "expr": "sum by (k8s.pod.name, direction) (rate(k8s.pod.network.io{k8s.namespace.name=\"obenhub\"}[$__rate_interval]))",
+          "expr": "sum by (k8s.pod.name, direction) (rate(k8s.pod.network.io{k8s.namespace.name=\"$namespace\"}[$__rate_interval]))",
           "refId": "A",
           "range": true,
           "instant": false,
