@@ -183,6 +183,52 @@ idle transaction, 0.24 ms and 7.8 ms together) that covered fewer metrics. The
 pre-#176 pack with three statements was never measured, so this series gives
 the cost of the merged statement, not the saving of the merge.
 
+## F6: one statement and a cheaper guard
+
+Roadmap F6 merged the two `pg_stat_statements` queries into one statement and
+replaced the `pg_settings` lookup in the guard by `pg_has_role()` and
+`current_setting('shared_preload_libraries')` (`packs/postgresql/queries.yaml`;
+the unit tests are `mise run packs:sql-test`). Measured 2026-11-27 (08:14-08:51
+UTC on the box clock) on pg-lab, same host, load definitions and
+`measure-run.sh` as above, but a smaller run: ON runs only, no OFF runs, two
+runs per pack and arm, the 2026-11-26 pack (`f6/old/pack-measured`) and the F6
+pack (`f6/new/pack-measured`) alternating in one session (tpcb: old new new
+old at 300 s; cpu: new old old new at 180 s; 20 s wait before pgbench instead
+of 60 s). Raw rows and summaries: `f6/old` and `f6/new` (`pgss*.csv`,
+`runs*.csv`, `pack-cost.csv` by `./pack-cost.py f6/<pack> f6/<pack>/pack-measured/queries.yaml`).
+The new pack file differs from the one that ran in comments and in one
+later addition, a `to_regclass('pg_stat_statements_info')` branch for
+extension versions before 1.9 that adds one catalog lookup per scrape (not
+measured; the SQL of the measured statement is otherwise unchanged). The journal of every run has no error line and the one feature-gate
+warning per start.
+
+The host was noisier than on 2026-11-26 (CPU steal 9-29% against 4-7%, tpcb
+tps 245-334 against 367-438), so the same-session old rows, not the 2026-11-26
+means, are the control. Mean execution time of the statements of role
+otel_monitor, ms per call (statement query, 20 calls per tpcb run and 12 per
+cpu run, 40 and 24 calls per pack):
+
+| | 2026-11-26 (F4, 8 runs) | old pack today (2 runs) | F6 pack today (2 runs) |
+|---|---|---|---|
+| tpcb, totals query | 2.597 | 3.376 | 1.786 (one statement) |
+| tpcb, deallocation query | 1.900 | 2.289 | (in the same statement) |
+| tpcb, both together | 4.497 | 5.665 | 1.786 |
+| cpu, totals query | 45.540 | 36.488 | 22.445 (one statement) |
+| cpu, deallocation query | 27.550 | 24.668 | (in the same statement) |
+| cpu, both together | 73.090 | 61.156 | 22.445 |
+| pack execution per second, tpcb / cpu | 0.34 / 5.8 ms | 0.44 / 6.09 ms | 0.18 / 3.36 ms |
+
+Against the same-session old pack the statement cost fell 68% (tpcb) and 63%
+(cpu), and the pack's execution per second 58% (tpcb) and 45% (cpu); the
+receiver's statements were unchanged (0.30 against 0.26 ms per second on tpcb,
+6.52 against 6.41 on cpu). Two runs per arm and pack is a small sample (the cpu
+means have max values of 70-120 ms), so read the ratios as an order of
+magnitude, not as a precise saving. That the saving comes from the guard and
+the second read rather than the view read itself was not separated: the
+statement now runs one `pg_extension` lookup, one `current_setting()` and one
+`pg_stat_statements` read where it ran two of each, and the new `UNION ALL`
+adds one `pg_stat_statements_info` read inside the same statement.
+
 ## Compared with the 2026-11-12 series
 
 Same VM and load definitions; `setup.sh` (installs PostgreSQL) and

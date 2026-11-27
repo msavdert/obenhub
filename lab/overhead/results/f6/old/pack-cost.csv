@@ -1,0 +1,47 @@
+arm,source,query,on_runs,calls_per_run,mean_exec_ms,max_exec_ms,exec_ms_per_s,pct_of_pack_exec,rows_per_call,blks_hit_per_call,blks_read_per_call
+tpcb,pack,postgresql.statement.execution_time,2,20.0,3.3757,9.0783,0.225,51.1,1.0,2.0,0.0
+tpcb,pack,postgresql.statement.deallocation,2,20.0,2.2885,6.9539,0.1526,34.7,1.0,1.0,0.0
+tpcb,pack,postgresql.snapshot.oldest_age,2,20.0,0.3375,1.2534,0.0225,5.1,5.72,0.0,0.0
+tpcb,pack,postgresql.lock.waiting_session.count,2,20.0,0.2488,0.7969,0.0166,3.8,1.0,0.0,0.0
+tpcb,pack,postgresql.archiver.archived_file,2,20.0,0.1225,0.9731,0.0082,1.9,1.0,0.0,0.0
+tpcb,pack,postgresql.replication.synchronous_standby.required,2,20.0,0.118,0.238,0.0079,1.8,1.0,0.0,0.0
+tpcb,pack,postgresql.collection.heartbeat,2,20.0,0.0358,1.2188,0.0024,0.5,1.0,0.0,0.0
+tpcb,pack,postgresql.database.xid_age,2,20.0,0.0231,0.0318,0.0015,0.3,3.0,1.0,0.0
+tpcb,pack,postgresql.recovery.active,2,20.0,0.0169,0.1475,0.0011,0.3,1.0,0.0,0.0
+tpcb,pack,postgresql.replication_slot.active,2,20.0,0.0139,0.0311,0.0009,0.2,0.0,0.0,0.0
+tpcb,pack,postgresql.subscription.enabled,2,20.0,0.0128,0.0407,0.0009,0.2,0.0,0.0,0.0
+tpcb,pack,postgresql.subscription.conflict,2,20.0,0.0086,0.0184,0.0006,0.1,0.0,0.0,0.0
+tpcb,receiver,"receiver: select datname, pg_database_size(datname) from",2,20.0,1.5575,7.0175,0.1038,,1.0,3.0,0.0
+tpcb,receiver,"receiver: select s.schemaname as schema, s.relname as table,",2,20.0,1.1054,7.2461,0.0737,,4.0,33.5,0.0
+tpcb,receiver,"receiver: select schemaname as schema, relname as table,",2,20.0,0.6925,5.381,0.0462,,4.0,49.0,0.0
+tpcb,receiver,"receiver: select schemaname, relname, indexrelname,",2,20.0,0.6234,0.9572,0.0416,,3.0,28.0,0.0
+tpcb,receiver,"receiver: select datname, count(*) as count from pg_stat_activity",2,20.0,0.2332,3.098,0.0155,,1.0,1.4,0.225
+tpcb,receiver,"receiver: select coalesce(cast(client_addr as varchar), ?) as",2,20.0,0.1461,0.9684,0.0097,,0.0,0.0,0.0
+tpcb,receiver,"receiver: select datname, xact_commit, xact_rollback, deadlocks,",2,20.0,0.0427,0.4108,0.0028,,1.0,1.0,0.0
+tpcb,receiver,"receiver: select coalesce(last_archived_time, current_timestamp) as",2,20.0,0.0164,0.0373,0.0011,,1.0,0.0,0.0
+tpcb,receiver,"receiver: select cp.num_requested as checkpoint_req, cp.num_timed as",2,20.0,0.0106,0.024,0.0007,,1.0,0.0,0.0
+tpcb,receiver,receiver: show server_version,2,20.0,0.0051,0.0185,0.0003,,0.0,0.0,0.0
+tpcb,receiver,receiver: show max_connections,2,20.0,0.005,0.0103,0.0003,,0.0,0.0,0.0
+cpu,pack,postgresql.statement.execution_time,2,12.0,36.4883,88.0726,2.4326,40.0,1.0,1.0,1.0
+cpu,pack,postgresql.statement.deallocation,2,12.0,24.6678,69.9687,1.6445,27.0,1.0,1.0,0.0
+cpu,pack,postgresql.snapshot.oldest_age,2,12.0,17.9657,81.6915,1.1977,19.7,6.79,0.0,0.0
+cpu,pack,postgresql.lock.waiting_session.count,2,12.0,6.0738,59.4326,0.4049,6.7,1.0,0.0,0.0
+cpu,pack,postgresql.replication.synchronous_standby.required,2,12.0,4.2284,78.2542,0.2819,4.6,1.0,0.0,0.0
+cpu,pack,postgresql.replication_slot.active,2,12.0,0.8833,13.212,0.0589,1.0,0.0,0.0,0.0
+cpu,pack,postgresql.archiver.archived_file,2,12.0,0.5014,6.2662,0.0334,0.5,1.0,0.0,0.0
+cpu,pack,postgresql.database.xid_age,2,12.0,0.4363,4.35,0.0291,0.5,3.0,1.0,0.0
+cpu,pack,postgresql.subscription.enabled,2,12.0,0.0338,0.2502,0.0023,0.0,0.0,0.0,0.0
+cpu,pack,postgresql.recovery.active,2,12.0,0.0214,0.2058,0.0014,0.0,1.0,0.0,0.0
+cpu,pack,postgresql.subscription.conflict,2,12.0,0.0095,0.0128,0.0006,0.0,0.0,0.0,0.0
+cpu,pack,postgresql.collection.heartbeat,2,12.0,0.0045,0.0256,0.0003,0.0,1.0,0.0,0.0
+cpu,receiver,"receiver: select schemaname as schema, relname as table,",2,12.0,32.5754,143.1491,2.1717,,4.0,36.5,12.542
+cpu,receiver,"receiver: select schemaname, relname, indexrelname,",2,12.0,17.1282,90.5398,1.1419,,3.0,27.2,0.792
+cpu,receiver,"receiver: select datname, pg_database_size(datname) from",2,12.0,16.4213,59.5536,1.0948,,1.0,2.9,0.083
+cpu,receiver,"receiver: select s.schemaname as schema, s.relname as table,",2,12.0,14.0051,38.6258,0.9337,,4.0,19.0,0.0
+cpu,receiver,"receiver: select datname, count(*) as count from pg_stat_activity",2,12.0,6.4668,49.8273,0.4311,,1.0,0.8,0.208
+cpu,receiver,"receiver: select datname, xact_commit, xact_rollback, deadlocks,",2,12.0,5.7218,35.5633,0.3815,,1.0,0.4,0.583
+cpu,receiver,"receiver: select coalesce(cast(client_addr as varchar), ?) as",2,12.0,5.0814,49.4298,0.3388,,0.0,0.0,0.0
+cpu,receiver,receiver: show server_version,2,12.0,0.279,6.4979,0.0186,,0.0,0.0,0.0
+cpu,receiver,"receiver: select coalesce(last_archived_time, current_timestamp) as",2,12.0,0.1098,1.6717,0.0073,,1.0,0.0,0.0
+cpu,receiver,receiver: show max_connections,2,12.0,0.0435,0.8133,0.0029,,0.0,0.0,0.0
+cpu,receiver,"receiver: select cp.num_requested as checkpoint_req, cp.num_timed as",2,12.0,0.0215,0.2342,0.0014,,1.0,0.0,0.0

@@ -30,31 +30,119 @@ def data_rows(p):
     return max(len([ln for ln in p.stdout.split("\n") if ln]) - 1, 0)
 
 
-def check_extension_paths(fleet, queries, majors):
-    """The guard of the pg_stat_statements queries (ADR 0009, decision 2), both ways.
+def check_extension_paths(fleet, fleet_np, queries, majors):
+    """The guard of the pg_stat_statements query (ADR 0009, decision 2), in every case.
 
-    The containers load the library (shared_preload_libraries) but the first
-    pass runs before CREATE EXTENSION: each such query must then succeed with
-    no rows. After CREATE EXTENSION in database postgres each must succeed with
-    at least one row. Returns the list of mismatch lines.
+    fleet loads the library (shared_preload_libraries), fleet_np does not. Each
+    case must succeed (exit 0, no error) and give:
+
+    - extension missing (library preloaded, before CREATE EXTENSION): no rows;
+    - extension created: one 'instance' row and a 'database' row of database
+    postgres (the happy path);
+    - extension created at SQL version 1.8, before pg_stat_statements_info
+    (1.9): the database rows still come out, no instance row, no error;
+    - a database that had statements and was dropped: no row with an empty
+    name (the totals of a dropped database are left out), the filter of the
+    query's WHERE clause;
+    - role without pg_read_all_settings, with the extension created and the
+    library preloaded: no rows. Two roles: one with no grants and one with
+    pg_read_all_stats only. Each is first shown to be refused
+    current_setting('shared_preload_libraries') with SQLSTATE 42501, so the
+    case exercises what it claims, and the second to read the view directly;
+    - extension created, library not preloaded (fleet_np): no rows, for the
+    monitoring role and for a superuser; reading the view directly is shown
+    to fail there.
+
+    Returns the list of mismatch lines.
     """
     ext = [q for q in queries if "pg_stat_statements" in q["sql"]]
     errors = []
-    for phase, want_rows in (("without the extension", False), ("with the extension", True)):
-        for major in majors:
-            if want_rows:
-                p = fleet.psql(major, "CREATE EXTENSION pg_stat_statements", role="postgres")
-                if p.returncode != 0:
-                    errors.append(f"CREATE EXTENSION on {major}: {p.stderr.strip()[-200:]}")
-                    continue
-                fleet.psql(major, "SELECT 1")  # at least one tracked statement of database postgres
-            for q in ext:
-                p = fleet.psql(major, q["sql"], header=True)
-                if p.returncode != 0:
-                    errors.append(f"query {q['n']} on {major} {phase}: exit {p.returncode}: {p.stderr.strip()[:120]}")
-                elif (data_rows(p) > 0) != want_rows:
-                    errors.append(f"query {q['n']} on {major} {phase}: {data_rows(p)} rows")
-    print(f"extension guard: {len(ext)} queries, {len(majors)} majors, with and without the extension")
+    setting = "SELECT current_setting('shared_preload_libraries')"
+    pw = ["-c", r"\getenv pw PGPASSWORD"]
+    make_roles = (
+        "SELECT format('CREATE ROLE %I LOGIN PASSWORD %L', r, :'pw') FROM unnest(ARRAY['guard_plain', 'guard_stats']) r \\gexec\n"
+        "GRANT pg_read_all_stats TO guard_stats;"
+    )
+
+    def run_guard(f, major, role, want, label):
+        for q in ext:
+            p = f.psql(major, q["sql"], role=role, header=True)
+            if p.returncode != 0:
+                errors.append(f"{label} on {major} as {role}: exit {p.returncode}: {p.stderr.strip()[:160]}")
+                continue
+            lines = [ln for ln in p.stdout.split("\n") if ln][1:]
+            if want == "none" and lines:
+                errors.append(f"{label} on {major} as {role}: {len(lines)} rows, want none")
+            if want in ("rows", "totals"):
+                kinds = [ln.split("\t")[0] for ln in lines]
+                names = [ln.split("\t")[1] for ln in lines if ln.startswith("database\t")]
+                instances = 1 if want == "rows" else 0
+                if kinds.count("instance") != instances or "postgres" not in names or "" in names:
+                    errors.append(
+                        f"{label} on {major} as {role}: rows {kinds} {names}, "
+                        f"want {instances} instance, database postgres, no empty name"
+                    )
+
+    for major in majors:
+        run_guard(fleet, major, "otel_monitor", "none", "extension missing")
+        p = fleet.psql(major, "CREATE EXTENSION pg_stat_statements VERSION '1.8'", role="postgres")
+        if p.returncode != 0:
+            errors.append(f"CREATE EXTENSION VERSION '1.8' on {major}: {p.stderr.strip()[-200:]}")
+            continue
+        fleet.psql(major, "SELECT 1")  # at least one tracked statement of database postgres
+        p = fleet.psql(major, "SELECT to_regclass('pg_stat_statements_info') IS NULL", role="postgres", tuples=True)
+        if p.stdout.strip() != "t":
+            errors.append(f"precondition on {major}: version 1.8 has pg_stat_statements_info ({p.stdout.strip()})")
+        run_guard(fleet, major, "otel_monitor", "totals", "extension at version 1.8")
+        p = fleet.psql(major, "ALTER EXTENSION pg_stat_statements UPDATE", role="postgres")
+        if p.returncode != 0:
+            errors.append(f"ALTER EXTENSION UPDATE on {major}: {p.stderr.strip()[-200:]}")
+            continue
+        fleet.psql(major, "SELECT 1")
+        run_guard(fleet, major, "otel_monitor", "rows", "extension created")
+        p = fleet.psql(major, "CREATE DATABASE guard_gone", role="postgres")
+        p2 = fleet.psql(major, "SELECT 1 AS in_gone", role="postgres", extra=["-d", "guard_gone"])
+        p3 = fleet.psql(major, "DROP DATABASE guard_gone", role="postgres")
+        if p.returncode or p2.returncode or p3.returncode:
+            errors.append(f"dropped database setup on {major}: {(p.stderr + p2.stderr + p3.stderr).strip()[-200:]}")
+        else:
+            p = fleet.psql(
+                major,
+                "SELECT count(*) FROM pg_stat_statements WHERE dbid NOT IN (SELECT oid FROM pg_database)",
+                role="postgres",
+                tuples=True,
+            )
+            if p.stdout.strip() in ("", "0"):
+                errors.append(f"precondition on {major}: no statement of a dropped database in the view")
+            run_guard(fleet, major, "otel_monitor", "rows", "dropped database")
+        p = fleet.psql(major, make_roles, role="postgres", extra=pw)
+        if p.returncode != 0:
+            errors.append(f"guard roles on {major}: {p.stderr.strip()[-200:]}")
+            continue
+        for role in ("guard_plain", "guard_stats"):
+            p = fleet.psql(major, setting, role=role)
+            if p.returncode == 0 or "42501" not in p.stderr:
+                errors.append(
+                    f"precondition on {major}: {role} reads shared_preload_libraries ({p.stderr.strip()[:100]})"
+                )
+            run_guard(fleet, major, role, "none", "no pg_read_all_settings")
+        p = fleet.psql(major, "SELECT count(*) FROM pg_stat_statements", role="guard_stats")
+        if p.returncode != 0:
+            errors.append(f"precondition on {major}: guard_stats cannot read the view: {p.stderr.strip()[:100]}")
+
+        p = fleet_np.psql(major, "CREATE EXTENSION pg_stat_statements", role="postgres")
+        if p.returncode != 0:
+            errors.append(f"CREATE EXTENSION (not preloaded) on {major}: {p.stderr.strip()[-200:]}")
+            continue
+        p = fleet_np.psql(major, "SELECT count(*) FROM pg_stat_statements", role="postgres")
+        if p.returncode == 0 or "shared_preload_libraries" not in p.stderr:
+            errors.append(f"precondition on {major}: the view reads without the library ({p.stderr.strip()[:100]})")
+        run_guard(fleet_np, major, "otel_monitor", "none", "not preloaded")
+        run_guard(fleet_np, major, "postgres", "none", "not preloaded")
+    print(
+        f"extension guard: {len(ext)} queries, {len(majors)} majors: extension missing, created, "
+        "version 1.8, dropped database, no pg_read_all_settings (no grants, pg_read_all_stats only), not preloaded"
+    )
     return errors
 
 
@@ -164,8 +252,9 @@ def main():
     signal.signal(signal.SIGTERM, lambda *_: sys.exit(143))
     t0 = time.monotonic()
     results = {}  # (n, major) -> "ok" | "err:<sqlstate>" | "fail:<text>"
-    with packsql.Fleet(majors, images) as fleet:
+    with packsql.Fleet(majors, images) as fleet, packsql.Fleet(majors, images, preload=False) as fleet_np:
         fleet.start()
+        fleet_np.start()
         t1 = time.monotonic()
 
         def work(job):
@@ -185,7 +274,7 @@ def main():
         with ThreadPoolExecutor(8) as ex:
             for (q, major), res in ex.map(work, jobs):
                 results[(q["n"], major)] = res
-        ext_errors = check_extension_paths(fleet, queries, majors) + check_slow_values(fleet, queries, majors)
+        ext_errors = check_extension_paths(fleet, fleet_np, queries, majors) + check_slow_values(fleet, queries, majors)
 
     mismatches = 0
     print("query  metric" + " " * 44 + "pg-min  " + "  ".join(f"{m:>5}" for m in majors))

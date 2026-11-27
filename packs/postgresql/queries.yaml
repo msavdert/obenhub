@@ -263,65 +263,78 @@
     - {metric_name: postgresql.archiver.failure, value_column: failures, value_type: int, data_type: sum, monotonic: true, aggregation: cumulative, unit: '{failure}', description: "pg_stat_archiver.failed_count: failed archive attempts"}
     - {metric_name: postgresql.archiver.failing, value_column: failing, value_type: int, data_type: gauge, unit: "1", description: "1 when the last failed archive attempt is newer than the last success"}
     - {metric_name: postgresql.archiver.ready_file.count, value_column: ready_files, value_type: int, data_type: gauge, unit: '{file}', description: "WAL files waiting for the archiver (.ready files in pg_wal/archive_status)"}
-# Statement totals per database from pg_stat_statements (PostgreSQL 18 docs,
-# pgstatstatements, view pg_stat_statements: total_exec_time in ms, calls,
-# temp_blks_written). One row per database, no queryid and no query text
-# (ADR 0009, decisions 1 and 2). The sums are gauges, not counters: the view
-# holds at most pg_stat_statements.max statements and evicts the least used
-# (see the deallocation query below), and an evicted statement leaves the sum,
-# so a total can fall; a rate over it must not treat a fall as a counter reset.
-# Statements of dropped databases (no pg_database row) are left out.
+# pg_stat_statements: the statement totals per database and the eviction count,
+# in one statement so that the guard below runs once per scrape (F6; as two
+# queries each ran the guard, 79-86% of the pack's execution time in the F4
+# measurement, lab/overhead/results/results.md).
+# Totals (PostgreSQL 18 docs, pgstatstatements, view pg_stat_statements:
+# total_exec_time in ms, calls, temp_blks_written): one row per database with
+# row_kind 'database', no queryid and no query text (ADR 0009, decisions 1 and
+# 2). The sums are gauges, not counters: the view holds at most
+# pg_stat_statements.max statements and evicts the least used, and an evicted
+# statement leaves the sum, so a total can fall; a rate over it must not treat
+# a fall as a counter reset. Statements of dropped databases (no pg_database
+# row) are left out.
+# Evictions (same page, view pg_stat_statements_info, from PostgreSQL 14):
+# dealloc counts the times entries were evicted because more distinct
+# statements arrived than pg_stat_statements.max; pg_stat_statements_reset()
+# sets it to 0. A rising count means the totals undercount. It is one row with
+# row_kind 'instance'.
+# The view pg_stat_statements_info comes with SQL version 1.9 of the extension
+# (PostgreSQL 14 docs, pgstatstatements; an extension kept at an older version
+# after pg_upgrade lacks it): to_regclass() then picks the text without the
+# instance row, so the totals still come out and only the deallocation series
+# is missing, as it was with two queries.
+# Rows and metrics: every metric of a sql_query query is read from every row
+# and row_condition picks the rows of each (see the pg_stat_activity query
+# above); the columns a row kind does not use are 0 or '', never NULL.
 # Guard (ADR 0009, decision 2): the view exists only in a database where
 # CREATE EXTENSION pg_stat_statements ran (the pack connects to database
 # postgres), and a plain query fails at parse time without it. Here the
-# statement is a string handed to query_to_xml(), which runs only when
-# pg_extension lists the extension (CASE evaluates its branch lazily); without
-# it the CASE is NULL, xpath() of NULL is NULL and unnest() returns no rows, no
-# error. tableforest false gives one document (<table><row>...) that xpath()
-# accepts. Values travel as text and are cast back. The database travels as its
-# oid and its name is read from pg_database outside the XML, because XML
-# escapes &, < and > in a name. The guard also requires the library in
-# shared_preload_libraries: a created but not preloaded extension makes the
-# view error on every read. The setting is read from pg_settings, which hides
-# it from a role without pg_read_all_settings (part of pg_monitor) instead of
-# raising an error, so such a role gets no rows; current_setting() would fail
-# the query. The pattern accepts the forms PostgreSQL loads: quoted, with
-# $libdir/ and with .so.
+# statement is a string handed to query_to_xml(), which runs only when the
+# guard passes (CASE evaluates a branch lazily); otherwise the CASE is NULL,
+# xpath() of NULL is NULL and unnest() returns no rows, no error. The guard has
+# three conditions, nested so that none is evaluated before the one it
+# depends on: the role holds pg_read_all_settings (pg_has_role USAGE; without
+# it current_setting('shared_preload_libraries') raises SQLSTATE 42501, and its
+# missing_ok argument covers only a setting that does not exist: postgres
+# guc.c GetConfigOption, REL_18_STABLE, and the same error text in REL_15_STABLE,
+# shared_preload_libraries is GUC_SUPERUSER_ONLY; scripts/test-pack-sql.py
+# shows the error on each major); the library is in
+# shared_preload_libraries (a created but not preloaded extension makes the
+# view error on every read; the pattern accepts the forms PostgreSQL loads:
+# quoted, with $libdir/ and with .so); and pg_extension lists the extension.
+# current_setting() is a lookup by name; the earlier pg_settings lookup scanned
+# pg_show_all_settings(), 2.7-4.3 ms on pg-lab (lab/overhead/results). A role
+# without pg_read_all_settings (part of pg_monitor) gets no rows and no error,
+# as before. tableforest false gives one document (<table><row>...) that
+# xpath() accepts. Values travel as text and are cast back. The database
+# travels as its oid and its name is read from pg_database outside the XML,
+# because XML escapes &, < and > in a name.
 # pg-min: 15
 - sql: |
     SELECT
-      d.datname AS "postgresql.database.name",
+      (xpath('/row/k/text()', r))[1]::text AS row_kind,
+      coalesce(d.datname, '') AS "postgresql.database.name",
       (xpath('/row/t/text()', r))[1]::text::float8 AS statement_execution_time,
       (xpath('/row/c/text()', r))[1]::text::bigint AS statement_calls,
-      (xpath('/row/b/text()', r))[1]::text::bigint AS statement_temp_blocks_written
+      (xpath('/row/b/text()', r))[1]::text::bigint AS statement_temp_blocks_written,
+      (xpath('/row/d/text()', r))[1]::text::bigint AS statement_deallocations
     FROM (
       SELECT unnest(xpath('/table/row',
-        CASE WHEN EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'pg_stat_statements')
-          AND EXISTS (SELECT 1 FROM pg_settings WHERE name = 'shared_preload_libraries' AND setting ~ '(^|,)\s*"?(\$libdir/)?pg_stat_statements(\.so)?"?\s*(,|$)')
-          THEN query_to_xml('SELECT s.dbid AS db, (sum(s.total_exec_time) / 1000)::float8 AS t, sum(s.calls)::bigint AS c, sum(s.temp_blks_written)::bigint AS b FROM pg_stat_statements s GROUP BY s.dbid', false, false, '')
+        CASE WHEN pg_has_role(current_user, 'pg_read_all_settings', 'USAGE') THEN
+          CASE WHEN current_setting('shared_preload_libraries') ~ '(^|,)\s*"?(\$libdir/)?pg_stat_statements(\.so)?"?\s*(,|$)'
+                AND EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'pg_stat_statements')
+            THEN query_to_xml(CASE WHEN to_regclass('pg_stat_statements_info') IS NOT NULL
+              THEN 'SELECT ''database'' AS k, s.dbid AS db, (sum(s.total_exec_time) / 1000)::float8 AS t, sum(s.calls)::bigint AS c, sum(s.temp_blks_written)::bigint AS b, 0::bigint AS d FROM pg_stat_statements s GROUP BY s.dbid UNION ALL SELECT ''instance'', 0::oid, 0::float8, 0::bigint, 0::bigint, (SELECT dealloc FROM pg_stat_statements_info)'
+              ELSE 'SELECT ''database'' AS k, s.dbid AS db, (sum(s.total_exec_time) / 1000)::float8 AS t, sum(s.calls)::bigint AS c, sum(s.temp_blks_written)::bigint AS b, 0::bigint AS d FROM pg_stat_statements s GROUP BY s.dbid' END, false, false, '')
+          END
         END)) AS r
     ) x
-    JOIN pg_database d ON d.oid = (xpath('/row/db/text()', r))[1]::text::oid
+    LEFT JOIN pg_database d ON d.oid = (xpath('/row/db/text()', r))[1]::text::oid
+    WHERE d.oid IS NOT NULL OR (xpath('/row/k/text()', r))[1]::text = 'instance'
   metrics:
-    - {metric_name: postgresql.statement.execution_time, value_column: statement_execution_time, attribute_columns: ["postgresql.database.name"], value_type: double, data_type: gauge, unit: s, description: "Sum of pg_stat_statements.total_exec_time of the statements still in the view, per database; falls when statements are evicted, so it is a gauge (rate it with deriv, not rate)"}
-    - {metric_name: postgresql.statement.call, value_column: statement_calls, attribute_columns: ["postgresql.database.name"], value_type: int, data_type: gauge, unit: '{call}', description: "Sum of pg_stat_statements.calls of the statements still in the view, per database; falls when statements are evicted, so it is a gauge"}
-    - {metric_name: postgresql.statement.temp_block_written, value_column: statement_temp_blocks_written, attribute_columns: ["postgresql.database.name"], value_type: int, data_type: gauge, unit: '{block}', description: "Sum of pg_stat_statements.temp_blks_written of the statements still in the view, per database; falls when statements are evicted, so it is a gauge"}
-# Statements evicted from pg_stat_statements: dealloc of pg_stat_statements_info
-# (PostgreSQL 18 docs, pgstatstatements, view pg_stat_statements_info; the view
-# exists from PostgreSQL 14) counts the times entries were evicted because
-# more distinct statements arrived than pg_stat_statements.max; it is reset to
-# 0 by pg_stat_statements_reset(). A rising count means the statement totals
-# above undercount. Same guard as the totals query (no rows without the
-# extension).
-# pg-min: 15
-- sql: |
-    SELECT (xpath('/row/d/text()', r))[1]::text::bigint AS statement_deallocations
-    FROM (
-      SELECT unnest(xpath('/table/row',
-        CASE WHEN EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'pg_stat_statements')
-          AND EXISTS (SELECT 1 FROM pg_settings WHERE name = 'shared_preload_libraries' AND setting ~ '(^|,)\s*"?(\$libdir/)?pg_stat_statements(\.so)?"?\s*(,|$)')
-          THEN query_to_xml('SELECT dealloc AS d FROM pg_stat_statements_info', false, false, '')
-        END)) AS r
-    ) x
-  metrics:
-    - {metric_name: postgresql.statement.deallocation, value_column: statement_deallocations, value_type: int, data_type: sum, monotonic: true, aggregation: cumulative, unit: '{deallocation}', description: "pg_stat_statements_info.dealloc: times statements were evicted from pg_stat_statements (reset by pg_stat_statements_reset())"}
+    - {metric_name: postgresql.statement.execution_time, value_column: statement_execution_time, row_condition: {column: row_kind, value: database}, attribute_columns: ["postgresql.database.name"], value_type: double, data_type: gauge, unit: s, description: "Sum of pg_stat_statements.total_exec_time of the statements still in the view, per database; falls when statements are evicted, so it is a gauge (rate it with deriv, not rate)"}
+    - {metric_name: postgresql.statement.call, value_column: statement_calls, row_condition: {column: row_kind, value: database}, attribute_columns: ["postgresql.database.name"], value_type: int, data_type: gauge, unit: '{call}', description: "Sum of pg_stat_statements.calls of the statements still in the view, per database; falls when statements are evicted, so it is a gauge"}
+    - {metric_name: postgresql.statement.temp_block_written, value_column: statement_temp_blocks_written, row_condition: {column: row_kind, value: database}, attribute_columns: ["postgresql.database.name"], value_type: int, data_type: gauge, unit: '{block}', description: "Sum of pg_stat_statements.temp_blks_written of the statements still in the view, per database; falls when statements are evicted, so it is a gauge"}
+    - {metric_name: postgresql.statement.deallocation, value_column: statement_deallocations, row_condition: {column: row_kind, value: instance}, value_type: int, data_type: sum, monotonic: true, aggregation: cumulative, unit: '{deallocation}', description: "pg_stat_statements_info.dealloc: times statements were evicted from pg_stat_statements (reset by pg_stat_statements_reset())"}

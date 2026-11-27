@@ -134,7 +134,8 @@ def owner_alive(owner):
 class Fleet:
     """One container per major, created in parallel, removed by label on exit."""
 
-    def __init__(self, majors, images):
+    def __init__(self, majors, images, preload=True):
+        self.preload = preload  # False: the server does not load pg_stat_statements
         self.run_id = secrets.token_hex(4)
         self.label = f"{LABEL}={self.run_id}"
         self.majors = majors
@@ -176,7 +177,7 @@ class Fleet:
                     "docker", "run", "-d", "--name", self.name(major), "--label", self.label, "--label", f"{OWNER}={socket.gethostname()}:{os.getpid()}",
                     "--tmpfs", "/var/lib/postgresql", "-e", "POSTGRES_PASSWORD",
                     image, "-c", "fsync=off", "-c", "max_connections=20",
-                    "-c", "shared_preload_libraries=pg_stat_statements",
+                    *(["-c", "shared_preload_libraries=pg_stat_statements"] if self.preload else []),
                 ],
                 env=self.env,
             )  # fmt: skip
