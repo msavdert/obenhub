@@ -5,8 +5,9 @@ set -uo pipefail
 . "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 
 EXPECT=("PostgresReplicationSlotInvalidated:pg-primary")
-# the paused run (timed-checkpoint wait up to 11 minutes, 200 s hold, catch-up) can pass the 780 s stale limit + for 1m on a slow path
-ALLOW=("PgBackRestBackupStale:pgbackrest")
+# PgBackRestBackupStale: the paused run (timed-checkpoint wait up to 11 minutes, 200 s hold, catch-up) can pass the 780 s stale limit + for 1m on a slow path.
+# PostgresReplicationSlotNearLoss: the WAL burst past max_slot_wal_keep_size can fire it before the slot is invalidated; timing-dependent (a scrape must land mid-burst), and it is excluded once the slot is invalidated.
+ALLOW=("PgBackRestBackupStale:pgbackrest" "PostgresReplicationSlotNearLoss:pg-primary")
 SLOT=obenhub_inval
 BATCH=10   # WAL segment switches per psql call
 # The slot stays inactive past PostgresPhysicalSlotInactive's 120 s + 1m after the

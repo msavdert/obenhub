@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Scenario replica-not-eligible: cut one replica from the leader's PostgreSQL port and write about 100 MB on the leader, beyond maximum_lag_on_failover (16 MiB). The cut is an nftables table "inet obenhub_fault" on the replica that drops tcp 5432 to and from the leader's address (its WAL receiver stops; its DCS session, Patroni REST and monitoring stay). Revert deletes the table. Needs nftables on the node (provision.sh). Expect PatroniReplicaNotEligible on that replica; its PostgresStandbyNotStreaming follows once the WAL receiver has timed out.
+# Scenario replica-not-eligible: cut one replica from the leader's PostgreSQL port and write about 100 MB on the leader, beyond maximum_lag_on_failover (16 MiB). The cut is an nftables table "inet obenhub_fault" on the replica that drops tcp 5432 to and from the leader's address (its WAL receiver stops; its DCS session, Patroni REST and monitoring stay). Revert deletes the table. Needs nftables on the node (provision.sh). Expect PatroniReplicaNotEligible on that replica; its PostgresStandbyNotStreaming follows once the WAL receiver has timed out. PostgresReplicationSlotNearLoss on the leader also fires (every run: 5 of 5, 2026-11-27, dirty tree; the first two failed as unexpected, the next three passed with it expected): the cut replica's slot (max_slot_wal_keep_size 1GB, lab/pgha/files/patroni.yml.tmpl) retains the 100 MB burst, its safe_wal_size falls, and the 5 m WAL rate (the burst plus the client load) projects the loss in under an hour; it fires about 2 m 20 s after the cut (the leader's vmalert, 16:08:25 cut, 16:10:45 firing), 30 s before PostgresStandbyNotStreaming, and resolves about a minute after revert reconnects the replica and the slot catches up. It is the rule's projection (burst included in the 5 m rate, see the rule's comment), not a slot close to loss: the burst uses about a tenth of safe_wal_size.
 # shellcheck disable=SC1091,SC2034
 set -uo pipefail
 . "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
@@ -10,7 +10,7 @@ inject() {
   R=$(first_replica) && [ -n "$R" ] || return 1
   L=$(leader_name) && [ -n "$L" ] || return 1
   lip=$(node_ip "$L") || return 1
-  EXPECT=("PatroniReplicaNotEligible:$R" "PostgresStandbyNotStreaming:$R")
+  EXPECT=("PatroniReplicaNotEligible:$R" "PostgresStandbyNotStreaming:$R" "PostgresReplicationSlotNearLoss:$L")
   CUT=1
   fault_table_add "$R" <<NFT || return 1
 table inet obenhub_fault {

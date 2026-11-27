@@ -289,6 +289,7 @@ Seen in the lab:
 - k8s: `fenced`, `replica-cut`, `slot-retaining-wal` (suite `k8s-20261118T194429Z-37e22f2`)
 - pgha: `network-partition-replica`, `synchronous-standby-cut` (suite `pgha-20261118T225346Z-e47dc14`)
 - slice1: `physical-slot-inactive`, `slot-retaining-wal`, `standby-stopped` (suite `slice1-20261118T134118Z-37e22f2`)
+- slice1: `slot-near-loss` (suite `none yet`)
 
 ## PostgresReplicationSlotInvalidated
 
@@ -310,6 +311,19 @@ Seen in the lab:
 
 - k8s: `slot-retaining-wal` (suite `k8s-20261118T194429Z-37e22f2`)
 - slice1: `slot-retaining-wal` (suite `slice1-20261118T134118Z-37e22f2`)
+
+## PostgresReplicationSlotNearLoss
+
+A slot on a primary is falling behind, and at the WAL rate of the last 5 minutes it runs out of `max_slot_wal_keep_size` in less than an hour (`obenhub.postgresql.slot_time_to_loss.limit`). A lost slot cannot be resumed: its standby has to be rebuilt or its subscriber re-synchronised. Reference: [PostgresReplicationSlotNearLoss](../reference/postgresql-pack-alerts.md#postgresreplicationslotnearloss).
+
+Look first: On the primary, `SELECT slot_name, active, wal_status, safe_wal_size FROM pg_replication_slots`; `safe_wal_size` is the number of bytes left to write. The panel "Replication slots: projected time to loss" shows the same figure divided by the WAL rate. Bring the consumer back first; raising `max_slot_wal_keep_size` buys time at the cost of disk. A slot with `max_slot_wal_keep_size = -1` is never evaluated, so it can fill the volume instead: `PostgresReplicationSlotRetainingWAL` is the alert for that.
+
+Seen in the lab:
+
+- k8s: `slot-retaining-wal` (suite `none yet`)
+- pgha: `replica-not-eligible` (suite `none yet`)
+- slice1: `slot-near-loss` (suite `none yet`)
+- stage3: `replica-not-eligible` (suite `none yet`)
 
 ## PostgresArchivingFailing
 

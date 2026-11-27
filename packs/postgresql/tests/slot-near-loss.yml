@@ -1,0 +1,187 @@
+# PostgresReplicationSlotNearLoss: safe_wal_size over the WAL rate of the last
+# 5 minutes, below 3600 s by default, only for a slot that is really falling
+# behind. One instance per case; a step is 15 s, so 1 MB/s of WAL is 15000000
+# bytes a step, and a slot that falls as fast as WAL is written loses the same
+# amount of safe_wal_size a step.
+rule_files:
+  - ../rules.yml
+evaluation_interval: 15s
+
+tests:
+  - name: an inactive slot falls with the WAL rate - fires once the projected time is under an hour for 2 minutes
+    interval: 15s
+    input_series:
+      - series: 'postgresql.wal.written{obenhub.cluster.name="c1",service.instance.id="pg-1"}'
+        values: '0+15000000x80'
+      - series: 'postgresql.replication_slot.safe_wal_size{obenhub.cluster.name="c1",service.instance.id="pg-1",postgresql.replication_slot.name="s1",postgresql.replication_slot.type="physical"}'
+        values: '1073741824-15000000x80'
+      - series: 'postgresql.replication_slot.invalidated{obenhub.cluster.name="c1",service.instance.id="pg-1",postgresql.replication_slot.name="s1",postgresql.replication_slot.type="physical",postgresql.replication_slot.invalidation_reason=""}'
+        values: '0x80'
+      - series: 'postgresql.recovery.active{obenhub.cluster.name="c1",service.instance.id="pg-1"}'
+        values: '0x80'
+    alert_rule_test:
+      - eval_time: 1m
+        groupname: postgresql
+        alertname: PostgresReplicationSlotNearLoss
+        exp_alerts: []
+      - eval_time: 5m
+        groupname: postgresql
+        alertname: PostgresReplicationSlotNearLoss
+        exp_alerts:
+          - exp_labels:
+              obenhub.cluster.name: c1
+              severity: warning
+              service.instance.id: pg-1
+              postgresql.replication_slot.name: s1
+              postgresql.replication_slot.type: physical
+            exp_annotations:
+              summary: 'Slot s1 on pg-1 is lost in about 12m 53s at the current WAL rate'
+              description: "A slot on a primary falls behind (its safe_wal_size is shrinking) and, at the WAL rate of the last 5 minutes, runs out of safe WAL (max_slot_wal_keep_size) in less than the limit (1 h unless the lab sets obenhub.postgresql.slot_time_to_loss.limit) for 2 minutes; a lost slot needs a rebuilt standby or a re-synchronised subscriber. Check pg_replication_slots (safe_wal_size, active), bring the consumer back, or raise max_slot_wal_keep_size. A slot with max_slot_wal_keep_size -1 is never evaluated, a slot at 0 (unreserved: its WAL may be removed at the next checkpoint) keeps it firing although safe_wal_size no longer falls, and a node promoted in the last 5 minutes is not evaluated yet."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgresreplicationslotnearloss
+
+  - name: no safe_wal_size series (max_slot_wal_keep_size -1, or a lost slot) never fires, whatever the WAL rate
+    interval: 15s
+    input_series:
+      - series: 'postgresql.wal.written{obenhub.cluster.name="c1",service.instance.id="pg-1"}'
+        values: '0+150000000x80'
+      - series: 'postgresql.replication_slot.retained_wal{obenhub.cluster.name="c1",service.instance.id="pg-1",postgresql.replication_slot.name="s1",postgresql.replication_slot.type="physical"}'
+        values: '0+150000000x80'
+      - series: 'postgresql.recovery.active{obenhub.cluster.name="c1",service.instance.id="pg-1"}'
+        values: '0x80'
+    alert_rule_test:
+      - eval_time: 10m
+        groupname: postgresql
+        alertname: PostgresReplicationSlotNearLoss
+        exp_alerts: []
+
+  - name: a WAL rate of zero never fires and does not divide by it
+    interval: 15s
+    input_series:
+      - series: 'postgresql.wal.written{obenhub.cluster.name="c1",service.instance.id="pg-1"}'
+        values: '5000000x80'
+      - series: 'postgresql.replication_slot.safe_wal_size{obenhub.cluster.name="c1",service.instance.id="pg-1",postgresql.replication_slot.name="s1",postgresql.replication_slot.type="physical"}'
+        values: '1000x80'
+      - series: 'postgresql.recovery.active{obenhub.cluster.name="c1",service.instance.id="pg-1"}'
+        values: '0x80'
+    alert_rule_test:
+      - eval_time: 10m
+        groupname: postgresql
+        alertname: PostgresReplicationSlotNearLoss
+        exp_alerts: []
+
+  - name: a slot that keeps up (safe_wal_size flat) stays quiet at 1 MB/s of WAL although 1 GiB / 1 MB/s is under an hour
+    interval: 15s
+    input_series:
+      - series: 'postgresql.wal.written{obenhub.cluster.name="c1",service.instance.id="pg-1"}'
+        values: '0+15000000x80'
+      - series: 'postgresql.replication_slot.safe_wal_size{obenhub.cluster.name="c1",service.instance.id="pg-1",postgresql.replication_slot.name="s1",postgresql.replication_slot.type="physical"}'
+        values: '1073741824x80'
+      - series: 'postgresql.recovery.active{obenhub.cluster.name="c1",service.instance.id="pg-1"}'
+        values: '0x80'
+    alert_rule_test:
+      - eval_time: 10m
+        groupname: postgresql
+        alertname: PostgresReplicationSlotNearLoss
+        exp_alerts: []
+
+  - name: a slot that falls slowly (10 kB/s, over a day left) stays quiet
+    interval: 15s
+    input_series:
+      - series: 'postgresql.wal.written{obenhub.cluster.name="c1",service.instance.id="pg-1"}'
+        values: '0+150000x80'
+      - series: 'postgresql.replication_slot.safe_wal_size{obenhub.cluster.name="c1",service.instance.id="pg-1",postgresql.replication_slot.name="s1",postgresql.replication_slot.type="physical"}'
+        values: '1073741824-150000x80'
+      - series: 'postgresql.recovery.active{obenhub.cluster.name="c1",service.instance.id="pg-1"}'
+        values: '0x80'
+    alert_rule_test:
+      - eval_time: 10m
+        groupname: postgresql
+        alertname: PostgresReplicationSlotNearLoss
+        exp_alerts: []
+
+  - name: an invalidated slot whose last safe_wal_size is still in the lookback does not fire, and a standby does not either
+    interval: 15s
+    input_series:
+      - series: 'postgresql.wal.written{obenhub.cluster.name="c1",service.instance.id="pg-1"}'
+        values: '0+15000000x80'
+      - series: 'postgresql.replication_slot.safe_wal_size{obenhub.cluster.name="c1",service.instance.id="pg-1",postgresql.replication_slot.name="lost",postgresql.replication_slot.type="physical"}'
+        values: '1073741824-15000000x80'
+      - series: 'postgresql.replication_slot.invalidated{obenhub.cluster.name="c1",service.instance.id="pg-1",postgresql.replication_slot.name="lost",postgresql.replication_slot.type="physical",postgresql.replication_slot.invalidation_reason="wal_removed"}'
+        values: '1x80'
+      - series: 'postgresql.recovery.active{obenhub.cluster.name="c1",service.instance.id="pg-1"}'
+        values: '0x80'
+      - series: 'postgresql.wal.written{obenhub.cluster.name="c1",service.instance.id="pg-2"}'
+        values: '0+15000000x80'
+      - series: 'postgresql.replication_slot.safe_wal_size{obenhub.cluster.name="c1",service.instance.id="pg-2",postgresql.replication_slot.name="copy",postgresql.replication_slot.type="physical"}'
+        values: '1073741824-15000000x80'
+      - series: 'postgresql.recovery.active{obenhub.cluster.name="c1",service.instance.id="pg-2"}'
+        values: '1x80'
+    alert_rule_test:
+      - eval_time: 10m
+        groupname: postgresql
+        alertname: PostgresReplicationSlotNearLoss
+        exp_alerts: []
+
+  - name: a standby promoted a few minutes ago does not fire although its safe_wal_size fell from about 118 GB to 1.08 GB and 1 GB at 1 MB/s is under an hour (lab, pgha network-partition and switchover 2026-11-27)
+    interval: 15s
+    input_series:
+      - series: 'postgresql.wal.written{obenhub.cluster.name="c1",service.instance.id="pg-1"}'
+        values: '0+15000000x80'
+      # a standby for 20 steps (5 m), then primary; the slot is healthy and flat after the step
+      - series: 'postgresql.replication_slot.safe_wal_size{obenhub.cluster.name="c1",service.instance.id="pg-1",postgresql.replication_slot.name="s1",postgresql.replication_slot.type="physical"}'
+        values: '118000000000x19 1080000000x60'
+      - series: 'postgresql.recovery.active{obenhub.cluster.name="c1",service.instance.id="pg-1"}'
+        values: '1x19 0x60'
+    alert_rule_test:
+      - eval_time: 6m
+        groupname: postgresql
+        alertname: PostgresReplicationSlotNearLoss
+        exp_alerts: []
+      - eval_time: 8m
+        groupname: postgresql
+        alertname: PostgresReplicationSlotNearLoss
+        exp_alerts: []
+      - eval_time: 9m
+        groupname: postgresql
+        alertname: PostgresReplicationSlotNearLoss
+        exp_alerts: []
+
+  - name: a slot that falls from 300 MB to 0 and then sits at 0 (unreserved) keeps the alert firing while WAL is written at 1 MB/s
+    interval: 15s
+    input_series:
+      - series: 'postgresql.wal.written{obenhub.cluster.name="c1",service.instance.id="pg-1"}'
+        values: '0+15000000x80'
+      # 300 MB lost over 20 steps (5 m) at 15 MB a step, then flat at 0
+      - series: 'postgresql.replication_slot.safe_wal_size{obenhub.cluster.name="c1",service.instance.id="pg-1",postgresql.replication_slot.name="s1",postgresql.replication_slot.type="physical"}'
+        values: '300000000-15000000x20 0x60'
+      - series: 'postgresql.recovery.active{obenhub.cluster.name="c1",service.instance.id="pg-1"}'
+        values: '0x80'
+    alert_rule_test:
+      - eval_time: 5m
+        groupname: postgresql
+        alertname: PostgresReplicationSlotNearLoss
+        exp_alerts:
+          - exp_labels:
+              obenhub.cluster.name: c1
+              severity: warning
+              service.instance.id: pg-1
+              postgresql.replication_slot.name: s1
+              postgresql.replication_slot.type: physical
+            exp_annotations:
+              summary: 'Slot s1 on pg-1 is lost in about 0s at the current WAL rate'
+              description: "A slot on a primary falls behind (its safe_wal_size is shrinking) and, at the WAL rate of the last 5 minutes, runs out of safe WAL (max_slot_wal_keep_size) in less than the limit (1 h unless the lab sets obenhub.postgresql.slot_time_to_loss.limit) for 2 minutes; a lost slot needs a rebuilt standby or a re-synchronised subscriber. Check pg_replication_slots (safe_wal_size, active), bring the consumer back, or raise max_slot_wal_keep_size. A slot with max_slot_wal_keep_size -1 is never evaluated, a slot at 0 (unreserved: its WAL may be removed at the next checkpoint) keeps it firing although safe_wal_size no longer falls, and a node promoted in the last 5 minutes is not evaluated yet."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgresreplicationslotnearloss
+      - eval_time: 8m
+        groupname: postgresql
+        alertname: PostgresReplicationSlotNearLoss
+        exp_alerts:
+          - exp_labels:
+              obenhub.cluster.name: c1
+              severity: warning
+              service.instance.id: pg-1
+              postgresql.replication_slot.name: s1
+              postgresql.replication_slot.type: physical
+            exp_annotations:
+              summary: 'Slot s1 on pg-1 is lost in about 0s at the current WAL rate'
+              description: "A slot on a primary falls behind (its safe_wal_size is shrinking) and, at the WAL rate of the last 5 minutes, runs out of safe WAL (max_slot_wal_keep_size) in less than the limit (1 h unless the lab sets obenhub.postgresql.slot_time_to_loss.limit) for 2 minutes; a lost slot needs a rebuilt standby or a re-synchronised subscriber. Check pg_replication_slots (safe_wal_size, active), bring the consumer back, or raise max_slot_wal_keep_size. A slot with max_slot_wal_keep_size -1 is never evaluated, a slot at 0 (unreserved: its WAL may be removed at the next checkpoint) keeps it firing although safe_wal_size no longer falls, and a node promoted in the last 5 minutes is not evaluated yet."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/postgresql/#postgresreplicationslotnearloss

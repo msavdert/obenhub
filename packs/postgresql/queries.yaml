@@ -197,6 +197,47 @@
     - {metric_name: postgresql.replication_slot.wal_status, value_column: wal_status, attribute_columns: ["postgresql.replication_slot.name", "postgresql.replication_slot.type"], value_type: int, data_type: gauge, unit: "1", description: "0 reserved, 1 extended, 2 unreserved, 3 lost, -1 none"}
     - {metric_name: postgresql.replication_slot.invalidated, value_column: invalidated, attribute_columns: ["postgresql.replication_slot.name", "postgresql.replication_slot.type", "postgresql.replication_slot.invalidation_reason"], value_type: int, data_type: gauge, unit: "1", description: "1 when the slot is invalidated; the reason is an attribute"}
     - {metric_name: postgresql.replication_slot.inactive_age, value_column: inactive_age, attribute_columns: ["postgresql.replication_slot.name", "postgresql.replication_slot.type"], value_type: double, data_type: gauge, unit: s, description: "Seconds since the slot became inactive (0 while active)"}
+# safe_wal_size of each slot: the bytes that can still be written before the
+# slot is in danger of becoming lost (PostgreSQL 15, 16, 17 and 18 docs,
+# pg_replication_slots). The column is NULL for a lost slot and while
+# max_slot_wal_keep_size is -1 (unlimited). A NULL value column is not "no data
+# point": the sqlquery receiver leaves a NULL column out of the row, and
+# rowToMetric then reports value_column not found after it has appended the
+# data point (internal/sqlquery metrics.go and row_scanner.go, contrib
+# v0.165.0, read, not run), which could be read as 0 bytes left. So the NULL
+# rows are filtered here and an unlimited or lost slot has no series, which the
+# rule reads as "no limit to run into". A slot without restart_lsn (a physical
+# slot created without reserving WAL, before its first connection) is not
+# NULL in safe_wal_size although the docs say only lost and -1 are: PostgreSQL
+# 15 to 19 returned a negative or arbitrary number for it (unit test 2026-11-27,
+# scripts/test-pack-sql.py), so it is filtered too, and lost is filtered by
+# wal_status as well. greatest(safe_wal_size, 0) turns a NULL into 0 (greatest
+# ignores NULL), so the WHERE filter must stay: without it an unlimited or lost
+# slot would be reported as 0 bytes left. Own query, so the slot query above
+# keeps one row per slot. The column exists since PostgreSQL 13.
+# pg-min: 15
+- sql: |
+    SELECT
+      slot_name AS "postgresql.replication_slot.name",
+      slot_type AS "postgresql.replication_slot.type",
+      greatest(safe_wal_size, 0)::float8 AS safe_wal_size
+    FROM pg_replication_slots
+    WHERE safe_wal_size IS NOT NULL AND restart_lsn IS NOT NULL AND wal_status IS DISTINCT FROM 'lost'
+  metrics:
+    - {metric_name: postgresql.replication_slot.safe_wal_size, value_column: safe_wal_size, attribute_columns: ["postgresql.replication_slot.name", "postgresql.replication_slot.type"], value_type: double, data_type: gauge, unit: By, description: "WAL that can still be written before the slot is lost (pg_replication_slots.safe_wal_size, 0 when unreserved); no series while max_slot_wal_keep_size is -1 or the slot is lost"}
+# WAL written since the cluster was created: the current write LSN as a byte
+# offset (an LSN is a byte position in the WAL stream and only grows; PostgreSQL
+# docs, pg_current_wal_lsn and pg_wal_lsn_diff). The source of the WAL rate
+# that PostgresReplicationSlotNearLoss divides safe_wal_size by. The upstream
+# receiver has no WAL-bytes metric (upstream-receiver-metrics.txt).
+# pg_current_wal_lsn() errors in recovery, so the CASE keeps it from being
+# evaluated there and a standby has no row.
+# pg-min: 15
+- sql: |
+    SELECT pg_wal_lsn_diff(CASE WHEN pg_is_in_recovery() THEN NULL ELSE pg_current_wal_lsn() END, '0/0')::bigint AS wal_written
+    WHERE NOT pg_is_in_recovery()
+  metrics:
+    - {metric_name: postgresql.wal.written, value_column: wal_written, value_type: int, data_type: sum, monotonic: true, aggregation: cumulative, unit: By, description: "WAL generated since the cluster was created (the write LSN as a byte offset); primary only"}
 # One row per subscription, built from pg_subscription so a subscription
 # without a worker still reports (apply_worker_running 0). Only subname
 # and subenabled are read: subconninfo is not readable by pg_monitor.

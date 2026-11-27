@@ -5,6 +5,8 @@ set -uo pipefail
 . "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 
 EXPECT=("PostgresReplicationSlotRetainingWAL:pg-primary" "PostgresPhysicalSlotInactive:pg-primary")
+# timing-dependent: the 640 MiB burst can make PostgresReplicationSlotNearLoss fire when a scrape lands mid-burst (5 m WAL rate of the burst over a falling safe_wal_size)
+ALLOW=("PostgresReplicationSlotNearLoss:pg-primary")
 SLOT=obenhub_retain
 TARGET_MIB=640   # retained WAL to reach, above the 512 MiB alert threshold
 MARGIN_MIB=256   # the guard must be at least this far above the target

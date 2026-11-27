@@ -32,6 +32,13 @@ EXCLUDED = {
     # scrape; a combination that is gone is no series, and an instance with no
     # client session has none at all, which is no fault.
     "postgresql.client_session.count",
+    # No series while max_slot_wal_keep_size is -1 or the slot is lost (NULL
+    # in pg_replication_slots, filtered in the query), so the series comes and
+    # goes with a setting and a fault; the fault has its own alerts.
+    "postgresql.replication_slot.safe_wal_size",
+    # Primary only: a standby has no row, so a failover or switchover would
+    # make the old primary's series "vanish" for an hour.
+    "postgresql.wal.written",
 }
 
 
