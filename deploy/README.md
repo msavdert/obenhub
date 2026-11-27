@@ -78,6 +78,12 @@ before the TLS overlay, which comes last because it replaces the
 self-telemetry reader of the collector pack. `mise run lint:otelcol`
 validates and starts exactly this combination (from the repository paths).
 
+Under systemd the upstream package's own unit runs it: the `--config` list is
+`OTELCOL_OPTIONS` in `/etc/otelcol-contrib/otelcol-contrib.conf` and a drop-in
+adds `obenhub.env`, a state directory and the journal group.
+[The VM page of the guide](../docs/guides/monitor/vm.md) lists the steps and
+the permissions, and `mise run deploy:vm-test` runs them on a second machine.
+
 ## Install test
 
 `mise run deploy:install-test` (docker, about 15 minutes, not part of
@@ -103,6 +109,28 @@ host pack does not do itself; with real filesystem data `HostFilesystemSpaceLow`
 fires on a nearly full host, which is a correct report and makes the test
 fail there (machine-dependent).
 Everything is torn down, and a line goes to `results/runs.jsonl`.
+
+## VM test
+
+`mise run deploy:vm-test` (docker and ssh, about 20 minutes, not part of
+`mise run check`) starts the same kind of backend in a throwaway compose
+project on this machine and, on an ssh target (default `pg-lab`, Debian), makes
+a PostgreSQL cluster with `pg_createcluster` and its defaults, installs the
+upstream `otelcol-contrib` `.deb` of the gateway's version after checking its
+`.sha256`, and runs it under the package's unit as the guide's VM page says. The
+assertions and the panel rules are those of the install test
+(`deploy/test/lib.sh`), plus: systemd must not have restarted the unit, and the
+journal records of the Collector's own unit must be in VictoriaLogs. The
+Collector reads the host itself (no `root_path`, no overlay), so the host
+dashboard shows the target. PostgreSQL log collection is not exercised (Debian
+writes plain stderr logs, not jsonlog). On exit it undoes only what it did on
+the target (purge, its files, user and group, its cluster) and a failed teardown
+fails the run. Its read-only preflight refuses a target that has a cluster
+`18/vmtest`, the package, a listener on 5433, a work directory or a stale
+`*.vm-test-aside`, whatever the flags; a leftover `/etc/otelcol-contrib`,
+`/var/lib/otelcol-contrib` or drop-in directory is moved aside and back only
+with `--force`. It appends a line with `"test": "vm-test"` to
+`results/runs.jsonl`.
 
 ## Kubernetes
 

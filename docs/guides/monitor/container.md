@@ -17,9 +17,11 @@ VictoriaMetrics, nothing but `Watchdog` fired after a 720 s settle, the
 dead-man receiver got `Watchdog` every 60 s, and 28 dashboard panels had data
 (15 are empty by design, 2 replication slot panels are accepted empty because a
 plain server has none). It does not exercise journald or PostgreSQL log
-collection, a Collector running as a host binary (the test runs the Collector
-image in a container, as `mise run lint:otelcol` does), a database on another
-machine, or any pack but collector, host and postgresql.
+collection (the [VM page](vm.md) has the first for the Collector's own unit), a
+Collector running as a host binary (this test runs the Collector image in a
+container, as `mise run lint:otelcol` does; `mise run deploy:vm-test` runs the
+binary), a database on another machine, or any pack but collector, host and
+postgresql.
 
 ## The flow
 
@@ -70,9 +72,10 @@ docker exec -i -e OTEL_MONITOR_PASSWORD pg psql -U postgres -v ON_ERROR_STOP=1 -
 ```
 
 The Collector's configuration directory has the layout of
-[the VM page](vm.md#the-collector-on-the-database-host), built in a scratch
-directory `$oc` and with the four values of its table set the way the test sets
-them. The container reads a Docker env file, and `docker --env-file` keeps the
+[the VM page](vm.md#3-the-files-of-the-packs), built in a scratch
+directory `$oc` and with four values of [its table](vm.md#4-the-environment-file)
+(gateway endpoint, PostgreSQL host, password and log glob; the port stays 5432)
+set the way the test sets them. The container reads a Docker env file, and `docker --env-file` keeps the
 single quotes that a shell would strip (the example has
 `OBENHUB_PG_DATABASES='[postgres]'`), so the test removes them:
 

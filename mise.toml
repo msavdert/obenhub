@@ -76,6 +76,10 @@ run = "scripts/lint-otelcol.sh"
 description = "install test of deploy/ against a plain PostgreSQL container (deploy/test/install-test.sh); needs docker, about 15 minutes, not part of check"
 run = "deploy/test/install-test.sh"
 
+[tasks."deploy:vm-test"]
+description = "install test of docs/guides/monitor/vm.md: a host-binary Collector under systemd on a second machine (deploy/test/vm-test.sh; ssh target, default pg-lab); needs docker and ssh, about 20 minutes, not part of check"
+run = "deploy/test/vm-test.sh"
+
 [tasks."lint:deploy-pins"]
 description = "images and Helm chart pinned in deploy/ equal the lab's pins (no network)"
 run = "python3 -I scripts/check-deploy-pins.py"
