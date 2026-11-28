@@ -8,7 +8,12 @@
 # it is valid in every respect except that its scenario set is a strict subset
 # of suite.txt, its commit is on main and a descendant of the current evidence
 # commit (and of HEAD), and it contains every scenario that scripts/affected-scenarios.sh
-# names for the changes since that commit (ALL: only a full suite extends). The
+# names for the changes since that commit (ALL: only a full suite extends). Its
+# config_sha256 (the hash of the committed alerting config files) may differ
+# from the evidence it extends only at a later commit and only when control is
+# in its set: a rule change maps to control (affected-scenarios.sh), and the
+# control run shows the new rules raise nothing unexpected. The chain then
+# carries the suite's hash, the one the next targeted suite is compared with. The
 # lab is current when nothing is affected between the final evidence commit and
 # HEAD; otherwise the scenarios (or ALL) still to run are listed with the files
 # that cause them. scripts/lab-affected.sh turns that into a run.
@@ -219,7 +224,7 @@ for lab in "${labs[@]}"; do
     stale=1
     continue
   fi
-  # walk the targeted suites; the chain commit moves to each one that extends it.
+  # walk the targeted suites; the chain commit and hash move to each one that extends it.
   # With --full the chain is not evidence, but its suites still clear failures.
   ev=$sha
   used=""
@@ -230,9 +235,17 @@ for lab in "${labs[@]}"; do
       notcounted "$tsuite" "$tsha is not a descendant of the evidence commit $ev"
       continue
     fi
+    # a new hash is a committed rule change (clean tree, containers checked
+    # against the repository): it counts with control in the set
     if [ "$thash" != "$evhash" ]; then
-      notcounted "$tsuite" "config_sha256 differs from the evidence it extends"
-      continue
+      if [ "$tsha" = "$ev" ]; then
+        notcounted "$tsuite" "config_sha256 differs from the evidence it extends at the same commit"
+        continue
+      fi
+      case " $tset " in
+        *" control "*) ;;
+        *) notcounted "$tsuite" "rules changed since the evidence it extends and control is not in the set"; continue ;;
+      esac
     fi
     if ! need=$("$here/affected-scenarios.sh" "${affflags[@]}" "$lab" "$ev" "$tsha"); then
       notcounted "$tsuite" "affected-scenarios.sh failed between $ev and $tsha"
@@ -252,6 +265,7 @@ for lab in "${labs[@]}"; do
       continue
     fi
     ev=$tsha
+    evhash=$thash
     used="$used, targeted $tsuite ($tsha: ${tset// /, })"
     passes+=("$tstart $tset")
   done

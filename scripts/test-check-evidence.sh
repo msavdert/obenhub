@@ -333,9 +333,9 @@ expect "summary and walk rejections are counted together" 0 "is current; 2 later
 { pair s1 "$p0" $t2; row s0 1 "$e1" false true $t1 a; } | fixture_pgha
 expect "targeted suite older than the full suite is ignored" 1 "needs a b:" --strict pgha
 
-# a targeted suite on another configuration than the evidence
+# a targeted suite on another configuration than the evidence, without control
 { pair s1 "$p0" $t1; row s2 2 "$e1" false true $t2 a | jq -c '.suite_size = 1 | .config_sha256 = "other"'; } | fixture_pgha
-expect "targeted suite with another config hash" 1 "s2: not counted, config_sha256 differs" --strict pgha
+expect "targeted suite with another config hash" 1 "s2: not counted, rules changed since the evidence it extends and control is not in the set" --strict pgha
 
 # HEAD behind the evidence commit
 { pair s1 "$e2" $t1; } | fixture_pgha
@@ -474,6 +474,51 @@ expect "control at the same start as another record is not last" 1 "s1: not coun
 expect "a targeted suite with control not last is not counted" 0 "s2: not counted, control did not run last" w
 git reset -q --hard "$p0"
 rm -rf lab/w
+
+# a committed rule change: a targeted suite on the new config_sha256 counts
+# when control is in its set, and the chain carries the new hash
+mkdir -p lab/v/results lab/v/scenarios packs/rk
+printf 'a\nb\ncontrol\n' >lab/v/scenarios/suite.txt
+echo 'wait_alert AlertA' >lab/v/scenarios/a.sh
+touch lab/v/scenarios/b.sh lab/v/scenarios/control.sh
+echo '../../packs/rk/rules.yml' >lab/v/compose.yaml
+printf 'groups:\n  - name: rk\n    rules:\n      - alert: AlertA\n        expr: up == 0\n' >packs/rk/rules.yml
+git add lab/v packs/rk
+git commit -q -m v
+v0=$(git rev-parse --short HEAD)
+fixture_v() { cat >lab/v/results/runs.jsonl; }
+# vrow SUITE SIZE SHA HASH START SCENARIO: a clean passing record
+vrow() { row "$1" "$2" "$3" false true "$5" "$6" | jq -c --arg h "$4" '.config_sha256 = $h'; }
+vfull() { vrow s1 3 "$v0" c1 $t1 a; vrow s1 3 "$v0" c1 $t1 b; vrow s1 3 "$v0" c1 $t2 control; }
+sed -i 's/up == 0/up == 1/' packs/rk/rules.yml
+git commit -q -am "rule change"
+v1=$(git rev-parse --short HEAD)
+{ vfull; vrow s2 2 "$v1" c2 2026-04-01T00:00:00Z a; vrow s2 2 "$v1" c2 2026-04-02T00:00:00Z control; } | fixture_v
+expect "rules changed, control in the set: counted" 0 "targeted s2 ($v1: a, control) is current" --strict v
+{ vfull; vrow s2 1 "$v1" c2 2026-04-01T00:00:00Z a; } | fixture_v
+expect "rules changed, no control: not counted" 1 "s2: not counted, rules changed since the evidence it extends and control is not in the set" --strict v
+{ vfull; vrow s2 1 "$v1" c2 2026-04-01T00:00:00Z control; } | fixture_v
+expect "rules changed, control without the alert's scenario: not counted" 1 "s2: not counted, lacks a" --strict v
+{ vfull; vrow s2 2 "$v0" c2 2026-04-01T00:00:00Z a; vrow s2 2 "$v0" c2 2026-04-02T00:00:00Z control; } | fixture_v
+expect "another hash at the evidence commit: not counted" 0 "s2: not counted, config_sha256 differs from the evidence it extends at the same commit" v
+echo 2 >lab/v/scenarios/b.sh
+git commit -q -am "change b"
+v2=$(git rev-parse --short HEAD)
+s2v() { vrow s2 2 "$v1" c2 2026-04-01T00:00:00Z a; vrow s2 2 "$v1" c2 2026-04-02T00:00:00Z control; }
+{ vfull; s2v; vrow s3 1 "$v2" c2 2026-05-01T00:00:00Z b; } | fixture_v
+expect "a later targeted suite chains on the new hash" 0 "targeted s2 ($v1: a, control), targeted s3 ($v2: b) is current" --strict v
+{ vfull; s2v; vrow s3 1 "$v2" c1 2026-05-01T00:00:00Z b; } | fixture_v
+expect "a later targeted suite on the old hash does not chain" 1 "s3: not counted, rules changed since the evidence it extends" --strict v
+# an annotation-only rule change still changes the hash: control alone counts
+yq -i '.groups[0].rules[0].annotations.summary = "s"' packs/rk/rules.yml
+git commit -q -am "annotation"
+v3=$(git rev-parse --short HEAD)
+{ vfull; s2v; vrow s3 1 "$v2" c2 2026-05-01T00:00:00Z b; } | fixture_v
+expect "annotation-only rule change needs control" 1 "needs control" --strict v
+{ vfull; s2v; vrow s3 1 "$v2" c2 2026-05-01T00:00:00Z b; vrow s4 1 "$v3" c3 2026-06-01T00:00:00Z control; } | fixture_v
+expect "annotation-only rule change: control on the new hash counts" 0 "targeted s4 ($v3: control) is current" --strict v
+git reset -q --hard "$p0"
+rm -rf lab/v packs/rk
 
 expect "missing lab" 1 "no lab/y/results/runs.jsonl" --strict y
 

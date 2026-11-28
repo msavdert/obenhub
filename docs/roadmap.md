@@ -33,8 +33,9 @@ pgha `pgha-20261122T140350Z-4f6f8a9` and oracle
       `scenarios/`). Wanted: a changed alert maps to the scenarios whose
       `EXPECT` or `ALLOW` name it, plus `control`; a shared Patroni scenario
       maps to its linked scenario in stage3 and pgha and to nothing
-      elsewhere; comment-only and annotation-only changes, `versions.sh` and
-      `upstream-receiver-metrics.txt` map to nothing (`versions.sh` to ALL under `--full`); a Grafana-only change
+      elsewhere; comment-only and annotation-only changes (in an alerting
+      config file `control` since 2026-11-28: they change `config_sha256`),
+      `versions.sh` and `upstream-receiver-metrics.txt` map to nothing (`versions.sh` to ALL under `--full`); a Grafana-only change
       maps to `lab:<lab>:panels`; a test derives the cross-lab mounts from
       the Compose files and compares them with `evidence_extra_paths`. Done
       when `mise run lab:affected-test` has a case for each
