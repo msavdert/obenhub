@@ -651,6 +651,67 @@
       "description": "Rate of system.disk.io."
     },
     {
+      "id": 14,
+      "title": "Disk queue depth (average requests in flight)",
+      "type": "timeseries",
+      "datasource": {
+        "type": "victoriametrics-metrics-datasource",
+        "uid": "vm"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 28,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "vm"
+          },
+          "expr": "sum by (host.name, service.instance.id, device) (rate(system.disk.weighted_io_time{device=~\"sd[a-z]+|vd[a-z]+|xvd[a-z]+|hd[a-z]+|nvme[0-9]+n[0-9]+|mmcblk[0-9]+\"}[5m]))",
+          "refId": "A",
+          "range": true,
+          "instant": false,
+          "legendFormat": "{{host.name}} {{device}}"
+        },
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "vm"
+          },
+          "expr": "obenhub.host.disk_queue_depth.limit or on() vector(10)",
+          "refId": "B",
+          "range": true,
+          "instant": false,
+          "legendFormat": "HostDiskIOSaturation limit"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 10,
+            "showPoints": "never"
+          },
+          "unit": "short",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "description": "Same expression as HostDiskIOSaturation in packs/host/rules.yml (rate of system.disk.weighted_io_time over 5 minutes, iostat's aqu-sz, whole disks only); the alert needs it above the limit for 30 minutes. The disk-saturated scenario drives it up."
+    },
+    {
       "id": 12,
       "title": "Alerts firing",
       "type": "timeseries",
@@ -696,7 +757,7 @@
           "mode": "multi"
         }
       },
-      "description": "Data only during a scenario. ALERTS series written by vmalert, HostFilesystemSpaceLow, HostMemoryAvailableLow, HostRebooted. Empty while the lab is healthy."
+      "description": "Data only during a scenario. ALERTS series written by vmalert, HostFilesystemSpaceLow, HostMemoryAvailableLow, HostDiskIOSaturation, HostRebooted. Empty while the lab is healthy."
     },
     {
       "id": 13,

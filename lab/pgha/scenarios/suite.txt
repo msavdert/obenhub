@@ -4,6 +4,7 @@ etcd-leader-changes
 patroni-down
 filesystem-filling
 memory-pressure
+disk-saturated
 replica-not-eligible
 replay-paused
 cluster-paused

@@ -1,7 +1,8 @@
-# One test group per host rule: HostFilesystemSpaceLow, HostMemoryAvailableLow, HostRebooted.
+# One test group per host rule: HostFilesystemSpaceLow, HostMemoryAvailableLow, HostDiskIOSaturation, HostRebooted.
 # Series shapes follow what the pgha node Collectors emit (checked against
 # VictoriaMetrics on 2026-11-10): system.filesystem.usage with state free,
-# used, reserved; the two memory metrics in bytes. No inventory is needed:
+# used, reserved; the two memory metrics in bytes; system.disk.weighted_io_time in seconds
+# per device (sda and its partitions on pgha, dm-* and sd* on the Oracle VMs). No inventory is needed:
 # the rules read the host series only.
 rule_files:
   - ../rules.yml
@@ -118,6 +119,108 @@ tests:
         groupname: host
         alertname: HostMemoryAvailableLow
         exp_alerts: []
+
+  - name: a whole disk with 20 requests in flight fires after 30 m, its partitions, dm-*, loop and sr devices do not, a disk at the lab baseline does not, resolves when the load stops
+    interval: 15s
+    input_series:
+      # weighted_io_time is a counter of seconds: an average of 20 requests in flight adds 300 s per 15 s sample.
+      # pgha-1 sda is loaded for 50 m (200 samples), then the counter stops.
+      - series: 'system.disk.weighted_io_time{host.name="pgha-1",service.instance.id="pgha-1",device="sda"}'
+        values: '0+300x200 60000x80'
+      # the partition and the device-mapper device below/above it repeat the figure and are left out
+      - series: 'system.disk.weighted_io_time{host.name="pgha-1",service.instance.id="pgha-1",device="sda1"}'
+        values: '0+300x280'
+      - series: 'system.disk.weighted_io_time{host.name="pgha-1",service.instance.id="pgha-1",device="dm-0"}'
+        values: '0+300x280'
+      - series: 'system.disk.weighted_io_time{host.name="pgha-1",service.instance.id="pgha-1",device="loop0"}'
+        values: '0+300x280'
+      - series: 'system.disk.weighted_io_time{host.name="pgha-1",service.instance.id="pgha-1",device="sr0"}'
+        values: '0+300x280'
+      - series: 'system.disk.weighted_io_time{host.name="pgha-1",service.instance.id="pgha-1",device="nvme0n1p1"}'
+        values: '0+300x280'
+      # a second host at 1.9, the highest 5 m value of the labs' baseline (oracle, 2026-11-28): 28.5 s per sample
+      - series: 'system.disk.weighted_io_time{host.name="pgha-2",service.instance.id="pgha-2",device="sda"}'
+        values: '0+28.5x280'
+    alert_rule_test:
+      - eval_time: 28m
+        groupname: host
+        alertname: HostDiskIOSaturation
+        exp_alerts: []
+      - eval_time: 32m
+        groupname: host
+        alertname: HostDiskIOSaturation
+        exp_alerts:
+          - exp_labels:
+              host.name: pgha-1
+              service.instance.id: pgha-1
+              device: sda
+              severity: warning
+            exp_annotations:
+              summary: 'sda on pgha-1 had 20.0 requests in flight on average over the last 5 minutes'
+              description: "A whole disk had more than 10 requests in flight on average for 30 minutes (rate of system.disk.weighted_io_time over 5 minutes, iostat's aqu-sz; 10 unless the lab sets obenhub.host.disk_queue_depth.limit). Requests queue faster than the disk completes them, so each one waits longer: find the process doing the I/O, then compare the disk's throughput with what it can deliver."
+              runbook_url: https://msavdert.github.io/obenhub/runbooks/host/#hostdiskiosaturation
+      - eval_time: 60m
+        groupname: host
+        alertname: HostDiskIOSaturation
+        exp_alerts: []
+
+  - name: a load that pauses for 6 minutes every 26 does not fire - the 5 m rate drops under 10 in each pause and resets the 30 m
+    interval: 15s
+    input_series:
+      # 64 requests in flight (960 s per sample) for 20 m, then 6 m idle, three times; after a pause
+      # the 5 m rate is under 10 from about 4.2 m on (64 x the share of the window still loaded)
+      - series: 'system.disk.weighted_io_time{host.name="pgha-3",service.instance.id="pgha-3",device="sda"}'
+        values: '0+960x80 76800x23 76800+960x80 153600x23 153600+960x80'
+    alert_rule_test:
+      - eval_time: 72m
+        groupname: host
+        alertname: HostDiskIOSaturation
+        exp_alerts: []
+
+  # Pins the [5m] rate window: a [1m] window drops under 10 in each pause, resets the 30 m and never fires.
+  - name: a load that pauses for 3 minutes every 10 fires - the 5 m rate stays above 10 through each pause
+    interval: 15s
+    input_series:
+      # 30 requests in flight (450 s per sample) for 7 m, then 3 m idle, for 50 m; at the end of a pause the
+      # 5 m window still holds 2 m of load, so the 5 m rate is at least 30 x 2/5 = 12 throughout
+      - series: 'system.disk.weighted_io_time{host.name="pgha-3",service.instance.id="pgha-3",device="sda"}'
+        values: '0+450x28 12600x11 13050+450x27 25200x11 25650+450x27 37800x11 38250+450x27 50400x11 50850+450x27 63000x11'
+    alert_rule_test:
+      - eval_time: 30m
+        groupname: host
+        alertname: HostDiskIOSaturation
+        exp_alerts: []
+    metricsql_expr_test:
+      # 40 m is the end of the fourth pause, the lowest point of the 5 m rate
+      - expr: ALERTS{alertname="HostDiskIOSaturation", alertstate="firing"}
+        eval_time: 40m
+        exp_samples:
+          - labels: 'ALERTS{alertname="HostDiskIOSaturation", alertgroup="host", alertstate="firing", host.name="pgha-3", service.instance.id="pgha-3", device="sda", severity="warning"}'
+            value: 1
+
+  - name: nvme, vd and mmcblk whole disks are looked at, their partitions are not
+    interval: 15s
+    input_series:
+      - series: 'system.disk.weighted_io_time{host.name="h1",service.instance.id="h1",device="nvme0n1"}'
+        values: '0+300x160'
+      - series: 'system.disk.weighted_io_time{host.name="h1",service.instance.id="h1",device="vdb"}'
+        values: '0+300x160'
+      - series: 'system.disk.weighted_io_time{host.name="h1",service.instance.id="h1",device="mmcblk0"}'
+        values: '0+300x160'
+      - series: 'system.disk.weighted_io_time{host.name="h1",service.instance.id="h1",device="mmcblk0p1"}'
+        values: '0+300x160'
+      - series: 'system.disk.weighted_io_time{host.name="h1",service.instance.id="h1",device="vdb1"}'
+        values: '0+300x160'
+    metricsql_expr_test:
+      - expr: sort(ALERTS{alertname="HostDiskIOSaturation", alertstate="firing"})
+        eval_time: 35m
+        exp_samples:
+          - labels: 'ALERTS{alertname="HostDiskIOSaturation", alertgroup="host", alertstate="firing", host.name="h1", service.instance.id="h1", device="mmcblk0", severity="warning"}'
+            value: 1
+          - labels: 'ALERTS{alertname="HostDiskIOSaturation", alertgroup="host", alertstate="firing", host.name="h1", service.instance.id="h1", device="nvme0n1", severity="warning"}'
+            value: 1
+          - labels: 'ALERTS{alertname="HostDiskIOSaturation", alertgroup="host", alertstate="firing", host.name="h1", service.instance.id="h1", device="vdb", severity="warning"}'
+            value: 1
 
   - name: uptime resets to 10 s after 5 m, fires for that host only, resolves once uptime is above 300 s
     interval: 15s

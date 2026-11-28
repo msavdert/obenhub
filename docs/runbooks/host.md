@@ -34,6 +34,22 @@ Seen in the lab:
 
 - pgha: `memory-pressure` (suite `pgha-20261118T225346Z-e47dc14`)
 
+## HostDiskIOSaturation
+
+A whole disk had more than 10 requests in flight on average for 30 minutes. Reference: [HostDiskIOSaturation](../reference/host-pack-alerts.md#hostdiskiosaturation). The metric is iostat's `aqu-sz`: requests arrive faster than the disk completes them, so each waits longer in the queue. The rule, threshold and duration follow node_exporter's `NodeDiskIOSaturation` (source in `packs/host/rules.yml`).
+
+Look first: On the host, for the device in the alert, the average number of requests in flight over 10 seconds (field 11 of the device's `stat`, milliseconds weighted by the requests in flight), then which process does the I/O.
+
+```bash
+a=$(awk '{print $11}' /sys/block/<device>/stat); sleep 10; b=$(awk '{print $11}' /sys/block/<device>/stat); echo $(( (b - a) / 10000 )) requests in flight
+```
+
+Form from `queue_depth` in `lab/pgha/scenarios/disk-saturated.sh`, which reads the same counter the metric comes from (Linux `Documentation/admin-guide/iostats.rst`, field 11). `iotop -oPa` or `pidstat -d 5` (not installed on the lab VMs) name the process.
+
+Seen in the lab:
+
+- pgha: `disk-saturated` (suite `none yet`)
+
 ## HostRebooted
 
 The host booted less than 5 minutes ago, whatever the reason. Reference: [HostRebooted](../reference/host-pack-alerts.md#hostrebooted).

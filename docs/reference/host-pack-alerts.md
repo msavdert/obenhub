@@ -10,6 +10,7 @@ Each row is a limit a rule compares against: the default is in the rule, and a l
 | --- | --- | --- | --- | --- | --- |
 | HostFilesystemSpaceLow | `obenhub.host.filesystem_free_ratio.limit` |  | 0.1 | `1` | below the limit |
 | HostMemoryAvailableLow | `obenhub.host.memory_available_ratio.limit` |  | 0.1 | `1` | below the limit |
+| HostDiskIOSaturation | `obenhub.host.disk_queue_depth.limit` |  | 10 | `{request}` | above the limit |
 
 ## HostFilesystemSpaceLow
 
@@ -37,6 +38,18 @@ sum by (host.name, service.instance.id) (system.linux.memory.available)
 sum by (host.name, service.instance.id) (system.memory.limit)
   < on() group_left()
 (obenhub.host.memory_available_ratio.limit or on() vector(0.1))
+```
+
+## HostDiskIOSaturation
+
+A whole disk had more than 10 requests in flight on average for 30 minutes (rate of system.disk.weighted_io_time over 5 minutes, iostat's aqu-sz; 10 unless the lab sets obenhub.host.disk_queue_depth.limit). Requests queue faster than the disk completes them, so each one waits longer: find the process doing the I/O, then compare the disk's throughput with what it can deliver.
+
+**warning**, for 30m
+
+```text
+sum by (host.name, service.instance.id, device) (rate(system.disk.weighted_io_time{device=~"sd[a-z]+|vd[a-z]+|xvd[a-z]+|hd[a-z]+|nvme[0-9]+n[0-9]+|mmcblk[0-9]+"}[5m]))
+  > on() group_left()
+(obenhub.host.disk_queue_depth.limit or on() vector(10))
 ```
 
 ## HostRebooted
