@@ -11,8 +11,8 @@
 #     never by a lab suite)
 #   versions.sh                                                  nothing; with -f (full mode of
 #                                                                check-evidence.sh) ALL
-#   a .yml/.yaml file that exists at BASE and HEAD with the      nothing
-#     same JSON (yq drops comments and formatting), a .sh file
+#   a .yml/.yaml file that exists at BASE and HEAD with the      nothing; control (if in suite.txt)
+#     same JSON (yq drops comments and formatting), a .sh file   for an alerting config file (below)
 #     with the same lines apart from blank and comment lines
 #     (a line-1 #! is kept; a # line inside a heredoc counts as
 #     a comment; every #! line is kept), a .toml file with the
@@ -24,7 +24,7 @@
 #     are compared; a name that differs (added, removed,         the name is a word in the lab's
 #     expr, for, labels, group) is a changed alert               lib.sh or lib-*.sh or in
 #                                                                lab/scenarios/*.sh. Annotation-only
-#                                                                changes: nothing
+#                                                                changes: control (if in suite.txt)
 #   anything else in a rule file (recording rules, groups        ALL
 #     without alerts, top-level keys), or a rule file yq
 #     cannot parse
@@ -51,6 +51,11 @@
 # mentions the string packs/<p> at BASE or HEAD (a compose mount of a file or
 # of the directory, a script that reads the queries). Only lab/<lab> is
 # searched; changes under lab/mon and lab/scripts are ALL themselves.
+# An alerting config file is one whose bytes the lab's config_sha256 hashes
+# (lib-core.sh config_hash): the lab's vmalert YAML, packs/<p>/rules.yml of a
+# pack the lab uses, lab/mon/alertmanager.yml. Every change to one maps at least
+# to control: it changes config_sha256, and check-evidence.sh counts a targeted
+# suite with a new hash only when control is in it.
 # Accepted residual risk: a new alert, or a widened one (lower threshold), maps
 # only to control and the scenarios that name it; a scenario that now fires it
 # incidentally keeps its old pass until the next full suite.
@@ -266,6 +271,26 @@ prepare_texts() {
   done
 }
 
+# alert_config FILE: FILE is one of the alerting config files whose bytes the
+# lab's config_sha256 hashes (lib-core.sh config_hash: the lab's vmalert YAML,
+# the rules.yml of a pack it uses, lab/mon/alertmanager.yml)
+alert_config() {
+  local p
+  case "$1" in
+    packs/*/tests/* | lab/*/vmalert/tests/*) return 1 ;;
+    packs/*/rules.yml) p=${1#packs/}; uses "${p%%/*}" ;;
+    lab/*/vmalert/*.yml | lab/*/vmalert/*.yaml | lab/mon/alertmanager.yml) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+# control_for FILE WHY: a change to an alerting config file that maps to no
+# scenario still changes config_sha256; control shows the rules raise nothing
+# unexpected (check-evidence.sh counts a targeted suite with a new hash only
+# when control is in it)
+control_for() {
+  if has "$suite" control; then names[control]=1; out "$1" "control ($2)"; else out "$1" "nothing ($2)"; fi
+}
+
 # alert_file FILE: map a changed alert rule file; sets all/names
 alert_file() {
   local f=$1 la lb ra rb changed n hit s
@@ -276,7 +301,7 @@ alert_file() {
   fi
   if [ "$ra" != "$rb" ]; then all=1; out "$f" "ALL (non-alert rule change)"; return; fi
   changed=$(comm -3 <(printf '%s\n' "$la" | grep -v '^$' || true) <(printf '%s\n' "$lb" | grep -v '^$' || true) | sed 's/^\t//' | cut -f1 | sort -u)
-  if [ -z "$changed" ]; then out "$f" "nothing (no alert changed apart from annotations)"; return; fi
+  if [ -z "$changed" ]; then control_for "$f" "no alert changed apart from annotations"; return; fi
   prepare_texts
   while IFS= read -r n; do
     hit=""
@@ -302,7 +327,12 @@ for f in "${changed[@]}"; do
       out "$f" "nothing (harness self-test: mise run check, no lab suite runs it)" ;;
     packs/*/otelcol.yaml | packs/otelcol-base.yaml)
       out "$f" "nothing (Collector fragment: no lab loads it, lint:otelcol compares the labs with it)" ;;
-    *) if comment_only "$f"; then out "$f" "nothing (comments or formatting only)"; continue; fi ;;&
+    *)
+      if comment_only "$f"; then
+        if alert_config "$f"; then control_for "$f" "alerting config, comments or formatting only"; else out "$f" "nothing (comments or formatting only)"; fi
+        continue
+      fi
+      ;;&
     */lib.sh | */lib-*.sh) all=1; out "$f" ALL ;;
     "$longlist") out "$f" "nothing (long.txt)" ;;
     "$list")
