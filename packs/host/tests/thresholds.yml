@@ -9,7 +9,7 @@ rule_files:
 evaluation_interval: 15s
 
 tests:
-  - name: defaults - free space 9.9 % and available memory 9.9 % fire, 10 % does not
+  - name: defaults - free space 9.9 % and available memory 9.9 % fire, 10 % does not (disk queue depth 10.5 fires, 10 does not)
     interval: 15s
     input_series:
       - series: 'system.filesystem.usage{host.name="h-hi",service.instance.id="h-hi",mountpoint="/",type="ext4",state="free"}'
@@ -28,6 +28,11 @@ tests:
         values: '100x160'
       - series: 'system.memory.limit{host.name="h-lo",service.instance.id="h-lo"}'
         values: '1000x160'
+      # weighted_io_time counts seconds: 10.5 requests in flight add 157.5 per 15 s sample, 10 add 150
+      - series: 'system.disk.weighted_io_time{host.name="h-hi",service.instance.id="h-hi",device="sda"}'
+        values: '0+157.5x160'
+      - series: 'system.disk.weighted_io_time{host.name="h-lo",service.instance.id="h-lo",device="sda"}'
+        values: '0+150x160'
     metricsql_expr_test:
       - expr: ALERTS{alertname="HostFilesystemSpaceLow", alertstate="firing"}
         eval_time: 10m
@@ -39,14 +44,27 @@ tests:
         exp_samples:
           - labels: 'ALERTS{alertname="HostMemoryAvailableLow", alertgroup="host", alertstate="firing", host.name="h-hi", service.instance.id="h-hi", severity="warning"}'
             value: 1
+      # the disk rule has a 30 m "for"
+      - expr: ALERTS{alertname="HostDiskIOSaturation", alertstate="firing"}
+        eval_time: 35m
+        exp_samples:
+          - labels: 'ALERTS{alertname="HostDiskIOSaturation", alertgroup="host", alertstate="firing", host.name="h-hi", service.instance.id="h-hi", device="sda", severity="warning"}'
+            value: 1
 
-  - name: override - a limit of 0.25 fires at 20 % free, a limit of 0.05 stays quiet at 9.9 % available
+  - name: override - a limit of 0.25 fires at 20 % free, a limit of 0.05 stays quiet at 9.9 % available (disk queue depth 10.5 stays quiet under a limit of 12)
     interval: 15s
     input_series:
       - series: 'obenhub.host.filesystem_free_ratio.limit'
         values: '0.25x160'
       - series: 'obenhub.host.memory_available_ratio.limit'
         values: '0.05x160'
+      - series: 'obenhub.host.disk_queue_depth.limit'
+        values: '12x160'
+      # 10.5 is above the default 10 and below the limit 12; 15 is above both
+      - series: 'system.disk.weighted_io_time{host.name="h1",service.instance.id="h1",device="sda"}'
+        values: '0+157.5x160'
+      - series: 'system.disk.weighted_io_time{host.name="h2",service.instance.id="h2",device="sda"}'
+        values: '0+225x160'
       - series: 'system.filesystem.usage{host.name="h1",service.instance.id="h1",mountpoint="/",type="ext4",state="free"}'
         values: '200x160'
       - series: 'system.filesystem.usage{host.name="h1",service.instance.id="h1",mountpoint="/",type="ext4",state="used"}'
@@ -64,3 +82,8 @@ tests:
       - expr: ALERTS{alertname="HostMemoryAvailableLow", alertstate="firing"}
         eval_time: 10m
         exp_samples: []
+      - expr: ALERTS{alertname="HostDiskIOSaturation", alertstate="firing"}
+        eval_time: 35m
+        exp_samples:
+          - labels: 'ALERTS{alertname="HostDiskIOSaturation", alertgroup="host", alertstate="firing", host.name="h2", service.instance.id="h2", device="sda", severity="warning"}'
+            value: 1

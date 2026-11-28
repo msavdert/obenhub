@@ -117,6 +117,7 @@ slice 1, stage 3 and k8s; `scenarios/lib.sh` is the adapter that reaches the nod
 | `patroni-down` | nftables drops the Collector's scrape of Patroni `:8008` on one replica |
 | `filesystem-filling` | `fallocate` on one replica until 7 % of `/` is available (`HostFilesystemSpaceLow`) |
 | `memory-pressure` | a resident memory hog (`obenhub-memhog`, OOM score 1000) on one replica until MemAvailable is about 6 % of MemTotal (`HostMemoryAvailableLow`) |
+| `disk-saturated` | 64 parallel `dd bs=1M oflag=direct` loops (`obenhub-disksat`, one 256 MiB file in `/var/tmp`) on one replica keep about 62 requests in flight on its disk (measured on pgha-2, 2026-11-28; inject waits for at least 20) (`HostDiskIOSaturation`, which needs 30 minutes above 10) |
 | `replica-not-eligible` | nftables drops tcp 5432 between one replica and the leader, 100 MB written |
 | `replay-paused` | `pg_wal_replay_pause()` on one replica, cluster paused |
 | `cluster-paused` | `patronictl pause` |
