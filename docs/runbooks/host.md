@@ -48,7 +48,7 @@ Form from `queue_depth` in `lab/pgha/scenarios/disk-saturated.sh`, which reads t
 
 Seen in the lab:
 
-- pgha: `disk-saturated` (suite `none yet`)
+- pgha: `disk-saturated` (suite `pgha-20261128T040758Z-8b8aa66`)
 
 ## HostRebooted
 
