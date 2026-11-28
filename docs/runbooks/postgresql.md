@@ -289,7 +289,7 @@ Seen in the lab:
 - k8s: `fenced`, `replica-cut`, `slot-retaining-wal` (suite `k8s-20261118T194429Z-37e22f2`)
 - pgha: `network-partition-replica`, `synchronous-standby-cut` (suite `pgha-20261118T225346Z-e47dc14`)
 - slice1: `physical-slot-inactive`, `slot-retaining-wal`, `standby-stopped` (suite `slice1-20261118T134118Z-37e22f2`)
-- slice1: `slot-near-loss` (suite `none yet`)
+- slice1: `slot-near-loss` (suite `slice1-20261128T051348Z-8b8aa66`)
 
 ## PostgresReplicationSlotInvalidated
 
@@ -320,10 +320,10 @@ Look first: On the primary, `SELECT slot_name, active, wal_status, safe_wal_size
 
 Seen in the lab:
 
-- k8s: `slot-retaining-wal` (suite `none yet`)
-- pgha: `replica-not-eligible` (suite `none yet`)
-- slice1: `slot-near-loss` (suite `none yet`)
-- stage3: `replica-not-eligible` (suite `none yet`)
+- k8s: `slot-retaining-wal` (suite `k8s-20261127T232210Z-83782bf`)
+- pgha: `replica-not-eligible` (suite `pgha-20261127T213554Z-83782bf`)
+- slice1: `slot-near-loss` (suite `slice1-20261128T051348Z-8b8aa66`)
+- stage3: `replica-not-eligible` (suite `stage3-20261127T202646Z-83782bf`)
 
 ## PostgresArchivingFailing
 
