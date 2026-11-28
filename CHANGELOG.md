@@ -1,5 +1,46 @@
 # Changelog
 
+## [0.20.0](https://github.com/msavdert/obenhub/compare/v0.19.0...v0.20.0) (2026-11-28)
+
+
+### Features
+
+* **deploy:** test the VM guide page with a host-binary Collector (G1b) ([909010f](https://github.com/msavdert/obenhub/commit/909010fb1babbb44c4c96a7204295462ff395f3a))
+* **deploy:** test the VM guide page with a host-binary Collector (G1b) ([#184](https://github.com/msavdert/obenhub/issues/184)) ([909010f](https://github.com/msavdert/obenhub/commit/909010fb1babbb44c4c96a7204295462ff395f3a))
+* **lab:** ship db.server.top_query from the slice1 primary per ADR 0009 ([#174](https://github.com/msavdert/obenhub/issues/174)) ([2edce7c](https://github.com/msavdert/obenhub/commit/2edce7cd5b14640edb338bd0fe541a656f424a1c))
+* **packs:** add a 5 m slow tier with the autovacuum backlog per ADR 0009 ([#171](https://github.com/msavdert/obenhub/issues/171)) ([4016ccd](https://github.com/msavdert/obenhub/commit/4016ccd6ad6f806b229aa80d60656c221d79ec0b))
+* **packs:** alert on a replication slot's time to loss (F5a) ([#190](https://github.com/msavdert/obenhub/issues/190)) ([83782bf](https://github.com/msavdert/obenhub/commit/83782bf50986068767ec17373262975af6b5868b))
+* **packs:** alert on a saturated disk queue, not on busy time (F3a) ([#193](https://github.com/msavdert/obenhub/issues/193)) ([8b8aa66](https://github.com/msavdert/obenhub/commit/8b8aa662a8bd647e82fb5b657b1047b06bfc11f2))
+* **packs:** read pg_stat_statements totals and wait events per ADR 0009 ([#170](https://github.com/msavdert/obenhub/issues/170)) ([67baf17](https://github.com/msavdert/obenhub/commit/67baf17d741042ab0ba5c8b6c5f73cf6f36b61a8))
+* **packs:** show the Oracle alert-log entries with an ORA- code on the dashboard ([#191](https://github.com/msavdert/obenhub/issues/191)) ([87c45f0](https://github.com/msavdert/obenhub/commit/87c45f0bcd63efb524a16a8c34402558a1349079))
+
+
+### Bug fixes
+
+* **deploy:** keep the container page's secrets owner-only ([#188](https://github.com/msavdert/obenhub/issues/188)) ([8c4d55b](https://github.com/msavdert/obenhub/commit/8c4d55bebd8013e3d02182e9646afc45d0e7a252))
+* **lab:** wait for the slow tier to settle after slice1's outage scenarios ([#192](https://github.com/msavdert/obenhub/issues/192)) ([a5db3fa](https://github.com/msavdert/obenhub/commit/a5db3fa59e7cb9e4b6d6871eb3e51ef67f3618df))
+* **packs:** keep tables vacuumed in the last three naptimes out of PostgresAutovacuumBacklog ([#172](https://github.com/msavdert/obenhub/issues/172)) ([c8f22bd](https://github.com/msavdert/obenhub/commit/c8f22bdccc9ec658e9379a6088fae3f9ff131806))
+* **scripts:** count a targeted suite after a rule change when it ran control ([#194](https://github.com/msavdert/obenhub/issues/194)) ([e7dc6e9](https://github.com/msavdert/obenhub/commit/e7dc6e90eeca23be39c3e8b46d5788e0a25a9dc1))
+
+
+### Performance
+
+* **packs:** one guarded pg_stat_statements statement with a cheaper guard (F6) ([#185](https://github.com/msavdert/obenhub/issues/185)) ([46de3df](https://github.com/msavdert/obenhub/commit/46de3dffd7b00e2e05d0703ac311b9109b14b794))
+* **packs:** read pg_stat_activity once per scrape (F4) ([#176](https://github.com/msavdert/obenhub/issues/176)) ([055170b](https://github.com/msavdert/obenhub/commit/055170bd97c05b25b5f6235e5e693c51f2ccaa60))
+
+
+### Documentation
+
+* **adr:** add ADR 0009 on query-level and relation-scaled cardinality ([#168](https://github.com/msavdert/obenhub/issues/168)) ([a9fe101](https://github.com/msavdert/obenhub/commit/a9fe1011bc68e925f525a33383fc2538c5bbe43b))
+* **guides:** monitor an Oracle database obenhub did not build (G3) ([#186](https://github.com/msavdert/obenhub/issues/186)) ([12d00d0](https://github.com/msavdert/obenhub/commit/12d00d050afecccd43f76fe38d21c0451f1ac3ee))
+* **guides:** monitor PostgreSQL on Kubernetes, a StatefulSet or CloudNativePG (G1c) ([#187](https://github.com/msavdert/obenhub/issues/187)) ([63e619c](https://github.com/msavdert/obenhub/commit/63e619cb02227a3ddf1b9d6907d1bd7ac4bb95f1))
+* **guides:** split the install guide into "Monitor what you already run" (G1a) ([#183](https://github.com/msavdert/obenhub/issues/183)) ([71da319](https://github.com/msavdert/obenhub/commit/71da319b03572e1ee60cc8273b9731f5ed9b8cc3))
+* **lab:** record the F4 overhead remeasurement with the current pack ([#181](https://github.com/msavdert/obenhub/issues/181)) ([e4b0f93](https://github.com/msavdert/obenhub/commit/e4b0f934b1940589136aa136193219d3ceb62bad))
+* **roadmap:** add F6, a cheaper guard for the pg_stat_statements queries ([#182](https://github.com/msavdert/obenhub/issues/182)) ([1f7637a](https://github.com/msavdert/obenhub/commit/1f7637a4d44e15f3e057e20b716ad3798dbebed1))
+* **roadmap:** add phase G, monitoring a database obenhub did not build ([#178](https://github.com/msavdert/obenhub/issues/178)) ([335cffd](https://github.com/msavdert/obenhub/commit/335cffd971f0ce102aabddcba6112f6bf2ea225c))
+* **roadmap:** G3 done; G1 waits only for the managed-service page ([#189](https://github.com/msavdert/obenhub/issues/189)) ([7670e10](https://github.com/msavdert/obenhub/commit/7670e108991597bdfcd53b0722a933891c522192))
+* **roadmap:** run phase G before F2, F3 and F5 ([#179](https://github.com/msavdert/obenhub/issues/179)) ([57e6b96](https://github.com/msavdert/obenhub/commit/57e6b96d15d49893f28a2800bb72137ec486ad53))
+
 ## [0.19.0](https://github.com/msavdert/obenhub/compare/v0.18.0...v0.19.0) (2026-11-24)
 
 
